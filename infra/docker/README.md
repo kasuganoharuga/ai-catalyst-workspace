@@ -1,6 +1,6 @@
 # Docker Development
 
-Use Docker Compose from the repository root:
+Use Docker Compose from the repository root for backend services:
 
 ```bash
 pnpm docker:up
@@ -8,8 +8,9 @@ pnpm docker:up
 
 The compose stack starts:
 
-- `web` on `http://localhost:3000`
 - `api` on `http://127.0.0.1:8000`
+
+Run the Next.js frontend locally with `pnpm dev:web`.
 
 Stop the stack:
 
@@ -17,4 +18,4 @@ Stop the stack:
 pnpm docker:down
 ```
 
-The V1 app uses Next.js as the primary full-stack application. The FastAPI container is reserved for future AI workflow execution.
+The V1 app uses Next.js as the primary full-stack application and runs locally during development. Docker is reserved for backend services, and future databases should be added to this compose stack.
