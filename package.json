@@ -9,6 +9,9 @@
     "docker:up": "docker compose -f infra/docker/docker-compose.yml up --build",
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down",
     "lint": "pnpm --filter web lint",
+    "typecheck:web": "pnpm --filter web typecheck",
+    "format:check:web": "pnpm --filter web format:check",
+    "format:web": "pnpm --filter web format",
     "build": "pnpm --filter web build"
   },
   "devDependencies": {

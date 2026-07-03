@@ -54,6 +54,15 @@ Run both services:
 pnpm dev
 ```
 
+Frontend quality checks:
+
+```bash
+pnpm lint
+pnpm typecheck:web
+pnpm format:check:web
+pnpm build
+```
+
 ## Docker
 
 Start the local stack:
@@ -75,6 +84,7 @@ GitHub Actions validates the project foundation on push and pull request:
 - Installs pnpm workspace dependencies with the lockfile
 - Runs the Next.js lint check
 - Builds the Next.js web app
+- Frontend typecheck and format checks are available locally for follow-up CI expansion
 - Installs FastAPI dependencies
 - Smoke checks the FastAPI app import
 - Validates the Docker Compose configuration

@@ -20,7 +20,9 @@ export function ModuleCard({ module }: ModuleCardProps) {
       <h2 className="text-2xl font-semibold tracking-tight text-stone-950">
         {module.title}
       </h2>
-      <p className="mt-3 text-sm leading-6 text-stone-600">{module.objective}</p>
+      <p className="mt-3 text-sm leading-6 text-stone-600">
+        {module.objective}
+      </p>
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href={`/toolkit/${module.id}`}

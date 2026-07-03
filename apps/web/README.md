@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI Catalyst Web
 
-## Getting Started
+Next.js full-stack app for the AI Catalyst Founder Toolkit V1 experience.
 
-First, run the development server:
+## Development
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Frontend Infrastructure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- App Router with React Server Components by default.
+- Tailwind CSS v4 for styling.
+- shadcn/ui-compatible component setup with the default neutral token set.
+- `components/ui` contains reusable UI primitives.
+- `components` contains app-specific composed components.
+- `lib/utils.ts` exposes `cn()` for class merging.
 
-## Learn More
+## Quality Commands
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm lint
+pnpm typecheck
+pnpm format:check
+pnpm build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use `pnpm format` to apply Prettier formatting within the web app.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Component Conventions
 
-## Deploy on Vercel
+- Prefer server components unless client interactivity is required.
+- Import UI primitives from `@/components/ui/*`.
+- Keep app-specific composition outside `components/ui`.
+- Keep module data access in server-side helpers under `lib`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Content Source
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Toolkit metadata and Skill content come from `packages/toolkit-content`.

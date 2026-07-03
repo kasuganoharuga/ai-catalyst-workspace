@@ -6,7 +6,10 @@ import manifest from "@ai-catalyst/toolkit-content/manifest.json";
 import type { ToolkitManifest, ToolkitModule } from "@ai-catalyst/shared";
 
 const toolkitManifest = manifest as ToolkitManifest;
-const contentRoot = path.resolve(process.cwd(), "../../packages/toolkit-content");
+const contentRoot = path.resolve(
+  process.cwd(),
+  "../../packages/toolkit-content",
+);
 
 export const getToolkitManifest = cache(async () => toolkitManifest);
 
