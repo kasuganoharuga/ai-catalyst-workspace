@@ -68,6 +68,17 @@ Stop the local stack:
 pnpm docker:down
 ```
 
+## Continuous Integration
+
+GitHub Actions validates the project foundation on push and pull request:
+
+- Installs pnpm workspace dependencies with the lockfile
+- Runs the Next.js lint check
+- Builds the Next.js web app
+- Installs FastAPI dependencies
+- Smoke checks the FastAPI app import
+- Validates the Docker Compose configuration
+
 ## Architecture Direction
 
 Next.js is the primary V1 full-stack application. It reads Toolkit content from `packages/toolkit-content` and serves the browsing and download experience.
