@@ -185,18 +185,3 @@ Format:
 - Body: one or two sentences explaining the change
 
 Commit only when explicitly requested.
-
-## Git Hygiene
-
-Do not commit:
-
-- `.env` or any real secrets
-- `local/` (planning material)
-- `.cursor/` (local Cursor rules and agent files)
-- virtual environments, caches, or local runtime files
-
-`.env.example` is safe to commit because it contains placeholders and local development defaults only.
-
-## Agent Rules
-
-Conventions for AI agents live in `.cursor/rules/` as focused Cursor rules (`architecture`, `frontend`, `ui`, `backend`, `toolkit-content`, `quality-and-git`). These are local Cursor files and are not committed to Git.
