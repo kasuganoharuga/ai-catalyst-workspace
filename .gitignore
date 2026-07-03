@@ -127,6 +127,7 @@ dist
 
 # pnpm
 .pnpm-store
+pnpm-debug.log*
 
 # yarn v3
 .pnp.*
@@ -141,3 +142,28 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Private generated files
+local/
+outputs/
+private/

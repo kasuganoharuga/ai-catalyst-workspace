@@ -1,0 +1,160 @@
+{
+  "version": "0.1.0",
+  "title": "AI Catalyst Founder Toolkit",
+  "description": "A structured founder workflow toolkit for moving from raw idea to validation-ready plan.",
+  "modules": [
+    {
+      "id": "module-00-setup",
+      "number": "00",
+      "slug": "setup",
+      "title": "Workspace Setup",
+      "objective": "Help founders prepare the context, files, and assumptions needed to use the toolkit effectively.",
+      "founderInputs": [
+        "Founder background",
+        "Company or idea summary",
+        "Known constraints",
+        "Existing notes or artefacts"
+      ],
+      "outputs": [
+        "Workspace context brief",
+        "Input checklist",
+        "Module readiness map"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-00-setup",
+      "modulePath": "modules/module-00-setup.md"
+    },
+    {
+      "id": "module-01-pressure-test",
+      "number": "01",
+      "slug": "pressure-test",
+      "title": "Pressure-Test Your Idea",
+      "objective": "Help founders critically assess whether an idea is worth pursuing before over-investing in it.",
+      "founderInputs": [
+        "Business idea",
+        "Target customer",
+        "Problem being solved",
+        "Current evidence",
+        "Key assumptions"
+      ],
+      "outputs": [
+        "Pressure-test verdict",
+        "Proceed, pivot, or kill recommendation",
+        "Key risks",
+        "Next-step actions"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-01-pressure-test",
+      "modulePath": "modules/module-01-pressure-test.md"
+    },
+    {
+      "id": "module-02-hmw",
+      "number": "02",
+      "slug": "hmw",
+      "title": "How Might We Framing",
+      "objective": "Turn the strongest problem insight into focused How Might We questions for solution exploration.",
+      "founderInputs": [
+        "Problem evidence",
+        "Target customer segment",
+        "Current alternatives",
+        "Observed friction"
+      ],
+      "outputs": [
+        "Prioritised HMW questions",
+        "Opportunity framing",
+        "Exploration constraints"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-02-hmw",
+      "modulePath": "modules/module-02-hmw.md"
+    },
+    {
+      "id": "module-03-icp",
+      "number": "03",
+      "slug": "icp",
+      "title": "Ideal Customer Profile",
+      "objective": "Define the customer segment most likely to feel urgent pain and adopt an early solution.",
+      "founderInputs": [
+        "Potential customer groups",
+        "Pain intensity signals",
+        "Buying or adoption context",
+        "Existing interview notes"
+      ],
+      "outputs": [
+        "Primary ICP",
+        "Secondary ICP candidates",
+        "Disqualification criteria",
+        "Interview targeting notes"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-03-icp",
+      "modulePath": "modules/module-03-icp.md"
+    },
+    {
+      "id": "module-04-problem-statement",
+      "number": "04",
+      "slug": "problem-statement",
+      "title": "Problem Statement",
+      "objective": "Create a crisp, evidence-backed problem statement that can guide product and validation work.",
+      "founderInputs": [
+        "ICP definition",
+        "Customer pain evidence",
+        "Current workaround notes",
+        "Business impact assumptions"
+      ],
+      "outputs": [
+        "Problem statement",
+        "Evidence summary",
+        "Assumption list",
+        "Validation gaps"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-04-problem-statement",
+      "modulePath": "modules/module-04-problem-statement.md"
+    },
+    {
+      "id": "module-05-solution-options",
+      "number": "05",
+      "slug": "solution-options",
+      "title": "Solution Options",
+      "objective": "Generate and compare solution paths without prematurely locking into one product direction.",
+      "founderInputs": [
+        "Problem statement",
+        "Customer constraints",
+        "Existing alternatives",
+        "Founder capabilities"
+      ],
+      "outputs": [
+        "Solution option set",
+        "Trade-off comparison",
+        "Recommended first wedge",
+        "Risks by option"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-05-solution-options",
+      "modulePath": "modules/module-05-solution-options.md"
+    },
+    {
+      "id": "module-06-validation-plan",
+      "number": "06",
+      "slug": "validation-plan",
+      "title": "Validation Plan",
+      "objective": "Translate the chosen wedge into a focused validation plan with evidence goals and next actions.",
+      "founderInputs": [
+        "Preferred solution option",
+        "Top assumptions",
+        "Available channels",
+        "Time and budget constraints"
+      ],
+      "outputs": [
+        "Validation plan",
+        "Experiment backlog",
+        "Evidence thresholds",
+        "Founder action plan"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-06-validation-plan",
+      "modulePath": "modules/module-06-validation-plan.md"
+    }
+  ]
+}
