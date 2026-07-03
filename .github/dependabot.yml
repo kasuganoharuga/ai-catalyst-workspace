@@ -2,6 +2,7 @@ version: 2
 updates:
   - package-ecosystem: "npm"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     open-pull-requests-limit: 5
@@ -26,6 +27,7 @@ updates:
 
   - package-ecosystem: "pip"
     directory: "/apps/api"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     groups:
@@ -35,6 +37,7 @@ updates:
 
   - package-ecosystem: "github-actions"
     directory: "/"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
     groups:
@@ -44,8 +47,13 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/apps/web"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
+    # Keep the base image aligned with CI/local Node; upgrade majors deliberately.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
     groups:
       web-docker:
         patterns:
@@ -53,8 +61,13 @@ updates:
 
   - package-ecosystem: "docker"
     directory: "/apps/api"
+    target-branch: "develop"
     schedule:
       interval: "weekly"
+    # Keep the base image aligned with CI/local Python; upgrade majors deliberately.
+    ignore:
+      - dependency-name: "python"
+        update-types: ["version-update:semver-major"]
     groups:
       api-docker:
         patterns:
