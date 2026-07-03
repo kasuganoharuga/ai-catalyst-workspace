@@ -138,19 +138,33 @@ Next.js owns the product experience and product data (pages, Toolkit reads, Skil
 
 ## Development Workflow
 
-`main` is the stable branch. Create feature branches from it:
+Use `main` as the stable branch and `develop` as the active integration branch.
+
+```text
+feature/* -> PR -> develop -> PR -> main
+```
+
+Branch roles:
+
+- `main`: stable branch for reviewed, CI-passing code
+- `develop`: active integration branch for upcoming work
+- `feature/*`: individual task branches created from `develop`
+
+Start new work from `develop`:
 
 ```powershell
-git checkout main
-git pull --ff-only origin main
+git checkout develop
+git pull --ff-only origin develop
 git checkout -b feature/your-change-name
 ```
 
-When the feature is ready, push and open a pull request into `main`:
+When the feature is ready, push and open a pull request into `develop`:
 
 ```powershell
 git push -u origin feature/your-change-name
 ```
+
+After a batch of work is stable on `develop`, open a pull request from `develop` into `main`.
 
 Before opening a pull request, run the relevant checks (see [Verification](#verification)); CI must pass.
 
