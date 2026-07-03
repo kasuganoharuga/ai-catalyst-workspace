@@ -163,6 +163,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Cursor / agent local files
+.cursor/
+
 # Private generated files
 local/
 outputs/
