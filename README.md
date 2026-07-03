@@ -83,4 +83,4 @@ GitHub Actions validates the project foundation on push and pull request:
 
 Next.js is the primary V1 full-stack application. It reads Toolkit content from `packages/toolkit-content` and serves the browsing and download experience.
 
-FastAPI is intentionally minimal in V1. It reserves the path for future AI orchestration, file processing, RAG, and artefact generation without duplicating the Toolkit data path.
+FastAPI is intentionally minimal in V1. It reserves the path for future AI orchestration, file processing, RAG, and artefact generation without duplicating the Toolkit data path. The service includes basic settings, logging, request ID, CORS, and error-handling infrastructure so future workflow endpoints have a stable foundation.
