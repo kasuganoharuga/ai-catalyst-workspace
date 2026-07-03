@@ -1,3 +1,5 @@
+name: ai-catalyst-workspace
+
 services:
   api:
     build:
@@ -7,7 +9,24 @@ services:
       APP_ENV: local
       LOG_LEVEL: INFO
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
     ports:
       - "8000:8000"
     volumes:
       - ../../apps/api:/app
+    depends_on:
+      - db
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ai_catalyst
+      POSTGRES_USER: ai_catalyst
+      POSTGRES_PASSWORD: ai_catalyst
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

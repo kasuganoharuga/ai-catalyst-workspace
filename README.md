@@ -20,6 +20,7 @@ V1 does not include login, databases, file uploads, RAG, investor matching, or l
 
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
 - Backend: FastAPI, Python (reserved AI service)
+- Database: PostgreSQL via Docker Compose
 - Content: Markdown + JSON manifest in `packages/toolkit-content`
 - Tooling: Docker Compose for backend services, GitHub Actions CI
 
@@ -44,7 +45,7 @@ Start backend services with Docker:
 pnpm docker:up
 ```
 
-The API is available at `http://127.0.0.1:8000` (health check at `/health`). Future databases should also run in Docker.
+The API is available at `http://127.0.0.1:8000` (health check at `/health`). PostgreSQL is available locally on port `5432`.
 
 Run the web app locally (primary V1 product):
 
@@ -91,7 +92,7 @@ docker compose -f infra/docker/docker-compose.yml config
 
 ## Docker
 
-Start backend services:
+Start backend services (`api` + `db`):
 
 ```powershell
 pnpm docker:up

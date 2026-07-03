@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    database_url: str = "postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst"
     ai_provider: str = ""
     ai_api_key: str = ""
 
