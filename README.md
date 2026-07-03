@@ -21,7 +21,7 @@ V1 does not include login, databases, file uploads, RAG, investor matching, or l
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
 - Backend: FastAPI, Python (reserved AI service)
 - Content: Markdown + JSON manifest in `packages/toolkit-content`
-- Tooling: Docker Compose, GitHub Actions CI
+- Tooling: Docker Compose for backend services, GitHub Actions CI
 
 ## Prerequisites
 
@@ -38,7 +38,15 @@ Install dependencies from the repository root:
 pnpm install
 ```
 
-Run the web app (primary V1 product):
+Start backend services with Docker:
+
+```powershell
+pnpm docker:up
+```
+
+The API is available at `http://127.0.0.1:8000` (health check at `/health`). Future databases should also run in Docker.
+
+Run the web app locally (primary V1 product):
 
 ```powershell
 pnpm dev:web
@@ -46,15 +54,13 @@ pnpm dev:web
 
 The web app is available at `http://localhost:3000`.
 
-Run the reserved API service (for backend work):
+For local FastAPI debugging without Docker, run:
 
 ```powershell
 pnpm dev:api
 ```
 
-The API is available at `http://127.0.0.1:8000` (health check at `/health`).
-
-Run both services together:
+Run the standard development setup (local web + Docker backend):
 
 ```powershell
 pnpm dev
@@ -85,13 +91,13 @@ docker compose -f infra/docker/docker-compose.yml config
 
 ## Docker
 
-Start the local stack (web + reserved API):
+Start backend services:
 
 ```powershell
 pnpm docker:up
 ```
 
-Stop the local stack:
+Stop backend services:
 
 ```powershell
 pnpm docker:down
