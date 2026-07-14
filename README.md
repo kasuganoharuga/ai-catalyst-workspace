@@ -67,6 +67,8 @@ Run the standard development setup (local web + Docker backend):
 pnpm dev
 ```
 
+`pnpm dev` runs the web app and Docker backend together via `scripts/dev.js`; press `Ctrl+C` to stop both — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). (`pnpm docker:up` alone still starts Docker detached, for cases where you want it running independently of a foreground command.)
+
 ## Verification
 
 Run frontend checks before opening a pull request:
