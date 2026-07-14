@@ -1,0 +1,27 @@
+{
+  "name": "@ai-catalyst/mcp-server",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Remote MCP server POC: Claude/ChatGPT get read-only tools (get_current_module, get_module_context, get_latest_validation_feedback, check_draft) over Streamable HTTP; a test website (GET /poc) served from the same process owns all mutation (upload, validate, unlock) against local JSON storage.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "seed": "tsx scripts/seed.ts",
+    "reset": "tsx scripts/reset.ts",
+    "start": "node dist/http.js",
+    "start:stdio": "node dist/stdio.js",
+    "dev": "tsx src/http.ts",
+    "typecheck": "tsc -p tsconfig.scripts.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "express": "5.2.1",
+    "zod": "3.25.76"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.20.1",
+    "tsx": "^4.23.1",
+    "typescript": "^5.9.3"
+  }
+}
