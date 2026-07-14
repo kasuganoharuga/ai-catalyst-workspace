@@ -30,11 +30,22 @@ function spawnLabeled(label, command, args) {
   });
 
   const prefix = `[${label}] `;
-  for (const stream of [child.stdout, child.stderr]) {
-    readline.createInterface({ input: stream }).on("line", (line) => {
+  const interfaces = [child.stdout, child.stderr].map((stream) => {
+    const rl = readline.createInterface({ input: stream });
+    rl.on("line", (line) => {
       process.stdout.write(prefix + line + "\n");
     });
-  }
+    return rl;
+  });
+
+  // Don't rely solely on the streams' own "end" event: a killed child
+  // (especially via a shell wrapper on Windows, where killing the shell
+  // doesn't reliably kill its process tree) may never close its stdio
+  // pipes. The child's own "exit" fires once the process itself has
+  // terminated, so use it to deterministically close these interfaces.
+  child.once("exit", () => {
+    for (const rl of interfaces) rl.close();
+  });
 
   return child;
 }
