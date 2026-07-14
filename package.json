@@ -5,8 +5,9 @@
   "scripts": {
     "dev:web": "pnpm --filter web dev",
     "dev:api": "cd apps/api && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
-    "dev": "concurrently \"pnpm dev:web\" \"pnpm docker:up\"",
+    "dev": "concurrently --kill-others -n web,docker \"pnpm dev:web\" \"pnpm docker:up:fg\"",
     "docker:up": "docker compose -f infra/docker/docker-compose.yml up --build -d",
+    "docker:up:fg": "docker compose -f infra/docker/docker-compose.yml up --build",
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down --remove-orphans",
     "db:reset": "docker compose -f infra/docker/docker-compose.yml down -v && docker compose -f infra/docker/docker-compose.yml up --build -d",
     "db:psql": "docker compose -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
