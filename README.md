@@ -108,7 +108,7 @@ Stop backend services:
 pnpm docker:down
 ```
 
-The `db` service initializes from `infra/docker/init/` on first start (empty data volume only). **`pnpm db:reset` permanently deletes all local database data** — see [`infra/docker/README.md`](infra/docker/README.md#database-initialization) for initialization details, verification queries, and reset semantics.
+`pnpm docker:up` starts `db`, waits for it to be healthy, applies pending migrations from `infra/database/migrations/`, then starts the rest of the stack. **`pnpm db:reset` permanently deletes all local database data** — see [`infra/docker/README.md`](infra/docker/README.md#database-initialization) for initialization details, verification queries, and reset semantics.
 
 ## Continuous Integration
 

@@ -15,6 +15,15 @@ jobs:
     name: Frontend
     runs-on: ubuntu-latest
 
+    env:
+      # `next build` collects page data for /api/auth/[...all], which
+      # imports @ai-catalyst/db's pool at module load time; that module
+      # fails fast if DATABASE_URL is unset (see packages/db/src/pool.ts).
+      # pg.Pool never connects eagerly, so this placeholder value is enough
+      # to satisfy the build without a live database in this job.
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      BETTER_AUTH_SECRET: ci-build-secret-not-used-in-production
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -38,6 +47,34 @@ jobs:
 
       - name: Build frontend
         run: pnpm build
+
+  packages:
+    name: Packages
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck packages/* and apps/mcp
+        run: pnpm typecheck:packages
+
+      - name: Check architectural import boundaries
+        run: pnpm depcruise
 
   backend:
     name: Backend
@@ -65,9 +102,94 @@ jobs:
     name: Infrastructure
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Validate Docker Compose config
         run: docker compose -f infra/docker/docker-compose.yml config
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start db
+        run: docker compose -f infra/docker/docker-compose.yml up -d --wait db
+
+      - name: Run migrations
+        run: pnpm --filter @ai-catalyst/db run migrate
+
+      - name: Assert schema_migrations bookkeeping
+        run: |
+          set -euo pipefail
+          count=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select count(*) from schema_migrations;")
+          echo "schema_migrations rows: $count"
+          if [ "$count" -lt 1 ]; then
+            echo "Expected at least 1 applied migration, found $count" >&2
+            exit 1
+          fi
+
+      - name: Assert key tables and functions exist
+        run: |
+          set -euo pipefail
+          result=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select
+              (to_regclass('public.users') is not null) and
+              (to_regclass('public.program_runs') is not null) and
+              (to_regclass('public.module_attempts') is not null) and
+              (to_regclass('public.mcp_tool_audit_logs') is not null) and
+              exists (select 1 from pg_proc where proname = 'normalize_email');")
+          echo "key objects present: $result"
+          if [ "$result" != "t" ]; then
+            echo "Expected users/program_runs/module_attempts/mcp_tool_audit_logs tables and normalize_email() to exist" >&2
+            exit 1
+          fi
+
+      - name: Run Better Auth integration tests
+        run: pnpm --filter web run test
+
+      - name: Re-run migrations (expect no-op)
+        run: |
+          set -euo pipefail
+          output=$(pnpm --filter @ai-catalyst/db run migrate)
+          echo "$output"
+          echo "$output" | grep -q "No pending migrations." || {
+            echo "Expected a re-run with no pending migrations to be a no-op" >&2
+            exit 1
+          }
+          count=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select count(*) from schema_migrations;")
+          file_count=$(ls infra/database/migrations/*.sql | wc -l)
+          if [ "$count" -ne "$file_count" ]; then
+            echo "Expected exactly $file_count applied migrations (one per file in infra/database/migrations) after a no-op re-run, found $count" >&2
+            exit 1
+          fi
+
+      # Destructive/expected-failure case — always last, so it never leaves
+      # the checkout in a tampered state for an earlier assertion to trip on.
+      - name: Tamper an applied migration and expect checksum failure
+        run: |
+          set -euo pipefail
+          echo "-- tamper test" >> infra/database/migrations/0001_aidb_v5_baseline.sql
+          if pnpm --filter @ai-catalyst/db run migrate; then
+            echo "Expected the migration runner to fail on a checksum mismatch" >&2
+            exit 1
+          fi

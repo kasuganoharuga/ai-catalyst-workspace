@@ -1,0 +1,22 @@
+{
+  "name": "@ai-catalyst/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Database access layer — shared Postgres pool and the versioned migration runner. Consumed by packages/services and (for the pool only) apps/web.",
+  "exports": {
+    ".": "./src/pool.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "migrate": "tsx src/migrate.ts"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.15.6",
+    "tsx": "^4.20.6",
+    "typescript": "^5"
+  }
+}

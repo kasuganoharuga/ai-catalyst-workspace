@@ -6,10 +6,11 @@ Use Docker Compose from the repository root for backend services:
 pnpm docker:up
 ```
 
-The compose stack starts:
+`pnpm docker:up` runs `scripts/docker-up.js`, which starts services in dependency order rather than all at once:
 
-- `api` on `http://127.0.0.1:8000`
-- `db` (PostgreSQL) on `127.0.0.1:5432`
+1. Start `db` and wait for its healthcheck (`docker compose up -d --wait db`).
+2. Run pending migrations from the host against `127.0.0.1:5432` (`pnpm --filter @ai-catalyst/db run migrate`).
+3. Start (and build) every other service — currently `api` on `http://127.0.0.1:8000`.
 
 Run the Next.js frontend locally with `pnpm dev:web`.
 
@@ -29,21 +30,15 @@ DATABASE_URL=postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
 
 ## Database Initialization
 
-`init/001_ai_catalyst_schema.sql` is an exact, unmodified copy of `local/AIDB_v5.sql` (the finalized schema). It is mounted read-only into the `db` container at `/docker-entrypoint-initdb.d`. The official `postgres` image runs every script in that directory, in sorted filename order, but **only when the data directory is empty** — it will not re-run against an existing volume.
+Schema setup is owned by the versioned migration runner in `packages/db` (`infra/database/migrations/*.sql`), not by `docker-entrypoint-initdb.d` — the `db` container starts with an empty schema, and `pnpm docker:up` / `pnpm db:migrate` apply every migration in order, tracked in a `schema_migrations` table (version + SHA-256 checksum). Editing an already-applied migration file fails the checksum check instead of silently drifting; add a new migration file instead.
 
-Keep the copy byte-identical to the source of truth. To confirm there is no drift:
+`infra/database/migrations/0001_aidb_v5_baseline.sql` is the baseline schema (originally sourced from `local/AIDB_v5.sql`, a local-only planning copy) and is now the versioned source of truth going forward — edit future schema changes as new `NNNN_description.sql` migration files, not by hand-editing `0001`.
 
-```bash
-cmp local/AIDB_v5.sql infra/docker/init/001_ai_catalyst_schema.sql
-```
+To run migrations without the full `docker:up` orchestration (e.g. `db` is already running):
 
 ```powershell
-(Get-FileHash local/AIDB_v5.sql -Algorithm SHA256).Hash -eq (Get-FileHash infra/docker/init/001_ai_catalyst_schema.sql -Algorithm SHA256).Hash
+pnpm db:migrate
 ```
-
-If the schema changes, update `local/AIDB_v5.sql` first, then re-copy it here as-is — do not hand-edit the copy or add headers/comments to it.
-
-Future initialization files (e.g. seed data) should follow the same `NNN_description.sql` naming convention with an incrementing prefix, so ordering stays predictable.
 
 ### Resetting the local database
 
@@ -51,7 +46,7 @@ Future initialization files (e.g. seed data) should follow the same `NNN_descrip
 pnpm db:reset
 ```
 
-**Warning: `pnpm db:reset` permanently deletes all local database data.** It runs `docker compose down -v` (removing the named `postgres_data` volume) and then brings the stack back up, so `db` starts from an empty data directory and re-runs everything in `init/` from scratch. Do not use it as a plain restart — use `pnpm docker:down` + `pnpm docker:up` for that instead.
+**Warning: `pnpm db:reset` permanently deletes all local database data.** It runs `docker compose down -v` (removing the named `postgres_data` volume) and then re-runs `pnpm docker:up`, so `db` starts from an empty data directory and every migration re-applies from scratch. Do not use it as a plain restart — use `pnpm docker:down` + `pnpm docker:up` for that instead.
 
 ### Verifying initialization
 
@@ -66,7 +61,7 @@ pnpm db:psql
 \d+ users
 ```
 
-Or run non-interactive checks that can be copy-pasted directly (useful for confirming the SQL file was mounted, executed, and produced the expected tables/triggers):
+Or run non-interactive checks that can be copy-pasted directly (useful for confirming migrations were applied and produced the expected tables/triggers):
 
 ```powershell
 docker compose -f infra/docker/docker-compose.yml exec -T db `

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Application Service Layer — the single home for business logic, consumed by apps/web route handlers, apps/mcp tool handlers, and (for internal AI calls) apps/api.",
+  "description": "Application Service Layer — the single home for business logic, consumed by apps/web route handlers and apps/mcp tool handlers. The only layer permitted to call apps/api (for internal AI calls).",
   "exports": {
     "./workflow": "./src/workflow/index.ts",
     "./module": "./src/module/index.ts",
@@ -14,5 +14,13 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-catalyst/clients": "workspace:*",
+    "@ai-catalyst/contracts": "workspace:*",
+    "@ai-catalyst/db": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5"
   }
 }

@@ -1,0 +1,16 @@
+{
+  "name": "@ai-catalyst/clients",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Outbound HTTP clients for internal services (currently: FastAPI). Consumed only by packages/services — never directly by apps/web or apps/mcp, per architecture.mdc rule 2.",
+  "exports": {
+    "./fastapi": "./src/fastapi/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

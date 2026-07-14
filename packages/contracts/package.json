@@ -1,0 +1,16 @@
+{
+  "name": "@ai-catalyst/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared cross-cutting types (e.g. ActorContext) with no runtime logic. Consumed by packages/services, apps/web, and apps/mcp.",
+  "exports": {
+    "./actor-context": "./src/actor-context.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
+  }
+}

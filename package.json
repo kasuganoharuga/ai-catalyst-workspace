@@ -6,19 +6,25 @@
     "dev:web": "pnpm --filter web dev",
     "dev:api": "cd apps/api && python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "dev": "node scripts/dev.js",
-    "docker:up": "docker compose -f infra/docker/docker-compose.yml up --build -d",
+    "docker:up": "node scripts/docker-up.js",
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down --remove-orphans",
-    "db:reset": "docker compose -f infra/docker/docker-compose.yml down -v && docker compose -f infra/docker/docker-compose.yml up --build -d",
+    "db:reset": "docker compose -f infra/docker/docker-compose.yml down -v && node scripts/docker-up.js",
+    "db:migrate": "pnpm --filter @ai-catalyst/db run migrate",
     "db:psql": "docker compose -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
+    "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/clients --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
     "format:check:web": "pnpm --filter web format:check",
     "format:web": "pnpm --filter web format",
-    "build": "pnpm --filter web build"
+    "build": "pnpm --filter web build",
+    "depcruise": "depcruise apps/web/app apps/web/components apps/web/lib apps/mcp/src packages/clients/src packages/contracts/src packages/db/src packages/services/src packages/shared/src"
   },
   "pnpm": {
     "overrides": {
       "postcss@<8.5.10": ">=8.5.10"
     }
+  },
+  "devDependencies": {
+    "dependency-cruiser": "^18.1.0"
   }
 }

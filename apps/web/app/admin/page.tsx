@@ -1,6 +1,9 @@
 import { SiteHeader } from "@/components/site-header";
+import { requireActiveUser } from "@/lib/require-active-user";
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  await requireActiveUser();
+
   return (
     <div className="min-h-screen bg-stone-100 text-stone-950">
       <SiteHeader />

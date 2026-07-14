@@ -6,5 +6,8 @@
   "description": "Remote MCP Server — Resource Server exposing thin tool/resource/prompt shells over a single /mcp endpoint. No business logic; delegates to @ai-catalyst/services.",
   "scripts": {
     "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5"
   }
 }
