@@ -8,6 +8,8 @@
     "dev": "concurrently \"pnpm dev:web\" \"pnpm docker:up\"",
     "docker:up": "docker compose -f infra/docker/docker-compose.yml up --build -d",
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down --remove-orphans",
+    "db:reset": "docker compose -f infra/docker/docker-compose.yml down -v && docker compose -f infra/docker/docker-compose.yml up --build -d",
+    "db:psql": "docker compose -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
     "format:check:web": "pnpm --filter web format:check",
