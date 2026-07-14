@@ -104,6 +104,8 @@ Stop backend services:
 pnpm docker:down
 ```
 
+The `db` service initializes from `infra/docker/init/` on first start (empty data volume only). **`pnpm db:reset` permanently deletes all local database data** — see [`infra/docker/README.md`](infra/docker/README.md#database-initialization) for initialization details, verification queries, and reset semantics.
+
 ## Continuous Integration
 
 GitHub Actions validates the project on push to `main` and on pull requests, split into three jobs:
