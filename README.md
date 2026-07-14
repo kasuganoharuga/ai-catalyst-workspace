@@ -13,13 +13,15 @@ The first version is Skill-first and workspace-ready:
 - Download module `SKILL.md` files
 - Reserve future workspace and admin routes
 - Keep FastAPI available for later AI workflow execution
+- Reserve a Remote MCP Server for future AI-agent (e.g. Claude) access to the same Toolkit workflows
 
 V1 does not include login, databases, file uploads, RAG, investor matching, or live LLM execution.
 
 ## Stack
 
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
-- Backend: FastAPI, Python (reserved AI service)
+- Backend: FastAPI, Python (reserved internal AI service)
+- MCP: Remote MCP server, Node/TypeScript (reserved — see [MCP & Services Architecture](#mcp--services-architecture))
 - Database: PostgreSQL via Docker Compose
 - Content: Markdown + JSON manifest in `packages/toolkit-content`
 - Tooling: Docker Compose for backend services, GitHub Actions CI
@@ -121,10 +123,12 @@ GitHub Actions validates the project on push to `main` and on pull requests, spl
 ```text
 apps/
   web/              Next.js full-stack app for the V1 product
-  api/              Reserved FastAPI service for future AI workflows
+  api/              Reserved FastAPI service for future AI workflows (internal only, see below)
+  mcp/              Reserved Remote MCP Server — thin tool/resource/prompt shells only (scaffold, no logic yet)
 packages/
   toolkit-content/  Module metadata, markdown, Skills, templates, and examples
   shared/           Shared TypeScript types
+  services/         Reserved Application Service Layer — the single home for business logic (scaffold, no logic yet)
 infra/
   docker/           Local Docker Compose setup
   aws/              Future deployment notes
@@ -139,6 +143,31 @@ FastAPI is intentionally minimal in V1. It reserves the path for future AI orche
 ## Service Boundary
 
 Next.js owns the product experience and product data (pages, Toolkit reads, Skill downloads, future workspace/admin). FastAPI owns AI/RAG/file-processing logic and should not become the general product backend. In V1 the browser never talks to model providers directly.
+
+## MCP & Services Architecture
+
+`apps/mcp` and `packages/services` are currently **structure-only scaffolds** (`package.json` + `tsconfig.json`, no implementation) that reserve the shape described below for when a Remote MCP Server is built. No `server.ts`, tool handlers, or service logic exist yet, and `apps/mcp` is not wired into `infra/docker/docker-compose.yml` until it has real server code.
+
+Once implemented, the layering is:
+
+| Layer | Owns |
+|---|---|
+| `apps/web` | Pages, product route handlers — thin shells that call `packages/services` |
+| `apps/mcp` | Remote MCP server for AI-agent clients (e.g. Claude): tool/resource/prompt shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself |
+| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit) — both `apps/web` and `apps/mcp` call into this layer; it is the only thing that may call `apps/api` |
+| `apps/api` | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself |
+
+Framework rules once this is implemented:
+
+1. **No duplicate business logic.** `apps/web` route handlers and `apps/mcp` tool handlers both validate input and delegate to the same `packages/services` function — never two implementations of the same operation.
+2. **FastAPI is internal-only.** `packages/services → apps/api`, never `apps/web`/`apps/mcp → apps/api` directly, and FastAPI never writes business tables.
+3. **MCP deploys standalone**, not embedded in Next.js — Streamable HTTP's long-lived connections don't fit the Vercel serverless model, so `apps/mcp` runs as its own container alongside `db`/`api`.
+4. **Two-layer auth, never mixed.** Claude → MCP uses the platform Bearer token (Better Auth is the Authorization Server; MCP is a Resource Server that only verifies the token and reads scope). MCP → Google Drive uses the separate, encrypted `user_ai_connections`/`accounts` Google token. The platform token is never forwarded downstream to Google.
+5. **V1 MCP tools are stateless** — identity/parameters travel with every request; progress is persisted in PostgreSQL, not an MCP session.
+
+Official artifact validation is never exposed as an MCP tool — schema check constraints already gate it so it can't be MCP-triggered; MCP only ever exposes the non-authoritative `run_draft_check` path.
+
+`apps/web/lib/toolkit.ts` (Toolkit manifest + module/skill markdown reads) is existing business logic that belongs in `packages/services` per rule 1 above, but has not been moved yet — that migration, along with all handler/service implementation, is deferred to a follow-up pass.
 
 ## Frontend Conventions
 
