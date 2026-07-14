@@ -1,0 +1,10 @@
+{
+  "name": "@ai-catalyst/mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Remote MCP Server — Resource Server exposing thin tool/resource/prompt shells over a single /mcp endpoint. No business logic; delegates to @ai-catalyst/services.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
