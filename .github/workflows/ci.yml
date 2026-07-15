@@ -177,6 +177,9 @@ jobs:
       - name: Run Better Auth integration tests
         run: pnpm --filter web run test
 
+      - name: Test packages/services (DB-dependent)
+        run: pnpm --filter @ai-catalyst/services run test:db
+
       - name: Re-run migrations (expect no-op)
         run: |
           set -euo pipefail
