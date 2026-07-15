@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check .",
     "format": "prettier --write .",
-    "auth:check": "auth generate --dialect postgresql -y",
+    "auth:check": "tsx scripts/check-auth-schema.ts",
     "test": "vitest run",
     "test:standalone": "node scripts/verify-standalone-build.mjs"
   },
@@ -43,6 +43,7 @@
     "eslint-config-next": "16.2.10",
     "prettier": "^3.9.5",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
