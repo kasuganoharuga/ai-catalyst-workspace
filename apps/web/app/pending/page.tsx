@@ -2,6 +2,8 @@ import { SiteHeader } from "@/components/site-header";
 import { SignOutButton } from "@/components/sign-out-button";
 import { requireAuthenticatedUser } from "@/lib/require-active-user";
 
+import { AcceptInvitationForm } from "./accept-invitation-form";
+
 export default async function PendingPage() {
   const session = await requireAuthenticatedUser();
 
@@ -20,6 +22,9 @@ export default async function PendingPage() {
           currently invitation-only. You&apos;ll be able to reach your workspace
           as soon as an invitation for this email is accepted.
         </p>
+
+        <AcceptInvitationForm />
+
         <div className="mt-10">
           <SignOutButton />
         </div>

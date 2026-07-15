@@ -9,7 +9,9 @@ export type ServiceErrorCode =
   | "NOT_FOUND"
   | "VALIDATION_ERROR"
   | "INVITATION_ALREADY_PENDING"
-  | "INVITATION_NOT_PENDING";
+  | "INVITATION_NOT_PENDING"
+  | "INVITATION_EMAIL_MISMATCH"
+  | "FOUNDER_WORKSPACE_ALREADY_EXISTS";
 
 export class ServiceError extends Error {
   constructor(

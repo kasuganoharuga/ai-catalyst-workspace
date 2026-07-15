@@ -8,6 +8,7 @@
     "./toolkit": "./src/toolkit.ts",
     "./module": "./src/module.ts",
     "./artefact": "./src/artefact.ts",
-    "./invitation": "./src/invitation.ts"
+    "./invitation": "./src/invitation.ts",
+    "./workspace": "./src/workspace.ts"
   }
 }

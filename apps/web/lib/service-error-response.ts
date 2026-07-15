@@ -20,6 +20,12 @@ function statusForCode(code: ServiceErrorCode): number {
       return 409;
     case "INVITATION_NOT_PENDING":
       return 409;
+    case "INVITATION_EMAIL_MISMATCH":
+      // Closer to "this account has no right to use this invitation" than a
+      // generic state conflict.
+      return 403;
+    case "FOUNDER_WORKSPACE_ALREADY_EXISTS":
+      return 409;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;
