@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SiteHeader } from "@/components/site-header";
 import { requireActiveUser } from "@/lib/require-active-user";
 
@@ -19,6 +21,13 @@ export default async function AdminPage() {
           structured data checks, and future investor record workflows without
           adding admin complexity to V1.
         </p>
+
+        <Link
+          href="/admin/invitations"
+          className="mt-8 inline-block rounded-full border border-stone-300 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:border-stone-950"
+        >
+          Manage Founder invitations →
+        </Link>
       </main>
     </div>
   );

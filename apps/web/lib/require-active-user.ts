@@ -30,3 +30,13 @@ export async function requireActiveUser() {
 
   return session;
 }
+
+export async function requireAdminUser() {
+  const session = await requireActiveUser();
+
+  if (session.user.role !== "admin") {
+    redirect("/workspace");
+  }
+
+  return session;
+}
