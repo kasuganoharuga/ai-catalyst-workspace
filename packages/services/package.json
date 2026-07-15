@@ -10,21 +10,26 @@
     "./artifact": "./src/artifact/index.ts",
     "./storage": "./src/storage/index.ts",
     "./invitation": "./src/invitation/index.ts",
-    "./audit": "./src/audit/index.ts"
+    "./audit": "./src/audit/index.ts",
+    "./errors": "./src/errors.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --exclude \"**/*.db.test.ts\"",
+    "test:watch": "vitest",
+    "test:db": "vitest run src/invitation/index.db.test.ts"
   },
   "dependencies": {
     "@ai-catalyst/clients": "workspace:*",
     "@ai-catalyst/contracts": "workspace:*",
     "@ai-catalyst/db": "workspace:*",
     "@ai-catalyst/shared": "workspace:*",
-    "@ai-catalyst/toolkit-content": "workspace:*"
+    "@ai-catalyst/toolkit-content": "workspace:*",
+    "pg": "^8.16.3"
   },
   "devDependencies": {
     "@types/node": "^20",
+    "@types/pg": "^8.15.6",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }
