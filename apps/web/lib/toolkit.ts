@@ -1,31 +1,19 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import { cache } from "react";
 
-import manifest from "@ai-catalyst/toolkit-content/manifest.json";
-import type { ToolkitManifest, ToolkitModule } from "@ai-catalyst/shared";
+import {
+  getModuleMarkdown,
+  getSkillFile,
+  getToolkitManifest as getToolkitManifestUncached,
+  getToolkitModule as getToolkitModuleUncached,
+  getToolkitModules as getToolkitModulesUncached,
+} from "@ai-catalyst/services/module";
 
-const toolkitManifest = manifest as ToolkitManifest;
-const contentRoot = path.resolve(
-  process.cwd(),
-  "../../packages/toolkit-content",
-);
+// Thin Next.js shell over packages/services/module: adds React's
+// request-scoped cache() to the pure content reads (per-request
+// deduplication only, not persistent caching) and otherwise delegates
+// entirely — no business logic lives here.
+export const getToolkitManifest = cache(getToolkitManifestUncached);
+export const getToolkitModules = cache(getToolkitModulesUncached);
+export const getToolkitModule = cache(getToolkitModuleUncached);
 
-export const getToolkitManifest = cache(async () => toolkitManifest);
-
-export const getToolkitModules = cache(async () => toolkitManifest.modules);
-
-export const getToolkitModule = cache(async (moduleId: string) =>
-  toolkitManifest.modules.find((module) => module.id === moduleId),
-);
-
-export async function getModuleMarkdown(module: ToolkitModule) {
-  return fs.readFile(path.join(contentRoot, module.modulePath), "utf8");
-}
-
-export async function getSkillFile(module: ToolkitModule) {
-  return fs.readFile(
-    path.join(contentRoot, "skills", module.id, "SKILL.md"),
-    "utf8",
-  );
-}
+export { getModuleMarkdown, getSkillFile };

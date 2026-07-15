@@ -1,3 +1,3 @@
-export type { ToolkitArtefact, ArtefactFormat } from "./artefact";
-export type { ToolkitModule, ModuleStatus } from "./module";
-export type { ToolkitManifest } from "./toolkit";
+export type { ToolkitArtefact, ArtefactFormat } from "./artefact.js";
+export type { ToolkitModule, ModuleStatus } from "./module.js";
+export type { ToolkitManifest } from "./toolkit.js";

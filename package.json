@@ -13,7 +13,7 @@
     "db:psql": "docker compose -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
-    "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/clients --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
+    "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/clients --filter @ai-catalyst/toolkit-content --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
     "format:check:web": "pnpm --filter web format:check",
     "format:web": "pnpm --filter web format",
     "build": "pnpm --filter web build",
