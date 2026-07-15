@@ -1,92 +1,127 @@
 -- =========================================================
--- AI Catalyst Database Schema（V2 · 第 3 次修订）
--- 已在 PostgreSQL 16 完整执行并通过约束冒烟测试
+-- AI Catalyst Database Schema (V2 - Revision 3)
+-- Fully executed on PostgreSQL 16 and passed constraint smoke tests
 --
--- 应用层配套要求（数据库无法单独保证，必须同步落实）：
+-- Application-layer requirements (the database cannot guarantee these
+-- alone; they must be implemented in tandem):
 --
--- 1. Better Auth 配置：
---    - uuid 主键；表名映射 users / sessions / accounts / verifications
---    - 字段逐个映射：emailVerified → email_verified、
---      userId → user_id、expiresAt → expires_at 等
---    - role 声明为 additionalFields 且 input: false，由 hook 写入
---    - 开启 account.encryptOAuthTokens
---    - 执行 npx @better-auth/cli generate，与本 schema diff 核对
+-- 1. Better Auth configuration:
+--    - uuid primary keys; table names mapped to users / sessions /
+--      accounts / verifications
+--    - Field-by-field mapping: emailVerified → email_verified,
+--      userId → user_id, expiresAt → expires_at, etc.
+--    - role declared as an additionalField with input: false, written
+--      by a hook
+--    - Enable account.encryptOAuthTokens
+--    - Run npx @better-auth/cli generate and diff it against this schema
 --
--- 2. 用户删除：仅软删除（users.deleted_at），禁止 hard delete；
---    触发器已联动：置删除时撤销全部 Sessions、
---    拒绝已删除用户创建新 Session；
---    Auth Middleware 仍需拦截 Cookie 缓存 / JWT 与 OAuth 登录
+-- 2. User deletion: soft delete only (users.deleted_at); hard delete
+--    is forbidden;
+--    Triggers already enforce this: deletion revokes all Sessions,
+--    and deleted users are rejected when creating a new Session;
+--    Auth Middleware must still intercept cached Cookie/JWT sessions
+--    and OAuth login
 --
--- 3. user_active_contexts 仅为界面选择，不作为权限依据；
---    授权必须校验 workspaces.founder/mentor_user_id 与 users.role；
---    Service 层统一执行 Workspace Scope，条件允许再加 RLS
+-- 3. user_active_contexts is only a UI selection, not a basis for
+--    authorization;
+--    authorization must validate workspaces.founder/mentor_user_id
+--    and users.role;
+--    the Service layer uniformly enforces Workspace scope, with RLS
+--    as an optional addition
 --
--- 4. 不可变性规则：draft 可改；published 不可改只能新版本；retired 只读
+-- 4. Immutability rules: draft is editable; published is immutable
+--    (new version only); retired is read-only
 --    - prompt_versions / workflow_definitions / workflow_steps /
---      module_responses / module_review_context_snapshots：触发器已保证
---      （含状态机 draft → published → retired，禁止回退与归属迁移）
+--      module_responses / module_review_context_snapshots: enforced
+--      by triggers (including the draft → published → retired state
+--      machine; no rollback or ownership transfer allowed)
 --    - program_versions / module_definitions / artifact_definitions /
---      module_questions / prompt bindings：由 Service 层保证
+--      module_questions / prompt bindings: enforced by the Service layer
 --
--- 5. 后端单一事务保证的状态一致性（外键无法表达）：
---    - 分叉来源 Module 已 completed、来源 Attempt 已 accepted
---    - program_run_modules.accepted_attempt_id 指向 accepted Attempt
---    - inherited 来源属于 Parent Branch
---    - Branch 切换：目标 status = open、Run 状态允许切换
---    - active_attempt_id 指向活动状态
---      （draft / in_progress / submitted / ready_for_review）的 Attempt
---    - Attempt 创建：Workflow 属于当前 Module 且已 published、
---      Entry / Next / Failure Step 可达且无意外死循环、
---      绑定的 Prompt Version 均已 published
---    - Program Run 创建：只绑定 published 的 Program Version
---    - Parent Branch 防环（A→B→A），parent.branch_number < child
+-- 5. State consistency guaranteed by a single backend transaction
+--    (cannot be expressed via foreign keys):
+--    - The source Module of a fork is completed, and the source
+--      Attempt is accepted
+--    - program_run_modules.accepted_attempt_id points to the accepted
+--      Attempt
+--    - inherited sources belong to the Parent Branch
+--    - Branch switching: target status = open, and the Run status
+--      allows switching
+--    - active_attempt_id points to an Attempt in an active state
+--      (draft / in_progress / submitted / ready_for_review)
+--    - Attempt creation: the Workflow belongs to the current Module
+--      and is published, Entry / Next / Failure Steps are reachable
+--      with no unintended infinite loops, and all bound Prompt
+--      Versions are published
+--    - Program Run creation: only binds to a published Program Version
+--    - Parent Branch cycle prevention (A→B→A):
+--      parent.branch_number < child
 --
--- 6. 业务层禁止 hard delete：
+-- 6. Hard delete is forbidden at the business layer:
 --    workspaces / ventures / program_runs / program_run_branches /
 --    program_run_modules / module_attempts / artifact_submissions
---    等核心与历史表只允许 archived / abandoned / cancelled /
---    deleted 等状态流转；建议按文末「权限收敛模板」
---    收回应用账号的 DELETE 权限，仅 Migration / Admin 账号保留。
+--    and other core/historical tables only allow status transitions
+--    such as archived / abandoned / cancelled / deleted; per the
+--    "Permission Tightening Template" at the end of this file, it is
+--    recommended to revoke DELETE privileges from the application
+--    account and keep them only for Migration / Admin accounts.
 --
--- 7. Invitation 接受必须在同一事务内完成：
---    锁定 Invitation → 检查 status = pending 且未过期 →
---    标准化后比较 Invitation Email 与 User Email →
---    升级 User Role →（Founder 创建 Workspace /
---    Mentor 绑定目标 Workspace）→
---    写入 accepted_by_user_id / accepted_at / status = accepted →
---    撤销同邮箱其他 pending Invitation。
---    避免 accepted 但 role 仍 pending、role 已升级但
---    Workspace 未创建 / 未绑定等中间态。
+-- 7. Invitation acceptance must complete within a single transaction:
+--    Lock the Invitation → check status = pending and not expired →
+--    normalize and compare the Invitation email with the User email →
+--    upgrade the User role → (Founder creates a Workspace /
+--    Mentor is bound to the target Workspace) →
+--    write accepted_by_user_id / accepted_at / status = accepted →
+--    revoke other pending Invitations for the same email.
+--    Avoid intermediate states such as accepted but role still
+--    pending, or role upgraded but Workspace not created / not bound.
 -- =========================================================
 
--- 下面是 User / Auth / Invitation / Workspace / Active Context / AI Connection 整个板块的表。Better Auth 核心认证表为 users、sessions、accounts、verifications；启用 OAuth Provider 后产生的额外认证表，后续应由 Better Auth CLI 根据实际插件配置生成
+-- Below are all the tables for the User / Auth / Invitation /
+-- Workspace / Active Context / AI Connection area. The Better Auth
+-- core authentication tables are users, sessions, accounts,
+-- verifications; any additional authentication tables produced by
+-- enabling an OAuth Provider should subsequently be generated by the
+-- Better Auth CLI based on the actual plugin configuration
 
--- 本版为修订版：全库用户外键统一为 uuid → users(id)（Better Auth 需配置 uuid 主键，并将表名映射为 users / sessions / accounts / verifications）；循环依赖或建表顺序受限的外键统一放在文末「后置外键」段。
+-- This is a revised version: user foreign keys across the whole
+-- database are unified to uuid → users(id) (Better Auth requires a
+-- uuid primary key and the table names mapped to users / sessions /
+-- accounts / verifications); foreign keys with circular dependencies
+-- or table-creation-order constraints are grouped together in the
+-- "deferred foreign keys" section at the end of this file.
 
 -- section 1
 -- =========================================================
 -- 1. USERS
--- Better Auth 核心用户表
+-- Better Auth core user table
 --
--- name 初始等于 email，允许用户或 OAuth 后续修改显示名
+-- name initially equals email; the user or OAuth may change the
+-- display name afterward
 --
--- role 是平台级角色：
--- pending：已注册但尚未接受 Invitation，无任何业务权限
--- founder：Founder 用户
--- mentor：Mentor 用户
--- admin：平台管理员
+-- role is a platform-level role:
+-- pending: registered but has not yet accepted an Invitation, no
+--   business permissions
+-- founder: Founder user
+-- mentor: Mentor user
+-- admin: platform administrator
 --
--- 失败关闭：默认 pending，不会误创建 Founder；
--- 接受 Invitation 后由后端在同一事务内升级 role。
--- Email/Password 与 OAuth 注册均须验证 Invitation。
+-- Fail closed: defaults to pending, so a Founder is never created by
+-- mistake; the backend upgrades role within the same transaction after
+-- an Invitation is accepted.
+-- Both Email/Password and OAuth registration must verify the
+-- Invitation.
 --
--- role 由后端 / Invitation 决定：
--- Better Auth 中声明为 additionalFields 且 input: false，
--- 通过 database hook 写入，禁止客户端注册时提交；
--- OAuth 隐式注册需先验证 Invitation。
+-- role is decided by the backend / Invitation:
+-- declared in Better Auth as an additionalField with input: false,
+-- written via a database hook, and rejected if the client submits it
+-- at registration time;
+-- implicit OAuth registration must verify the Invitation first.
 --
--- 软删除：deleted_at 非空即视为已删除。
--- 禁止 Better Auth hard delete（历史记录大量引用本表）。
+-- Soft delete: a non-null deleted_at means the user is considered
+-- deleted.
+-- Better Auth hard delete is forbidden (historical records reference
+-- this table extensively).
 -- =========================================================
 
 create table users (
@@ -117,15 +152,15 @@ create table users (
     unique (email)
 );
 
--- 大小写不敏感的邮箱唯一性
--- （users_email_unique 保留用于 Better Auth 精确等值查询）
+-- Case-insensitive email uniqueness
+-- (users_email_unique is kept for Better Auth's exact equality lookups)
 create unique index users_email_normalized_unique
   on users (lower(trim(email)));
 
 
 -- =========================================================
 -- 2. SESSIONS
--- Better Auth 网站登录 Session
+-- Better Auth web login Session
 -- =========================================================
 
 create table sessions (
@@ -150,16 +185,17 @@ create table sessions (
 
 -- =========================================================
 -- 3. ACCOUNTS
--- Better Auth 登录方式
+-- Better Auth login providers
 --
--- 例如：
+-- For example:
 -- credential
 -- google
 -- microsoft
 --
--- 注意：access_token / refresh_token / id_token
--- 必须在 Better Auth 开启 account.encryptOAuthTokens 加密存储；
--- "不保存明文 OAuth Token" 不能只靠 user_ai_connections 实现
+-- Note: access_token / refresh_token / id_token must be stored
+-- encrypted by enabling account.encryptOAuthTokens in Better Auth;
+-- "never store OAuth tokens in plaintext" cannot rely on
+-- user_ai_connections alone
 -- =========================================================
 
 create table accounts (
@@ -180,7 +216,7 @@ create table accounts (
 
   scope text,
 
-  -- Email + Password 登录时保存密码 Hash
+  -- Stores the password hash for Email + Password login
   password text,
 
   created_at timestamptz not null default now(),
@@ -193,14 +229,14 @@ create table accounts (
 
 -- =========================================================
 -- 4. VERIFICATIONS
--- Better Auth 临时验证记录
+-- Better Auth temporary verification records
 --
--- 用于：
--- 邮箱验证
--- 密码重置
+-- Used for:
+-- Email verification
+-- Password reset
 -- Magic Link
 --
--- 不用于平台 Invitation
+-- Not used for platform Invitations
 -- =========================================================
 
 create table verifications (
@@ -217,10 +253,10 @@ create table verifications (
 
 -- =========================================================
 -- 5. USER PROFILES
--- AI Catalyst 用户业务资料
+-- AI Catalyst user business profile
 --
--- contact_email 为空时：
--- 业务层默认使用 users.email
+-- When contact_email is null:
+-- the business layer defaults to users.email
 -- =========================================================
 
 create table user_profiles (
@@ -232,7 +268,8 @@ create table user_profiles (
 
   contact_email text,
 
-  -- 用户选择使用的 AI 平台，决定网站引导界面
+  -- The AI provider the user chose to use, which drives the website
+  -- onboarding UI
   preferred_ai_provider text
     check (
       preferred_ai_provider is null
@@ -243,7 +280,8 @@ create table user_profiles (
     ),
 
   -- FK → storage_objects(id)
-  -- 在文末「后置外键」统一添加
+  -- Added together with the other deferred foreign keys at the end
+  -- of this file
   avatar_storage_object_id uuid,
 
   job_title text,
@@ -280,12 +318,12 @@ create table user_profiles (
 -- =========================================================
 -- 6. WORKSPACES
 --
--- 当前业务规则：
--- 每个 Workspace 必须有一个 Founder
--- 每个 Workspace 最多有一个 Mentor
--- 每个 Founder 只能拥有一个 Workspace
--- Mentor 可以负责多个 Workspace
--- Admin 不需要关联具体 Workspace
+-- Current business rules:
+-- Every Workspace must have exactly one Founder
+-- Every Workspace has at most one Mentor
+-- Every Founder can own only one Workspace
+-- A Mentor may be responsible for multiple Workspaces
+-- Admins do not need to be linked to a specific Workspace
 -- =========================================================
 
 create table workspaces (
@@ -310,7 +348,8 @@ create table workspaces (
     ),
 
   -- FK → storage_objects(id)
-  -- 在文末「后置外键」统一添加
+  -- Added together with the other deferred foreign keys at the end
+  -- of this file
   logo_storage_object_id uuid,
 
   created_at timestamptz not null default now(),
@@ -334,15 +373,15 @@ create table workspaces (
 -- =========================================================
 -- 7. INVITATIONS
 --
--- invite_role：
--- founder：邀请用户注册成为 Founder
--- mentor：邀请用户成为某个 Workspace 的 Mentor
+-- invite_role:
+-- founder: invites a user to register as a Founder
+-- mentor: invites a user to become the Mentor of a given Workspace
 --
--- Founder Invitation：
--- workspace_id 必须为空
+-- Founder Invitation:
+-- workspace_id must be null
 --
--- Mentor Invitation：
--- workspace_id 必须有值
+-- Mentor Invitation:
+-- workspace_id must be set
 -- =========================================================
 
 create table invitations (
@@ -358,19 +397,20 @@ create table invitations (
       )
     ),
 
-  -- Mentor Invitation 必须关联 Workspace
-  -- Founder Invitation 不关联 Workspace
+  -- A Mentor Invitation must be linked to a Workspace
+  -- A Founder Invitation is not linked to a Workspace
   workspace_id uuid
     references workspaces(id) on delete cascade,
 
-  -- 数据库只保存 Token Hash
-  -- 原始 Token 只放在邀请链接中
+  -- Only the token hash is stored in the database
+  -- The raw token is only ever included in the invitation link
   token_hash text not null,
 
   invited_by_user_id uuid
     references users(id),
 
-  -- 如果被邀请邮箱已经注册，可以提前关联
+  -- If the invited email is already registered, it can be linked
+  -- ahead of time
   invited_user_id uuid
     references users(id),
 
@@ -423,12 +463,12 @@ create table invitations (
     )
 );
 
--- 同一邮箱同一 Workspace 只允许一条 pending Mentor 邀请
+-- Only one pending Mentor invitation is allowed per email per Workspace
 create unique index invitations_pending_mentor_unique
   on invitations (lower(trim(email)), workspace_id)
   where status = 'pending' and invite_role = 'mentor';
 
--- 同一邮箱只允许一条 pending Founder 邀请
+-- Only one pending Founder invitation is allowed per email
 create unique index invitations_pending_founder_unique
   on invitations (lower(trim(email)))
   where status = 'pending' and invite_role = 'founder';
@@ -437,15 +477,16 @@ create unique index invitations_pending_founder_unique
 -- =========================================================
 -- 8. USER ACTIVE CONTEXTS
 --
--- 记录用户当前激活的 Workspace 和 Venture。
+-- Records the user's currently active Workspace and Venture.
 --
--- Founder：active_workspace 固定为自己的 Workspace，
---          切换 Venture 时更新 active_venture_id。
--- Mentor： 可在多个 Workspace 之间切换。
--- Admin：  两者均可为空。
+-- Founder: active_workspace is fixed to the user's own Workspace;
+--          active_venture_id is updated when switching Ventures.
+-- Mentor:  may switch between multiple Workspaces.
+-- Admin:   both may be null.
 --
--- 仅记录界面当前选择，不作为权限依据；
--- 授权必须校验 workspaces.founder/mentor_user_id 与 users.role。
+-- Only records the current UI selection, not a basis for
+-- authorization; authorization must validate
+-- workspaces.founder/mentor_user_id and users.role.
 -- =========================================================
 
 create table user_active_contexts (
@@ -457,8 +498,9 @@ create table user_active_contexts (
 
   -- FK (active_venture_id, active_workspace_id)
   -- → ventures(id, workspace_id)
-  -- 在文末「后置外键」统一添加，
-  -- 保证 Venture 属于当前激活的 Workspace
+  -- Added together with the other deferred foreign keys at the end
+  -- of this file, guaranteeing the Venture belongs to the currently
+  -- active Workspace
   active_venture_id uuid,
 
   created_at timestamptz not null default now(),
@@ -475,11 +517,13 @@ create table user_active_contexts (
 -- =========================================================
 -- 9. USER AI CONNECTIONS
 --
--- 记录用户是否连接：
+-- Records whether the user is connected to:
 -- claude
--- openai（即 ChatGPT，与全库 provider 枚举统一使用 openai）
+-- openai (i.e. ChatGPT; the provider enum uses openai consistently
+-- across the whole database)
 --
--- 不在这里保存明文 OAuth Access Token 或 Refresh Token
+-- OAuth access tokens or refresh tokens are never stored in
+-- plaintext here
 -- =========================================================
 
 create table user_ai_connections (
@@ -528,10 +572,11 @@ create table user_ai_connections (
 -- =========================================================
 -- 1. VENTURES
 --
--- Founder 正在验证的 Idea。
--- 不要求已经成立公司。
--- 一个 Workspace 可以创建多个 Venture。
--- 当前使用哪个 Venture，由 user_active_contexts 决定。
+-- An Idea the Founder is currently validating.
+-- Does not require an already-incorporated company.
+-- A Workspace can create multiple Ventures.
+-- Which Venture is currently in use is determined by
+-- user_active_contexts.
 -- =========================================================
 
 create table ventures (
@@ -543,19 +588,19 @@ create table ventures (
   created_by_user_id uuid not null
     references users(id),
 
-  -- 用户可见的 Idea 名称
+  -- User-facing Idea name
   name text not null,
 
-  -- Workspace 内 URL 标识
+  -- URL slug within the Workspace
   slug text not null,
 
-  -- 简短的一句话介绍
+  -- A brief one-line description
   one_liner text,
 
-  -- 对 Idea 的基础描述
+  -- A basic description of the Idea
   summary text,
 
-  -- Idea 当前发展阶段
+  -- The Idea's current lifecycle stage
   lifecycle_stage text not null default 'idea'
     check (
       lifecycle_stage in (
@@ -566,7 +611,7 @@ create table ventures (
       )
     ),
 
-  -- Idea 当前是否仍在使用
+  -- Whether the Idea is currently still in use
   status text not null default 'active'
     check (
       status in (
@@ -587,8 +632,8 @@ create table ventures (
   constraint ventures_workspace_slug_unique
     unique (workspace_id, slug),
 
-  -- 用于其他表通过 venture_id + workspace_id
-  -- 确保 Venture 属于正确的 Workspace
+  -- Lets other tables use venture_id + workspace_id to guarantee the
+  -- Venture belongs to the correct Workspace
   constraint ventures_id_workspace_unique
     unique (id, workspace_id),
 
@@ -602,15 +647,16 @@ create table ventures (
 -- =========================================================
 -- 2. COMPANY PROFILES
 --
--- Venture 对应的可选 Company Profile。
+-- An optional Company Profile associated with a Venture.
 --
--- Idea 验证阶段可以不存在。
--- Venture 逐渐成为正式公司后再创建。
+-- May not exist during the Idea validation stage.
+-- Created once the Venture gradually becomes a formal company.
 --
--- 一个 Venture 最多一条 Company Profile。
--- 一个 Workspace 最多一条 Company Profile
--- （对应"一个 Founder 只有一个正式公司"；
---  多个待验证 Venture 中最多一个转化为公司）。
+-- At most one Company Profile per Venture.
+-- At most one Company Profile per Workspace
+-- (corresponding to "one Founder has only one formal company";
+--  at most one of the multiple in-validation Ventures can convert
+--  into a company).
 -- =========================================================
 
 create table company_profiles (
@@ -625,23 +671,23 @@ create table company_profiles (
   website_url text,
   linkedin_url text,
 
-  -- 一句话定位（卡片、匹配摘要使用）
+  -- One-line positioning statement (used for cards and matching summaries)
   one_liner text,
 
-  -- 完整公司描述
+  -- Full company description
   description text,
 
-  -- ISO 国家代码，例如 'AU'
+  -- ISO country code, e.g. 'AU'
   hq_country text,
 
-  -- 州 / 地区，例如 'SA'
+  -- State / region, e.g. 'SA'
   hq_state text,
 
   hq_city text,
   hq_street text,
   hq_postal_code text,
 
-  -- rtrim 去掉末尾多余的 ", "
+  -- rtrim removes the trailing extra ", "
   hq_address_full text generated always as (
     rtrim(
       coalesce(hq_street || ', ', '') ||
@@ -686,10 +732,10 @@ create table company_profiles (
   constraint company_profiles_venture_unique
     unique (venture_id),
 
-  -- 严格规则：一个 Workspace 永远只有一条 Company Profile
-  -- （即使旧 Profile 已 archived 也不能新建）。
-  -- 若将来放宽为"同一时间只有一个 active"，
-  -- 改为部分唯一索引：
+  -- Strict rule: a Workspace only ever has one Company Profile
+  -- (a new one cannot be created even if the old Profile is archived).
+  -- If this is relaxed in the future to "only one active at a time",
+  -- switch to a partial unique index instead:
   --   create unique index company_profiles_one_active_per_workspace
   --     on company_profiles (workspace_id) where status = 'active';
   constraint company_profiles_workspace_unique
@@ -703,8 +749,8 @@ create table company_profiles (
 -- =========================================================
 -- 1. PROGRAMS
 --
--- 定义一个完整产品或课程。
--- 例如：AI Catalyst Founder Toolkit
+-- Defines a complete product or course.
+-- For example: AI Catalyst Founder Toolkit
 -- =========================================================
 
 create table programs (
@@ -740,14 +786,15 @@ create table programs (
 -- =========================================================
 -- 2. PROGRAM VERSIONS
 --
--- 定义 Program 的具体版本。
+-- Defines a specific version of a Program.
 --
--- 例如：
+-- For example:
 -- AI Catalyst Toolkit V2
 -- AI Catalyst Toolkit V3
 --
--- Founder 开始一个 Journey 后绑定某个固定版本，
--- 后续发布新版本不会影响已经开始的用户。
+-- Once a Founder starts a Journey, it is bound to a fixed version;
+-- publishing a new version afterward does not affect users who have
+-- already started.
 -- =========================================================
 
 create table program_versions (
@@ -802,10 +849,10 @@ create table program_versions (
 -- =========================================================
 -- 3. MODULE DEFINITIONS
 --
--- 定义 Program Version 中的 Module。
+-- Defines a Module within a Program Version.
 --
--- 这里只保存 Module 的固定配置，
--- 不保存 Founder 的完成状态。
+-- Only the Module's fixed configuration is stored here;
+-- Founder completion state is not stored here.
 -- =========================================================
 
 create table module_definitions (
@@ -823,7 +870,7 @@ create table module_definitions (
   subtitle text,
   description text,
 
-  -- 这个 Module 要帮助 Founder 达成什么目标
+  -- What goal this Module is meant to help the Founder achieve
   objective text,
 
   module_type text not null default 'standard'
@@ -836,13 +883,13 @@ create table module_definitions (
       )
     ),
 
-  -- 是否必须完成
+  -- Whether completion is mandatory
   is_required boolean not null default true,
 
-  -- 是否允许在完成后创建 Revision
+  -- Whether a Revision can be created after completion
   allow_revisions boolean not null default true,
 
-  -- 完成方式
+  -- How completion is determined
   completion_mode text not null default 'artifact_and_confirmation'
     check (
       completion_mode in (
@@ -877,8 +924,8 @@ create table module_definitions (
   constraint module_definitions_sequence_unique
     unique (program_version_id, sequence_index),
 
-  -- 供 program_run_modules 组合外键使用，
-  -- 保证 Module Definition 属于对应 Program Version
+  -- Used by program_run_modules' composite foreign key to guarantee
+  -- the Module Definition belongs to the corresponding Program Version
   constraint module_definitions_id_version_unique
     unique (id, program_version_id),
 
@@ -892,11 +939,11 @@ create table module_definitions (
 -- =========================================================
 -- 4. ARTIFACT DEFINITIONS
 --
--- 定义一个 Module 要生成什么成果。
+-- Defines what deliverable a Module must produce.
 --
--- 一个 Module 可以要求多个 Artifact。
+-- A Module may require multiple Artifacts.
 --
--- 例如：
+-- For example:
 -- Pressure-Test Verdict.md
 -- Landing Page.html
 -- Investor Deck.pptx
@@ -918,7 +965,7 @@ create table artifact_definitions (
 
   is_required boolean not null default true,
 
-  -- 成果的业务类型
+  -- The deliverable's business type
   artifact_type text not null
     check (
       artifact_type in (
@@ -930,18 +977,19 @@ create table artifact_definitions (
       )
     ),
 
-  -- AI 生成或系统编辑时使用的源格式
+  -- The source format used when AI-generated or system-edited
   source_format text,
 
-  -- 用户最终下载或使用的格式
+  -- The format the user ultimately downloads or uses
   output_format text not null,
 
   required_filename text,
 
-  -- 文本可为空；PPT、DOCX 等可以指定 Renderer
+  -- May be null for plain text; a Renderer can be specified for
+  -- PPT, DOCX, etc.
   renderer_key text,
 
-  -- 网站正式验证使用
+  -- Used for the website's official validation
   validator_key text,
 
   allowed_mime_types text[] not null default '{}',
@@ -955,10 +1003,10 @@ create table artifact_definitions (
   max_files integer not null default 1
     check (max_files > 0),
 
-  -- 必填章节、内容结构等验证配置
+  -- Validation config such as required sections and content structure
   validation_config jsonb not null default '{}'::jsonb,
 
-  -- Renderer、模板、页面尺寸等输出配置
+  -- Output config such as renderer, template, page size, etc.
   output_config jsonb not null default '{}'::jsonb,
 
   created_at timestamptz not null default now(),
@@ -970,7 +1018,8 @@ create table artifact_definitions (
   constraint artifact_definitions_sequence_unique
     unique (module_definition_id, sequence_index),
 
-  -- 供 artifact_submissions 组合外键闭环使用
+  -- Used to close the loop for artifact_submissions' composite
+  -- foreign key
   constraint artifact_definitions_id_module_unique
     unique (id, module_definition_id),
 
@@ -990,10 +1039,10 @@ create table artifact_definitions (
 -- =========================================================
 -- PROGRAM RUNS
 --
--- 某个 Venture 运行一次 Toolkit。
+-- One run of the Toolkit for a given Venture.
 --
--- 一个 Program Run 可以有多个 Branch，
--- 但 active_branch_id 只指向一个当前可操作 Branch。
+-- A Program Run can have multiple Branches, but active_branch_id
+-- only ever points to one currently operable Branch.
 -- =========================================================
 
 create table program_runs (
@@ -1002,14 +1051,16 @@ create table program_runs (
   workspace_id uuid not null,
   venture_id uuid not null,
 
-  -- 创建 Run 时只允许绑定 published 的 Program Version（后端验证）
+  -- Only a published Program Version may be bound when creating a
+  -- Run (enforced by the backend)
   program_version_id uuid not null
     references program_versions(id),
 
-  -- 当前唯一可操作分支
-  -- FK 在文末「后置外键」统一添加。
-  -- 切换事务必须验证：目标 Branch status = open、
-  -- Run 状态允许切换（后端保证）
+  -- The single currently operable branch
+  -- FK added together with the other deferred foreign keys at the
+  -- end of this file. The switching transaction must verify: target
+  -- Branch status = open, and the Run status allows switching
+  -- (enforced by the backend)
   active_branch_id uuid,
 
   run_number integer not null default 1
@@ -1075,15 +1126,16 @@ create table program_runs (
 -- =========================================================
 -- PROGRAM RUN BRANCHES
 --
--- 一个 Program Run 可以拥有多条验证分支。
+-- A Program Run can have multiple validation branches.
 --
--- 当前是否可以操作，不由 status = active 表示，
--- 而由 program_runs.active_branch_id 决定。
+-- Whether a branch is currently operable is not represented by
+-- status = active, but is instead determined by
+-- program_runs.active_branch_id.
 --
--- Branch status 只表示生命周期：
--- open       仍可被切换为 Active Branch
--- completed  已完成，只读
--- archived   已归档，只读
+-- Branch status only represents its lifecycle:
+-- open       can still be switched to be the Active Branch
+-- completed  finished, read-only
+-- archived   archived, read-only
 -- =========================================================
 
 create table program_run_branches (
@@ -1107,19 +1159,19 @@ create table program_run_branches (
       )
     ),
 
-  -- 第一条 Branch 为空
-  -- 后续 Branch 指向来源 Branch
+  -- Null for the first Branch
+  -- Subsequent Branches point to their source Branch
   parent_branch_id uuid,
 
-  -- 从父 Branch 的哪个 Module 重新开始
+  -- Which Module of the parent Branch this restarts from
   forked_from_run_module_id uuid,
 
-  -- 分叉时父 Branch 该 Module 的正式 Attempt
+  -- The parent Branch's accepted Attempt for that Module at fork time
   forked_from_attempt_id uuid,
 
   fork_reason text,
 
-  -- Branch 只能由网站、Admin 或系统创建
+  -- A Branch can only be created by the website, an Admin, or the system
   created_via text not null default 'website'
     check (
       created_via in (
@@ -1195,18 +1247,19 @@ create table program_run_branches (
 -- =========================================================
 -- PROGRAM RUN MODULES
 --
--- 某个 Branch 中的 Module 状态。
+-- The state of a Module within a given Branch.
 --
--- 每个 Branch 都有自己独立的 Module 状态。
+-- Every Branch has its own independent Module state.
 --
--- inherited：
--- 分叉点之前的 Module，沿用父 Branch 的正式结果。
+-- inherited:
+-- Modules before the fork point, carrying over the parent Branch's
+-- accepted result.
 --
--- 分叉 Module：
--- 从 available / in_progress 重新开始。
+-- The fork Module:
+-- restarts from available / in_progress.
 --
--- 后续 Module：
--- locked。
+-- Subsequent Modules:
+-- locked.
 -- =========================================================
 
 create table program_run_modules (
@@ -1221,7 +1274,7 @@ create table program_run_modules (
 
   module_definition_id uuid not null,
 
-  -- Module Definition 的运行时快照
+  -- A runtime snapshot of the Module Definition
   module_key text not null,
   title_snapshot text not null,
 
@@ -1240,17 +1293,19 @@ create table program_run_modules (
       )
     ),
 
-  -- inherited Module 指向父 Branch 对应的正式 Module
-  -- 来源属于 Parent Branch 且已 completed：由后端事务保证
+  -- An inherited Module points to the corresponding accepted Module
+  -- in the parent Branch. That the source belongs to the Parent
+  -- Branch and is completed is enforced by the backend transaction
   inherited_from_run_module_id uuid,
 
-  -- 当前正在编辑或等待处理的 Attempt
-  -- 必须处于 draft / in_progress / submitted / ready_for_review：
-  -- 由后端事务保证
+  -- The Attempt currently being edited or awaiting processing.
+  -- Must be in draft / in_progress / submitted / ready_for_review:
+  -- enforced by the backend transaction
   active_attempt_id uuid,
 
-  -- 当前正式生效的 Attempt
-  -- 必须指向 accepted 状态的 Attempt：由后端采纳事务保证
+  -- The Attempt currently in effect.
+  -- Must point to an Attempt with status = accepted: enforced by the
+  -- backend's acceptance transaction
   accepted_attempt_id uuid,
 
   unlocked_at timestamptz,
@@ -1325,14 +1380,16 @@ create table program_run_modules (
       workspace_id
     ),
 
-  -- 供分叉来源外键使用：Module 属于哪个 Branch
+  -- Used by the fork-source foreign key: which Branch a Module
+  -- belongs to
   constraint program_run_modules_id_branch_unique
     unique (
       id,
       program_run_branch_id
     ),
 
-  -- 供 inherited / artifact / workflow 组合外键闭环使用
+  -- Used to close the loop for inherited / artifact / workflow
+  -- composite foreign keys
   constraint program_run_modules_id_definition_unique
     unique (
       id,
@@ -1363,16 +1420,18 @@ create table program_run_modules (
 -- =========================================================
 -- MODULE ATTEMPTS
 --
--- Attempt 只处理当前 Branch 当前 Module 内的工作。
+-- An Attempt only handles work within the current Branch's current
+-- Module.
 --
--- initial：
--- 当前 Branch 中第一次正式尝试。
+-- initial:
+-- the first formal attempt within the current Branch.
 --
--- retry：
--- 同一 Branch、同一 Module 验证失败后的重新提交。
+-- retry:
+-- a resubmission after a validation failure, within the same Branch
+-- and Module.
 --
--- 返回前面 Module 不创建 Revision Attempt，
--- 而是在网站创建新的 Branch。
+-- Going back to an earlier Module does not create a Revision Attempt;
+-- instead, a new Branch is created on the website.
 -- =========================================================
 
 create table module_attempts (
@@ -1407,8 +1466,8 @@ create table module_attempts (
       )
     ),
 
-  -- Retry 基于哪个失败的 Attempt
-  -- 组合外键保证其属于同一 Module
+  -- Which failed Attempt the Retry is based on
+  -- A composite foreign key guarantees it belongs to the same Module
   based_on_attempt_id uuid,
 
   started_by_user_id uuid not null
@@ -1436,10 +1495,11 @@ create table module_attempts (
 
   rejected_at timestamptz,
 
-  -- Reviewer 审核意见（轻量方案：单 Mentor 单结论）
+  -- The Reviewer's review notes (lightweight approach: a single
+  -- Mentor, a single verdict)
   review_notes text,
 
-  -- status = rejected 时填写
+  -- Filled in when status = rejected
   rejection_reason text,
 
   cancelled_at timestamptz,
@@ -1470,8 +1530,9 @@ create table module_attempts (
       workspace_id
     ),
 
-  -- 供 program_run_modules.active/accepted_attempt_id
-  -- 组合外键使用，保证 Attempt 属于该 Module
+  -- Used by program_run_modules.active/accepted_attempt_id's
+  -- composite foreign key, guaranteeing the Attempt belongs to that
+  -- Module
   constraint module_attempts_id_run_module_unique
     unique (
       id,
@@ -1510,12 +1571,12 @@ create table module_attempts (
     )
 );
 
--- 同一 Module 同时最多一个进行中的 Attempt
+-- At most one in-progress Attempt at a time per Module
 create unique index module_attempts_one_active_unique
   on module_attempts (program_run_module_id)
   where status in ('draft', 'in_progress', 'submitted', 'ready_for_review');
 
--- 同一 Module 最多一个 accepted Attempt
+-- At most one accepted Attempt per Module
 create unique index module_attempts_one_accepted_unique
   on module_attempts (program_run_module_id)
   where status = 'accepted';
@@ -1524,16 +1585,17 @@ create unique index module_attempts_one_accepted_unique
 -- =========================================================
 -- MODULE RESPONSES
 --
--- 保存某次 Attempt 中 Founder 的结构化背景回答。
+-- Stores the Founder's structured background answers for a given
+-- Attempt.
 --
--- 用于：
--- Claude / OpenAI 跨会话继续工作
--- Reviewer 查看结论背后的上下文
--- 新 Branch 参考旧 Branch 的历史结果
--- 区分事实、证据、假设和未确认内容
+-- Used for:
+-- Claude / OpenAI continuing work across sessions
+-- Reviewers seeing the context behind a conclusion
+-- New Branches referencing an old Branch's historical results
+-- Distinguishing facts, evidence, assumptions, and unconfirmed content
 --
--- Attempt 提交后，Responses 应冻结。
--- 验证失败后通过新的 Retry Attempt 继续。
+-- Responses should be frozen once the Attempt is submitted.
+-- After a validation failure, work continues via a new Retry Attempt.
 -- =========================================================
 
 create table module_responses (
@@ -1548,7 +1610,7 @@ create table module_responses (
   sequence_index integer not null
     check (sequence_index >= 0),
 
-  -- 保存当时实际使用的问题文本
+  -- Stores the actual question text used at the time
   question_text_snapshot text not null,
 
   response_type text not null
@@ -1576,14 +1638,14 @@ create table module_responses (
       )
     ),
 
-  -- 人类可读的原始回答
+  -- The human-readable raw answer
   answer_text text,
 
-  -- AI 和系统使用的结构化回答
-  -- 可以是 object、array、string、number 等 JSON
+  -- The structured answer used by AI and the system
+  -- Can be a JSON object, array, string, number, etc.
   answer_data jsonb,
 
-  -- Review 页面使用的简短摘要
+  -- A short summary used on the Review page
   answer_summary text,
 
   claim_status text
@@ -1600,10 +1662,10 @@ create table module_responses (
       )
     ),
 
-  -- URL、文件、访谈记录、其他 Artifact 引用
+  -- References to URLs, files, interview notes, other Artifacts
   evidence_refs jsonb not null default '[]'::jsonb,
 
-  -- 例如：
+  -- For example:
   -- key_assumption
   -- missing_evidence
   -- founder_decision
@@ -1676,12 +1738,12 @@ create table module_responses (
 -- =========================================================
 -- MODULE REVIEW CONTEXT SNAPSHOTS
 --
--- Attempt 提交时生成冻结的 Review 背景。
+-- Generates a frozen Review context when an Attempt is submitted.
 --
--- Reviewer 审核 Artifact 时，
--- 必须读取与该 Artifact 相同 Attempt 的 Context。
+-- When a Reviewer reviews an Artifact, they must read the Context
+-- from the same Attempt as that Artifact.
 --
--- 每个 Attempt 一份正式 Snapshot。
+-- One accepted Snapshot per Attempt.
 -- =========================================================
 
 create table module_review_context_snapshots (
@@ -1703,7 +1765,7 @@ create table module_review_context_snapshots (
 
   unresolved_questions jsonb not null default '[]'::jsonb,
 
-  -- 提交时全部结构化回答的冻结副本
+  -- A frozen copy of all structured answers at submission time
   response_snapshot jsonb not null default '[]'::jsonb,
 
   generated_by text not null default 'system'
@@ -1744,9 +1806,10 @@ create table module_review_context_snapshots (
 -- =========================================================
 -- PROGRAM RUN EVENTS
 --
--- 记录 Program Run 和 Branch 的关键操作。
+-- Records key operations on a Program Run and its Branches.
 --
--- Branch 创建、切换、归档均属于网站业务操作。
+-- Branch creation, switching, and archiving are all website business
+-- operations.
 -- =========================================================
 
 create table program_run_events (
@@ -1756,7 +1819,9 @@ create table program_run_events (
 
   program_run_id uuid not null,
 
-  -- 三个 Branch 均通过组合外键保证属于本 Run（见表末约束）
+  -- All three Branch references are guaranteed to belong to this Run
+  -- via composite foreign keys (see the constraints at the end of
+  -- this table)
   branch_id uuid,
 
   from_branch_id uuid,
@@ -1831,9 +1896,9 @@ create table program_run_events (
 -- =========================================================
 -- MODULE EVENTS
 --
--- 保存 Module、Attempt、Response、Artifact 和验证事件。
+-- Stores Module, Attempt, Response, Artifact, and validation events.
 --
--- 不保存完整 AI 对话。
+-- The full AI conversation is not stored.
 -- =========================================================
 
 create table module_events (
@@ -1847,7 +1912,8 @@ create table module_events (
 
   program_run_module_id uuid not null,
 
-  -- 组合外键保证 Attempt 属于本 Module（见表末约束）
+  -- A composite foreign key guarantees the Attempt belongs to this
+  -- Module (see the constraints at the end of this table)
   module_attempt_id uuid,
 
   event_type text not null
@@ -1940,12 +2006,12 @@ create table module_events (
     )
     on delete cascade,
 
-  -- Module 必须属于本 Branch
+  -- The Module must belong to this Branch
   constraint module_events_module_branch_fk
     foreign key (program_run_module_id, program_run_branch_id)
     references program_run_modules (id, program_run_branch_id),
 
-  -- Attempt 必须属于本 Module
+  -- The Attempt must belong to this Module
   constraint module_events_attempt_module_fk
     foreign key (module_attempt_id, program_run_module_id)
     references module_attempts (id, program_run_module_id)
@@ -1958,32 +2024,36 @@ create table module_events (
 -- =========================================================
 -- STORAGE OBJECTS
 --
--- 保存文件存储元数据。
+-- Stores file storage metadata.
 --
--- storage_provider 支持 local / s3：
--- Dev 与测试使用 local，生产使用 s3，
--- 表结构不变，只切换 provider 配置。
+-- storage_provider supports local / s3:
+-- Dev and testing use local, production uses s3; the table structure
+-- stays the same and only the provider configuration switches.
 --
--- 不保存永久 Public URL。
--- 使用 storage_provider + storage_container + object_key 定位。
+-- No permanent public URL is stored.
+-- Objects are located using storage_provider + storage_container +
+-- object_key.
 --
--- 文件上传前可以先创建 pending 记录，
--- 上传完成后由后端验证并改为 verified。
--- local 环境的 checksum_sha256 由后端写盘时计算填入。
+-- A pending record can be created before a file is uploaded; once the
+-- upload completes, the backend verifies it and changes it to verified.
+-- In the local environment, checksum_sha256 is computed and filled in
+-- by the backend when writing to disk.
 --
--- 归属规则：
--- Workspace 内产物 → workspace_id 必填
--- 个人文件（如头像）→ owner_user_id 必填，workspace_id 可空
+-- Ownership rules:
+-- Deliverables within a Workspace → workspace_id is required
+-- Personal files (e.g. avatars) → owner_user_id is required,
+-- workspace_id may be null
 -- =========================================================
 
 create table storage_objects (
   id uuid primary key default gen_random_uuid(),
 
-  -- Workspace 内产物必填；个人文件可为空
+  -- Required for deliverables within a Workspace; may be null for
+  -- personal files
   workspace_id uuid
     references workspaces(id) on delete cascade,
 
-  -- 个人文件（头像等）的归属用户
+  -- The owning user for personal files (avatars, etc.)
   owner_user_id uuid
     references users(id),
 
@@ -1995,7 +2065,7 @@ create table storage_objects (
       )
     ),
 
-  -- 环境或存储配置标识
+  -- Identifies the environment or storage configuration
   --
   -- local:
   --   local-development
@@ -2005,9 +2075,9 @@ create table storage_objects (
   --   ai-catalyst-production
   storage_container text not null,
 
-  -- 两种 Provider 都使用统一的逻辑对象路径
+  -- Both providers use the same logical object path
   --
-  -- 例如：
+  -- For example:
   -- users/{user_id}/avatar/{storage_object_id}.png
   -- workspaces/{workspace_id}/
   -- program-runs/{run_id}/
@@ -2018,8 +2088,8 @@ create table storage_objects (
   -- files/{storage_object_id}.pptx
   object_key text not null,
 
-  -- S3 Versioning 返回的 Version ID
-  -- local 环境为空
+  -- The Version ID returned by S3 versioning
+  -- null in the local environment
   object_version_id text,
 
   original_filename text not null,
@@ -2088,7 +2158,7 @@ create table storage_objects (
       workspace_id
     ),
 
-  -- 供头像等个人文件的租户安全外键使用
+  -- Used for tenant-safe foreign keys on personal files such as avatars
   constraint storage_objects_id_owner_unique
     unique (
       id,
@@ -2126,19 +2196,19 @@ create table storage_objects (
 -- =========================================================
 -- ARTIFACT SUBMISSIONS
 --
--- 一个 Module Attempt 中，
--- 某个 Artifact Definition 的一个版本。
+-- One version of a given Artifact Definition within a Module Attempt.
 --
--- 例如：
--- v1 Claude 生成
--- v2 Founder 下载后本地修改并上传
--- v3 OpenAI 根据验证结果重新生成
+-- For example:
+-- v1 generated by Claude
+-- v2 downloaded, modified locally, and re-uploaded by the Founder
+-- v3 regenerated by OpenAI based on validation results
 --
--- 不覆盖旧版本；新版本产生后旧版本置为 superseded。
+-- Old versions are not overwritten; once a new version is created,
+-- the old version is set to superseded.
 --
--- status 只表达版本生命周期：
--- 验证结果在 artifact_validations，
--- 是否被采纳跟随 module_attempts。
+-- status only expresses the version lifecycle:
+-- validation results live in artifact_validations;
+-- whether it was accepted follows module_attempts.
 -- =========================================================
 
 create table artifact_submissions (
@@ -2148,8 +2218,9 @@ create table artifact_submissions (
 
   module_attempt_id uuid not null,
 
-  -- 冗余列：组合外键闭环，
-  -- 保证 Artifact Definition 属于该 Attempt 所在 Module
+  -- Redundant column: closes the composite foreign key loop,
+  -- guaranteeing the Artifact Definition belongs to the Module the
+  -- Attempt is in
   program_run_module_id uuid not null,
   module_definition_id uuid not null,
 
@@ -2203,7 +2274,7 @@ create table artifact_submissions (
     )
     on delete cascade,
 
-  -- 闭环链 1：Attempt → Run Module
+  -- Loop link 1: Attempt → Run Module
   constraint artifact_submissions_attempt_module_fk
     foreign key (
       module_attempt_id,
@@ -2214,7 +2285,7 @@ create table artifact_submissions (
       program_run_module_id
     ),
 
-  -- 闭环链 2：Run Module → Module Definition
+  -- Loop link 2: Run Module → Module Definition
   constraint artifact_submissions_run_module_definition_fk
     foreign key (
       program_run_module_id,
@@ -2225,7 +2296,7 @@ create table artifact_submissions (
       module_definition_id
     ),
 
-  -- 闭环链 3：Artifact Definition → 同一 Module Definition
+  -- Loop link 3: Artifact Definition → the same Module Definition
   constraint artifact_submissions_definition_module_fk
     foreign key (
       artifact_definition_id,
@@ -2254,16 +2325,16 @@ create table artifact_submissions (
 -- =========================================================
 -- ARTIFACT RENDER JOBS
 --
--- 用于服务端生成二进制或预览文件。
+-- Used for server-side generation of binary or preview files.
 --
--- 例如：
+-- For example:
 -- presentation JSON → PPTX
 -- Markdown → DOCX
 -- PPTX → PDF Preview
 -- HTML → Screenshot
 --
--- Renderer 生成的文件仍然写入 storage_objects，
--- 并通过 artifact_files 关联到 Submission。
+-- Files generated by the Renderer are still written to
+-- storage_objects, and linked to the Submission via artifact_files.
 -- =========================================================
 
 create table artifact_render_jobs (
@@ -2273,8 +2344,8 @@ create table artifact_render_jobs (
 
   artifact_submission_id uuid not null,
 
-  -- 作为 Renderer 输入的源文件
-  -- 例如 presentation.json
+  -- The source file used as the Renderer's input
+  -- For example presentation.json
   input_storage_object_id uuid,
 
   renderer_key text not null,
@@ -2306,7 +2377,7 @@ create table artifact_render_jobs (
   requested_by_user_id uuid
     references users(id),
 
-  -- 提交时冻结 Renderer 配置
+  -- Freezes the Renderer configuration at submission time
   render_config_snapshot jsonb not null default '{}'::jsonb,
 
   attempt_count integer not null default 0
@@ -2337,8 +2408,10 @@ create table artifact_render_jobs (
     )
     on delete cascade,
 
-  -- input 文件必须属于本 Submission：
-  -- 组合外键在文末「后置外键」段（与 artifact_files 循环依赖）
+  -- The input file must belong to this Submission:
+  -- the composite foreign key is in the "deferred foreign keys"
+  -- section at the end of this file (circular dependency with
+  -- artifact_files)
 
   constraint artifact_render_jobs_id_workspace_unique
     unique (
@@ -2372,17 +2445,17 @@ create table artifact_render_jobs (
 -- =========================================================
 -- ARTIFACT FILES
 --
--- 将一个 Artifact Submission 与实际 Storage Object 连接。
+-- Links an Artifact Submission to an actual Storage Object.
 --
--- 一个 Submission 可以有多个文件。
+-- A Submission can have multiple files.
 --
--- PPT 示例：
+-- PPT example:
 -- source     deck.presentation.json
 -- rendered   investor-deck.pptx
 -- preview    investor-deck.pdf
 -- thumbnail  slide-01.png
 --
--- HTML 示例：
+-- HTML example:
 -- source     index.html
 -- asset      styles.css
 -- asset      hero.png
@@ -2398,7 +2471,8 @@ create table artifact_files (
 
   storage_object_id uuid not null,
 
-  -- Renderer 生成的文件可关联对应 Job
+  -- Files generated by the Renderer may be linked to the
+  -- corresponding Job
   render_job_id uuid,
 
   file_role text not null
@@ -2448,7 +2522,7 @@ create table artifact_files (
       workspace_id
     ),
 
-  -- Render Job 必须属于同一 Submission
+  -- The Render Job must belong to the same Submission
   constraint artifact_files_render_job_fk
     foreign key (
       render_job_id,
@@ -2487,15 +2561,15 @@ create table artifact_files (
 -- =========================================================
 -- ARTIFACT VALIDATIONS
 --
--- 保存 Artifact 的检查和正式验证结果。
+-- Stores draft-check and official validation results for an Artifact.
 --
--- draft_check：
--- MCP 或网站执行的草稿预检查。
--- 不可以完成 Module 或解锁下一步。
+-- draft_check:
+-- A draft pre-check run by MCP or the website.
+-- Cannot complete a Module or unlock the next step.
 --
--- official：
--- 网站后端执行的正式验证。
--- 只有 official passed 才能进入 ready_for_review。
+-- official:
+-- The official validation run by the website backend.
+-- Only an official pass can move it to ready_for_review.
 -- =========================================================
 
 create table artifact_validations (
@@ -2505,7 +2579,7 @@ create table artifact_validations (
 
   artifact_submission_id uuid not null,
 
-  -- 可选：只验证 Submission 中的某个具体文件
+  -- Optional: validates only a specific file within the Submission
   target_artifact_file_id uuid,
 
   validation_number integer not null
@@ -2547,16 +2621,17 @@ create table artifact_validations (
   triggered_by_user_id uuid
     references users(id),
 
-  -- 验证时实际使用的规则快照
+  -- A snapshot of the rules actually used at validation time
   rule_snapshot jsonb not null default '{}'::jsonb,
 
-  -- 每项检查的结构化结果
+  -- Structured results for each check
   checks jsonb not null default '[]'::jsonb,
 
-  -- 阻止通过的问题
+  -- Issues that block passing
   issues jsonb not null default '[]'::jsonb,
 
-  -- 不阻止通过，但建议用户处理的问题
+  -- Issues that do not block passing, but are recommended for the
+  -- user to address
   warnings jsonb not null default '[]'::jsonb,
 
   summary text,
@@ -2587,7 +2662,7 @@ create table artifact_validations (
     )
     on delete cascade,
 
-  -- 被验证文件必须属于本 Submission
+  -- The file being validated must belong to this Submission
   constraint artifact_validations_target_file_fk
     foreign key (
       target_artifact_file_id,
@@ -2610,8 +2685,9 @@ create table artifact_validations (
       workspace_id
     ),
 
-  -- 正式验证只能由网站后端 / 系统 / Admin 触发，
-  -- 与产品安全边界一致（MCP 只能做 draft_check）
+  -- Official validation can only be triggered by the website backend
+  -- / system / Admin, consistent with the product's security
+  -- boundary (MCP can only run draft_check)
   constraint artifact_validations_official_authority_check
     check (
       validation_kind <> 'official'
@@ -2637,8 +2713,8 @@ create table artifact_validations (
 -- =========================================================
 -- PROMPT DEFINITIONS
 --
--- 定义 Prompt 的身份和用途，不保存具体内容。
--- 具体内容存入 prompt_versions。
+-- Defines a Prompt's identity and purpose; does not store its actual
+-- content. The actual content is stored in prompt_versions.
 -- =========================================================
 
 create table prompt_definitions (
@@ -2686,10 +2762,11 @@ create table prompt_definitions (
 -- =========================================================
 -- PROMPT VERSIONS
 --
--- 保存 Prompt 的具体版本内容。
+-- Stores the actual content of a Prompt version.
 --
--- Program Version 和 Module Definition 绑定具体的
--- prompt_version_id，避免 Prompt 更新影响历史 Journey。
+-- Program Version and Module Definition bind a specific
+-- prompt_version_id, so updating a Prompt never affects historical
+-- Journeys.
 -- =========================================================
 
 create table prompt_versions (
@@ -2712,9 +2789,9 @@ create table prompt_versions (
       )
     ),
 
-  -- Prompt 支持的变量说明
+  -- Documents the variables the Prompt supports
   --
-  -- 例如：
+  -- For example:
   -- {
   --   "variables": [
   --     "venture_name",
@@ -2761,9 +2838,9 @@ create table prompt_versions (
 -- =========================================================
 -- PROGRAM PROMPT BINDINGS
 --
--- 将 Program Version 与全局 Prompt 绑定。
+-- Binds a Program Version to global Prompts.
 --
--- 例如：
+-- For example:
 -- Toolkit V2
 -- ├── Global Assistant Instruction v3
 -- └── Platform Boundary v2
@@ -2806,9 +2883,9 @@ create table program_prompt_bindings (
 -- =========================================================
 -- MODULE PROMPT BINDINGS
 --
--- 将 Module Definition 与具体 Prompt Version 绑定。
+-- Binds a Module Definition to a specific Prompt Version.
 --
--- 一个 Module 可以绑定多个不同用途的 Prompt。
+-- A Module can bind multiple Prompts for different purposes.
 -- =========================================================
 
 create table module_prompt_bindings (
@@ -2850,11 +2927,11 @@ create table module_prompt_bindings (
 -- =========================================================
 -- MODULE QUESTIONS
 --
--- 定义每个 Module 需要向 Founder 收集的问题。
+-- Defines the questions each Module needs to collect from the Founder.
 --
--- 实际回答保存到 module_responses。
--- module_responses 会保存 question_text_snapshot，
--- 因此后续修改问题不会影响历史回答。
+-- Actual answers are stored in module_responses.
+-- module_responses stores a question_text_snapshot, so subsequently
+-- editing a question never affects historical answers.
 -- =========================================================
 
 create table module_questions (
@@ -2892,7 +2969,7 @@ create table module_questions (
   is_required boolean not null default true,
   allow_skip boolean not null default false,
 
-  -- 单选、多选的选项
+  -- Options for single_choice / multi_choice
   --
   -- [
   --   {
@@ -2902,7 +2979,7 @@ create table module_questions (
   -- ]
   options jsonb not null default '[]'::jsonb,
 
-  -- 条件显示规则
+  -- Conditional display rules
   --
   -- {
   --   "depends_on": "has_customers",
@@ -2911,10 +2988,10 @@ create table module_questions (
   -- }
   conditions jsonb not null default '{}'::jsonb,
 
-  -- 期望保存的结构化回答格式
+  -- The expected structured answer format to store
   response_schema jsonb not null default '{}'::jsonb,
 
-  -- Reviewer 页面如何展示和强调该回答
+  -- How the Reviewer page displays and emphasizes this answer
   review_config jsonb not null default '{}'::jsonb,
 
   default_review_tags text[] not null default '{}',
@@ -2957,17 +3034,20 @@ create table module_questions (
 -- =========================================================
 -- WORKFLOW DEFINITIONS
 --
--- 定义一个 Module 应该按照什么流程运行。
+-- Defines what process a Module should run through.
 --
--- Module Definition 属于固定 Program Version，
--- Workflow 自身仍保留版本，方便修改和测试。
+-- A Module Definition belongs to a fixed Program Version, while a
+-- Workflow retains its own versioning to make editing and testing
+-- easier.
 --
--- 范围：Workflow 只覆盖 Module 执行流程
--- （最远到 attempt_submitted / 正式验证）；
--- Review 与采纳生命周期由 module_attempts.status 管理。
+-- Scope: a Workflow only covers the Module's execution process
+-- (up to attempt_submitted / official validation at most);
+-- the Review and acceptance lifecycle is managed by
+-- module_attempts.status.
 --
--- Attempt 创建时通过 module_workflow_states 冻结所用版本，
--- 运行中不自动切换到最新 published 版本。
+-- When an Attempt is created, module_workflow_states freezes the
+-- version in use; it does not automatically switch to the latest
+-- published version while running.
 -- =========================================================
 
 create table workflow_definitions (
@@ -2984,8 +3064,9 @@ create table workflow_definitions (
   name text not null,
   description text,
 
-  -- 入口 Step；published 前必须设置。
-  -- 组合外键在文末「后置外键」段（deferrable）
+  -- The entry Step; must be set before publishing.
+  -- The composite foreign key is in the "deferred foreign keys"
+  -- section at the end of this file (deferrable)
   entry_step_key text,
 
   status text not null default 'draft'
@@ -3016,7 +3097,8 @@ create table workflow_definitions (
       version_number
     ),
 
-  -- 供 module_workflow_states 组合外键闭环使用
+  -- Used to close the loop for module_workflow_states' composite
+  -- foreign key
   constraint workflow_definitions_id_module_unique
     unique (
       id,
@@ -3044,14 +3126,14 @@ create table workflow_definitions (
 -- =========================================================
 -- WORKFLOW STEPS
 --
--- 定义 Workflow 中的具体步骤。
+-- Defines the concrete steps within a Workflow.
 --
--- Prompt 告诉 AI 如何执行，
--- Workflow Step 决定系统允许执行什么动作。
+-- A Prompt tells the AI how to execute, while a Workflow Step
+-- determines which actions the system allows it to perform.
 --
--- 流转约定：
--- sequence_index 仅用于展示排序；
--- 实际流转一律以 next_step_key / failure_step_key 为准。
+-- Transition rules:
+-- sequence_index is only used for display ordering;
+-- actual transitions always follow next_step_key / failure_step_key.
 -- =========================================================
 
 create table workflow_steps (
@@ -3099,12 +3181,12 @@ create table workflow_steps (
       )
     ),
 
-  -- 该步骤可选绑定特定 Prompt
+  -- This step may optionally bind a specific Prompt
   prompt_version_id uuid
     references prompt_versions(id),
 
-  -- ask_question 时，可以通过 Config 引用：
-  -- question_key 或 question_group
+  -- For ask_question, Config can reference:
+  -- a question_key or question_group
   config jsonb not null default '{}'::jsonb,
 
   is_optional boolean not null default false,
@@ -3145,8 +3227,10 @@ create table workflow_steps (
       length(trim(name)) > 0
     ),
 
-  -- next / failure 必须指向同一 Workflow 内已存在的 step_key
-  -- deferrable：允许同一事务内先插入全部 Step 再校验
+  -- next / failure must point to an existing step_key within the
+  -- same Workflow
+  -- deferrable: allows inserting all Steps first within the same
+  -- transaction before validating
   constraint workflow_steps_next_step_fk
     foreign key (
       workflow_definition_id,
@@ -3169,7 +3253,8 @@ create table workflow_steps (
     )
     deferrable initially deferred,
 
-  -- 正式验证、完成和解锁不能交给 AI 或 MCP
+  -- Official validation, completion, and unlocking cannot be
+  -- delegated to AI or MCP
   constraint workflow_steps_authority_check
     check (
       action_type not in (
@@ -3189,17 +3274,19 @@ create table workflow_steps (
 -- =========================================================
 -- MODULE WORKFLOW STATES
 --
--- 保存某次 Module Attempt 当前执行到哪个 Workflow Step。
+-- Stores which Workflow Step a given Module Attempt has currently
+-- reached.
 --
--- Workflow Definition 是模板；
--- Module Workflow State 是实际运行状态。
+-- The Workflow Definition is the template;
+-- the Module Workflow State is the actual runtime state.
 --
--- 每个 Attempt 一条 Workflow State。
+-- One Workflow State per Attempt.
 --
--- Attempt 创建事务必须验证（后端保证）：
--- Workflow 属于当前 Module 且 status = published、
--- Entry / Next / Failure Step 可达、无意外死循环、
--- 绑定的 Prompt Version 均已 published。
+-- The Attempt creation transaction must verify (enforced by the
+-- backend): the Workflow belongs to the current Module and has
+-- status = published, Entry / Next / Failure Steps are reachable
+-- with no unintended infinite loops, and all bound Prompt Versions
+-- are published.
 -- =========================================================
 
 create table module_workflow_states (
@@ -3209,8 +3296,9 @@ create table module_workflow_states (
 
   module_attempt_id uuid not null,
 
-  -- 冗余列：组合外键闭环，
-  -- 保证 Workflow 属于该 Attempt 的 Module Definition
+  -- Redundant column: closes the composite foreign key loop,
+  -- guaranteeing the Workflow belongs to that Attempt's Module
+  -- Definition
   program_run_module_id uuid not null,
   module_definition_id uuid not null,
 
@@ -3231,9 +3319,9 @@ create table module_workflow_states (
       )
     ),
 
-  -- 当前步骤运行需要的少量状态
+  -- A small amount of state needed to run the current step
   --
-  -- 不保存完整聊天记录或文件内容。
+  -- Does not store full chat history or file content.
   step_state jsonb not null default '{}'::jsonb,
 
   started_at timestamptz,
@@ -3306,13 +3394,13 @@ create table module_workflow_states (
 -- =========================================================
 -- MCP TOOL AUDIT LOGS
 --
--- 记录 Claude / OpenAI 调用了哪些 MCP Tool。
+-- Records which MCP Tools Claude / OpenAI invoked.
 --
--- 不默认保存：
--- 完整聊天
--- 完整 Prompt
--- 文件内容
--- OAuth Token
+-- Not stored by default:
+-- Full chat history
+-- Full Prompt
+-- File content
+-- OAuth token
 -- Presigned URL
 -- =========================================================
 
@@ -3327,8 +3415,10 @@ create table mcp_tool_audit_logs (
   workspace_id uuid
     references workspaces(id),
 
-  -- 上下文层级：子级非空时父级必须非空（见表末 check），
-  -- 组合外键保证 Run / Branch / Module / Attempt 相互一致
+  -- Context hierarchy: if a child is non-null the parent must also
+  -- be non-null (see the check constraint at the end of this table);
+  -- composite foreign keys guarantee Run / Branch / Module / Attempt
+  -- are mutually consistent
   program_run_id uuid,
 
   program_run_branch_id uuid,
@@ -3365,10 +3455,10 @@ create table mcp_tool_audit_logs (
       or duration_ms >= 0
     ),
 
-  -- 只保存经过脱敏的请求元数据
+  -- Stores only redacted request metadata
   request_metadata jsonb not null default '{}'::jsonb,
 
-  -- 只保存结果摘要，不保存完整 Artifact 内容
+  -- Stores only a result summary, not the full Artifact content
   result_metadata jsonb not null default '{}'::jsonb,
 
   error_code text,
@@ -3413,72 +3503,81 @@ create table mcp_tool_audit_logs (
 -- section 6
 
 -- =========================================================
--- 后置外键（DEFERRED FOREIGN KEYS）
+-- DEFERRED FOREIGN KEYS
 --
--- 以下外键因建表顺序或循环引用，
--- 统一在全部表创建完成后添加。
+-- The following foreign keys are added together only after all
+-- tables have been created, due to table-creation order or circular
+-- references.
 --
--- 未指定 on delete 的均为默认 no action：
--- 删除被引用记录前需先由应用层解除引用；
--- 同一语句内的级联删除在语句结束时统一校验，不受影响。
+-- Any foreign key without an explicit "on delete" defaults to
+-- "no action": referenced records must be dereferenced by the
+-- application layer before deletion; cascading deletes within the
+-- same statement are validated together at the end of the statement
+-- and are unaffected.
 -- =========================================================
 
--- 头像必须是本人拥有的文件（跨用户引用被拒绝）
+-- The avatar must be a file owned by the same user (cross-user
+-- references are rejected)
 alter table user_profiles
   add constraint user_profiles_avatar_storage_fk
   foreign key (avatar_storage_object_id, user_id)
   references storage_objects (id, owner_user_id);
 
--- Logo 必须是本 Workspace 的文件（跨 Workspace 引用被拒绝）
+-- The logo must be a file belonging to this Workspace (cross-Workspace
+-- references are rejected)
 alter table workspaces
   add constraint workspaces_logo_storage_fk
   foreign key (logo_storage_object_id, id)
   references storage_objects (id, workspace_id);
 
--- 当前激活 Venture 必须属于当前激活 Workspace
+-- The currently active Venture must belong to the currently active
+-- Workspace
 alter table user_active_contexts
   add constraint user_active_contexts_venture_fk
   foreign key (active_venture_id, active_workspace_id)
   references ventures (id, workspace_id);
 
--- Active Branch 必须属于本 Run
+-- The Active Branch must belong to this Run
 alter table program_runs
   add constraint program_runs_active_branch_fk
   foreign key (active_branch_id, id, workspace_id)
   references program_run_branches (id, program_run_id, workspace_id);
 
--- 父 Branch 必须属于同一 Run
+-- The parent Branch must belong to the same Run
 alter table program_run_branches
   add constraint program_run_branches_parent_fk
   foreign key (parent_branch_id, program_run_id, workspace_id)
   references program_run_branches (id, program_run_id, workspace_id);
 
--- 分叉来源 Module 必须属于 Parent Branch
+-- The fork source Module must belong to the Parent Branch
 alter table program_run_branches
   add constraint program_run_branches_forked_module_fk
   foreign key (forked_from_run_module_id, parent_branch_id)
   references program_run_modules (id, program_run_branch_id);
 
--- 分叉来源 Attempt 必须属于该分叉 Module
--- （来源 Attempt 已 accepted：由后端创建 Branch 的事务保证）
+-- The fork source Attempt must belong to that fork Module
+-- (that the source Attempt is accepted is guaranteed by the
+-- backend's Branch-creation transaction)
 alter table program_run_branches
   add constraint program_run_branches_forked_attempt_fk
   foreign key (forked_from_attempt_id, forked_from_run_module_id)
   references module_attempts (id, program_run_module_id);
 
--- inherited Module 指向同一 Workspace 内父 Branch 的 Module
+-- An inherited Module points to a Module of the parent Branch within
+-- the same Workspace
 alter table program_run_modules
   add constraint program_run_modules_inherited_fk
   foreign key (inherited_from_run_module_id, workspace_id)
   references program_run_modules (id, workspace_id);
 
--- inherited Module 必须与来源 Module 使用相同 Module Definition
+-- An inherited Module must use the same Module Definition as its
+-- source Module
 alter table program_run_modules
   add constraint program_run_modules_inherited_same_definition_fk
   foreign key (inherited_from_run_module_id, module_definition_id)
   references program_run_modules (id, module_definition_id);
 
--- Active / Accepted Attempt 必须属于该 Module
+-- The Active / Accepted Attempt must belong to this Module
 alter table program_run_modules
   add constraint program_run_modules_active_attempt_fk
   foreign key (active_attempt_id, id)
@@ -3489,16 +3588,17 @@ alter table program_run_modules
   foreign key (accepted_attempt_id, id)
   references module_attempts (id, program_run_module_id);
 
--- Workflow 入口 Step 必须存在于该 Workflow 中
--- deferrable：允许同一事务内先建 Definition 再建 Steps
+-- The Workflow's entry Step must exist within that Workflow
+-- deferrable: allows creating the Definition first and the Steps
+-- afterward within the same transaction
 alter table workflow_definitions
   add constraint workflow_definitions_entry_step_fk
   foreign key (id, entry_step_key)
   references workflow_steps (workflow_definition_id, step_key)
   deferrable initially deferred;
 
--- Render Job 的输入文件必须属于本 Submission
--- （与 artifact_files.render_job_id 互相引用，故后置）
+-- The Render Job's input file must belong to this Submission
+-- (mutually references artifact_files.render_job_id, hence deferred)
 alter table artifact_render_jobs
   add constraint artifact_render_jobs_input_file_fk
   foreign key (artifact_submission_id, input_storage_object_id)
@@ -3508,10 +3608,11 @@ alter table artifact_render_jobs
 -- section 7
 
 -- =========================================================
--- 常用外键 / 查询索引
+-- Common foreign-key / query indexes
 --
--- PostgreSQL 只为主键和 UNIQUE 自动建索引，
--- 不会为外键引用列建索引，需主动补齐。
+-- PostgreSQL only automatically indexes primary keys and UNIQUE
+-- constraints; it does not index foreign-key reference columns, so
+-- these must be added explicitly.
 -- =========================================================
 
 create index idx_sessions_user on sessions (user_id);
@@ -3535,12 +3636,12 @@ create index idx_mcp_tool_audit_logs_user_time on mcp_tool_audit_logs (user_id, 
 -- section 8
 
 -- =========================================================
--- 触发器
+-- Triggers
 -- =========================================================
 
 -- ---------------------------------------------------------
--- 1. updated_at 自动更新
---    default now() 只在 INSERT 生效，UPDATE 需触发器
+-- 1. Automatic updated_at maintenance
+--    default now() only applies on INSERT; UPDATE needs a trigger
 -- ---------------------------------------------------------
 
 create function set_updated_at()
@@ -3578,8 +3679,9 @@ end;
 $do$;
 
 -- ---------------------------------------------------------
--- 2. 不可变性：published / retired 的 Prompt 内容不可修改
---    draft 可改；published 只能创建新版本；retired 只读
+-- 2. Immutability: published / retired Prompt content cannot be
+--    modified. draft is editable; published can only create a new
+--    version; retired is read-only
 -- ---------------------------------------------------------
 
 create function prompt_versions_freeze()
@@ -3587,7 +3689,7 @@ returns trigger
 language plpgsql
 as $fn$
 begin
-  -- 状态机：draft → published → retired，禁止回退
+  -- State machine: draft → published → retired, no rollback allowed
   if not (
        (old.status = 'draft'
         and new.status in ('draft', 'published'))
@@ -3597,11 +3699,11 @@ begin
         and new.status = 'retired')
   ) then
     raise exception
-      'prompt_versions %: 状态只能 draft → published → retired，不可跳过或回退',
+      'prompt_versions %: status can only move draft -> published -> retired, no skipping or rollback',
       old.id;
   end if;
 
-  -- published / retired：内容与身份不可修改
+  -- published / retired: content and identity cannot be modified
   if old.status in ('published', 'retired') and (
        new.prompt_definition_id is distinct from old.prompt_definition_id
     or new.version_number       is distinct from old.version_number
@@ -3614,15 +3716,15 @@ begin
     or new.created_at           is distinct from old.created_at
   ) then
     raise exception
-      'prompt_versions %: published/retired 版本内容不可修改，请创建新版本',
+      'prompt_versions %: published/retired version content cannot be modified, please create a new version',
       old.id;
   end if;
 
-  -- retired：除 updated_at 外完全只读
+  -- retired: fully read-only except for updated_at
   if old.status = 'retired'
      and new.retired_at is distinct from old.retired_at then
     raise exception
-      'prompt_versions %: retired 版本只读', old.id;
+      'prompt_versions %: retired version is read-only', old.id;
   end if;
 
   return new;
@@ -3634,7 +3736,8 @@ create trigger prompt_versions_freeze
   for each row execute function prompt_versions_freeze();
 
 -- ---------------------------------------------------------
--- 3. 不可变性：Workflow 发布后 Steps 不可增删改
+-- 3. Immutability: once a Workflow is published, its Steps cannot be
+--    added, removed, or modified
 -- ---------------------------------------------------------
 
 create function workflow_steps_freeze()
@@ -3645,12 +3748,13 @@ declare
   wf_id uuid;
   wf_status text;
 begin
-  -- 禁止把 Step 从一个 Workflow 移到另一个
-  -- （否则可从 Published Workflow 迁出到 Draft 再修改）
+  -- Forbid moving a Step from one Workflow to another
+  -- (otherwise it could be moved out of a Published Workflow into a
+  -- Draft one and then modified)
   if tg_op = 'UPDATE'
      and new.workflow_definition_id is distinct from old.workflow_definition_id then
     raise exception
-      'workflow_steps %: workflow_definition_id 不允许修改', old.id;
+      'workflow_steps %: workflow_definition_id cannot be modified', old.id;
   end if;
 
   if tg_op = 'DELETE' then
@@ -3665,7 +3769,7 @@ begin
 
   if wf_status is not null and wf_status <> 'draft' then
     raise exception
-      'workflow_definitions %: 非 draft 状态的 Workflow，其 Steps 不可修改',
+      'workflow_definitions %: Steps of a Workflow that is not in draft status cannot be modified',
       wf_id;
   end if;
 
@@ -3681,8 +3785,9 @@ create trigger workflow_steps_freeze
   for each row execute function workflow_steps_freeze();
 
 -- ---------------------------------------------------------
--- 4. 不可变性：Attempt 提交后 Responses 冻结
---    验证失败后通过新的 Retry Attempt 继续
+-- 4. Immutability: once an Attempt is submitted, its Responses are
+--    frozen. After a validation failure, continue via a new Retry
+--    Attempt
 -- ---------------------------------------------------------
 
 create function module_responses_freeze()
@@ -3693,12 +3798,13 @@ declare
   aid uuid;
   attempt_status text;
 begin
-  -- 禁止把 Response 移动到其他 Attempt
-  -- （否则可将冻结 Response 迁到 Draft Attempt 再修改）
+  -- Forbid moving a Response to another Attempt
+  -- (otherwise a frozen Response could be moved to a Draft Attempt
+  -- and then modified)
   if tg_op = 'UPDATE'
      and new.module_attempt_id is distinct from old.module_attempt_id then
     raise exception
-      'module_responses %: module_attempt_id 不允许修改', old.id;
+      'module_responses %: module_attempt_id cannot be modified', old.id;
   end if;
 
   if tg_op = 'DELETE' then
@@ -3714,7 +3820,7 @@ begin
   if attempt_status is not null
      and attempt_status not in ('draft', 'in_progress') then
     raise exception
-      'module_attempts %: Attempt 已提交，Responses 已冻结，请通过 Retry Attempt 继续',
+      'module_attempts %: the Attempt has already been submitted, Responses are frozen, please continue via a Retry Attempt',
       aid;
   end if;
 
@@ -3730,9 +3836,10 @@ create trigger module_responses_freeze
   for each row execute function module_responses_freeze();
 
 -- ---------------------------------------------------------
--- 5. 不可变性：Workflow Definition 状态机与身份冻结
---    draft → published → retired，禁止回退；
---    published/retired 的身份、版本、入口不可修改
+-- 5. Immutability: Workflow Definition state machine and identity
+--    freeze. draft → published → retired, no rollback allowed;
+--    published/retired identity, version, and entry cannot be
+--    modified
 -- ---------------------------------------------------------
 
 create function workflow_definitions_freeze()
@@ -3749,7 +3856,7 @@ begin
         and new.status = 'retired')
   ) then
     raise exception
-      'workflow_definitions %: 状态只能 draft → published → retired，不可跳过或回退',
+      'workflow_definitions %: status can only move draft -> published -> retired, no skipping or rollback',
       old.id;
   end if;
 
@@ -3766,14 +3873,14 @@ begin
     or new.created_at            is distinct from old.created_at
   ) then
     raise exception
-      'workflow_definitions %: published/retired 的身份、版本与入口不可修改，请创建新版本',
+      'workflow_definitions %: published/retired identity, version, and entry cannot be modified, please create a new version',
       old.id;
   end if;
 
   if old.status = 'retired'
      and new.retired_at is distinct from old.retired_at then
     raise exception
-      'workflow_definitions %: retired 只读', old.id;
+      'workflow_definitions %: retired is read-only', old.id;
   end if;
 
   return new;
@@ -3785,10 +3892,12 @@ create trigger workflow_definitions_freeze
   for each row execute function workflow_definitions_freeze();
 
 -- ---------------------------------------------------------
--- 6. 不可变性：Review Snapshot 一经生成不可改、不可单独删除
---    仅允许随 Attempt 级联删除。
---    若业务将来需要重新生成，应改为
---    snapshot_version + superseded_at，而不是覆盖旧 Snapshot。
+-- 6. Immutability: once a Review Snapshot is generated it cannot be
+--    modified, and cannot be deleted individually.
+--    Only cascading deletion together with the Attempt is allowed.
+--    If regeneration is ever needed in the future, use
+--    snapshot_version + superseded_at instead of overwriting the
+--    old Snapshot.
 -- ---------------------------------------------------------
 
 create function module_review_context_snapshots_freeze()
@@ -3798,16 +3907,17 @@ as $fn$
 begin
   if tg_op = 'UPDATE' then
     raise exception
-      'module_review_context_snapshots %: Snapshot 生成后不可修改', old.id;
+      'module_review_context_snapshots %: a Snapshot cannot be modified after it is generated', old.id;
   end if;
 
-  -- DELETE：仅允许随 Attempt 级联删除
+  -- DELETE: only allowed via cascading deletion together with the
+  -- Attempt
   if exists (
     select 1 from module_attempts
      where id = old.module_attempt_id
   ) then
     raise exception
-      'module_review_context_snapshots %: Snapshot 不可单独删除', old.id;
+      'module_review_context_snapshots %: a Snapshot cannot be deleted individually', old.id;
   end if;
 
   return old;
@@ -3819,8 +3929,10 @@ create trigger module_review_context_snapshots_freeze
   for each row execute function module_review_context_snapshots_freeze();
 
 -- ---------------------------------------------------------
--- 7. 软删除联动：撤销 Session、拒绝已删除用户新建 Session
---    Cookie 缓存 / JWT / OAuth 登录拦截仍需 Auth Middleware
+-- 7. Soft-delete cascade: revoke Sessions and reject new Sessions
+--    for deleted users.
+--    Auth Middleware is still needed to intercept cached
+--    Cookie/JWT/OAuth logins
 -- ---------------------------------------------------------
 
 create function users_soft_delete_revoke_sessions()
@@ -3850,7 +3962,7 @@ begin
        and deleted_at is not null
   ) then
     raise exception
-      'users %: 已删除用户不能创建或更新 Session', new.user_id;
+      'users %: a deleted user cannot create or update a Session', new.user_id;
   end if;
   return new;
 end;
@@ -3861,9 +3973,10 @@ create trigger sessions_reject_deleted_user
   for each row execute function sessions_reject_deleted_user();
 
 -- ---------------------------------------------------------
--- 8. 删除保护：published / retired 的版本化记录不可删除
---    （含被 prompt_definitions / module_definitions 级联删除时）
---    draft 允许物理删除
+-- 8. Delete protection: published / retired versioned records cannot
+--    be deleted (including when cascade-deleted via
+--    prompt_definitions / module_definitions).
+--    draft records may be physically deleted
 -- ---------------------------------------------------------
 
 create function versioned_records_delete_guard()
@@ -3873,7 +3986,7 @@ as $fn$
 begin
   if old.status <> 'draft' then
     raise exception
-      '% %: published/retired 记录不可删除，请使用 retired 状态',
+      '% %: published/retired records cannot be deleted, please use the retired status instead',
       tg_table_name,
       old.id;
   end if;
@@ -3890,9 +4003,9 @@ create trigger workflow_definitions_delete_guard
   for each row execute function versioned_records_delete_guard();
 
 -- ---------------------------------------------------------
--- 9. Email 写入时标准化（lower + trim）
---    使 users_email_unique 同时服务
---    Better Auth 精确查询与真实唯一性
+-- 9. Normalize (lower + trim) email on write, so that
+--    users_email_unique serves both Better Auth's exact-match
+--    lookups and true uniqueness
 -- ---------------------------------------------------------
 
 create function normalize_email()
@@ -3914,12 +4027,13 @@ create trigger invitations_normalize_email
   for each row execute function normalize_email();
 
 -- =========================================================
--- （模板）应用账号权限收敛
+-- (Template) Application account permission tightening
 --
--- 业务历史禁止 hard delete：将 app_role 替换为
--- 实际应用连接角色后取消注释执行。
--- Migration / Admin 账号保留 DELETE，
--- 用于合规清除与运维。
+-- Business/historical records forbid hard delete: replace app_role
+-- with the actual application connection role, then uncomment and
+-- run this.
+-- Migration / Admin accounts keep DELETE for compliance-driven
+-- purges and operations.
 -- =========================================================
 
 -- revoke delete on table

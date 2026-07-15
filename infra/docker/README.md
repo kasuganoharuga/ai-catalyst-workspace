@@ -40,6 +40,9 @@ To run migrations without the full `docker:up` orchestration (e.g. `db` is alrea
 pnpm db:migrate
 ```
 
+> **[TEMPORARY] `0001_aidb_v5_baseline` rebaseline notice — remove this box once everyone has reset.**
+> `infra/database/migrations/0001_aidb_v5_baseline.sql` was rewritten in place to translate its Chinese comments and `RAISE EXCEPTION` messages to English (source commit `ed373f39fbb1c09bc512b67f89e9f9a9b6ed71fd`, branch `feature/baseline-sql-english`). This is a one-time, explicitly authorized pre-release exception — no table, column, constraint, index, or trigger changed (verified via a controlled text diff and a `pg_dump --schema-only` comparison); only comment text and error-message wording changed. Because the file's bytes changed, its SHA-256 checksum changed too, so **any environment that already applied the old `0001` must run `pnpm db:reset` before migrating again**, or the migration runner will fail with a checksum-mismatch error. After this rebaseline, the "applied migrations are immutable" rule resumes with no further exceptions — all future schema changes are new `NNNN_description.sql` files.
+
 ### Resetting the local database
 
 ```powershell
