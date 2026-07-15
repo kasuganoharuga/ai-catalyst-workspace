@@ -63,13 +63,23 @@ For local FastAPI debugging without Docker, run:
 pnpm dev:api
 ```
 
-Run the standard development setup (local web + Docker backend):
+Run the standard development setup (Docker Postgres, migrated, plus local web + API with fast reload):
 
 ```powershell
 pnpm dev
 ```
 
-`pnpm dev` runs the web app and Docker backend together via `scripts/dev.js`; press `Ctrl+C` to stop both — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). (`pnpm docker:up` alone still starts Docker detached, for cases where you want it running independently of a foreground command.)
+`pnpm dev` (`scripts/dev.js`) starts only the `db` container, runs pending migrations against it via `packages/db`, then runs `web` (`next dev`) and `api` (`uvicorn --reload`) as local processes; press `Ctrl+C` to stop everything — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). It requires a local Python environment with `apps/api/requirements.txt` installed (see [`apps/api/README.md`](apps/api/README.md#development)). (`pnpm docker:up` starts the full containerized stack — including `api` as a built container — detached, for cases where you want it running independently of a foreground command instead of iterating on `api` locally.)
+
+## Environment
+
+Each app has its own `.env.example` scoped to what it actually reads from `process.env` — copy each to the sibling `.env`/`.env.local` file rather than sharing one file across apps:
+
+- [`.env.example`](.env.example) (repo root): the monorepo/Docker-wide `DATABASE_URL` and port conventions, shared by reference rather than duplicated below.
+- [`apps/web/.env.example`](apps/web/.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` — copy to `apps/web/.env.local`.
+- [`apps/api/.env.example`](apps/api/.env.example): FastAPI's own settings — copy to `apps/api/.env`. See [`apps/api/README.md`](apps/api/README.md#environment).
+
+Never commit real secrets; see [`.github/SECURITY.md`](.github/SECURITY.md).
 
 ## Verification
 
@@ -78,6 +88,8 @@ Run frontend checks before opening a pull request:
 ```powershell
 pnpm lint
 pnpm typecheck:web
+pnpm typecheck:packages
+pnpm test:packages
 pnpm format:check:web
 pnpm build
 ```
@@ -112,11 +124,12 @@ pnpm docker:down
 
 ## Continuous Integration
 
-GitHub Actions validates the project on push to `main` and on pull requests, split into three jobs:
+GitHub Actions validates the project on push to `main`/`develop` and on pull requests, split into four jobs (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
 
-- **frontend**: install workspace deps with the lockfile, lint, and build the Next.js app
+- **frontend**: install workspace deps with the lockfile, check formatting, lint, typecheck, and build the Next.js app
+- **packages**: typecheck and test `packages/*`/`apps/mcp`, and check architectural import boundaries (`pnpm depcruise`)
 - **backend**: install FastAPI dependencies and smoke check the app import
-- **infrastructure**: validate the Docker Compose configuration
+- **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, and verify migration checksum protection
 
 ## Project Structure
 

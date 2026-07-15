@@ -42,8 +42,14 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check formatting
+        run: pnpm format:check:web
+
       - name: Lint frontend
         run: pnpm lint
+
+      - name: Typecheck frontend
+        run: pnpm typecheck:web
 
       - name: Build frontend
         run: pnpm build
@@ -72,6 +78,9 @@ jobs:
 
       - name: Typecheck packages/* and apps/mcp
         run: pnpm typecheck:packages
+
+      - name: Test packages/*
+        run: pnpm test:packages
 
       - name: Check architectural import boundaries
         run: pnpm depcruise
@@ -132,6 +141,9 @@ jobs:
 
       - name: Run migrations
         run: pnpm --filter @ai-catalyst/db run migrate
+
+      - name: Check Better Auth schema is in sync
+        run: pnpm --filter web run auth:check
 
       - name: Assert schema_migrations bookkeeping
         run: |
