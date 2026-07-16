@@ -7,6 +7,7 @@
   "exports": {
     "./workflow": "./src/workflow/index.ts",
     "./module": "./src/module/index.ts",
+    "./module/catalog": "./src/module/catalog.ts",
     "./artifact": "./src/artifact/index.ts",
     "./storage": "./src/storage/index.ts",
     "./invitation": "./src/invitation/index.ts",
@@ -16,6 +17,7 @@
     "./workspace/active-context": "./src/workspace/active-context.ts",
     "./venture": "./src/venture/index.ts",
     "./content-seed": "./src/content-seed/index.ts",
+    "./content-seed/content/program": "./src/content-seed/content/program.ts",
     "./internal/slug": "./src/internal/slug.ts",
     "./internal/workspace": "./src/internal/workspace.ts",
     "./internal/entity-id": "./src/internal/entity-id.ts"
@@ -24,7 +26,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts",
+    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts"
   },
   "dependencies": {
