@@ -142,6 +142,19 @@ jobs:
       - name: Run migrations
         run: pnpm --filter @ai-catalyst/db run migrate
 
+      - name: Seed founder-toolkit content (Module 0/1)
+        run: pnpm --filter @ai-catalyst/services run seed
+
+      - name: Re-run content seed (expect idempotent no-op)
+        run: |
+          set -euo pipefail
+          output=$(pnpm --filter @ai-catalyst/services run seed)
+          echo "$output"
+          echo "$output" | grep -q "already published; content matched" || {
+            echo "Expected a re-run against already-published content to be a no-op" >&2
+            exit 1
+          }
+
       - name: Check Better Auth schema is in sync
         run: pnpm --filter web run auth:check
 

@@ -4,12 +4,13 @@
 /**
  * Brings up the local backend stack in the order the app actually depends
  * on: start `db` and wait for it to be healthy, run pending migrations
- * against it from the host, then start (and build) every other service.
+ * against it from the host, seed the founder-toolkit content catalog,
+ * then start (and build) every other service.
  *
- * This intentionally does not migrate from inside a container: the
- * migration runner lives in packages/db and is invoked the same way in CI
- * and locally, connecting over the published `5432` port rather than the
- * compose network.
+ * This intentionally does not migrate/seed from inside a container: both
+ * the migration runner and the content seed script are invoked the same
+ * way in CI and locally, connecting over the published `5432` port rather
+ * than the compose network.
  */
 
 const { spawn } = require("node:child_process");
@@ -53,6 +54,11 @@ async function main() {
 
   console.log("[docker-up] running migrations...");
   await run("pnpm", ["--filter", "@ai-catalyst/db", "run", "migrate"], {
+    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL },
+  });
+
+  console.log("[docker-up] seeding founder-toolkit content...");
+  await run("pnpm", ["--filter", "@ai-catalyst/services", "run", "seed"], {
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL },
   });
 

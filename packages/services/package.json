@@ -15,6 +15,7 @@
     "./workspace": "./src/workspace/index.ts",
     "./workspace/active-context": "./src/workspace/active-context.ts",
     "./venture": "./src/venture/index.ts",
+    "./content-seed": "./src/content-seed/index.ts",
     "./internal/slug": "./src/internal/slug.ts",
     "./internal/workspace": "./src/internal/workspace.ts",
     "./internal/entity-id": "./src/internal/entity-id.ts"
@@ -23,7 +24,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts"
+    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts",
+    "seed": "tsx src/content-seed/cli.ts"
   },
   "dependencies": {
     "@ai-catalyst/clients": "workspace:*",
@@ -36,6 +38,7 @@
   "devDependencies": {
     "@types/node": "^20",
     "@types/pg": "^8.15.6",
+    "tsx": "^4.20.6",
     "typescript": "^5",
     "vitest": "^4.1.10"
   }

@@ -10,6 +10,7 @@
     "docker:down": "docker compose -f infra/docker/docker-compose.yml down --remove-orphans",
     "db:reset": "docker compose -f infra/docker/docker-compose.yml down -v && node scripts/docker-up.js",
     "db:migrate": "pnpm --filter @ai-catalyst/db run migrate",
+    "db:seed": "pnpm --filter @ai-catalyst/services run seed",
     "db:psql": "docker compose -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
