@@ -40,3 +40,18 @@ export async function requireAdminUser() {
 
   return session;
 }
+
+// Mentor/Admin have no Venture-management UI yet (Mentor Workspace binding
+// is PR 4.1; Admin has its own /admin surface) — the Workspace page is
+// Founder-only for now.
+export async function requireFounderUser() {
+  const session = await requireActiveUser();
+
+  // Redirects to /toolkit, not /workspace — /workspace itself calls this
+  // guard, so redirecting back to it would loop.
+  if (session.user.role !== "founder") {
+    redirect("/toolkit");
+  }
+
+  return session;
+}
