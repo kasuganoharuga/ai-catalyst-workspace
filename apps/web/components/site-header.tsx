@@ -1,8 +1,15 @@
 import Link from "next/link";
 
+// "Toolkit Preview" (public, manifest-backed) and "My Modules" (Founder-only,
+// database-backed catalog under the (app) route group) are deliberately two
+// separate entry points with two separate labels — the destination route's
+// own guard (requireFounderUser et al.) handles the unauthenticated/pending/
+// wrong-role redirects, the same way it already does for "Workspace" and
+// "Admin" below.
 const navigation = [
-  { href: "/toolkit", label: "Toolkit" },
+  { href: "/toolkit", label: "Toolkit Preview" },
   { href: "/downloads", label: "Downloads" },
+  { href: "/modules", label: "My Modules" },
   { href: "/workspace", label: "Workspace" },
   { href: "/admin", label: "Admin" },
 ];
