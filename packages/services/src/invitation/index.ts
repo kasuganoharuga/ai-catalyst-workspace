@@ -6,10 +6,12 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   Invitation,
   InvitationStatus,
+  WorkspaceStatus,
   WorkspaceSummary,
 } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 
 // Founder invitations only (infra/database/migrations/0001_aidb_v5_baseline.sql
 // section 6). Mentor invitations are workspace-bound and belong to a later
@@ -25,7 +27,6 @@ const UUID_PATTERN =
 // corrupted/truncated tokens before they ever reach a database query.
 const INVITATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 
-const WORKSPACE_SLUG_BASE_MAX_LENGTH = 40;
 const MAX_WORKSPACE_SLUG_ATTEMPTS = 3; // initial attempt + up to 2 retries
 
 interface InvitationRow {
@@ -58,6 +59,7 @@ interface WorkspaceRow {
   id: string;
   name: string;
   slug: string;
+  status: WorkspaceStatus;
 }
 
 function mapInvitation(row: InvitationRow): Invitation {
@@ -165,14 +167,7 @@ function defaultWorkspaceDetails(email: string): {
   base: string;
 } {
   const localPart = email.split("@")[0]?.trim() ?? "";
-  const sanitized = localPart
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  const base = (sanitized || "founder").slice(
-    0,
-    WORKSPACE_SLUG_BASE_MAX_LENGTH,
-  );
+  const base = slugifyBase(localPart, "founder");
 
   return { name: `${localPart || "Founder"}'s Workspace`, base };
 }
@@ -198,7 +193,7 @@ async function insertWorkspaceWithRetry(
       `insert into workspaces (founder_user_id, name, slug)
        values ($1, $2, $3)
        on conflict (slug) do nothing
-       returning id, name, slug`,
+       returning id, name, slug, status`,
       [founderUserId, name, slug],
     );
     if (result.rows[0]) {

@@ -644,13 +644,19 @@ describe("invitation service — database integration", () => {
       // localPart of the fixture email is `${emailPrefix}-accept-slug-retry`
       // (see testEmail) — pre-create a Workspace with the exact slug the
       // first two deterministic suffixes below would produce, forcing two
-      // real ON CONFLICT collisions before the third attempt succeeds.
+      // real ON CONFLICT collisions before the third attempt succeeds. Must
+      // mirror slugifyBase() (packages/services/src/internal/slug.ts)
+      // exactly, including the second trailing-dash strip *after* slicing —
+      // without it, a 40-char cut that happens to land on a dash (as it can
+      // with a UUID-bearing local part) silently diverges from what the
+      // Service actually generates, and the "collision" never collides.
       const localPart = user.email.split("@")[0];
       const base = localPart
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-+|-+$/g, "")
-        .slice(0, 40);
+        .slice(0, 40)
+        .replace(/-+$/g, "");
       const collidingSlug = `${base}-abcdef`;
       // Dedicated throwaway owner (not the shared admin/nonAdmin) so this
       // fixture Workspace can never collide with `workspaces_founder_unique`
