@@ -9,8 +9,14 @@ export function VentureActions({
   isSelected,
   canArchive,
 }: VentureActionsProps) {
-  const { isBusy, isSettingActive, isArchiving, error, handleSetActive, handleArchive } =
-    useVentureActions({ ventureId });
+  const {
+    isBusy,
+    isSettingActive,
+    isArchiving,
+    error,
+    handleSetActive,
+    handleArchive,
+  } = useVentureActions({ ventureId });
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -26,7 +32,11 @@ export function VentureActions({
             disabled={isBusy}
             className="rounded-full border border-stone-300 px-4 py-2 text-xs font-semibold text-stone-950 transition hover:border-stone-950 disabled:opacity-50"
           >
-            {isSettingActive ? "Switching..." : isArchived ? "View history" : "Set active"}
+            {isSettingActive
+              ? "Switching..."
+              : isArchived
+                ? "View history"
+                : "Set active"}
           </button>
         )}
         {!isArchived && canArchive ? (
