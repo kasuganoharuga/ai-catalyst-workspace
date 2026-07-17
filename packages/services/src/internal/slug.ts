@@ -1,9 +1,8 @@
 // Shared slug-string handling for every entity that derives a URL-safe
-// slug from a user-facing display name — Workspace (packages/services/src/
-// invitation, PR 1.2) and Venture (packages/services/src/venture, PR 1.3).
-// Kept in one place so the two never quietly diverge on what counts as
-// "safe" or what happens when a name has no ASCII-slug-able characters at
-// all (Chinese, emoji, pure punctuation).
+// slug from a user-facing display name (Workspace, Venture). Kept in one
+// place so they never quietly diverge on what counts as "safe" or what
+// happens when a name has no ASCII-slug-able characters at all (Chinese,
+// emoji, pure punctuation).
 //
 // Listed under "./internal/slug" in package.json purely so Turbopack (used
 // by apps/web's `next build`) can resolve the NodeNext-mandated `.js`
