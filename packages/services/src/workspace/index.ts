@@ -30,11 +30,9 @@ function mapWorkspace(row: WorkspaceRow): WorkspaceSummary {
 }
 
 // Every Workspace has exactly one Founder (workspaces_founder_unique), so
-// this is always a single-row lookup — there is no "which Workspace" to
-// disambiguate the way there will be for a Mentor bound to several
-// Workspaces (PR 4.1). Defensive NOT_FOUND: every Founder gets a Workspace
-// as part of accepting their invitation (PR 1.2), so a missing row here
-// means something upstream is broken, not a normal business state.
+// this is always a single-row lookup. Defensive NOT_FOUND: every Founder
+// gets a Workspace as part of accepting their invitation, so a missing row
+// here means something upstream is broken, not a normal business state.
 export async function resolveFounderWorkspace(
   actor: ActorContext,
   executor: QueryExecutor = pool,

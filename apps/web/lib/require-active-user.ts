@@ -15,7 +15,7 @@ export async function requireAuthenticatedUser() {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
-    redirect("/login");
+    redirect("/");
   }
 
   return session;
@@ -35,7 +35,7 @@ export async function requireAdminUser() {
   const session = await requireActiveUser();
 
   if (session.user.role !== "admin") {
-    redirect("/workspace");
+    redirect("/dashboard");
   }
 
   return session;

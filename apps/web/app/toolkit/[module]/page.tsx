@@ -35,28 +35,28 @@ export default async function ModuleDetailPage({
   const markdown = await getModuleMarkdown(toolkitModule);
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-950">
+    <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <main className="mx-auto max-w-6xl px-6 py-16">
         <Link
           href="/toolkit"
-          className="text-sm font-semibold text-amber-800 transition hover:text-amber-950"
+          className="text-sm font-semibold text-muted-foreground transition hover:text-foreground"
         >
           Back to toolkit
         </Link>
         <section className="mt-8 grid gap-10 lg:grid-cols-[1fr_22rem]">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-amber-700">
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
               Module {toolkitModule.number}
             </p>
-            <h1 className="mt-5 text-5xl font-semibold tracking-[-0.04em]">
+            <h1 className="mt-5 text-5xl font-semibold tracking-tight">
               {toolkitModule.title}
             </h1>
-            <p className="mt-6 max-w-3xl text-lg leading-8 text-stone-700">
+            <p className="mt-6 max-w-3xl text-lg leading-8 text-muted-foreground">
               {toolkitModule.objective}
             </p>
-            <div className="mt-10 rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-              <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-stone-700">
+            <div className="mt-10 rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+              <pre className="whitespace-pre-wrap font-sans text-sm leading-7 text-muted-foreground">
                 {markdown}
               </pre>
             </div>
@@ -66,7 +66,7 @@ export default async function ModuleDetailPage({
             <Panel title="Expected outputs" items={toolkitModule.outputs} />
             <Link
               href={`/downloads/${toolkitModule.id}`}
-              className="block rounded-full bg-stone-950 px-6 py-3 text-center text-sm font-semibold text-white transition hover:bg-amber-800"
+              className="block rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-primary-foreground transition hover:brightness-95"
             >
               Download Skill
             </Link>
@@ -79,13 +79,13 @@ export default async function ModuleDetailPage({
 
 function Panel({ title, items }: { title: string; items: string[] }) {
   return (
-    <section className="rounded-[2rem] border border-stone-200 bg-white p-6 shadow-sm">
-      <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-stone-500">
+    <section className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
+      <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {title}
       </h2>
-      <ul className="mt-5 space-y-3 text-sm leading-6 text-stone-700">
+      <ul className="mt-5 space-y-3 text-sm leading-6 text-muted-foreground">
         {items.map((item) => (
-          <li key={item} className="rounded-2xl bg-stone-100 px-4 py-3">
+          <li key={item} className="rounded-2xl bg-muted px-4 py-3">
             {item}
           </li>
         ))}

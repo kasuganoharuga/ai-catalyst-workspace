@@ -6,16 +6,18 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   Invitation,
   InvitationStatus,
+  Venture,
   WorkspaceStatus,
   WorkspaceSummary,
 } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { slugifyBase } from "@ai-catalyst/services/internal/slug";
+import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
+import { setInitialActiveContext } from "@ai-catalyst/services/workspace/active-context";
 
-// Founder invitations only (infra/database/migrations/0001_aidb_v5_baseline.sql
-// section 6). Mentor invitations are workspace-bound and belong to a later
-// PR (4.1) — every query here is deliberately scoped with
+// Founder invitations only. Mentor invitations are workspace-bound and not
+// yet implemented — every query here is deliberately scoped with
 // `invite_role = 'founder'` so this module can never touch a mentor row.
 const FOUNDER_INVITATION_TTL_DAYS = 7;
 
@@ -159,9 +161,9 @@ function normalizeAndValidateInvitationToken(rawToken: unknown): string {
 }
 
 // The only caller of this today is acceptFounderInvitation below — Workspace
-// renaming/creation UX belongs to a future PR (1.3's WorkspaceService does
-// not create Workspaces, only Ventures within one), so this intentionally
-// stays private and minimal rather than anticipating that shape.
+// renaming/creation UX doesn't exist yet (WorkspaceService only creates
+// Ventures within an existing Workspace), so this intentionally stays
+// private and minimal rather than anticipating that shape.
 function defaultWorkspaceDetails(email: string): {
   name: string;
   base: string;
@@ -369,20 +371,27 @@ export interface AcceptInvitationDependencies {
   // Deterministic sequences let tests force a real slug collision instead of
   // relying on random-collision odds.
   createWorkspaceSuffix?: () => string;
+  createVentureSuffix?: () => string;
 }
 
-// Implements the single-transaction contract documented at the top of
-// infra/database/migrations/0001_aidb_v5_baseline.sql (section 7): lock the
-// Invitation → check pending/not-expired → normalize and compare email →
-// upgrade role → create the Founder's Workspace → write accepted fields →
-// revoke other pending Invitations for the same email. No intermediate
-// state (accepted-but-still-pending-role, role-upgraded-but-no-Workspace)
-// is ever observable outside this function.
+// Single-transaction contract: lock the Invitation → check
+// pending/not-expired → normalize and compare email → upgrade role →
+// create the Founder's Workspace → create the Founder's default Venture
+// (MVP: exactly one per Founder, see createDefaultVentureForNewWorkspace) →
+// make that Venture the active selection → write accepted fields → revoke
+// other pending Invitations for the same email. No intermediate state
+// (accepted-but-still-pending-role, role-upgraded-but-no-Workspace/Venture,
+// Venture-created-but-not-yet-active) is ever observable outside this
+// function.
 export async function acceptFounderInvitation(
   actor: ActorContext,
   rawToken: unknown,
   deps: AcceptInvitationDependencies = {},
-): Promise<{ invitation: Invitation; workspace: WorkspaceSummary }> {
+): Promise<{
+  invitation: Invitation;
+  workspace: WorkspaceSummary;
+  venture: Venture;
+}> {
   // Fast-fail on the (possibly stale) session role before opening a
   // connection at all. This is not the authoritative check — the database
   // row locked further down is re-validated against the real, current role.
@@ -390,8 +399,10 @@ export async function acceptFounderInvitation(
 
   const token = normalizeAndValidateInvitationToken(rawToken);
   const tokenHash = createHash("sha256").update(token).digest("hex");
-  const createSuffix =
+  const createWorkspaceSuffix =
     deps.createWorkspaceSuffix ?? (() => randomBytes(3).toString("hex"));
+  const createVentureSuffix =
+    deps.createVentureSuffix ?? (() => randomBytes(3).toString("hex"));
 
   const client = await pool.connect();
   // Same deferred-error pattern as revokeFounderInvitation: the "expired"
@@ -401,6 +412,7 @@ export async function acceptFounderInvitation(
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
   let workspace: WorkspaceSummary | undefined;
+  let venture: Venture | undefined;
 
   try {
     await client.query("begin");
@@ -418,9 +430,8 @@ export async function acceptFounderInvitation(
       throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
     }
 
-    // Lock every Invitation for this email, in a stable order, in one shot.
-    // This fixes the lock order (email family, ascending id, then the User
-    // row) that PR 4.1's Mentor acceptance must also follow — two acceptance
+    // Lock every Invitation for this email, in a stable order, in one shot
+    // (email family, ascending id, then the User row). Two acceptance
     // transactions racing on the same email can never form a deadlock cycle
     // if both always acquire locks in this same order.
     const familyResult = await client.query<InvitationRow>(
@@ -435,8 +446,8 @@ export async function acceptFounderInvitation(
     // the unlocked peek. Under today's mutation surface neither token_hash
     // nor invite_role is ever written after insert, so this specific branch
     // is not reachable by any test fixture without corrupting a row
-    // directly — it documents/guards the invariant for whoever writes the
-    // Mentor equivalent in PR 4.1, rather than trusting the peek blindly.
+    // directly — it documents/guards the invariant rather than trusting
+    // the peek blindly.
     const target = familyResult.rows.find(
       (row) =>
         row.id === peekedInvitation.id &&
@@ -519,7 +530,22 @@ export async function acceptFounderInvitation(
         client,
         actor.userId,
         target.email,
-        createSuffix,
+        createWorkspaceSuffix,
+      );
+
+      const createdVenture = await createDefaultVentureForNewWorkspace(
+        client,
+        createdWorkspace.id,
+        actor.userId,
+        target.email,
+        { createSlugSuffix: createVentureSuffix },
+      );
+
+      await setInitialActiveContext(
+        client,
+        actor.userId,
+        createdWorkspace.id,
+        createdVenture.id,
       );
 
       // workspace_id stays null — see the badShape guard above; the
@@ -561,6 +587,7 @@ export async function acceptFounderInvitation(
 
       invitation = mapInvitation(acceptedResult.rows[0]);
       workspace = createdWorkspace;
+      venture = createdVenture;
     }
 
     await client.query("commit");
@@ -586,7 +613,7 @@ export async function acceptFounderInvitation(
   if (deferredError) {
     throw deferredError;
   }
-  return { invitation: invitation!, workspace: workspace! };
+  return { invitation: invitation!, workspace: workspace!, venture: venture! };
 }
 
 export async function listFounderInvitations(

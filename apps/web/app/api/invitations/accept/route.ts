@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
         ? (body as { token: unknown }).token
         : undefined;
 
-    const { invitation, workspace } = await acceptFounderInvitation(
+    const { invitation, workspace, venture } = await acceptFounderInvitation(
       actor,
       token,
     );
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     // Never cache this response and never log the request body — it may
     // carry the raw invitation token.
     return NextResponse.json(
-      { invitation, workspace },
+      { invitation, workspace, venture },
       { status: 200, headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

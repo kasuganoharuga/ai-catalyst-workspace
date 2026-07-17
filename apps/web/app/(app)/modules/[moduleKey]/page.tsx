@@ -30,35 +30,33 @@ export default async function ModuleDetailPage({
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-16">
-      <p className="text-sm font-semibold uppercase tracking-[0.34em] text-amber-700">
+      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
         Module {String(entry.sequenceIndex).padStart(2, "0")}
       </p>
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-4xl font-semibold tracking-[-0.04em]">
-          {entry.title}
-        </h1>
+        <h1 className="text-4xl font-semibold tracking-tight">{entry.title}</h1>
         <StatusPill status={entry.catalogStatus} />
       </div>
       {entry.subtitle ? (
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-stone-700">
+        <p className="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">
           {entry.subtitle}
         </p>
       ) : null}
 
       <section className="mt-10 grid gap-8 lg:grid-cols-[1fr_22rem]">
-        <div className="rounded-[2rem] border border-stone-200 bg-white p-8 shadow-sm">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.24em] text-stone-500">
+        <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Purpose
           </h2>
-          <p className="mt-4 text-base leading-7 text-stone-700">
+          <p className="mt-4 text-base leading-7 text-muted-foreground">
             {entry.description ?? "No description yet."}
           </p>
           {entry.objective ? (
             <>
-              <h2 className="mt-8 text-sm font-semibold uppercase tracking-[0.24em] text-stone-500">
+              <h2 className="mt-8 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                 Objective
               </h2>
-              <p className="mt-4 text-base leading-7 text-stone-700">
+              <p className="mt-4 text-base leading-7 text-muted-foreground">
                 {entry.objective}
               </p>
             </>

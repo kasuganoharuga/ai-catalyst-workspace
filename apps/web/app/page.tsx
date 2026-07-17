@@ -1,84 +1,78 @@
-import Link from "next/link";
+import { Lock } from "lucide-react";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
-import { SiteHeader } from "@/components/site-header";
-import { getToolkitModules } from "@/lib/toolkit";
+import type { ActorRole } from "@ai-catalyst/contracts/actor-context";
 
-export default async function Home() {
-  const modules = await getToolkitModules();
+import { SignInBenefitsPanel } from "@/components/auth/sign-in-benefits-panel";
+import { SignInForm } from "@/components/auth/sign-in-form";
+import { Logo } from "@/components/logo";
+import { actorContextFromSession } from "@/lib/actor-context";
+import { auth } from "@/lib/auth";
+import { safeReturnTo } from "@/lib/safe-return-to";
+
+type HomePageProps = {
+  searchParams: Promise<{ returnTo?: string | string[] }>;
+};
+
+const ROLE_DESTINATION: Record<ActorRole, string> = {
+  founder: "/dashboard",
+  admin: "/admin",
+  pending: "/pending",
+  mentor: "/toolkit",
+};
+
+export default async function HomePage({ searchParams }: HomePageProps) {
+  const [session, { returnTo }] = await Promise.all([
+    auth.api.getSession({ headers: await headers() }),
+    searchParams,
+  ]);
+  const safeTo = safeReturnTo(returnTo);
+
+  if (session) {
+    // Better Auth's session type widens `role` to `string`, so this cannot
+    // be a plain `as ActorRole` cast — an unrecognized value must be
+    // treated as unauthenticated, not silently redirected to /toolkit.
+    // (actorContextFromSession throws rather than returning a nullable, so
+    // it's called outside the redirect() calls below: redirect() works by
+    // throwing internally, and wrapping it in this try would swallow that.)
+    let role: ActorRole | null = null;
+    try {
+      role = actorContextFromSession(session).role;
+    } catch {
+      role = null;
+    }
+
+    if (safeTo) {
+      redirect(safeTo);
+    }
+    if (role) {
+      redirect(ROLE_DESTINATION[role]);
+    }
+  }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-950">
-      <SiteHeader />
-      <main className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
-        <section className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-end">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.34em] text-amber-700">
-              Skill-first. Workspace-ready.
-            </p>
-            <h1 className="mt-6 max-w-4xl text-5xl font-semibold tracking-[-0.05em] text-stone-950 sm:text-7xl">
-              A founder workflow toolkit built to become a platform.
-            </h1>
-            <p className="mt-8 max-w-2xl text-lg leading-8 text-stone-700">
-              AI Catalyst starts with structured, downloadable Skills that help
-              founders pressure-test ideas, define sharper customers, and build
-              validation-ready plans.
-            </p>
-            <div className="mt-10 flex flex-wrap gap-4">
-              <Link
-                href="/toolkit"
-                className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800"
-              >
-                Browse modules
-              </Link>
-              <Link
-                href="/downloads"
-                className="rounded-full border border-stone-300 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:border-stone-950"
-              >
-                Download Skills
-              </Link>
-            </div>
-          </div>
-          <div className="rounded-[2.5rem] border border-stone-200 bg-white p-8 shadow-xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-stone-500">
-              V1 Scope
-            </p>
-            <div className="mt-8 grid grid-cols-2 gap-4">
-              <Metric label="Modules" value={modules.length.toString()} />
-              <Metric label="Delivery" value="Skills" />
-              <Metric label="Workspace" value="Planned" />
-              <Metric label="AI API" value="Reserved" />
-            </div>
-          </div>
-        </section>
+    <div className="flex min-h-screen flex-col lg:flex-row">
+      <div className="flex flex-1 flex-col justify-center px-6 py-16 sm:px-12 lg:px-20">
+        <div className="mx-auto w-full max-w-md">
+          <Logo priority />
+          <h1 className="mt-10 text-4xl font-semibold tracking-tight">
+            Enter your workspace
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            Access your toolkit modules, track your progress, and review your
+            outputs. Invite-only.
+          </p>
 
-        <section className="mt-20 grid gap-4 md:grid-cols-3">
-          {[
-            "Browse a staged founder workflow instead of a flat prompt library.",
-            "Download Skill packages that are versioned with the content source.",
-            "Keep a clean path toward saved workspaces, AI execution, and review flows.",
-          ].map((item) => (
-            <div
-              key={item}
-              className="rounded-[2rem] border border-stone-200 bg-white/70 p-6 text-sm leading-6 text-stone-700"
-            >
-              {item}
-            </div>
-          ))}
-        </section>
-      </main>
-    </div>
-  );
-}
+          <SignInForm returnTo={safeTo} />
 
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-3xl bg-stone-100 p-5">
-      <div className="text-3xl font-semibold tracking-tight text-stone-950">
-        {value}
+          <p className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
+            <Lock aria-hidden="true" className="h-3.5 w-3.5" />
+            Access is granted per cohort — this is not a public download page.
+          </p>
+        </div>
       </div>
-      <div className="mt-2 text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
-        {label}
-      </div>
+      <SignInBenefitsPanel />
     </div>
   );
 }

@@ -30,19 +30,19 @@ export function AcceptInvitationForm() {
     // Not router.push: a browser back button landing on this now-stale
     // "accept" step would be confusing once the account is already a
     // Founder. router.refresh() re-runs the server session check on the
-    // next navigation so /workspace immediately sees the upgraded role.
-    router.replace("/workspace");
+    // next navigation so /dashboard immediately sees the upgraded role.
+    router.replace("/dashboard");
     router.refresh();
   }
 
   return (
-    <div className="mt-10 rounded-2xl border border-stone-200 bg-white p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+    <div className="mt-10 rounded-2xl border border-border bg-card p-6">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         Have a Founder invitation?
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <label className="block">
-          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+          <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Invitation token
           </span>
           <input
@@ -51,16 +51,20 @@ export function AcceptInvitationForm() {
             autoComplete="off"
             value={token}
             onChange={(event) => setToken(event.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 font-mono text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 font-mono text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </label>
 
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+          className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
         >
           {isSubmitting ? "Accepting..." : "Accept invitation"}
         </button>
