@@ -7,6 +7,7 @@ import type { ActorRole } from "@ai-catalyst/contracts/actor-context";
 import { SignInBenefitsPanel } from "@/components/auth/sign-in-benefits-panel";
 import { SignInForm } from "@/components/auth/sign-in-form";
 import { Logo } from "@/components/logo";
+import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { safeReturnTo } from "@/lib/safe-return-to";
 
@@ -29,8 +30,25 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const safeTo = safeReturnTo(returnTo);
 
   if (session) {
-    const role = session.user.role as ActorRole;
-    redirect(safeTo ?? ROLE_DESTINATION[role] ?? "/toolkit");
+    // Better Auth's session type widens `role` to `string`, so this cannot
+    // be a plain `as ActorRole` cast — an unrecognized value must be
+    // treated as unauthenticated, not silently redirected to /toolkit.
+    // (actorContextFromSession throws rather than returning a nullable, so
+    // it's called outside the redirect() calls below: redirect() works by
+    // throwing internally, and wrapping it in this try would swallow that.)
+    let role: ActorRole | null = null;
+    try {
+      role = actorContextFromSession(session).role;
+    } catch {
+      role = null;
+    }
+
+    if (safeTo) {
+      redirect(safeTo);
+    }
+    if (role) {
+      redirect(ROLE_DESTINATION[role]);
+    }
   }
 
   return (
