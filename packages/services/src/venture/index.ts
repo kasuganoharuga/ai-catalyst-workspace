@@ -177,6 +177,43 @@ async function insertVentureWithRetry(
   );
 }
 
+export interface CreateDefaultVentureDependencies {
+  // Test-only seam: production always uses randomBytes(3).toString("hex").
+  createSlugSuffix?: () => string;
+}
+
+// Called only from acceptFounderInvitation's single transaction, on the
+// same client, right after the Workspace insert. MVP assumes exactly one
+// Founder per Workspace and one Venture (Idea) per Founder, so there is no
+// separate "create your first Venture" step — naming mirrors
+// defaultWorkspaceDetails in packages/services/src/invitation (email local
+// part + a fixed suffix) so both rows read as a matched pair.
+export async function createDefaultVentureForNewWorkspace(
+  client: PoolClient,
+  workspaceId: string,
+  founderUserId: string,
+  email: string,
+  deps: CreateDefaultVentureDependencies = {},
+): Promise<Venture> {
+  const createSuffix =
+    deps.createSlugSuffix ?? (() => randomBytes(3).toString("hex"));
+  const localPart = email.split("@")[0]?.trim() ?? "";
+  const input: NormalizedVentureInput = {
+    name: `${localPart || "Founder"}'s Idea`,
+    oneLiner: null,
+    summary: null,
+  };
+
+  const row = await insertVentureWithRetry(
+    client,
+    workspaceId,
+    founderUserId,
+    input,
+    createSuffix,
+  );
+  return mapVentureRow(row);
+}
+
 export async function createVenture(
   actor: ActorContext,
   input: unknown,
@@ -297,9 +334,8 @@ export async function archiveVenture(
 
     // Clears the default selection for *every* user currently pointed at
     // this Venture — scoped by workspace_id + venture_id, not by the
-    // acting Founder's user_id. Today that is only ever the Founder, but
-    // from PR 4.1 onward it also covers any Mentor whose active_venture_id
-    // happened to point here, so this never needs revisiting later.
+    // acting Founder's user_id, so it also covers any other role whose
+    // active_venture_id points here.
     await client.query(
       `update user_active_contexts
        set active_venture_id = null, updated_at = now()

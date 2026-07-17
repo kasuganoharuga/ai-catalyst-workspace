@@ -47,10 +47,17 @@ describe("invitation service — database integration", () => {
   afterAll(async () => {
     // Order matters: invitations.workspace_id cascades on workspace delete,
     // but workspaces.founder_user_id/mentor_user_id have no cascade back to
-    // users, so workspaces must go before users.
+    // users, so workspaces must go before users. user_active_contexts has a
+    // plain (non-cascading) FK to workspaces — acceptFounderInvitation now
+    // populates it via setInitialActiveContext, so it must be cleared before
+    // the workspace delete below, not just before the user delete.
     await pool.query("delete from invitations where email like $1", [
       `${emailPrefix}%`,
     ]);
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
     await pool.query(
       "delete from workspaces where founder_user_id = any($1::uuid[])",
       [createdUserIds],
@@ -205,7 +212,7 @@ describe("invitation service — database integration", () => {
     expect(rows[0].status).toBe("expired");
   });
 
-  it("simulates PR 1.2's acceptance predicate returning zero rows after revoke", async () => {
+  it("simulates the acceptance predicate returning zero rows after revoke", async () => {
     const email = testEmail("accept-predicate");
     const { invitation, rawToken } = await createFounderInvitation(admin, {
       email,
@@ -269,7 +276,7 @@ describe("invitation service — database integration", () => {
   });
 
   describe("acceptFounderInvitation", () => {
-    it("accepts a pending invitation: upgrades role, creates a Workspace, writes accepted fields, keeps workspace_id null", async () => {
+    it("accepts a pending invitation: upgrades role, creates a Workspace and a default Venture, writes accepted fields, keeps workspace_id null", async () => {
       const user = await createPendingUser("accept-happy");
       const { invitation, rawToken } = await createFounderInvitation(admin, {
         email: user.email,
@@ -281,6 +288,9 @@ describe("invitation service — database integration", () => {
       expect(result.invitation.status).toBe("accepted");
       expect(result.invitation.workspaceId).toBeNull();
       expect(result.workspace.id).toBeTruthy();
+      expect(result.venture.id).toBeTruthy();
+      expect(result.venture.workspaceId).toBe(result.workspace.id);
+      expect(result.venture.lifecycleStage).toBe("idea");
 
       const { rows: userRows } = await pool.query<{ role: string }>(
         "select role from users where id = $1",
@@ -296,6 +306,30 @@ describe("invitation service — database integration", () => {
       ]);
       expect(wsRows[0].founder_user_id).toBe(user.id);
       expect(wsRows[0].slug).toMatch(/^[a-z0-9-]+-[0-9a-f]{6}$/);
+
+      const { rows: ventureRows } = await pool.query<{
+        workspace_id: string;
+        created_by_user_id: string;
+        slug: string;
+      }>(
+        "select workspace_id, created_by_user_id, slug from ventures where id = $1",
+        [result.venture.id],
+      );
+      expect(ventureRows[0].workspace_id).toBe(result.workspace.id);
+      expect(ventureRows[0].created_by_user_id).toBe(user.id);
+      expect(ventureRows[0].slug).toMatch(/^[a-z0-9-]+-[0-9a-f]{6}$/);
+
+      const { rows: activeContextRows } = await pool.query<{
+        active_workspace_id: string;
+        active_venture_id: string;
+      }>(
+        "select active_workspace_id, active_venture_id from user_active_contexts where user_id = $1",
+        [user.id],
+      );
+      expect(activeContextRows[0].active_workspace_id).toBe(
+        result.workspace.id,
+      );
+      expect(activeContextRows[0].active_venture_id).toBe(result.venture.id);
 
       const { rows: invRows } = await pool.query<{
         invited_user_id: string;
@@ -676,10 +710,14 @@ describe("invitation service — database integration", () => {
 
       const result = await acceptFounderInvitation(actor, rawToken, {
         createWorkspaceSuffix: () => suffixes[callCount++],
+        createVentureSuffix: () => "venture-fixed",
       });
 
       expect(callCount).toBe(3);
       expect(result.workspace.slug).toBe(`${base}-123456`);
+      // The Venture's slug base comes from its own name ("...'s Idea"), not
+      // the Workspace's base — only the deterministic suffix is asserted.
+      expect(result.venture.slug).toMatch(/^[a-z0-9-]+-venture-fixed$/);
     });
   });
 });

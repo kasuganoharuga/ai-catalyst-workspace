@@ -1,3 +1,5 @@
+import type { PoolClient } from "pg";
+
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ActiveContext } from "@ai-catalyst/shared";
@@ -73,12 +75,37 @@ export async function getActiveContext(
   }
 }
 
+// Same upsert as setActiveVenture below, but callable on an
+// already-open client/transaction (no assertRole — the caller's actor is
+// still 'pending' mid-upgrade at that point) — used only by
+// acceptFounderInvitation, right after it creates the Founder's Workspace
+// and default Venture, so the new Venture is already the active selection
+// the first time the Founder loads the Dashboard. No caller may reuse this
+// for an ordinary switch — that path is setActiveVenture, which re-asserts
+// role and ownership on every call.
+export async function setInitialActiveContext(
+  client: PoolClient,
+  userId: string,
+  workspaceId: string,
+  ventureId: string,
+): Promise<void> {
+  await client.query(
+    `insert into user_active_contexts (user_id, active_workspace_id, active_venture_id)
+     values ($1, $2, $3)
+     on conflict (user_id) do update set
+       active_workspace_id = excluded.active_workspace_id,
+       active_venture_id = excluded.active_venture_id,
+       updated_at = now()`,
+    [userId, workspaceId, ventureId],
+  );
+}
+
 // Single function for both switching and explicitly clearing
-// (ventureId: null) the current selection — reused as-is by PR 4.1's
-// Mentor workspace-switching and any future MCP tool. Selecting an
-// *archived* Venture is allowed (read-only history browsing); the DB-level
-// backstop is the composite FK user_active_contexts_venture_fk
-// (active_venture_id, active_workspace_id) -> ventures(id, workspace_id).
+// (ventureId: null) the current selection, shared by every caller
+// (route handlers, MCP tools). Selecting an *archived* Venture is allowed
+// (read-only history browsing); the DB-level backstop is the composite FK
+// user_active_contexts_venture_fk (active_venture_id, active_workspace_id)
+// -> ventures(id, workspace_id).
 export async function setActiveVenture(
   actor: ActorContext,
   ventureId: string | null,
