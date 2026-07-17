@@ -13,11 +13,11 @@ export function SignOutButton() {
       onClick={() =>
         authClient.signOut({
           fetchOptions: {
-            onSuccess: () => router.push("/login"),
+            onSuccess: () => router.push("/"),
           },
         })
       }
-      className="rounded-full border border-stone-300 px-6 py-3 text-sm font-semibold text-stone-950 transition hover:border-stone-950"
+      className="rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition hover:border-foreground"
     >
       Sign out
     </button>

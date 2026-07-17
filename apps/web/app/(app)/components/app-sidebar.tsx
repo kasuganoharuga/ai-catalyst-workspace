@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Logo } from "@/components/logo";
 import { getActiveContext } from "@/lib/active-context";
 import {
   getCurrentFounderActor,
@@ -21,23 +22,18 @@ export async function AppSidebar() {
     : null;
 
   return (
-    <aside className="flex w-64 shrink-0 flex-col border-r border-stone-200 bg-white">
-      <Link href="/modules" className="block px-6 py-6">
-        <span className="block text-xs font-semibold uppercase tracking-[0.34em] text-amber-700">
-          AI Catalyst
-        </span>
-        <span className="text-lg font-semibold tracking-tight text-stone-950">
-          Founder Toolkit
-        </span>
+    <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+      <Link href="/dashboard" className="block px-6 py-6">
+        <Logo />
       </Link>
 
       <AppSidebarNavigation />
 
-      <div className="mt-auto border-t border-stone-200 px-6 py-5">
-        <p className="truncate text-sm font-semibold text-stone-950">
+      <div className="mt-auto border-t border-sidebar-border px-6 py-5">
+        <p className="truncate text-sm font-semibold text-foreground">
           {session.user.name}
         </p>
-        <p className="mt-1 truncate text-xs text-stone-500">
+        <p className="mt-1 truncate text-xs text-muted-foreground">
           {venture
             ? `${venture.name} · ${venture.lifecycleStage}`
             : "No active Venture yet"}

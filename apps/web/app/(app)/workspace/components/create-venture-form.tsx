@@ -16,7 +16,7 @@ export function CreateVentureForm() {
   } = useCreateVentureForm();
 
   return (
-    <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-6">
+    <div className="mt-8 rounded-2xl border border-border bg-card p-6">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Name">
           <input
@@ -24,7 +24,7 @@ export function CreateVentureForm() {
             required
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>
         <Field label="One-liner (optional)">
@@ -32,7 +32,7 @@ export function CreateVentureForm() {
             type="text"
             value={oneLiner}
             onChange={(event) => setOneLiner(event.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>
         <Field label="Summary (optional)">
@@ -40,16 +40,20 @@ export function CreateVentureForm() {
             value={summary}
             onChange={(event) => setSummary(event.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>
 
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+          className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
         >
           {isSubmitting ? "Creating Venture..." : "Create Venture"}
         </button>
@@ -67,7 +71,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {label}
       </span>
       {children}

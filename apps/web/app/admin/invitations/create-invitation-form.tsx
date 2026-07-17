@@ -42,7 +42,7 @@ export function CreateInvitationForm() {
   }
 
   return (
-    <div className="mt-8 rounded-2xl border border-stone-200 bg-white p-6">
+    <div className="mt-8 rounded-2xl border border-border bg-card p-6">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Email">
           <input
@@ -50,7 +50,7 @@ export function CreateInvitationForm() {
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>
         <Field label="Personal message (optional)">
@@ -58,30 +58,34 @@ export function CreateInvitationForm() {
             value={personalMessage}
             onChange={(event) => setPersonalMessage(event.target.value)}
             rows={2}
-            className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>
 
-        {error ? <p className="text-sm text-red-700">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
 
         <button
           type="submit"
           disabled={isSubmitting}
-          className="rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+          className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
         >
           {isSubmitting ? "Creating invitation..." : "Create invitation"}
         </button>
       </form>
 
       {issuedToken ? (
-        <div className="mt-6 rounded-xl border border-amber-300 bg-amber-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-amber-800">
+        <div className="mt-6 rounded-xl border border-accent bg-accent p-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
             One-time token — copy it now
           </p>
-          <p className="mt-2 break-all font-mono text-sm text-stone-900">
+          <p className="mt-2 break-all font-mono text-sm text-foreground">
             {issuedToken}
           </p>
-          <p className="mt-2 text-xs text-stone-600">
+          <p className="mt-2 text-xs text-muted-foreground">
             This token is shown once and cannot be retrieved again. Share it
             with the invited Founder manually.
           </p>
@@ -100,7 +104,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {label}
       </span>
       {children}

@@ -13,8 +13,8 @@ export function StatusPill({ status }: { status: ModuleCatalogStatus }) {
       className={cn(
         "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em]",
         status === "live"
-          ? "bg-lime-100 text-lime-800"
-          : "bg-stone-100 text-stone-500",
+          ? "bg-accent text-accent-foreground"
+          : "bg-muted text-muted-foreground",
       )}
     >
       {STATUS_LABEL[status]}

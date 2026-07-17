@@ -35,23 +35,21 @@ export default function RegisterPage() {
       return;
     }
 
-    router.push("/workspace");
+    router.push("/dashboard");
   }
 
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-950">
+    <div className="min-h-screen bg-background text-foreground">
       <SiteHeader />
       <main className="mx-auto max-w-md px-6 py-16">
-        <p className="text-sm font-semibold uppercase tracking-[0.34em] text-amber-700">
+        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
           Create an account
         </p>
-        <h1 className="mt-5 text-4xl font-semibold tracking-[-0.04em]">
-          Register
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-stone-700">
+        <h1 className="mt-5 text-4xl font-semibold tracking-tight">Register</h1>
+        <p className="mt-4 text-sm leading-6 text-muted-foreground">
           Registration is open for everyone right now. Founder and Mentor access
           is still invitation-only — see the{" "}
-          <Link href="/pending" className="underline hover:text-stone-950">
+          <Link href="/pending" className="underline hover:text-foreground">
             pending
           </Link>{" "}
           state after signing up.
@@ -65,7 +63,7 @@ export default function RegisterPage() {
               autoComplete="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
             />
           </Field>
           <Field label="Password">
@@ -76,24 +74,28 @@ export default function RegisterPage() {
               autoComplete="new-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-xl border border-stone-300 bg-white px-4 py-3 text-sm outline-none focus:border-stone-950"
+              className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
             />
           </Field>
 
-          {error ? <p className="text-sm text-red-700">{error}</p> : null}
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded-full bg-stone-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-amber-800 disabled:opacity-50"
+            className="w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
           >
             {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
 
-        <p className="mt-8 text-sm text-stone-700">
+        <p className="mt-8 text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="underline hover:text-stone-950">
+          <Link href="/" className="underline hover:text-foreground">
             Sign in
           </Link>
         </p>
@@ -111,7 +113,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.24em] text-stone-500">
+      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {label}
       </span>
       {children}
