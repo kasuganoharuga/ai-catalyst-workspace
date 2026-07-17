@@ -1,10 +1,10 @@
 import Link from "next/link";
 
 import { SiteHeader } from "@/components/site-header";
-import { requireActiveUser } from "@/lib/require-active-user";
+import { requireAdminUser } from "@/lib/require-active-user";
 
 export default async function AdminPage() {
-  await requireActiveUser();
+  await requireAdminUser();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
