@@ -26,6 +26,10 @@ function statusForCode(code: ServiceErrorCode): number {
       return 403;
     case "FOUNDER_WORKSPACE_ALREADY_EXISTS":
       return 409;
+    case "INTERNAL_INVARIANT_ERROR":
+      // Never the caller's fault (e.g. content misconfiguration) — a 500,
+      // not a 4xx, even though it's a typed ServiceError.
+      return 500;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;

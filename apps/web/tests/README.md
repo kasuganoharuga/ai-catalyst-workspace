@@ -1,9 +1,9 @@
 # apps/web tests
 
-These are integration tests, not unit tests — `auth.db.test.ts` and
-`auth.http.test.ts` both write real rows to the local Postgres database via
-`apps/web/lib/auth.ts`, then clean up the users (and cascaded sessions) they
-created in an `afterAll`.
+These are integration tests, not unit tests — `auth.db.test.ts`,
+`auth.http.test.ts`, and `program-runs.http.test.ts` all write real rows to
+the local Postgres database (via `apps/web/lib/auth.ts` or
+`@ai-catalyst/services`), then clean up what they created in an `afterAll`.
 
 ## Prerequisites
 
@@ -31,3 +31,9 @@ pnpm --filter web test
   also sends a raw JSON body with an extra `role: "admin"` field (not
   expressible through the typed auth client) to confirm the server ignores
   it — the real attack surface for that guarantee.
+- `program-runs.http.test.ts` calls the real exported `POST` from
+  `app/api/program-runs/route.ts` with plain `Request` objects the same way,
+  covering the HTTP-transport contract only (auth gate, malformed-body
+  handling, the 201-vs-200 create/idempotent distinction) — the deep
+  create/Branch/Module business behavior is covered at the service layer by
+  `packages/services/src/workflow/index.db.test.ts` instead.

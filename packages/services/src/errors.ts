@@ -11,7 +11,12 @@ export type ServiceErrorCode =
   | "INVITATION_ALREADY_PENDING"
   | "INVITATION_NOT_PENDING"
   | "INVITATION_EMAIL_MISMATCH"
-  | "FOUNDER_WORKSPACE_ALREADY_EXISTS";
+  | "FOUNDER_WORKSPACE_ALREADY_EXISTS"
+  // A server-side content/data invariant was violated (e.g. a published
+  // Program Version has zero active Modules) — never the caller's fault,
+  // so callers should treat this as an unexpected failure rather than a
+  // normal business error to recover from.
+  | "INTERNAL_INVARIANT_ERROR";
 
 export class ServiceError extends Error {
   constructor(

@@ -13,6 +13,7 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 // logic) — content-seed is only meant for the seed CLI and its own tests,
 // not for a read path consumed by apps/web.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
+import { resolvePublishedProgramVersionId } from "@ai-catalyst/services/internal/program-version";
 
 // The catalog always resolves against this Program's current published
 // version — this is deliberately not the same concept as the fixed
@@ -57,35 +58,6 @@ function mapRow(row: ModuleCatalogRow): ModuleCatalogEntry {
     catalogStatus: row.module_status === "active" ? "live" : "coming_soon",
     expectedArtifacts: row.expected_artifacts,
   };
-}
-
-// Selects by a stable program_key, never "the latest published version
-// across every Program" — a second Program publishing a version later
-// must never change what this catalog shows. Picks the highest
-// version_number if more than one version of this Program is published.
-async function resolvePublishedProgramVersionId(
-  programKey: string,
-): Promise<string> {
-  const result = await pool.query<{ id: string }>(
-    `select pv.id
-     from programs p
-     join program_versions pv on pv.program_id = p.id
-     where p.program_key = $1
-       and p.status = 'active'
-       and pv.status = 'published'
-     order by pv.version_number desc
-     limit 1`,
-    [programKey],
-  );
-
-  const row = result.rows[0];
-  if (!row) {
-    throw new ServiceError(
-      "NOT_FOUND",
-      `No published program_version exists for program_key "${programKey}".`,
-    );
-  }
-  return row.id;
 }
 
 // `left join` + `jsonb_agg` instead of a plain join: a Module with more
