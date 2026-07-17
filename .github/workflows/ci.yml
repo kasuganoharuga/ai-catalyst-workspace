@@ -211,6 +211,39 @@ jobs:
             exit 1
           fi
 
+      - name: Build and start web + mcp
+        run: docker compose -f infra/docker/docker-compose.yml up -d --build --wait web mcp
+
+      - name: Smoke test web
+        run: |
+          set -euo pipefail
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/login)
+          echo "GET /login -> $status"
+          if [ "$status" -ge 500 ]; then
+            echo "Expected /login to not 5xx, got $status" >&2
+            exit 1
+          fi
+
+      - name: Smoke test mcp
+        run: |
+          set -euo pipefail
+          health=$(curl -s http://127.0.0.1:8787/health)
+          echo "GET /health -> $health"
+          echo "$health" | grep -q '"status":"ok"' || {
+            echo "Expected mcp /health to report ok" >&2
+            exit 1
+          }
+
+          tools=$(curl -s -X POST http://127.0.0.1:8787/mcp \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          echo "POST /mcp tools/list -> $tools"
+          echo "$tools" | grep -q '"tools":\[\]' || {
+            echo "Expected an empty tools/list result from the skeleton server" >&2
+            exit 1
+          }
+
       # Destructive/expected-failure case — always last, so it never leaves
       # the checkout in a tampered state for an earlier assertion to trip on.
       - name: Tamper an applied migration and expect checksum failure

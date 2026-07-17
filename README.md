@@ -13,7 +13,7 @@ The first version is Skill-first and workspace-ready:
 - Download module `SKILL.md` files
 - Reserve future workspace and admin routes
 - Keep FastAPI available for later AI workflow execution
-- Reserve a Remote MCP Server for future AI-agent (e.g. Claude) access to the same Toolkit workflows
+- Run a Remote MCP Server skeleton (stateless Streamable HTTP, no tools registered yet) that future AI-agent (e.g. Claude) access to the same Toolkit workflows will build on
 
 V1 does not include login, databases, file uploads, RAG, investor matching, or live LLM execution.
 
@@ -21,7 +21,7 @@ V1 does not include login, databases, file uploads, RAG, investor matching, or l
 
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
 - Backend: FastAPI, Python (reserved internal AI service)
-- MCP: Remote MCP server, Node/TypeScript (reserved — see [MCP & Services Architecture](#mcp--services-architecture))
+- MCP: Remote MCP server, Node/TypeScript (skeleton — see [MCP & Services Architecture](#mcp--services-architecture))
 - Database: PostgreSQL via Docker Compose
 - Content: Markdown + JSON manifest in `packages/toolkit-content`
 - Tooling: Docker Compose for backend services, GitHub Actions CI
@@ -41,13 +41,15 @@ Install dependencies from the repository root:
 pnpm install
 ```
 
-Start backend services with Docker:
+Copy the root env file (the `web` service reads `BETTER_AUTH_SECRET` from it) and start the full stack with Docker:
 
 ```powershell
+cp .env.example .env
+# fill in BETTER_AUTH_SECRET, e.g. via `openssl rand -base64 32`
 pnpm docker:up
 ```
 
-The API is available at `http://127.0.0.1:8000` (health check at `/health`). PostgreSQL is available locally on port `5432`.
+The API is available at `http://127.0.0.1:8000` (health check at `/health`), the web app at `http://127.0.0.1:3000`, and the MCP server at `http://127.0.0.1:8787` (health check at `/health`; see [MCP & Services Architecture](#mcp--services-architecture)). PostgreSQL is available locally on port `5432`.
 
 Run the web app locally (primary V1 product):
 
@@ -69,13 +71,13 @@ Run the standard development setup (Docker Postgres, migrated, plus local web + 
 pnpm dev
 ```
 
-`pnpm dev` (`scripts/dev.js`) starts only the `db` container, runs pending migrations against it via `packages/db`, then runs `web` (`next dev`) and `api` (`uvicorn --reload`) as local processes; press `Ctrl+C` to stop everything — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). It requires a local Python environment with `apps/api/requirements.txt` installed (see [`apps/api/README.md`](apps/api/README.md#development)). (`pnpm docker:up` starts the full containerized stack — including `api` as a built container — detached, for cases where you want it running independently of a foreground command instead of iterating on `api` locally.)
+`pnpm dev` (`scripts/dev.js`) starts only the `db` container, runs pending migrations against it via `packages/db`, then runs `web` (`next dev`) and `api` (`uvicorn --reload`) as local processes; press `Ctrl+C` to stop everything — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). It requires a local Python environment with `apps/api/requirements.txt` installed (see [`apps/api/README.md`](apps/api/README.md#development)). (`pnpm docker:up` starts the full containerized stack — `db`, `api`, `web`, and `mcp` all as built containers — detached, for cases where you want it running independently of a foreground command instead of iterating on `web`/`api` locally.)
 
 ## Environment
 
 Each app has its own `.env.example` scoped to what it actually reads from `process.env` — copy each to the sibling `.env`/`.env.local` file rather than sharing one file across apps:
 
-- [`.env.example`](.env.example) (repo root): the monorepo/Docker-wide `DATABASE_URL` and port conventions, shared by reference rather than duplicated below.
+- [`.env.example`](.env.example) (repo root): copy to `.env` before running `pnpm docker:up` — the monorepo/Docker-wide `DATABASE_URL`, `BETTER_AUTH_SECRET` (required; the `web` service fails fast without it), and port conventions, shared by reference rather than duplicated below.
 - [`apps/web/.env.example`](apps/web/.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` — copy to `apps/web/.env.local`.
 - [`apps/api/.env.example`](apps/api/.env.example): FastAPI's own settings — copy to `apps/api/.env`. See [`apps/api/README.md`](apps/api/README.md#environment).
 
@@ -108,19 +110,19 @@ docker compose -f infra/docker/docker-compose.yml config
 
 ## Docker
 
-Start backend services (`api` + `db`):
+Start the full stack (`db`, `api`, `web`, `mcp`):
 
 ```powershell
 pnpm docker:up
 ```
 
-Stop backend services:
+Stop it:
 
 ```powershell
 pnpm docker:down
 ```
 
-`pnpm docker:up` starts `db`, waits for it to be healthy, applies pending migrations from `infra/database/migrations/`, then starts the rest of the stack. **`pnpm db:reset` permanently deletes all local database data** — see [`infra/docker/README.md`](infra/docker/README.md#database-initialization) for initialization details, verification queries, and reset semantics.
+`pnpm docker:up` starts `db`, waits for it to be healthy, applies pending migrations from `infra/database/migrations/`, seeds Toolkit content, then builds and starts the rest of the stack. It requires a repo-root `.env` with `BETTER_AUTH_SECRET` set (see [Environment](#environment)) — `web`'s compose config fails fast without it. **`pnpm db:reset` permanently deletes all local database data** — see [`infra/docker/README.md`](infra/docker/README.md#database-initialization) for initialization details, verification queries, and reset semantics.
 
 ## Continuous Integration
 
@@ -129,7 +131,7 @@ GitHub Actions validates the project on push to `main`/`develop` and on pull req
 - **frontend**: install workspace deps with the lockfile, check formatting, lint, typecheck, and build the Next.js app
 - **packages**: typecheck and test `packages/*`/`apps/mcp`, and check architectural import boundaries (`pnpm depcruise`)
 - **backend**: install FastAPI dependencies and smoke check the app import
-- **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, and verify migration checksum protection
+- **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, verify migration checksum protection, and build+smoke-test the `web`/`mcp` containers
 
 ## Project Structure
 
@@ -137,7 +139,7 @@ GitHub Actions validates the project on push to `main`/`develop` and on pull req
 apps/
   web/              Next.js full-stack app for the V1 product
   api/              Reserved FastAPI service for future AI workflows (internal only, see below)
-  mcp/              Reserved Remote MCP Server — thin tool/resource/prompt shells only (scaffold, no logic yet)
+  mcp/              Remote MCP Server skeleton — stateless Streamable HTTP over /mcp, no tools registered yet
 packages/
   toolkit-content/  Module metadata, markdown, Skills, templates, and examples
   shared/           Shared TypeScript types
@@ -159,9 +161,9 @@ Next.js owns the product experience and product data (pages, Toolkit reads, Skil
 
 ## MCP & Services Architecture
 
-`apps/mcp` and `packages/services` are currently **structure-only scaffolds** (`package.json` + `tsconfig.json`, no implementation) that reserve the shape described below for when a Remote MCP Server is built. No `server.ts`, tool handlers, or service logic exist yet, and `apps/mcp` is not wired into `infra/docker/docker-compose.yml` until it has real server code.
+`apps/mcp` is a stateless Streamable HTTP MCP server skeleton: a single `/mcp` endpoint (`POST` only — `GET`/`DELETE` return 405, since there's no session to resume or terminate), a `/health` check, and an empty `tools/list` — no real tools, resources, or prompts are registered yet, and it doesn't call `packages/services` yet either. It runs as its own container in `infra/docker/docker-compose.yml` (`pnpm docker:up` builds and starts it on `http://127.0.0.1:8787`). `packages/services` is still a structure-only scaffold (`package.json` + `tsconfig.json`, no implementation).
 
-Once implemented, the layering is:
+Once fully implemented, the layering is:
 
 | Layer | Owns |
 |---|---|

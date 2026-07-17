@@ -14,10 +14,12 @@
  */
 
 const { spawn } = require("node:child_process");
+const { existsSync } = require("node:fs");
 const path = require("node:path");
 
 const repoRoot = path.join(__dirname, "..");
 const composeFile = path.join(repoRoot, "infra", "docker", "docker-compose.yml");
+const envFile = path.join(repoRoot, ".env");
 const isWindows = process.platform === "win32";
 
 const LOCAL_DATABASE_URL =
@@ -45,10 +47,24 @@ function run(command, args, options = {}) {
 }
 
 function dockerCompose(args) {
-  return run("docker", ["compose", "-f", composeFile, ...args]);
+  // `docker compose -f infra/docker/docker-compose.yml` defaults its env
+  // file lookup to the compose file's own directory, not the repo root —
+  // `--env-file` overrides just that lookup. (Deliberately not passing
+  // `--project-directory`: that flag *also* changes what relative paths
+  // like `context: ../..` resolve against, from "relative to the compose
+  // file" to "relative to the project directory" — pointing it at the repo
+  // root would turn `../..` into two levels above the repo root instead.)
+  return run("docker", ["compose", "--env-file", envFile, "-f", composeFile, ...args]);
 }
 
 async function main() {
+  if (!existsSync(envFile)) {
+    throw new Error(
+      `Missing ${envFile}. Copy .env.example to .env and fill in BETTER_AUTH_SECRET ` +
+        "(the web service Docker Compose brings up needs it) before running docker:up.",
+    );
+  }
+
   console.log("[docker-up] starting db...");
   await dockerCompose(["up", "-d", "--wait", "db"]);
 

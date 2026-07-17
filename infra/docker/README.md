@@ -10,9 +10,12 @@ pnpm docker:up
 
 1. Start `db` and wait for its healthcheck (`docker compose up -d --wait db`).
 2. Run pending migrations from the host against `127.0.0.1:5432` (`pnpm --filter @ai-catalyst/db run migrate`).
-3. Start (and build) every other service — currently `api` on `http://127.0.0.1:8000`.
+3. Seed the founder-toolkit content catalog.
+4. Start (and build) every other service: `api` on `http://127.0.0.1:8000`, `web` on `http://127.0.0.1:3000`, and `mcp` on `http://127.0.0.1:8787` (its `/health` and stateless `/mcp` endpoint; no real tools yet — see [`apps/mcp`](../../apps/mcp)).
 
-Run the Next.js frontend locally with `pnpm dev:web`.
+This requires a repo-root `.env` (copy [`.env.example`](../../.env.example)) with `BETTER_AUTH_SECRET` set — the `web` service fails fast at compose-config time if it's missing. `docker-up.js` passes `--env-file` (not `--project-directory`) explicitly, since `docker compose -f infra/docker/docker-compose.yml` otherwise looks for `.env` next to the compose file, not the repo root.
+
+You can still run the Next.js frontend locally instead with `pnpm dev:web` (faster iteration, no rebuild-per-change) — just don't run both the `web` container and `pnpm dev:web` at once, they'd fight over port 3000.
 
 Stop the stack:
 
@@ -20,7 +23,7 @@ Stop the stack:
 pnpm docker:down
 ```
 
-The V1 app uses Next.js as the primary full-stack application and runs locally during development. Docker is reserved for backend services and local databases.
+The V1 app uses Next.js as the primary full-stack application; `pnpm dev:web` (local, fast reload) is still the usual way to iterate on it day to day, but `pnpm docker:up` also builds and runs it as a container — useful for verifying the production (`output: "standalone"`) build path, or running the whole stack (`db`, `api`, `web`, `mcp`) without any local language runtimes beyond Docker itself.
 
 Default local database credentials:
 

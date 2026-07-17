@@ -18,6 +18,34 @@ services:
       db:
         condition: service_healthy
 
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
+      BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp:
+    build:
+      context: ../..
+      dockerfile: apps/mcp/Dockerfile
+    environment:
+      # Fixed container-internal port. MCP_HOST_PORT (below) is a distinct
+      # variable on purpose: templating both the container's own listener
+      # and the host-side publish from the same MCP_PORT would break the
+      # container's listener the moment a developer overrides it to dodge a
+      # host port clash.
+      MCP_PORT: 8787
+    ports:
+      - "127.0.0.1:${MCP_HOST_PORT:-8787}:8787"
+
   db:
     image: postgres:17-alpine
     environment:
