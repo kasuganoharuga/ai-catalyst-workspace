@@ -79,3 +79,53 @@ Your schema is already up to date.
 - `account.encryptOAuthTokens` is set in `apps/web/lib/auth.ts`, but no OAuth
   provider is configured yet in V1, so no OAuth tokens are written to
   `accounts` to exercise it.
+
+## PR 2.2: MCP OAuth provider tables (`mcp_oauth_*`)
+
+Better Auth's legacy `mcp()` plugin (enabled in `apps/web/lib/auth.ts` for
+PR 2.2) needs three tables that its own bundled schema
+(`plugins/oidc-provider/schema.mjs`) calls `oauthApplication` /
+`oauthAccessToken` / `oauthConsent`, with camelCase fields. This project
+renames them to `mcp_oauth_applications` / `mcp_oauth_access_tokens` /
+`mcp_oauth_consents` with snake_case columns — see
+[`0004_mcp_oauth_provider_schema.sql`](migrations/0004_mcp_oauth_provider_schema.sql)
+— matching every other table in this schema.
+
+**This rename would not work through `mcp()`'s own config.** Confirmed by
+reading `better-auth@1.6.23`'s compiled `plugins/mcp/index.mjs`: `mcp()`
+internally builds `provider = oidcProvider({...opts})` (whose own schema
+*would* correctly honor an `options.schema` override, via
+`mergeSchema(schema, options?.schema)` — this is how `oidcProvider()` on its
+own supports renaming) but then returns the plugin object with the bare,
+un-merged `schema` import from `oidc-provider/schema.mjs` instead of
+`provider.schema` — so anything passed as `mcp({ oidcConfig: { schema: ... } })`
+is silently ignored.
+
+The actual fix, in `apps/web/lib/mcp-oauth-compat/schema-override.ts`: a
+second, schema-only plugin object (no endpoints/hooks of its own) declaring
+the desired `modelName`/`fieldName` overrides, placed *after* `mcp()` in the
+`plugins` array. Verified empirically (a throwaway script constructing a
+`betterAuth()` instance with both plugins and inspecting
+`getAuthTables(auth.options)` from `@better-auth/core/db`) that
+`getAuthTables()` merges every plugin's `.schema` by table key across the
+*entire* plugins array — independent of what `mcp()`'s own plugin object
+carries — so a later plugin's `modelName`/`fieldName` entries for the same
+table key win. Since both the migration-diff tool (`getMigrations`, used by
+`pnpm --filter web run auth:check`) and the live Postgres adapter's
+model/field-name resolution (`getFieldName`/`getModelName`) are pure
+functions of this same merged `getAuthTables()` result, the override applies
+identically to both schema-checking and real runtime reads/writes.
+
+No `authentication_scheme` column: `plugins/mcp/index.mjs`'s DCR handler
+writes `data.authenticationScheme`, but neither the plugin's own schema nor
+this project's override schema declares that field. Confirmed via
+`@better-auth/core`'s adapter factory (`transformInput`): it only ever
+copies `data[field]` for `field in schema[model].fields` — an extra,
+undeclared key on the input object is silently skipped, never inserted and
+never causing an error. `verifyMcpBearerToken`
+(`packages/services/src/mcp-auth`) checks `type = 'public'` and an
+empty/null `client_secret` instead, matching the DCR handler's real branch
+(`finalClientSecret = clientType === "public" ? "" : clientSecret`).
+
+**Any Better Auth version bump must re-verify all of the above** — this is
+called out in `apps/web/lib/mcp-oauth-compat/README.md`.

@@ -1,6 +1,10 @@
 import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
+import { mcp } from "better-auth/plugins";
 import { pool } from "@ai-catalyst/db";
+
+import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
+import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
 
 /**
  * Better Auth is the Authorization Server for the platform (architecture.mdc
@@ -13,10 +17,26 @@ import { pool } from "@ai-catalyst/db";
  * registration lands — see README.md's "Temporary: public registration"
  * note for the full rationale.
  */
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim() === "") {
+    throw new Error(`${name} is required.`);
+  }
+  return value.trim();
+}
+
+// The OAuth "issuer" — apps/web's own base URL. Named to match the OAuth/
+// OIDC spec term (and apps/mcp's identically-purposed env var) rather than
+// Better Auth's own generic `BETTER_AUTH_URL` convention, since this value
+// is load-bearing for the MCP Authorization Server role specifically (it's
+// what apps/mcp's protected-resource metadata points MCP clients back to —
+// see apps/mcp/src/well-known/protected-resource.ts).
+const authIssuerUrl = requireEnv("AUTH_ISSUER_URL");
+
 export const auth = betterAuth({
   database: pool,
-  baseURL: process.env.BETTER_AUTH_URL,
-  secret: process.env.BETTER_AUTH_SECRET,
+  baseURL: authIssuerUrl,
+  secret: requireEnv("BETTER_AUTH_SECRET"),
 
   emailAndPassword: {
     enabled: true,
@@ -88,6 +108,16 @@ export const auth = betterAuth({
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
+    // Cross-layer contract, pinned explicitly rather than relying on the
+    // (currently matching) default: packages/services/src/mcp-auth's
+    // getPendingMcpConsentRequest and checkAuthorizationCodeIsRedeemable
+    // both query `verifications.identifier` directly via packages/db,
+    // bypassing Better Auth's own storage adapter — which only works if
+    // the identifier Better Auth stores is the exact plain consent_code /
+    // code it handed to the client. If this is ever changed to "hashed",
+    // every one of those lookups silently starts missing every real code.
+    // See apps/web/lib/mcp-oauth-compat/README.md.
+    storeIdentifier: "plain",
   },
 
   databaseHooks: {
@@ -112,7 +142,47 @@ export const auth = betterAuth({
     },
   },
 
-  // Must stay last: lets server actions (e.g. the /login and /register
-  // forms) set the session cookie automatically.
-  plugins: [nextCookies()],
+  plugins: [
+    // OAuth 2.1 Authorization Server for MCP (architecture.mdc rule 4).
+    // apps/mcp is the Resource Server that verifies the opaque Bearer
+    // tokens issued here — see packages/services/src/mcp-auth and
+    // apps/web/lib/mcp-oauth-compat/README.md for the full compatibility
+    // profile this configuration relies on.
+    mcp({
+      loginPage: "/login",
+      oidcConfig: {
+        // Required by OIDCOptions's own type even though mcp() already
+        // hard-codes this same value onto `opts.loginPage` for us.
+        loginPage: "/login",
+        // The only scope V1 ever issues or accepts — every other scope
+        // (including the plugin's own hardcoded "openid"/"profile"/
+        // "email"/"offline_access" baseline) is rejected by the
+        // /mcp/authorize before-hook in mcp-oauth-compat/hooks.ts before
+        // it ever reaches this plugin's own scope check.
+        scopes: ["mcp:connect"],
+        defaultScope: "mcp:connect",
+        requirePKCE: true,
+        allowPlainCodeChallengeMethod: false,
+        allowDynamicClientRegistration: true,
+        consentPage: "/oauth/consent",
+        codeExpiresIn: 600,
+        accessTokenExpiresIn: 3600,
+        // V1 never hands out a redeemable refresh token (the
+        // /mcp/authorize hook strips offline_access, and the /mcp/token
+        // hook rejects any non-authorization_code grant type), so this
+        // value is unused in practice — left at the plugin default.
+        refreshTokenExpiresIn: 604800,
+      },
+    }),
+    // Must come after mcp() in this array — see that file's top-of-file
+    // comment for why table/field renaming for the mcp() plugin's schema
+    // can only be applied this way in better-auth@1.6.23.
+    mcpOAuthSchemaOverridePlugin,
+    // Every before-hook that hardens the mcp()/oidc-provider endpoints
+    // above — see apps/web/lib/mcp-oauth-compat/README.md.
+    mcpOAuthSecurityPlugin,
+    // Must stay last: lets server actions (e.g. the /login and /register
+    // forms) set the session cookie automatically.
+    nextCookies(),
+  ],
 });

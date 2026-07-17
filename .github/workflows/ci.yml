@@ -23,6 +23,10 @@ jobs:
       # to satisfy the build without a live database in this job.
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
       BETTER_AUTH_SECRET: ci-build-secret-not-used-in-production
+      # apps/web/lib/auth.ts asserts this at module load time too (PR 2.2) —
+      # a placeholder is fine here since the build never makes a real
+      # network call to it.
+      AUTH_ISSUER_URL: http://127.0.0.1:3000
 
     steps:
       - name: Checkout
@@ -57,6 +61,14 @@ jobs:
   packages:
     name: Packages
     runs-on: ubuntu-latest
+
+    env:
+      # packages/services/src/mcp-auth (PR 2.2) imports @ai-catalyst/db's
+      # pool at module load time, and apps/mcp depends on
+      # @ai-catalyst/services — see the frontend job's DATABASE_URL comment
+      # above for why a placeholder is enough here (pg.Pool never connects
+      # eagerly).
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
 
     steps:
       - name: Checkout
@@ -114,6 +126,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
       BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
+      # Needed by the steps below that run apps/web directly on the runner
+      # (auth:check, test) rather than through docker-compose, which sets
+      # these itself on the web/mcp services — see docker-compose.yml.
+      AUTH_ISSUER_URL: http://127.0.0.1:3000
+      MCP_RESOURCE_URL: http://127.0.0.1:8787/mcp
 
     steps:
       - name: Checkout
@@ -234,13 +251,32 @@ jobs:
             exit 1
           }
 
-          tools=$(curl -s -X POST http://127.0.0.1:8787/mcp \
+          # PR 2.2: /mcp now requires a platform Bearer token (RFC 6750) —
+          # a bare request must be rejected, not served. The full
+          # authorize -> consent -> token -> Bearer-verified tools/list
+          # flow is covered by apps/web/tests/mcp-oauth.http.test.ts and
+          # apps/mcp/src/server.test.ts; scripting real DCR/PKCE/consent
+          # here would just duplicate that coverage against a container
+          # instead of the real HTTP handlers.
+          unauth_status=$(curl -s -o /tmp/unauth-body.json -w "%{http_code}" -X POST http://127.0.0.1:8787/mcp \
             -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \
             -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
-          echo "POST /mcp tools/list -> $tools"
-          echo "$tools" | grep -q '"tools":\[\]' || {
-            echo "Expected an empty tools/list result from the skeleton server" >&2
+          unauth_body=$(cat /tmp/unauth-body.json)
+          echo "POST /mcp (no bearer token) -> $unauth_status $unauth_body"
+          if [ "$unauth_status" != "401" ]; then
+            echo "Expected an unauthenticated tools/list call to be rejected with 401, got $unauth_status" >&2
+            exit 1
+          fi
+          echo "$unauth_body" | grep -q "Missing bearer token" || {
+            echo "Expected the 401 body to report a missing bearer token" >&2
+            exit 1
+          }
+
+          resource_metadata=$(curl -s http://127.0.0.1:8787/.well-known/oauth-protected-resource)
+          echo "GET /.well-known/oauth-protected-resource -> $resource_metadata"
+          echo "$resource_metadata" | grep -q '"authorization_servers":\["http://localhost:3000"\]' || {
+            echo "Expected mcp's protected-resource metadata to point back at web as the Authorization Server" >&2
             exit 1
           }
 

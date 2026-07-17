@@ -19,13 +19,17 @@ WORKDIR /app
 # Build-time-only placeholders: `next build` collects page data for
 # /api/auth/[...all], which imports packages/db's pool at module load time
 # (packages/db/src/pool.ts throws immediately if DATABASE_URL is unset) and
-# constructs the Better Auth instance. Neither value is used at runtime —
-# the web service's real DATABASE_URL/BETTER_AUTH_SECRET come from
+# constructs the Better Auth instance (apps/web/lib/auth.ts asserts
+# AUTH_ISSUER_URL/BETTER_AUTH_SECRET at module load too, PR 2.2). None of
+# these values are used at runtime — the web service's real
+# DATABASE_URL/BETTER_AUTH_SECRET/AUTH_ISSUER_URL come from
 # docker-compose.yml's `environment:` at container start.
 ARG DATABASE_URL=postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
 ARG BETTER_AUTH_SECRET=docker-build-placeholder-not-used-at-runtime
+ARG AUTH_ISSUER_URL=http://localhost:3000
 ENV DATABASE_URL=${DATABASE_URL}
 ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
+ENV AUTH_ISSUER_URL=${AUTH_ISSUER_URL}
 
 RUN pnpm --filter web build
 

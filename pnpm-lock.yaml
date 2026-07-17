@@ -17,12 +17,24 @@ importers:
 
   apps/mcp:
     dependencies:
+      '@ai-catalyst/contracts':
+        specifier: workspace:*
+        version: link:../../packages/contracts
+      '@ai-catalyst/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@ai-catalyst/services':
+        specifier: workspace:*
+        version: link:../../packages/services
       '@modelcontextprotocol/sdk':
         specifier: 1.29.0
         version: 1.29.0(zod@4.4.3)
       express:
         specifier: ^5.2.1
         version: 5.2.1
+      pg:
+        specifier: ^8.16.3
+        version: 8.22.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -96,6 +108,9 @@ importers:
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4
@@ -188,6 +203,9 @@ importers:
       pg:
         specifier: ^8.16.3
         version: 8.22.0
+      zod:
+        specifier: ^4.4.3
+        version: 4.4.3
     devDependencies:
       '@types/node':
         specifier: ^20

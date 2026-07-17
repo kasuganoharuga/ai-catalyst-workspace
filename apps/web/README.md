@@ -22,9 +22,11 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 ## Environment
 
 Copy `.env.example` to `.env.local` for local overrides (`DATABASE_URL`,
-`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`). `pnpm dev`/`pnpm docker:up` already
-provision `db` and run migrations, so `DATABASE_URL` can stay pointed at the
-Docker Postgres instance.
+`BETTER_AUTH_SECRET`, `AUTH_ISSUER_URL`, `MCP_RESOURCE_URL`). `pnpm
+dev`/`pnpm docker:up` already provision `db` and run migrations, so
+`DATABASE_URL` can stay pointed at the Docker Postgres instance.
+`MCP_RESOURCE_URL` must match `apps/mcp`'s own env var of the same
+name — see `apps/web/lib/mcp-oauth-compat/README.md`.
 
 ## Quality Commands
 

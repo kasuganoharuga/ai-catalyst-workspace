@@ -11,6 +11,7 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "auth:check": "tsx scripts/check-auth-schema.ts",
+    "oauth:cleanup": "tsx scripts/oauth-cleanup.ts",
     "test": "vitest run",
     "test:standalone": "node scripts/verify-standalone-build.mjs"
   },
@@ -29,7 +30,8 @@
     "pg": "^8.16.3",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",

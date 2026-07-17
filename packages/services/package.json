@@ -23,13 +23,14 @@
     "./internal/venture": "./src/internal/venture.ts",
     "./internal/branch": "./src/internal/branch.ts",
     "./internal/program-version": "./src/internal/program-version.ts",
-    "./internal/entity-id": "./src/internal/entity-id.ts"
+    "./internal/entity-id": "./src/internal/entity-id.ts",
+    "./mcp-auth": "./src/mcp-auth/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/workflow/index.db.test.ts",
+    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts"
   },
   "dependencies": {
@@ -38,7 +39,8 @@
     "@ai-catalyst/db": "workspace:*",
     "@ai-catalyst/shared": "workspace:*",
     "@ai-catalyst/toolkit-content": "workspace:*",
-    "pg": "^8.16.3"
+    "pg": "^8.16.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^20",

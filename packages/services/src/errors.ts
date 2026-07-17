@@ -6,6 +6,13 @@ import type { ActorContext, ActorRole } from "@ai-catalyst/contracts/actor-conte
 // layer itself never needs to know about either.
 export type ServiceErrorCode =
   | "FORBIDDEN"
+  // The caller presented no credential, or one that no longer identifies a
+  // usable subject (expired/invalid Bearer token, disabled OAuth client, a
+  // deleted user) — as opposed to FORBIDDEN, where the subject is valid but
+  // not allowed to do this. apps/web maps this to HTTP 401; apps/mcp's
+  // Bearer-verification middleware maps it to 401 with a `WWW-Authenticate`
+  // challenge (packages/services/src/mcp-auth).
+  | "UNAUTHENTICATED"
   | "NOT_FOUND"
   | "VALIDATION_ERROR"
   | "INVITATION_ALREADY_PENDING"

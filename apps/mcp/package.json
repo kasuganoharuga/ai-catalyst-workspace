@@ -11,8 +11,12 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@ai-catalyst/contracts": "workspace:*",
+    "@ai-catalyst/db": "workspace:*",
+    "@ai-catalyst/services": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "express": "^5.2.1",
+    "pg": "^8.16.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

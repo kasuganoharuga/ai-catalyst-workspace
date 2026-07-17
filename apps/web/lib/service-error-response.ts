@@ -12,6 +12,8 @@ function statusForCode(code: ServiceErrorCode): number {
   switch (code) {
     case "FORBIDDEN":
       return 403;
+    case "UNAUTHENTICATED":
+      return 401;
     case "NOT_FOUND":
       return 404;
     case "VALIDATION_ERROR":

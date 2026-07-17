@@ -2,6 +2,7 @@ import type {
   ActorContext,
   ActorRole,
 } from "@ai-catalyst/contracts/actor-context";
+import { createWebActorContext } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
 // Better Auth's session type widens `additionalFields.role` to `string`
@@ -24,5 +25,8 @@ export function actorContextFromSession(session: {
     throw new ServiceError("FORBIDDEN", "Unrecognized account role.");
   }
 
-  return { userId: session.user.id, role: session.user.role };
+  return createWebActorContext({
+    userId: session.user.id,
+    role: session.user.role,
+  });
 }

@@ -24,8 +24,11 @@ services:
       dockerfile: apps/web/Dockerfile
     environment:
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
-      BETTER_AUTH_URL: http://localhost:${WEB_PORT:-3000}
+      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      # Must match the mcp service's own MCP_RESOURCE_URL below exactly —
+      # see apps/web/lib/mcp-oauth-compat/hooks.ts.
+      MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     depends_on:
@@ -43,8 +46,18 @@ services:
       # container's listener the moment a developer overrides it to dodge a
       # host port clash.
       MCP_PORT: 8787
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
+      # Public-facing URLs only, for OAuth discovery metadata (RFC 9728) —
+      # apps/mcp verifies platform Bearer tokens by querying Postgres
+      # directly (DATABASE_URL above), never by calling apps/web over HTTP
+      # (architecture.mdc rule 4).
+      MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
+      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
     ports:
       - "127.0.0.1:${MCP_HOST_PORT:-8787}:8787"
+    depends_on:
+      db:
+        condition: service_healthy
 
   db:
     image: postgres:17-alpine

@@ -78,8 +78,9 @@ pnpm dev
 Each app has its own `.env.example` scoped to what it actually reads from `process.env` — copy each to the sibling `.env`/`.env.local` file rather than sharing one file across apps:
 
 - [`.env.example`](.env.example) (repo root): copy to `.env` before running `pnpm docker:up` — the monorepo/Docker-wide `DATABASE_URL`, `BETTER_AUTH_SECRET` (required; the `web` service fails fast without it), and port conventions, shared by reference rather than duplicated below.
-- [`apps/web/.env.example`](apps/web/.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL` — copy to `apps/web/.env.local`.
+- [`apps/web/.env.example`](apps/web/.env.example): `DATABASE_URL`, `BETTER_AUTH_SECRET`, `AUTH_ISSUER_URL`, `MCP_RESOURCE_URL` — copy to `apps/web/.env.local`.
 - [`apps/api/.env.example`](apps/api/.env.example): FastAPI's own settings — copy to `apps/api/.env`. See [`apps/api/README.md`](apps/api/README.md#environment).
+- [`apps/mcp/.env.example`](apps/mcp/.env.example): only used if you run `apps/mcp` outside Docker Compose (`pnpm --filter @ai-catalyst/mcp dev`) — `docker:up` sets these directly on the `mcp` service instead.
 
 Never commit real secrets; see [`.github/SECURITY.md`](.github/SECURITY.md).
 

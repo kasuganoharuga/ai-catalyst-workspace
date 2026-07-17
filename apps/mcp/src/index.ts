@@ -32,11 +32,32 @@ function parseAllowlist(value: string | undefined, fallback: string[]): string[]
     .filter((entry) => entry.length > 0);
 }
 
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value || value.trim() === "") {
+    throw new Error(`${name} is required.`);
+  }
+  return value.trim();
+}
+
 const port = parsePort(process.env.MCP_PORT);
 const allowedHosts = parseAllowlist(process.env.MCP_ALLOWED_HOSTS, DEFAULT_ALLOWED_HOSTS);
 const allowedOrigins = parseAllowlist(process.env.MCP_ALLOWED_ORIGINS, DEFAULT_ALLOWED_ORIGINS);
+// Public-facing URLs used only to build OAuth discovery metadata
+// (RFC 9728) — never used to make an HTTP call between apps/mcp and
+// apps/web; `verifyMcpBearerToken` (@ai-catalyst/services/mcp-auth) reads
+// the platform token directly out of Postgres (DATABASE_URL below).
+const resourceUrl = requireEnv("MCP_RESOURCE_URL");
+const authorizationServerUrl = requireEnv("AUTH_ISSUER_URL");
+requireEnv("DATABASE_URL");
 
-const httpServer = startMcpServer({ port, allowedHosts, allowedOrigins });
+const httpServer = startMcpServer({
+  port,
+  allowedHosts,
+  allowedOrigins,
+  resourceUrl,
+  authorizationServerUrl,
+});
 
 function shutdown(signal: string): void {
   console.log(`Received ${signal}, shutting down MCP server...`);
