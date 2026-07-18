@@ -662,6 +662,53 @@ export async function saveArtifactSubmission(
   });
 }
 
+export interface ArtifactSubmissionWithContent {
+  submission: ArtifactSubmission;
+  // null only when the latest version's primary file somehow has no
+  // storage_objects row yet — never happens through this Service's own
+  // saveArtifactSubmission, which always writes the file in the same
+  // transaction as the submission.
+  content: string | null;
+}
+
+/**
+ * Reads an Attempt's latest non-superseded/deleted Artifact Submission,
+ * together with its stored content read back through StorageService
+ * (`getGeneratedTextContent`) — the single read backing the MCP
+ * `get_artifact` capability ("Read an authorised artefact through
+ * StorageService", source doc §21), so a Tool caller never needs a
+ * second round trip just to see what it saved. `null` when this Artifact
+ * has never been saved yet, which is a normal state during drafting, not
+ * an error.
+ */
+export async function getArtifactSubmission(
+  actor: ActorContext,
+  input: unknown,
+): Promise<ArtifactSubmissionWithContent | null> {
+  assertRole(actor, ["founder"]);
+  const { attemptId: rawAttemptId, artifactKey } = normalizeArtifactKeyInput(input);
+  const attemptId = parseEntityIdOrNotFound(rawAttemptId, "Attempt not found.");
+
+  const context = await resolveAttemptContextForFounder(actor, attemptId, pool, {
+    forUpdate: false,
+  });
+  const artifactDefinition = await loadArtifactDefinitionByKey(
+    pool,
+    context.runModule.module_definition_id,
+    artifactKey,
+  );
+  const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
+    forUpdate: false,
+  });
+  if (!submission) {
+    return null;
+  }
+  const content = submission.primary_storage_object_id
+    ? await getGeneratedTextContent(actor, submission.primary_storage_object_id)
+    : null;
+  return { submission: mapArtifactSubmissionRow(submission), content };
+}
+
 // ---------------------------------------------------------------------
 // runDraftCheck
 // ---------------------------------------------------------------------
