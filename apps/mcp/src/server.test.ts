@@ -103,8 +103,19 @@ describe("GET/DELETE /mcp in stateless mode", () => {
   });
 });
 
+const EXPECTED_TOOL_NAMES = [
+  "get_active_context",
+  "list_modules",
+  "get_module_status",
+  "get_module_context",
+  "get_artifact",
+  "save_founder_input",
+  "save_artifact",
+  "complete_module",
+];
+
 describe("POST /mcp — tools/list", () => {
-  it("returns an empty tool list for the skeleton server", async () => {
+  it("lists every PR 2.7 Tool for an authenticated actor", async () => {
     const res = await request(buildApp())
       .post("/mcp")
       .set("Host", "localhost")
@@ -113,11 +124,11 @@ describe("POST /mcp — tools/list", () => {
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({
-      jsonrpc: "2.0",
-      id: 1,
-      result: { tools: [] },
-    });
+    expect(res.body.jsonrpc).toBe("2.0");
+    expect(res.body.id).toBe(1);
+    expect(res.body.result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(
+      [...EXPECTED_TOOL_NAMES].sort(),
+    );
   });
 });
 
@@ -220,6 +231,6 @@ describe("POST /mcp — Bearer token verification", () => {
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
 
     expect(res.status).toBe(200);
-    expect(res.body.result).toEqual({ tools: [] });
+    expect(res.body.result.tools).toHaveLength(EXPECTED_TOOL_NAMES.length);
   });
 });

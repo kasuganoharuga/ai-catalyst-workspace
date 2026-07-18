@@ -41,3 +41,9 @@ export type {
   ArtifactValidationTriggeredVia,
   ArtifactValidationCheck,
 } from "./artifact-submission.js";
+export type { RunModuleStatus, RunModuleSummary } from "./run-module.js";
+export type {
+  ModuleContext,
+  ModuleContextQuestion,
+  ModuleContextArtifactSummary,
+} from "./module-context.js";

@@ -210,6 +210,9 @@ jobs:
       - name: Test packages/services (DB-dependent)
         run: pnpm --filter @ai-catalyst/services run test:db
 
+      - name: Test apps/mcp tool handlers (DB-dependent)
+        run: pnpm --filter @ai-catalyst/mcp run test:db
+
       - name: Re-run migrations (expect no-op)
         run: |
           set -euo pipefail

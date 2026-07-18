@@ -11,6 +11,7 @@ import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "@ai-ca
 
 import type { Validator } from "./internal/validators/types.js";
 import {
+  getArtifactSubmission,
   getLatestValidation,
   runDraftCheck,
   runOfficialValidation,
@@ -570,6 +571,69 @@ describe("artifact service — database integration", () => {
           content: "Too late.",
         }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_EDITABLE" });
+    });
+  });
+
+  describe("getArtifactSubmission", () => {
+    it("returns null when the Artifact has never been saved", async () => {
+      const { actor, attemptId } = await createDraftAttempt("get-artifact-never-saved");
+
+      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+      expect(result).toBeNull();
+    });
+
+    it("returns the submission metadata together with its stored content", async () => {
+      const { actor, attemptId } = await createDraftAttempt("get-artifact-content");
+      await saveArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+        content: "# Verdict\n\nHello from the fixture.\n",
+      });
+
+      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+
+      expect(result).not.toBeNull();
+      expect(result?.submission.versionNumber).toBe(1);
+      expect(result?.submission.status).toBe("draft");
+      expect(result?.content).toBe("# Verdict\n\nHello from the fixture.\n");
+    });
+
+    it("returns only the latest (non-superseded) version's content", async () => {
+      const { actor, attemptId } = await createDraftAttempt("get-artifact-latest");
+      await saveArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+        content: "# Verdict\n\nVersion one.\n",
+      });
+      await saveArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+        content: "# Verdict\n\nVersion two.\n",
+      });
+
+      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+
+      expect(result?.submission.versionNumber).toBe(2);
+      expect(result?.content).toBe("# Verdict\n\nVersion two.\n");
+    });
+
+    it("rejects an artifactKey belonging to a different Module as NOT_FOUND", async () => {
+      const { actor, attemptId } = await createDraftAttempt("get-artifact-cross-module");
+
+      await expect(
+        getArtifactSubmission(actor, { attemptId, artifactKey: "cross-module-artifact" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+
+    it("rejects a cross-Workspace founder actor as NOT_FOUND", async () => {
+      const { attemptId } = await createDraftAttempt("get-artifact-cross-workspace-target");
+      const { actor: otherActor } = await createDraftAttempt(
+        "get-artifact-cross-workspace-caller",
+      );
+
+      await expect(
+        getArtifactSubmission(otherActor, { attemptId, artifactKey: "verdict" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
   });
 
