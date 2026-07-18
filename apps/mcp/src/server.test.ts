@@ -109,13 +109,14 @@ const EXPECTED_TOOL_NAMES = [
   "get_module_status",
   "get_module_context",
   "get_artifact",
+  "start_module_attempt",
   "save_founder_input",
   "save_artifact",
   "complete_module",
 ];
 
 describe("POST /mcp — tools/list", () => {
-  it("lists every PR 2.7 Tool for an authenticated actor", async () => {
+  it("lists every Tool through PR 2.8 for an authenticated actor", async () => {
     const res = await request(buildApp())
       .post("/mcp")
       .set("Host", "localhost")
