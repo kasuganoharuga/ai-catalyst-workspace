@@ -7,6 +7,7 @@ import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
 import {
   cleanupFixtureAccounts,
   createFixtureFounderAccount,
@@ -25,9 +26,14 @@ import { createMcpApp, type CreateMcpAppOptions } from "../server.js";
  * packages/services' own *.db.test.ts suites: a fixture Program seeded
  * via the real seedToolkitContent reconciler, a real Founder/Workspace/
  * Venture/Run built with the real Service functions (a Run's creation is
- * the website's job — no PR 2.7 Tool creates one), then every PR 2.7
- * MCP Tool exercised end-to-end through POST /mcp, asserting both the
- * JSON-RPC response and the resulting `mcp_tool_audit_logs` row.
+ * the website's job — no Tool creates one), then every read/write MCP
+ * Tool through PR 2.8 exercised end-to-end through POST /mcp, asserting
+ * both the JSON-RPC response and the resulting `mcp_tool_audit_logs` row.
+ * The fixture Program seeds a `completion_mode = 'system'` Module 0
+ * analogue ahead of "mcp-module-a" specifically so `complete_module`'s
+ * PR 2.8 system-completion/unlock branch can be exercised for real,
+ * through the real MCP Tool, with the real Validator registry (no DI
+ * seam is threaded through the MCP layer).
  *
  * Fixture setup/teardown/assertion queries are routed through
  * packages/services/src/testing/db-fixtures.ts rather than importing
@@ -100,6 +106,32 @@ function buildFixtureModule(moduleKey: string, sequenceIndex: number): FixtureMo
     isPublishable: true,
     questions: buildFixtureQuestions(),
     artifacts: [buildFixtureArtifact("verdict")],
+  };
+}
+
+// `completion_mode = 'system'`, no Questions, `validator_key: null` on its
+// one required Artifact — mirrors Module 0's own real content shape
+// (module-0.ts) closely enough to exercise completeModuleAttempt's
+// system-completion branch end-to-end through the real MCP `complete_module`
+// Tool, without needing a fixture Validator (there is no DI seam threaded
+// through the MCP layer — `write-tools.ts` always calls
+// `completeModuleAttempt` with the real Validator registry).
+function buildFixtureSetupModule(moduleKey: string, sequenceIndex: number): FixtureModule {
+  return {
+    moduleKey,
+    sequenceIndex,
+    title: `Fixture ${moduleKey}`,
+    subtitle: null,
+    description: null,
+    objective: null,
+    moduleType: "setup",
+    isRequired: true,
+    allowRevisions: true,
+    completionMode: "system",
+    estimatedMinutes: null,
+    isPublishable: true,
+    questions: [],
+    artifacts: [buildFixtureArtifact("setup_summary")],
   };
 }
 
@@ -184,11 +216,39 @@ describe("PR 2.7 MCP Tools — database integration", () => {
   const PROGRAM_KEY = `mcp-tools-${RUN_SUFFIX}`;
   const createdUserIds: string[] = [];
 
+  // Every fixture Run seeds a `completion_mode = 'system'` Module 0
+  // analogue (sequence_index 0) ahead of "mcp-module-a" (sequence_index
+  // 1) — this helper auto-completes that setup Module via direct Service
+  // calls (the same "bootstrap state the MCP layer itself cannot create
+  // yet" convention this file already uses for startOrResumeAttempt) so
+  // every *other* test below keeps its original, unchanged assumption
+  // that `runModuleId` (mcp-module-a) is immediately 'available'.
   async function createFounderWithActiveRun(label: string): Promise<{
     actor: ActorContext;
     workspaceId: string;
     ventureId: string;
     runModuleId: string;
+  }> {
+    const { actor, workspaceId, ventureId, setupModuleId, moduleAId } =
+      await createFounderWithFreshRun(label);
+
+    const { attempt: setupAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: setupModuleId,
+    });
+    await completeModuleAttempt(actor, { attemptId: setupAttempt.id });
+
+    return { actor, workspaceId, ventureId, runModuleId: moduleAId };
+  }
+
+  // The un-bootstrapped variant, for tests that exercise the setup
+  // Module's own completion (start_module_attempt / complete_module)
+  // directly through the real MCP Tools instead of pre-completing it.
+  async function createFounderWithFreshRun(label: string): Promise<{
+    actor: ActorContext;
+    workspaceId: string;
+    ventureId: string;
+    setupModuleId: string;
+    moduleAId: string;
   }> {
     const { userId, workspaceId } = await createFixtureFounderAccount({ label, emailPrefix });
     createdUserIds.push(userId);
@@ -206,7 +266,7 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       { programKey: PROGRAM_KEY },
     );
 
-    const [runModuleId] = await getFixtureRunModuleIds(run.activeBranchId!);
+    const [setupModuleId, moduleAId] = await getFixtureRunModuleIds(run.activeBranchId!);
 
     const mcpActor: ActorContext = {
       userId,
@@ -216,11 +276,16 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       clientId: "test-client-id",
     };
 
-    return { actor: mcpActor, workspaceId, ventureId, runModuleId };
+    return { actor: mcpActor, workspaceId, ventureId, setupModuleId, moduleAId };
   }
 
   beforeAll(async () => {
-    await seedFixtureProgram(buildFixtureContent(PROGRAM_KEY, [buildFixtureModule("mcp-module-a", 0)]));
+    await seedFixtureProgram(
+      buildFixtureContent(PROGRAM_KEY, [
+        buildFixtureSetupModule("mcp-module-setup", 0),
+        buildFixtureModule("mcp-module-a", 1),
+      ]),
+    );
   });
 
   afterAll(async () => {
@@ -254,11 +319,11 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       expect(result.isError).toBe(false);
       const data = result.data as { workspaceId: string; modules: { moduleKey: string }[] };
       expect(data.workspaceId).toBe(workspaceId);
-      expect(data.modules.map((m) => m.moduleKey)).toEqual(["mcp-module-a"]);
+      expect(data.modules.map((m) => m.moduleKey)).toEqual(["mcp-module-setup", "mcp-module-a"]);
 
       const auditRow = await getLatestAuditLogRow(actor.userId, "list_modules");
       expect(auditRow?.outcome).toBe("success");
-      expect(auditRow?.result_metadata).toEqual({ moduleCount: 1 });
+      expect(auditRow?.result_metadata).toEqual({ moduleCount: 2 });
     });
 
     it("get_module_status returns the Run-scoped Module summary and records the full hierarchy", async () => {
@@ -409,23 +474,97 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       });
     });
 
-    it("complete_module submits the Attempt for review and never triggers Official Validation", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("complete-module");
+    it("complete_module runs Official Validation and reports a validation failure via passed/missingArtifactKeys, not an isError", async () => {
+      const { actor, runModuleId } = await createFounderWithActiveRun("complete-module-missing-artifact");
       const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
 
       const result = await callTool(actor, "complete_module", { attemptId: attempt.id });
 
       expect(result.isError).toBe(false);
-      const data = result.data as { id: string; status: string };
-      expect(data.id).toBe(attempt.id);
-      expect(data.status).toBe("submitted");
+      const data = result.data as {
+        attempt: { id: string; status: string };
+        passed: boolean;
+        missingArtifactKeys: string[];
+        moduleCompleted: boolean;
+      };
+      expect(data.attempt.id).toBe(attempt.id);
+      expect(data.attempt.status).toBe("validation_failed");
+      expect(data.passed).toBe(false);
+      expect(data.missingArtifactKeys).toEqual(["verdict"]);
+      expect(data.moduleCompleted).toBe(false);
 
-      expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe("submitted");
+      expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe("validation_failed");
 
       const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.module_attempt_id).toBe(attempt.id);
-      expect(auditRow?.result_metadata).toEqual({ status: "submitted" });
+      expect(auditRow?.result_metadata).toEqual({
+        status: "validation_failed",
+        passed: false,
+        moduleCompleted: false,
+        pivoted: false,
+        nextModuleUnlocked: null,
+      });
+    });
+
+    it("start_module_attempt starts a fresh Attempt, then resumes the same one on a second call", async () => {
+      const { actor, setupModuleId } = await createFounderWithFreshRun("start-module-attempt");
+
+      const first = await callTool(actor, "start_module_attempt", {
+        programRunModuleId: setupModuleId,
+      });
+      expect(first.isError).toBe(false);
+      const firstData = first.data as { attempt: { id: string; status: string }; created: boolean };
+      expect(firstData.created).toBe(true);
+      expect(firstData.attempt.status).toBe("draft");
+
+      const firstAuditRow = await getLatestAuditLogRow(actor.userId, "start_module_attempt");
+      expect(firstAuditRow?.outcome).toBe("success");
+      expect(firstAuditRow?.program_run_module_id).toBe(setupModuleId);
+      expect(firstAuditRow?.module_attempt_id).toBe(firstData.attempt.id);
+      expect(firstAuditRow?.result_metadata).toEqual({ status: "draft", created: true });
+
+      const second = await callTool(actor, "start_module_attempt", {
+        programRunModuleId: setupModuleId,
+      });
+      expect(second.isError).toBe(false);
+      const secondData = second.data as { attempt: { id: string }; created: boolean };
+      expect(secondData.attempt.id).toBe(firstData.attempt.id);
+      expect(secondData.created).toBe(false);
+    });
+
+    it("complete_module auto-completes a completion_mode='system' Module and unlocks the next one", async () => {
+      const { actor, setupModuleId, moduleAId } = await createFounderWithFreshRun("system-complete");
+      const startResult = await callTool(actor, "start_module_attempt", {
+        programRunModuleId: setupModuleId,
+      });
+      const attemptId = (startResult.data as { attempt: { id: string } }).attempt.id;
+
+      const result = await callTool(actor, "complete_module", { attemptId });
+
+      expect(result.isError).toBe(false);
+      const data = result.data as {
+        attempt: { id: string; status: string };
+        passed: boolean;
+        moduleCompleted: boolean;
+        nextModuleUnlocked: { id: string; moduleKey: string } | null;
+      };
+      expect(data.attempt.status).toBe("accepted");
+      expect(data.passed).toBe(true);
+      expect(data.moduleCompleted).toBe(true);
+      expect(data.nextModuleUnlocked).toMatchObject({ id: moduleAId, moduleKey: "mcp-module-a" });
+
+      const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
+      expect(auditRow?.outcome).toBe("success");
+      expect(auditRow?.result_metadata).toMatchObject({
+        status: "accepted",
+        passed: true,
+        moduleCompleted: true,
+        nextModuleUnlocked: "mcp-module-a",
+      });
+
+      const statusResult = await callTool(actor, "get_module_status", { moduleKey: "mcp-module-a" });
+      expect((statusResult.data as { status: string }).status).toBe("available");
     });
 
     it("save_founder_input on a cross-Workspace attemptId returns a denied/NOT_FOUND isError result", async () => {
