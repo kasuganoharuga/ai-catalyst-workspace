@@ -32,7 +32,21 @@ export type ServiceErrorCode =
   // Program Version has zero active Modules) — never the caller's fault,
   // so callers should treat this as an unexpected failure rather than a
   // normal business error to recover from.
-  | "INTERNAL_INVARIANT_ERROR";
+  | "INTERNAL_INVARIANT_ERROR"
+  // storage_objects.upload_status is 'verified' (or any prior state that
+  // already recorded a checksum) with a different sha256 than the new
+  // content — a verified object is immutable; a genuinely new version must
+  // go through a new createPendingGeneratedObject call, not overwrite this
+  // storageObjectId.
+  | "STORAGE_CONTENT_CONFLICT"
+  // storage_objects.upload_status is 'failed' or 'deleted' — writing to a
+  // dead row is refused rather than resurrecting it; the caller must
+  // request a fresh storageObjectId via createPendingGeneratedObject.
+  | "STORAGE_OBJECT_NOT_WRITABLE"
+  // deleteUnverifiedUpload was called against a 'verified' storage_objects
+  // row — lifecycle management of a verified object is out of scope for
+  // this "clean up an unfinished upload" API.
+  | "STORAGE_OBJECT_NOT_DELETABLE";
 
 export class ServiceError extends Error {
   constructor(

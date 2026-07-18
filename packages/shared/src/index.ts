@@ -27,3 +27,7 @@ export type {
   ModuleResponseStatus,
   ModuleResponseCapturedVia,
 } from "./module-attempt.js";
+export type {
+  StorageObject,
+  StorageObjectUploadStatus,
+} from "./storage-object.js";

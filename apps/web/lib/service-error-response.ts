@@ -38,6 +38,12 @@ function statusForCode(code: ServiceErrorCode): number {
       // Never the caller's fault (e.g. content misconfiguration) — a 500,
       // not a 4xx, even though it's a typed ServiceError.
       return 500;
+    case "STORAGE_CONTENT_CONFLICT":
+      return 409;
+    case "STORAGE_OBJECT_NOT_WRITABLE":
+      return 409;
+    case "STORAGE_OBJECT_NOT_DELETABLE":
+      return 409;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;

@@ -170,3 +170,8 @@ Thumbs.db
 local/
 outputs/
 private/
+
+# Local Storage Provider's default on-disk object root
+# (packages/services/src/storage/providers/local.ts) — never committed,
+# same as any other runtime data directory.
+.data/
