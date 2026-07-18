@@ -234,4 +234,41 @@ describe("POST /mcp — Bearer token verification", () => {
     expect(res.status).toBe(200);
     expect(res.body.result.tools).toHaveLength(EXPECTED_TOOL_NAMES.length);
   });
+
+  it("waits for a slow (macrotask-delayed) verify before the real handler ever runs", async () => {
+    // Regression test for the invariant `handleStatelessMcpRequest` documents
+    // (server.ts's comment above it): `req.actorContext` is always populated
+    // before the real handler executes, because `verifyBearerToken` only
+    // calls `next()` from inside its async callback, after the `await
+    // verify(token)` that sets it. `fakeVerify` above resolves on a
+    // microtask; this test uses a `setTimeout`-based verifier instead — a
+    // real macrotask delay, much closer to an actual database round trip —
+    // to prove Express does not advance to the next handler on this route
+    // just because the middleware function itself returned synchronously.
+    const res = await request(
+      buildApp({
+        verifyBearer: (rawToken) =>
+          new Promise((resolve, reject) => {
+            setTimeout(() => {
+              if (rawToken === VALID_TOKEN) {
+                resolve(VALID_ACTOR);
+              } else {
+                reject(new Error("Invalid bearer token."));
+              }
+            }, 20);
+          }),
+      }),
+    )
+      .post("/mcp")
+      .set("Host", "localhost")
+      .set("Accept", "application/json, text/event-stream")
+      .set("Authorization", `Bearer ${VALID_TOKEN}`)
+      .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+
+    // A 500 here (server.ts's "Unreachable" branch) would mean the handler
+    // ran before `req.actorContext` was set — the race the middleware's
+    // `void (async () => ...)()` pattern is sometimes mistaken for.
+    expect(res.status).toBe(200);
+    expect(res.body.result.tools).toHaveLength(EXPECTED_TOOL_NAMES.length);
+  });
 });
