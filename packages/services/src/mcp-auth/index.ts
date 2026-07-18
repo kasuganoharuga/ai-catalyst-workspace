@@ -6,7 +6,7 @@ import { pool } from "@ai-catalyst/db";
 import type { ActorContext, ActorRole } from "@ai-catalyst/contracts/actor-context";
 import { createMcpActorContext } from "@ai-catalyst/contracts/actor-context";
 
-import { ServiceError } from "@ai-catalyst/services/errors";
+import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 
 const MCP_CONNECT_SCOPE = "mcp:connect";
 
@@ -595,6 +595,80 @@ export async function getAuthorizableUserById(
     return null;
   }
   return { userId: row.id, role: row.role };
+}
+
+// ---------------------------------------------------------------------------
+// getMcpConnectionStatus — apps/web's read path for the Connection page
+// (PR 2.9). Web-session-facing, so it takes the standard ActorContext the
+// way workflow/attempt Services do — unlike everything above, which serves
+// the OAuth protocol surfaces themselves.
+// ---------------------------------------------------------------------------
+
+export interface McpConnectionStatus {
+  // True while at least one unexpired access token exists for this user
+  // against an enabled public client — the same liveness condition
+  // verifyMcpBearerToken enforces per-request, minus the scope check
+  // (a connected-but-wrongly-scoped client is still "connected" for
+  // status display; it fails loudly at tool-call time instead).
+  connected: boolean;
+  clientName: string | null;
+  // Latest valid token's issue time; null when not connected.
+  connectedAt: string | null;
+  // Latest valid token's expiry; null when not connected.
+  expiresAt: string | null;
+  // True once the user has ever completed an Accept on the consent screen,
+  // even after every token has expired or been swept — backs the
+  // Connection page's "reconnect" (repair) state, distinguishing "expired,
+  // reconnect in Claude" from "never connected, start setup".
+  hasEverConnected: boolean;
+}
+
+interface ConnectionTokenRow {
+  client_name: string;
+  created_at: Date;
+  access_token_expires_at: Date;
+}
+
+/**
+ * Read-only connection summary for the signed-in Founder's own MCP OAuth
+ * state. Never returns token material — only liveness metadata for the
+ * website's Connection/status UI.
+ */
+export async function getMcpConnectionStatus(
+  actor: ActorContext,
+): Promise<McpConnectionStatus> {
+  assertRole(actor, ["founder"]);
+
+  const tokenResult = await pool.query<ConnectionTokenRow>(
+    `select a.name as client_name, t.created_at, t.access_token_expires_at
+     from mcp_oauth_access_tokens t
+     join mcp_oauth_applications a on a.client_id = t.client_id
+     where t.user_id = $1
+       and t.access_token_expires_at > now()
+       and not a.disabled
+       and a.type = 'public'
+       and (a.client_secret is null or a.client_secret = '')
+     order by t.created_at desc
+     limit 1`,
+    [actor.userId],
+  );
+  const token = tokenResult.rows[0] ?? null;
+
+  const consentResult = await pool.query<{ exists: boolean }>(
+    `select exists (
+       select 1 from mcp_oauth_consents
+       where user_id = $1 and consent_given
+     ) as exists`,
+    [actor.userId],
+  );
+
+  return {
+    connected: token !== null,
+    clientName: token?.client_name ?? null,
+    connectedAt: token?.created_at.toISOString() ?? null,
+    expiresAt: token?.access_token_expires_at.toISOString() ?? null,
+    hasEverConnected: consentResult.rows[0]?.exists ?? false,
+  };
 }
 
 // ---------------------------------------------------------------------------

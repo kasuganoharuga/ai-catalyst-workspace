@@ -2,12 +2,14 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
+import { createWebActorContext } from "@ai-catalyst/contracts/actor-context";
 
 import { ServiceError } from "../errors.js";
 import {
   checkAuthorizationCodeIsRedeemable,
   cleanupExpiredMcpOAuthState,
   getAuthorizableUserById,
+  getMcpConnectionStatus,
   getOAuthClientByClientId,
   getPendingMcpConsentRequest,
   isValidPublicOAuthClientRecord,
@@ -770,6 +772,91 @@ describe("mcp-auth service — database integration", () => {
 
     it("returns null for an unknown user id", async () => {
       await expect(getAuthorizableUserById(randomUUID())).resolves.toBeNull();
+    });
+  });
+
+  describe("getMcpConnectionStatus", () => {
+    it("rejects a non-founder actor", async () => {
+      const userId = await createUser("conn-admin", "admin");
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "admin" })),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("reports never-connected for a founder with no tokens or consents", async () => {
+      const userId = await createUser("conn-none", "founder");
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+      ).resolves.toEqual({
+        connected: false,
+        clientName: null,
+        connectedAt: null,
+        expiresAt: null,
+        hasEverConnected: false,
+      });
+    });
+
+    it("reports connected with client metadata for a live token", async () => {
+      const userId = await createUser("conn-live", "founder");
+      const clientId = await createClient("conn-live");
+      await createAccessToken(clientId, userId);
+      await pool.query(
+        `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
+         values ($1, $2, 'mcp:connect', true)`,
+        [clientId, userId],
+      );
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.connected).toBe(true);
+      expect(status.clientName).toBe("Test Client conn-live");
+      expect(status.hasEverConnected).toBe(true);
+      expect(status.connectedAt).not.toBeNull();
+      expect(new Date(status.expiresAt as string).getTime()).toBeGreaterThan(Date.now());
+    });
+
+    it("reports disconnected-but-previously-connected once every token has expired", async () => {
+      const userId = await createUser("conn-expired", "founder");
+      const clientId = await createClient("conn-expired");
+      await createAccessToken(clientId, userId, { expired: true });
+      await pool.query(
+        `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
+         values ($1, $2, 'mcp:connect', true)`,
+        [clientId, userId],
+      );
+
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+      ).resolves.toMatchObject({
+        connected: false,
+        clientName: null,
+        hasEverConnected: true,
+      });
+    });
+
+    it("ignores live tokens issued to a disabled client", async () => {
+      const userId = await createUser("conn-disabled", "founder");
+      const clientId = await createClient("conn-disabled", { disabled: true });
+      await createAccessToken(clientId, userId);
+
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+      ).resolves.toMatchObject({ connected: false });
+    });
+
+    it("does not treat a consent_given=false record as ever-connected", async () => {
+      const userId = await createUser("conn-denied", "founder");
+      const clientId = await createClient("conn-denied");
+      await pool.query(
+        `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
+         values ($1, $2, 'mcp:connect', false)`,
+        [clientId, userId],
+      );
+
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+      ).resolves.toMatchObject({ connected: false, hasEverConnected: false });
     });
   });
 
