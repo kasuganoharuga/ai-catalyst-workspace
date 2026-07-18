@@ -13,6 +13,7 @@ import type {
   ArtifactValidationTriggeredVia,
   ModuleAttemptStatus,
   ModuleResponseStatus,
+  ModuleType,
 } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
@@ -37,11 +38,17 @@ import type { ValidationRunResult, Validator } from "./internal/validators/types
 // Owns Artifact Submission versioning and the ValidationService
 // (draft_check / official validation) — apps/web and apps/mcp are both
 // thin shells that call into this same Service, never re-implement any
-// of this (architecture.mdc rule 1). Official artifact validation
-// (runOfficialValidation) is never exposed as an MCP tool; PR 2.7's MCP
-// shell only ever calls runDraftCheck. `submitAttempt` (2.4) already
-// completed the Attempt's own submitted transition — this module never
-// touches that; it only reacts to an already-submitted Attempt.
+// of this (architecture.mdc rule 1). `runOfficialValidation` itself is
+// still never exposed as an MCP *tool* the caller can invoke directly —
+// as of PR 2.8, it is invoked internally, with an actor whose `source`
+// has been forced to `'system'`, by `module/completion.ts`'s
+// `completeModuleAttempt` (the Service function behind the MCP
+// `complete_module` tool). An MCP-sourced actor can therefore trigger an
+// official validation to run, but can never call it directly, and never
+// controls its authority — matching the "MCP 请求 official validation 被
+// ... Service 权限矩阵拒绝" acceptance criterion. `submitAttempt` (2.4)
+// already completed the Attempt's own submitted transition — this module
+// never touches that; it only reacts to an already-submitted Attempt.
 //
 // Lock ordering (same module-level convention as attempt/index.ts):
 // whenever a transaction needs to lock both a program_run_modules row
@@ -74,6 +81,10 @@ interface RunModuleRow {
   program_run_id: string;
   program_run_branch_id: string;
   active_attempt_id: string | null;
+  // Joined from module_definitions — only runOfficialValidation's PR 2.8
+  // "setup module, no validator configured" bypass reads this; every
+  // other caller of resolveAttemptContext simply ignores the extra column.
+  module_type: ModuleType;
 }
 
 interface AttemptRow {
@@ -188,10 +199,12 @@ async function resolveAttemptContext(
   }
 
   const runModuleResult = await executor.query<RunModuleRow>(
-    `select id, module_definition_id, program_run_id, program_run_branch_id, active_attempt_id
-     from program_run_modules
-     where id = $1 and workspace_id = $2
-     ${options.forUpdate ? "for update" : ""}`,
+    `select m.id, m.module_definition_id, m.program_run_id, m.program_run_branch_id,
+            m.active_attempt_id, d.module_type
+     from program_run_modules m
+     join module_definitions d on d.id = m.module_definition_id
+     where m.id = $1 and m.workspace_id = $2
+     ${options.forUpdate ? "for update of m" : ""}`,
     [runModuleId, workspaceId],
   );
   const runModule = runModuleResult.rows[0];
@@ -885,15 +898,25 @@ interface ArtifactRunOutcome {
  * non-superseded/deleted version (never an older version, never a
  * non-required Artifact). All must pass for the Attempt to advance.
  *
- * Never modifies `program_run_modules` on the passing path (status
+ * Never modifies `program_run_modules` itself on the passing path (status
  * stays `in_progress`, `active_attempt_id` stays pointed at this
  * Attempt) — `startOrResumeAttempt`'s own `ATTEMPT_PENDING_REVIEW`
  * branch already expresses "awaiting review" from exactly that
  * combination (run_module `in_progress` + active Attempt
- * `ready_for_review`); `ready_to_unlock` is 4.2's concern, not this
- * function's. On failure, `active_attempt_id` IS cleared (module-level
- * "clearing that pointer on a terminal Attempt is 2.6/4.2's job" — see
- * attempt/index.ts's own comment), so a Retry Attempt can be started.
+ * `ready_for_review`). On failure, `active_attempt_id` IS cleared
+ * (module-level "clearing that pointer on a terminal Attempt is 2.6/4.2's
+ * job" — see attempt/index.ts's own comment), so a Retry Attempt can be
+ * started.
+ *
+ * This function alone never drives a Module past `ready_for_review` to
+ * `completed`/`ready_to_unlock` — that requires either a real Mentor
+ * decision (PR 4.2, not implemented yet) or, for `completion_mode =
+ * 'system'` Modules only (Module 0), PR 2.8's own
+ * `module/completion.ts#completeModuleAttempt`, which calls this function
+ * and then performs the system-only accept/complete/unlock as a separate
+ * step. This function's own responsibility stays exactly "run every
+ * required Artifact's official check and record the Attempt-level
+ * pass/fail", regardless of which orchestration called it.
  */
 export async function runOfficialValidation(
   actor: ActorContext,
@@ -947,6 +970,26 @@ export async function runOfficialValidation(
       continue;
     }
     if (!artifactDefinition.validator_key) {
+      // A `module_type = 'setup'` Artifact (e.g. Module 0's
+      // Founder-Toolkit-Setup-Summary.md) is deliberately seeded with
+      // `validator_key: null` — per source doc §9, its completion is
+      // determined by the operational checks that already had to pass
+      // to save it (StorageService write/read/hash round-trip via
+      // saveArtifactSubmission), not by any content-quality Validator.
+      // A verified submission existing at all is therefore sufficient;
+      // no artifact_validations row is inserted for it below (there is
+      // no validator_key/validator_version to record). Every other
+      // module_type still throws — an accidentally-unconfigured Validator
+      // on a real content module must fail loudly, not be silently
+      // treated as passing.
+      if (precheck.runModule.module_type === "setup") {
+        outcomes.push({
+          artifactDefinition,
+          submission,
+          result: { checks: [], issues: [], warnings: [], passed: true, score: 100 },
+        });
+        continue;
+      }
       throw new ServiceError(
         "VALIDATOR_NOT_CONFIGURED",
         `Artifact "${artifactDefinition.artifact_key}" has no validator_key configured.`,

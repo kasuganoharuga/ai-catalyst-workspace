@@ -12,6 +12,8 @@
     "./module": "./src/module/index.ts",
     "./module/catalog": "./src/module/catalog.ts",
     "./module/context": "./src/module/context.ts",
+    "./module/completion": "./src/module/completion.ts",
+    "./module/internal/setup-summary": "./src/module/internal/setup-summary.ts",
     "./artifact": "./src/artifact/index.ts",
     "./artifact/internal/markdown-sections": "./src/artifact/internal/markdown-sections.ts",
     "./artifact/internal/validators/registry": "./src/artifact/internal/validators/registry.ts",
@@ -44,7 +46,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/module/context.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/attempt/index.db.test.ts src/storage/index.db.test.ts src/artifact/index.db.test.ts src/audit/index.db.test.ts",
+    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/module/context.db.test.ts src/module/completion.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/attempt/index.db.test.ts src/storage/index.db.test.ts src/artifact/index.db.test.ts src/audit/index.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts"
   },
   "dependencies": {
