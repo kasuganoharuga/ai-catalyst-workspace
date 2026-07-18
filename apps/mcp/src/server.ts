@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { Server as HttpServer } from "node:http";
 
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -35,9 +36,30 @@ const METHOD_NOT_ALLOWED_BODY = {
  * `StreamableHTTPServerTransport` are created per request (no session id,
  * no shared state across requests) and both are torn down once the
  * response closes, matching the SDK's stateless reference implementation.
+ *
+ * `req.actorContext` is always set by this point (`verifyBearerToken`
+ * runs before this handler on the `/mcp` route and never calls `next()`
+ * on failure). A fresh `traceId` is stamped onto it here — one per
+ * request, correlating every packages/services call and
+ * `mcp_tool_audit_logs` row this single MCP call produces, per
+ * architecture.mdc's ActorContext.traceId contract.
  */
 async function handleStatelessMcpRequest(req: Request, res: Response): Promise<void> {
-  const mcp = createMcpServerInstance();
+  const baseActor = req.actorContext;
+  if (!baseActor) {
+    // Unreachable via the real `/mcp` route (verifyBearerToken never
+    // calls next() without setting this) — an explicit invariant check
+    // rather than a silent non-null assertion, in case a future route
+    // ever reuses this handler without that middleware.
+    res.status(500).json({
+      jsonrpc: "2.0",
+      error: { code: -32603, message: "Internal server error." },
+      id: null,
+    });
+    return;
+  }
+  const actor: ActorContext = { ...baseActor, traceId: baseActor.traceId ?? randomUUID() };
+  const mcp = createMcpServerInstance(actor);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     // V1 has no long-running/streaming tools, so plain JSON responses are
