@@ -44,6 +44,9 @@ function statusForCode(code: ServiceErrorCode): number {
       return 409;
     case "STORAGE_OBJECT_NOT_DELETABLE":
       return 409;
+    case "VALIDATOR_NOT_CONFIGURED":
+    case "ATTEMPT_NOT_AWAITING_VALIDATION":
+      return 409;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;

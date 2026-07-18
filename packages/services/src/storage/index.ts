@@ -323,6 +323,74 @@ export async function getStorageObject(
   return mapStorageObjectRow(row);
 }
 
+// Deliberately its OWN assertion, not a reuse of assertFounderOrSystemActor
+// — that shared gate (and loadAuthorizedStorageObject's workspace check,
+// which unconditionally calls resolveFounderWorkspace for every
+// non-system actor) has no admin case at all: resolveFounderWorkspace
+// itself starts with assertRole(actor, ["founder"]), so an admin-role
+// actor throws FORBIDDEN there today. Widening the shared helpers would
+// also open every WRITE path (createPendingGeneratedObject,
+// writeGeneratedTextContent, deleteUnverifiedUpload) to admin, which is
+// not what's needed — only a read path, for PR 2.6's runOfficialValidation
+// (which runs as a system or admin actor and must be able to read any
+// Workspace's Artifact content) needs this.
+function assertGeneratedContentReader(actor: ActorContext): void {
+  if (actor.role === "founder" || actor.role === "admin" || actor.source === "system") {
+    return;
+  }
+  throw new ServiceError(
+    "FORBIDDEN",
+    "You do not have permission to perform this action.",
+  );
+}
+
+/**
+ * Reads back the verified content of a generated-text Storage Object as
+ * a UTF-8 string — the only entry point PR 2.6's Validators use to read
+ * a saved Artifact's Markdown. founder actors are Workspace-scoped (same
+ * check every other path uses); system/admin actors are trusted across
+ * any Workspace, matching runOfficialValidation's own permission matrix
+ * (there is no "system's own Workspace" or "admin's own Workspace" to
+ * compare against, same reasoning as loadAuthorizedStorageObject's system
+ * branch).
+ */
+export async function getGeneratedTextContent(
+  actor: ActorContext,
+  storageObjectId: string,
+  deps: StorageServiceDependencies = {},
+): Promise<string> {
+  assertGeneratedContentReader(actor);
+  const id = parseEntityIdOrNotFound(storageObjectId, "Storage object not found.");
+  const row = await fetchStorageObjectRow(pool, id, { forUpdate: false });
+  if (!row) {
+    throw new ServiceError("NOT_FOUND", "Storage object not found.");
+  }
+
+  if (actor.role === "founder") {
+    const workspace = await resolveFounderWorkspace(actor, pool);
+    if (row.workspace_id !== workspace.id) {
+      throw new ServiceError("NOT_FOUND", "Storage object not found.");
+    }
+  }
+
+  if (row.upload_status !== "verified") {
+    // Only reachable if a caller passes a storageObjectId that was never
+    // taken through writeGeneratedTextContent's verified transition —
+    // every artifact_files row this Service links to a submission is
+    // created only after 'verified' (see artifact/index.ts's
+    // saveArtifactSubmission), so this is a deployment/caller bug, not a
+    // normal business state.
+    throw new ServiceError(
+      "INTERNAL_INVARIANT_ERROR",
+      `Storage object ${row.id} is "${row.upload_status}", not "verified" — only a verified object's content can be read.`,
+    );
+  }
+
+  const provider = resolveProvider(deps);
+  const buffer = await provider.getObject(row.object_key);
+  return buffer.toString("utf8");
+}
+
 /**
  * Transaction A: inserts a `storage_objects` row in `upload_status =
  * 'pending'` and returns its stable id — this id is what

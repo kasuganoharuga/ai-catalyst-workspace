@@ -31,3 +31,13 @@ export type {
   StorageObject,
   StorageObjectUploadStatus,
 } from "./storage-object.js";
+export type {
+  ArtifactSubmission,
+  ArtifactSubmissionStatus,
+  ArtifactSubmissionCreatedVia,
+  ArtifactValidation,
+  ArtifactValidationKind,
+  ArtifactValidationStatus,
+  ArtifactValidationTriggeredVia,
+  ArtifactValidationCheck,
+} from "./artifact-submission.js";

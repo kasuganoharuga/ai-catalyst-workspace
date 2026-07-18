@@ -46,7 +46,23 @@ export type ServiceErrorCode =
   // deleteUnverifiedUpload was called against a 'verified' storage_objects
   // row — lifecycle management of a verified object is out of scope for
   // this "clean up an unfinished upload" API.
-  | "STORAGE_OBJECT_NOT_DELETABLE";
+  | "STORAGE_OBJECT_NOT_DELETABLE"
+  // PR 2.6 (packages/services/src/artifact) — both are state-conflict
+  // errors (HTTP 409), matching the ATTEMPT_* codes above.
+  //
+  // An Artifact Definition's `validator_key` is null/unregistered but a
+  // check was requested against it anyway — a content/deployment
+  // mismatch, never the caller's fault at the request level, but still
+  // surfaced as a state conflict rather than INTERNAL_INVARIANT_ERROR
+  // because runDraftCheck's caller (a Founder) can be told to wait for
+  // content to catch up rather than treating it as a 500.
+  | "VALIDATOR_NOT_CONFIGURED"
+  // runOfficialValidation was called against an Attempt whose status is
+  // not 'submitted' — either it was never submitted, or it already has
+  // an official validation outcome (ready_for_review/validation_failed
+  // short-circuit instead of reaching this error; see runOfficialValidation's
+  // own comment for why those two are idempotent rather than errors).
+  | "ATTEMPT_NOT_AWAITING_VALIDATION";
 
 export class ServiceError extends Error {
   constructor(
