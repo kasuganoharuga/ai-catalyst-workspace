@@ -1,9 +1,19 @@
 import Link from "next/link";
 
+import { StatusBadge } from "../../components/status-badge";
+import type { ModuleDisplayStatus } from "../../lib/module-display";
 import type { ModuleCatalogEntry } from "../types";
 import { StatusPill } from "./status-pill";
 
-export function ModuleCatalogCard({ module }: { module: ModuleCatalogEntry }) {
+export function ModuleCatalogCard({
+  module,
+  runStatus,
+}: {
+  module: ModuleCatalogEntry;
+  // The Founder's live Run state for this Module, when a Run exists —
+  // takes precedence over the catalog-level live/coming-soon pill.
+  runStatus?: ModuleDisplayStatus;
+}) {
   return (
     <Link
       href={`/modules/${module.moduleKey}`}
@@ -13,7 +23,11 @@ export function ModuleCatalogCard({ module }: { module: ModuleCatalogEntry }) {
         <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-sm font-semibold text-secondary-foreground">
           {String(module.sequenceIndex).padStart(2, "0")}
         </span>
-        <StatusPill status={module.catalogStatus} />
+        {runStatus ? (
+          <StatusBadge status={runStatus} />
+        ) : (
+          <StatusPill status={module.catalogStatus} />
+        )}
       </div>
       <h2 className="text-xl font-semibold tracking-tight text-foreground">
         {module.title}
