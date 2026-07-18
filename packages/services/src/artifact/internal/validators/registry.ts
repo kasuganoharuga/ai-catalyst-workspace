@@ -1,6 +1,12 @@
 import { ServiceError } from "@ai-catalyst/services/errors";
 
-import { pressureTestVerdictV1 } from "./pressure-test-verdict-v1.js";
+// Package-subpath (not relative `.js`) value import — Turbopack cannot
+// resolve same-directory relative `.js` imports back to `.ts` when
+// bundling apps/web (see mcp-auth/index.ts's header comment). Became
+// load-bearing when PR 2.9's module status page started importing
+// @ai-catalyst/services/artifact from apps/web.
+import { pressureTestVerdictV1 } from "@ai-catalyst/services/artifact/internal/validators/pressure-test-verdict-v1";
+
 import type { Validator } from "./types.js";
 
 const VALIDATORS: Record<string, Validator> = {

@@ -20,6 +20,7 @@ const PRIMARY_NAV_ITEMS: NavItem[] = [
 
 const ACCOUNT_NAV_ITEMS: NavItem[] = [
   { href: "/company-profile", label: "Company profile" },
+  { href: "/connection", label: "MCP connection" },
 ];
 
 export function AppSidebarNavigation({
