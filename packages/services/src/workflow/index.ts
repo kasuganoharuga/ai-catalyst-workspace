@@ -2,10 +2,18 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import type { ProgramRun, ProgramRunStatus, VentureStatus } from "@ai-catalyst/shared";
+import type {
+  ModuleCompletionMode,
+  ModuleType,
+  ProgramRun,
+  ProgramRunStatus,
+  RunModuleSummary,
+  VentureStatus,
+} from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
+import { getActiveContext } from "@ai-catalyst/services/workspace/active-context";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
 import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { mapBranchCreatedVia } from "@ai-catalyst/services/internal/branch";
@@ -317,4 +325,238 @@ export async function getOrCreateProgramRun(
   } finally {
     client.release();
   }
+}
+
+// ---------------------------------------------------------------------
+// Read-only Run/Module resolution — backs apps/mcp's list_modules,
+// get_module_status, and packages/services/src/module/context.ts's
+// getModuleContext. Never inserts (getOrCreateProgramRun above is the
+// only write path); a Founder with no Run yet simply sees an empty list,
+// not an error.
+// ---------------------------------------------------------------------
+
+export interface CurrentVentureRun {
+  workspaceId: string;
+  ventureId: string;
+  runId: string;
+  activeBranchId: string;
+}
+
+// Resolves "the Venture the Founder is currently working in" via
+// user_active_contexts (the same resolution get_active_context itself
+// exposes) — exactly the navigation-state use architecture.mdc allows.
+// Every program_run_modules row returned off the back of this is still
+// scoped by workspace_id in the queries below, so a stale/tampered active
+// context can never leak another Workspace's data — only ever produce
+// "no Run for this Founder's own Venture yet".
+async function resolveCurrentVentureRun(actor: ActorContext): Promise<CurrentVentureRun | null> {
+  const activeContext = await getActiveContext(actor);
+  if (!activeContext.workspaceId || !activeContext.ventureId) {
+    return null;
+  }
+
+  const result = await pool.query<{ id: string; active_branch_id: string | null }>(
+    `select id, active_branch_id from program_runs
+     where venture_id = $1 and workspace_id = $2 and status <> 'archived'
+     limit 1`,
+    [activeContext.ventureId, activeContext.workspaceId],
+  );
+  const run = result.rows[0];
+  if (!run || !run.active_branch_id) {
+    return null;
+  }
+
+  return {
+    workspaceId: activeContext.workspaceId,
+    ventureId: activeContext.ventureId,
+    runId: run.id,
+    activeBranchId: run.active_branch_id,
+  };
+}
+
+// Joins module_definitions for module_type/completion_mode — those are
+// content-level fields with no equivalent snapshot column on
+// program_run_modules itself (only module_key/title_snapshot are
+// snapshotted there).
+const RUN_MODULE_SUMMARY_COLUMNS = `
+  m.id, m.workspace_id, m.program_run_id, m.program_run_branch_id, m.module_definition_id,
+  m.module_key, m.title_snapshot, m.sequence_index, m.status,
+  m.active_attempt_id, m.accepted_attempt_id, m.unlocked_at, m.started_at, m.completed_at,
+  d.module_type, d.completion_mode
+`;
+
+interface RunModuleSummaryRow {
+  id: string;
+  workspace_id: string;
+  program_run_id: string;
+  program_run_branch_id: string;
+  module_definition_id: string;
+  module_key: string;
+  title_snapshot: string;
+  sequence_index: number;
+  status: RunModuleSummary["status"];
+  active_attempt_id: string | null;
+  accepted_attempt_id: string | null;
+  unlocked_at: Date | null;
+  started_at: Date | null;
+  completed_at: Date | null;
+  module_type: ModuleType;
+  completion_mode: ModuleCompletionMode;
+}
+
+function mapRunModuleSummaryRow(row: RunModuleSummaryRow): RunModuleSummary {
+  return {
+    id: row.id,
+    workspaceId: row.workspace_id,
+    programRunId: row.program_run_id,
+    programRunBranchId: row.program_run_branch_id,
+    moduleDefinitionId: row.module_definition_id,
+    moduleKey: row.module_key,
+    title: row.title_snapshot,
+    sequenceIndex: row.sequence_index,
+    moduleType: row.module_type,
+    completionMode: row.completion_mode,
+    status: row.status,
+    activeAttemptId: row.active_attempt_id,
+    acceptedAttemptId: row.accepted_attempt_id,
+    unlockedAt: row.unlocked_at?.toISOString() ?? null,
+    startedAt: row.started_at?.toISOString() ?? null,
+    completedAt: row.completed_at?.toISOString() ?? null,
+  };
+}
+
+export interface ListRunModulesResult {
+  // All three null only when the Founder has no active Venture yet, or
+  // that Venture has no non-archived Program Run yet — list_modules (MCP)
+  // surfaces this as "nothing to show yet", not an error; creating a Run
+  // is the website's job (getOrCreateProgramRun above), never a read
+  // tool's side effect.
+  workspaceId: string | null;
+  ventureId: string | null;
+  runId: string | null;
+  modules: RunModuleSummary[];
+}
+
+/**
+ * Lists every program_run_modules row for the Founder's current active
+ * Venture's current Run/Branch, in sequence order. Backs the MCP
+ * `list_modules` capability (source doc §21).
+ */
+export async function listRunModules(actor: ActorContext): Promise<ListRunModulesResult> {
+  assertRole(actor, ["founder"]);
+  const currentRun = await resolveCurrentVentureRun(actor);
+  if (!currentRun) {
+    return { workspaceId: null, ventureId: null, runId: null, modules: [] };
+  }
+
+  const result = await pool.query<RunModuleSummaryRow>(
+    `select ${RUN_MODULE_SUMMARY_COLUMNS}
+     from program_run_modules m
+     join module_definitions d on d.id = m.module_definition_id
+     where m.program_run_branch_id = $1
+     order by m.sequence_index`,
+    [currentRun.activeBranchId],
+  );
+
+  return {
+    workspaceId: currentRun.workspaceId,
+    ventureId: currentRun.ventureId,
+    runId: currentRun.runId,
+    modules: result.rows.map(mapRunModuleSummaryRow),
+  };
+}
+
+function normalizeModuleKeyInput(input: unknown): { moduleKey: string } {
+  if (typeof input !== "object" || input === null || !("moduleKey" in input)) {
+    throw new ServiceError("VALIDATION_ERROR", "moduleKey is required.");
+  }
+  const { moduleKey } = input as { moduleKey: unknown };
+  if (typeof moduleKey !== "string" || moduleKey.trim().length === 0) {
+    throw new ServiceError("VALIDATION_ERROR", "moduleKey must be a non-blank string.");
+  }
+  return { moduleKey };
+}
+
+/**
+ * Reads a single program_run_modules row, by its content-stable
+ * `moduleKey`, within the Founder's current active Venture's current
+ * Run/Branch. Backs both the MCP `get_module_status` capability and
+ * `getModuleContext` (packages/services/src/module/context.ts), which
+ * calls this first to resolve the target Module before loading Attempt/
+ * Question/Artifact detail around it.
+ */
+export async function getRunModuleByKey(
+  actor: ActorContext,
+  input: unknown,
+): Promise<RunModuleSummary> {
+  assertRole(actor, ["founder"]);
+  const { moduleKey } = normalizeModuleKeyInput(input);
+  const currentRun = await resolveCurrentVentureRun(actor);
+  if (!currentRun) {
+    throw new ServiceError("NOT_FOUND", "Module not found.");
+  }
+
+  const result = await pool.query<RunModuleSummaryRow>(
+    `select ${RUN_MODULE_SUMMARY_COLUMNS}
+     from program_run_modules m
+     join module_definitions d on d.id = m.module_definition_id
+     where m.program_run_branch_id = $1 and m.module_key = $2`,
+    [currentRun.activeBranchId, moduleKey],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new ServiceError("NOT_FOUND", "Module not found.");
+  }
+  return mapRunModuleSummaryRow(row);
+}
+
+export interface AttemptRunContext {
+  workspaceId: string;
+  programRunId: string;
+  programRunBranchId: string;
+  programRunModuleId: string;
+}
+
+/**
+ * Resolves the full Run/Branch/Module hierarchy above a given Attempt,
+ * scoped to the Founder's own Workspace. Exists purely to let apps/mcp's
+ * audit wrapper populate `mcp_tool_audit_logs`' run/branch/module columns
+ * for the four Tools whose input is an `attemptId` rather than a
+ * `programRunModuleId` (`save_founder_input`, `save_artifact`,
+ * `complete_module`, `get_artifact`) — those Services' own DTOs
+ * (`ModuleResponse`/`ModuleAttempt`/`ArtifactSubmission`) only carry
+ * `moduleAttemptId`/`programRunModuleId`, not the full chain, and this PR
+ * deliberately does not widen those already-shipped return shapes just
+ * for an audit side channel.
+ */
+export async function resolveAttemptRunContext(
+  actor: ActorContext,
+  attemptId: string,
+): Promise<AttemptRunContext> {
+  assertRole(actor, ["founder"]);
+  const id = parseEntityIdOrNotFound(attemptId, "Attempt not found.");
+  const workspace = await resolveFounderWorkspace(actor);
+
+  const result = await pool.query<{
+    program_run_module_id: string;
+    program_run_id: string;
+    program_run_branch_id: string;
+  }>(
+    `select a.program_run_module_id, m.program_run_id, m.program_run_branch_id
+     from module_attempts a
+     join program_run_modules m on m.id = a.program_run_module_id
+     where a.id = $1 and a.workspace_id = $2`,
+    [id, workspace.id],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new ServiceError("NOT_FOUND", "Attempt not found.");
+  }
+
+  return {
+    workspaceId: workspace.id,
+    programRunId: row.program_run_id,
+    programRunBranchId: row.program_run_branch_id,
+    programRunModuleId: row.program_run_module_id,
+  };
 }

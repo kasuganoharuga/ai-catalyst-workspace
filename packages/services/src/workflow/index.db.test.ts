@@ -6,8 +6,15 @@ import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
+import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
+import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 
-import { getOrCreateProgramRun } from "./index.js";
+import {
+  getOrCreateProgramRun,
+  getRunModuleByKey,
+  listRunModules,
+  resolveAttemptRunContext,
+} from "./index.js";
 
 type FixtureModule = ToolkitSeedContent["modules"][number];
 type FixtureArtifact = FixtureModule["artifacts"][number];
@@ -176,6 +183,14 @@ describe("getOrCreateProgramRun — database integration", () => {
   });
 
   afterAll(async () => {
+    // Deleted explicitly, ahead of the venture cascade below:
+    // user_active_contexts_venture_fk (active_venture_id, active_workspace_id)
+    // -> ventures has no "on delete cascade" of its own (setActiveVenture
+    // calls in this suite point it at a fixture Venture) — same reasoning
+    // as artifact/index.db.test.ts's own afterAll comment.
+    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
+      createdUserIds,
+    ]);
     // Cascades away program_runs -> program_run_branches ->
     // program_run_modules (all `on delete cascade` from ventures/runs/
     // branches per 0001_aidb_v5_baseline.sql).
@@ -417,5 +432,184 @@ describe("getOrCreateProgramRun — database integration", () => {
       [ventureId],
     );
     expect(Number(countResult.rows[0].count)).toBe(1);
+  });
+
+  describe("listRunModules", () => {
+    it("rejects a non-founder actor", async () => {
+      await expect(
+        listRunModules({ userId: randomUUID(), role: "admin" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
+    });
+
+    it("returns all-null / empty when the Founder has a Workspace but no active Venture selected", async () => {
+      const { actor } = await createFounderWithWorkspaceAndVenture("list-modules-no-active-venture");
+
+      const result = await listRunModules(actor);
+      expect(result).toEqual({
+        workspaceId: null,
+        ventureId: null,
+        runId: null,
+        modules: [],
+      });
+    });
+
+    it("returns all-null / empty when the active Venture has no Run yet", async () => {
+      const { actor, ventureId } =
+        await createFounderWithWorkspaceAndVenture("list-modules-no-run");
+      await setActiveVenture(actor, ventureId);
+
+      const result = await listRunModules(actor);
+      expect(result).toEqual({
+        workspaceId: null,
+        ventureId: null,
+        runId: null,
+        modules: [],
+      });
+    });
+
+    it("lists the active Venture's Run Modules in sequence order", async () => {
+      const { actor, workspaceId, ventureId } =
+        await createFounderWithWorkspaceAndVenture("list-modules");
+      await setActiveVenture(actor, ventureId);
+      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
+        programKey: ACTIVE_PROGRAM_KEY,
+      });
+
+      const result = await listRunModules(actor);
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.ventureId).toBe(ventureId);
+      expect(result.runId).toBe(run.id);
+      expect(result.modules.map((m) => m.moduleKey)).toEqual([
+        "workflow-module-a",
+        "workflow-module-b",
+      ]);
+      expect(result.modules[0].status).toBe("available");
+      expect(result.modules[0].programRunBranchId).toBe(run.activeBranchId);
+      expect(result.modules[0].workspaceId).toBe(workspaceId);
+      expect(result.modules[1].status).toBe("locked");
+
+      expect(Object.keys(result.modules[0]).sort()).toEqual(
+        [
+          "id",
+          "workspaceId",
+          "programRunId",
+          "programRunBranchId",
+          "moduleDefinitionId",
+          "moduleKey",
+          "title",
+          "sequenceIndex",
+          "moduleType",
+          "completionMode",
+          "status",
+          "activeAttemptId",
+          "acceptedAttemptId",
+          "unlockedAt",
+          "startedAt",
+          "completedAt",
+        ].sort(),
+      );
+    });
+  });
+
+  describe("getRunModuleByKey", () => {
+    it("rejects a non-founder actor", async () => {
+      await expect(
+        getRunModuleByKey({ userId: randomUUID(), role: "admin" }, { moduleKey: "x" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
+    });
+
+    it("rejects a missing moduleKey", async () => {
+      await expect(
+        getRunModuleByKey(founderActor(), {}),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+    });
+
+    it("throws NOT_FOUND when the Founder has no active Venture/Run yet", async () => {
+      await expect(
+        getRunModuleByKey(founderActor(), { moduleKey: "workflow-module-a" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+
+    it("throws NOT_FOUND for a moduleKey outside the active Run's Branch", async () => {
+      const { actor, ventureId } =
+        await createFounderWithWorkspaceAndVenture("get-module-not-found");
+      await setActiveVenture(actor, ventureId);
+      await getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY });
+
+      await expect(
+        getRunModuleByKey(actor, { moduleKey: "does-not-exist" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+
+    it("returns the matching Module for the active Venture's current Run", async () => {
+      const { actor, workspaceId, ventureId } =
+        await createFounderWithWorkspaceAndVenture("get-module");
+      await setActiveVenture(actor, ventureId);
+      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
+        programKey: ACTIVE_PROGRAM_KEY,
+      });
+
+      const result = await getRunModuleByKey(actor, { moduleKey: "workflow-module-b" });
+      expect(result.moduleKey).toBe("workflow-module-b");
+      expect(result.workspaceId).toBe(workspaceId);
+      expect(result.programRunId).toBe(run.id);
+      expect(result.status).toBe("locked");
+    });
+  });
+
+  describe("resolveAttemptRunContext", () => {
+    it("rejects a non-founder actor", async () => {
+      await expect(
+        resolveAttemptRunContext({ userId: randomUUID(), role: "admin" }, randomUUID()),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
+    });
+
+    it("throws NOT_FOUND for an unknown attemptId", async () => {
+      await expect(
+        resolveAttemptRunContext(founderActor(), randomUUID()),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+
+    it("throws NOT_FOUND for an Attempt belonging to another Workspace", async () => {
+      const { actor: ownerActor, ventureId: ownerVentureId } =
+        await createFounderWithWorkspaceAndVenture("attempt-context-owner");
+      await setActiveVenture(ownerActor, ownerVentureId);
+      await getOrCreateProgramRun(ownerActor, { ventureId: ownerVentureId }, {
+        programKey: ACTIVE_PROGRAM_KEY,
+      });
+      const { modules } = await listRunModules(ownerActor);
+      const { attempt } = await startOrResumeAttempt(ownerActor, {
+        programRunModuleId: modules[0].id,
+      });
+
+      const { actor: otherActor } =
+        await createFounderWithWorkspaceAndVenture("attempt-context-other");
+
+      await expect(
+        resolveAttemptRunContext(otherActor, attempt.id),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+
+    it("resolves the full Run/Branch/Module hierarchy above an Attempt", async () => {
+      const { actor, workspaceId, ventureId } =
+        await createFounderWithWorkspaceAndVenture("attempt-context");
+      await setActiveVenture(actor, ventureId);
+      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
+        programKey: ACTIVE_PROGRAM_KEY,
+      });
+      const { modules } = await listRunModules(actor);
+      const firstModule = modules[0];
+      const { attempt } = await startOrResumeAttempt(actor, {
+        programRunModuleId: firstModule.id,
+      });
+
+      const context = await resolveAttemptRunContext(actor, attempt.id);
+      expect(context).toEqual({
+        workspaceId,
+        programRunId: run.id,
+        programRunBranchId: run.activeBranchId,
+        programRunModuleId: firstModule.id,
+      });
+    });
   });
 });
