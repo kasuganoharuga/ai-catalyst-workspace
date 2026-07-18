@@ -13,6 +13,10 @@
     "./module/catalog": "./src/module/catalog.ts",
     "./artifact": "./src/artifact/index.ts",
     "./storage": "./src/storage/index.ts",
+    "./storage/providers/local": "./src/storage/providers/local.ts",
+    "./storage/internal/object-key": "./src/storage/internal/object-key.ts",
+    "./storage/internal/validation": "./src/storage/internal/validation.ts",
+    "./storage/internal/hash": "./src/storage/internal/hash.ts",
     "./invitation": "./src/invitation/index.ts",
     "./audit": "./src/audit/index.ts",
     "./errors": "./src/errors.ts",
@@ -33,7 +37,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run --exclude \"**/*.db.test.ts\"",
     "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/attempt/index.db.test.ts",
+    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/content-seed/index.db.test.ts src/module/catalog.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/attempt/index.db.test.ts src/storage/index.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts"
   },
   "dependencies": {
