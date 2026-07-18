@@ -19,6 +19,15 @@ export type ServiceErrorCode =
   | "INVITATION_NOT_PENDING"
   | "INVITATION_EMAIL_MISMATCH"
   | "FOUNDER_WORKSPACE_ALREADY_EXISTS"
+  // PR 2.4 (packages/services/src/attempt) — all five are state-conflict
+  // errors (HTTP 409 in apps/web/lib/service-error-response.ts), not
+  // validation errors: the request is well-formed, but the target
+  // Attempt/run_module is not in a state that permits the operation.
+  | "RUN_MODULE_NOT_AVAILABLE"
+  | "ATTEMPT_PENDING_REVIEW"
+  | "ATTEMPT_NOT_EDITABLE"
+  | "ATTEMPT_NOT_SUBMITTABLE"
+  | "ATTEMPT_RETRY_SOURCE_INVALID"
   // A server-side content/data invariant was violated (e.g. a published
   // Program Version has zero active Modules) — never the caller's fault,
   // so callers should treat this as an unexpected failure rather than a

@@ -17,3 +17,13 @@ export type {
   ModuleCatalogEntry,
 } from "./module-catalog.js";
 export type { ProgramRun, ProgramRunStatus } from "./program-run.js";
+export type {
+  ModuleAttempt,
+  ModuleAttemptStatus,
+  ModuleAttemptType,
+  ModuleAttemptStartedVia,
+  ModuleResponse,
+  ModuleResponseType,
+  ModuleResponseStatus,
+  ModuleResponseCapturedVia,
+} from "./module-attempt.js";
