@@ -1,15 +1,21 @@
-import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
+import { randomBytes } from "node:crypto";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
-import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import {
+  cleanupFixtureAccounts,
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  getFixtureModuleAttemptStatus,
+  getFixtureRunModuleIds,
+  getLatestFixtureMcpToolAuditLogRow,
+  seedFixtureProgram,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import { createMcpApp, type CreateMcpAppOptions } from "../server.js";
 
@@ -22,6 +28,12 @@ import { createMcpApp, type CreateMcpAppOptions } from "../server.js";
  * the website's job — no PR 2.7 Tool creates one), then every PR 2.7
  * MCP Tool exercised end-to-end through POST /mcp, asserting both the
  * JSON-RPC response and the resulting `mcp_tool_audit_logs` row.
+ *
+ * Fixture setup/teardown/assertion queries are routed through
+ * packages/services/src/testing/db-fixtures.ts rather than importing
+ * `pool` from `@ai-catalyst/db` here directly — apps/mcp must go through
+ * packages/services instead of touching the database directly, per
+ * .dependency-cruiser.js's only-web-may-import-db-pool rule.
  */
 
 const ALLOWED_HOSTS = ["127.0.0.1", "localhost"];
@@ -109,21 +121,6 @@ function buildFixtureContent(programKey: string, modules: FixtureModule[]): Tool
   };
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
 const VALID_TOKEN = "valid-fixture-token";
 
 function buildAppForActor(actor: ActorContext, overrides: Partial<CreateMcpAppOptions> = {}) {
@@ -179,28 +176,7 @@ async function callTool(
   return { status: res.status, isError: Boolean(result?.isError), data };
 }
 
-async function getLatestAuditLogRow(userId: string, toolName: string) {
-  const result = await pool.query<{
-    outcome: string;
-    workspace_id: string | null;
-    program_run_id: string | null;
-    program_run_branch_id: string | null;
-    program_run_module_id: string | null;
-    module_attempt_id: string | null;
-    error_code: string | null;
-    result_metadata: Record<string, unknown>;
-    request_metadata: Record<string, unknown>;
-  }>(
-    `select outcome, workspace_id, program_run_id, program_run_branch_id, program_run_module_id,
-            module_attempt_id, error_code, result_metadata, request_metadata
-     from mcp_tool_audit_logs
-     where user_id = $1 and tool_name = $2
-     order by created_at desc
-     limit 1`,
-    [userId, toolName],
-  );
-  return result.rows[0] ?? null;
-}
+const getLatestAuditLogRow = getLatestFixtureMcpToolAuditLogRow;
 
 describe("PR 2.7 MCP Tools — database integration", () => {
   const RUN_SUFFIX = randomBytes(4).toString("hex");
@@ -214,27 +190,13 @@ describe("PR 2.7 MCP Tools — database integration", () => {
     ventureId: string;
     runModuleId: string;
   }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    const userId = userResult.rows[0].id;
+    const { userId, workspaceId } = await createFixtureFounderAccount({ label, emailPrefix });
     createdUserIds.push(userId);
-
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [userId, `Fixture ${label}`, `mcp-tools-${label}-${randomUUID()}`],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
-
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [workspaceId, userId, `Fixture Venture ${label}`, `mcp-tools-venture-${label}-${randomUUID()}`],
-    );
-    const ventureId = ventureResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+    });
 
     const websiteActor: ActorContext = { userId, role: "founder", source: "web" };
     await setActiveVenture(websiteActor, ventureId);
@@ -244,11 +206,7 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       { programKey: PROGRAM_KEY },
     );
 
-    const runModuleResult = await pool.query<{ id: string }>(
-      `select id from program_run_modules where program_run_branch_id = $1 order by sequence_index limit 1`,
-      [run.activeBranchId],
-    );
-    const runModuleId = runModuleResult.rows[0].id;
+    const [runModuleId] = await getFixtureRunModuleIds(run.activeBranchId!);
 
     const mcpActor: ActorContext = {
       userId,
@@ -262,34 +220,11 @@ describe("PR 2.7 MCP Tools — database integration", () => {
   }
 
   beforeAll(async () => {
-    await withTransaction((client) =>
-      seedToolkitContent(
-        client,
-        buildFixtureContent(PROGRAM_KEY, [buildFixtureModule("mcp-module-a", 0)]),
-      ),
-    );
+    await seedFixtureProgram(buildFixtureContent(PROGRAM_KEY, [buildFixtureModule("mcp-module-a", 0)]));
   });
 
   afterAll(async () => {
-    await pool.query("delete from mcp_tool_audit_logs where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
-    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
-    await pool.query(
-      "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
-      [createdUserIds],
-    );
-    await pool.query(
-      "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
-      [createdUserIds],
-    );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+    await cleanupFixtureAccounts({ userIds: createdUserIds, programKey: PROGRAM_KEY });
   });
 
   describe("read tools", () => {
@@ -485,11 +420,7 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       expect(data.id).toBe(attempt.id);
       expect(data.status).toBe("submitted");
 
-      const attemptRow = await pool.query<{ status: string }>(
-        "select status from module_attempts where id = $1",
-        [attempt.id],
-      );
-      expect(attemptRow.rows[0].status).toBe("submitted");
+      expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe("submitted");
 
       const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
       expect(auditRow?.outcome).toBe("success");

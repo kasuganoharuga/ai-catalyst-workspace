@@ -37,7 +37,8 @@
     "./internal/branch": "./src/internal/branch.ts",
     "./internal/program-version": "./src/internal/program-version.ts",
     "./internal/entity-id": "./src/internal/entity-id.ts",
-    "./mcp-auth": "./src/mcp-auth/index.ts"
+    "./mcp-auth": "./src/mcp-auth/index.ts",
+    "./testing/db-fixtures": "./src/testing/db-fixtures.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
