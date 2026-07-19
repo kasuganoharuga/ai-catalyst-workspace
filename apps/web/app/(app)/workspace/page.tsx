@@ -7,6 +7,7 @@ import { appPageTitle } from "@/lib/page-metadata";
 import { PageShell } from "../components/page-shell";
 import { CreateVentureForm } from "./components/create-venture-form";
 import { VentureActions } from "./components/venture-actions";
+import { VentureClaudeProjectField } from "./components/venture-claude-project-field";
 
 export const metadata = appPageTitle("Workspace");
 
@@ -56,9 +57,9 @@ export default async function WorkspacePage() {
           ventures.map((venture) => (
             <li
               key={venture.id}
-              className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+              className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
             >
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">{venture.name}</p>
                 {venture.oneLiner ? (
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -68,6 +69,12 @@ export default async function WorkspacePage() {
                 <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
                   {venture.status} · {venture.lifecycleStage}
                 </p>
+                <VentureClaudeProjectField
+                  ventureId={venture.id}
+                  initialProjectId={venture.claudeProjectId}
+                  canEdit={isWorkspaceActive}
+                  isArchived={venture.status === "archived"}
+                />
               </div>
               <VentureActions
                 ventureId={venture.id}

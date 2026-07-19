@@ -123,9 +123,8 @@ jobs:
     env:
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
       BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
-      # Needed by the steps below that run apps/web directly on the runner
-      # (auth:check, test) rather than through docker-compose, which sets
-      # these itself on the web/mcp services — see docker-compose.yml.
+      # Shared by runner-hosted web steps (auth:check, test) and docker-compose
+      # web/mcp services — compose passes AUTH_ISSUER_URL through to containers.
       AUTH_ISSUER_URL: http://127.0.0.1:3000
       MCP_RESOURCE_URL: http://127.0.0.1:8787/mcp
 
@@ -287,8 +286,8 @@ jobs:
 
           resource_metadata=$(curl -s http://127.0.0.1:8787/.well-known/oauth-protected-resource)
           echo "GET /.well-known/oauth-protected-resource -> $resource_metadata"
-          echo "$resource_metadata" | grep -q '"authorization_servers":\["http://localhost:3000"\]' || {
-            echo "Expected mcp's protected-resource metadata to point back at web as the Authorization Server" >&2
+          echo "$resource_metadata" | grep -Fq "\"authorization_servers\":[\"${AUTH_ISSUER_URL}\"]" || {
+            echo "Expected mcp's protected-resource metadata to point back at web as the Authorization Server (${AUTH_ISSUER_URL})" >&2
             exit 1
           }
 

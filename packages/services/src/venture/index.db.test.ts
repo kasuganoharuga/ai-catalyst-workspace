@@ -9,6 +9,7 @@ import {
   createVenture,
   getVenture,
   listVentures,
+  updateVentureClaudeProjectId,
 } from "./index.js";
 
 /**
@@ -86,6 +87,7 @@ describe("venture service — database integration", () => {
     expect(venture.lifecycleStage).toBe("idea");
     expect(venture.oneLiner).toBeNull();
     expect(venture.summary).toBeNull();
+    expect(venture.claudeProjectId).toBeNull();
     expect(venture.archivedAt).toBeNull();
   });
 
@@ -210,6 +212,48 @@ describe("venture service — database integration", () => {
     await expect(archiveVenture(actor, "not-a-uuid")).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+
+  it("stores and clears a Claude Chat Project UUID on a Venture", async () => {
+    const { actor } = await createFounderWithWorkspace("claude-project-id");
+    const venture = await createVenture(actor, { name: "Claude Link Target" });
+    const projectId = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
+
+    const updated = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: projectId,
+    });
+    expect(updated.claudeProjectId).toBe(projectId.toLowerCase());
+
+    const fetched = await getVenture(actor, venture.id);
+    expect(fetched.claudeProjectId).toBe(projectId.toLowerCase());
+
+    const cleared = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: "",
+    });
+    expect(cleared.claudeProjectId).toBeNull();
+  });
+
+  it("rejects an invalid Claude project UUID", async () => {
+    const { actor } = await createFounderWithWorkspace("invalid-claude-id");
+    const venture = await createVenture(actor, { name: "Invalid UUID Target" });
+
+    await expect(
+      updateVentureClaudeProjectId(actor, venture.id, {
+        claudeProjectId: "not-a-uuid",
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("rejects Claude project updates on an archived Venture", async () => {
+    const { actor } = await createFounderWithWorkspace("archived-claude-id");
+    const venture = await createVenture(actor, { name: "Archived Claude Target" });
+    await archiveVenture(actor, venture.id);
+
+    await expect(
+      updateVentureClaudeProjectId(actor, venture.id, {
+        claudeProjectId: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
   it("archives a Venture idempotently, only writing archived_at once", async () => {

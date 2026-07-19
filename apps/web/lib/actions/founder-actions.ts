@@ -7,7 +7,11 @@ import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion
 import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import { updateMyProfile } from "@ai-catalyst/services/profile";
 import { ServiceError } from "@ai-catalyst/services/errors";
-import { archiveVenture, createVenture } from "@ai-catalyst/services/venture";
+import {
+  archiveVenture,
+  createVenture,
+  updateVentureClaudeProjectId,
+} from "@ai-catalyst/services/venture";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 
@@ -129,6 +133,23 @@ export async function archiveVentureAction(
     const actor = await requireFounderActor();
     await archiveVenture(actor, ventureId);
     revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+export async function updateVentureClaudeProjectAction(
+  ventureId: string,
+  claudeProjectId: string | null,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await updateVentureClaudeProjectId(actor, ventureId, {
+      claudeProjectId,
+    });
+    revalidateFounderAppShell();
+    revalidatePath("/workspace");
     return { ok: true };
   } catch (error) {
     return toActionResult(error);
