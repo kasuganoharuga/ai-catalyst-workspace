@@ -24,7 +24,7 @@ services:
       dockerfile: apps/web/Dockerfile
     environment:
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
-      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
+      AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
       # Must match the mcp service's own MCP_RESOURCE_URL below exactly —
       # see apps/web/lib/mcp-oauth-compat/hooks.ts.
@@ -57,7 +57,7 @@ services:
       # apps/mcp verifies platform Bearer tokens by querying Postgres
       # directly (DATABASE_URL above), never by calling apps/web over HTTP.
       MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
-      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
+      AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
       # Same named volume as web — same in-container path for both services.
       LOCAL_STORAGE_ROOT: /data/storage
     ports:
