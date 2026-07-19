@@ -96,6 +96,18 @@ export function claudeChatUrl(prompt: string): string {
 export const CLAUDE_CONNECTOR_SETTINGS_URL =
   "https://claude.ai/settings/connectors";
 
+/** Opens Claude Desktop Cowork with a prefilled composer (`claude://` deep link). */
+export function claudeCoworkUrl(prompt: string): string {
+  return `claude://cowork/new?q=${encodeURIComponent(prompt)}`;
+}
+
+export function mcpConnectCoworkPrompt(endpointUrl: string | null): string {
+  const addressLine = endpointUrl
+    ? `Use this MCP address: ${endpointUrl}`
+    : "Use the workspace address from my AI Catalyst connection page.";
+  return `Help me connect my AI Catalyst Founder Toolkit. In Claude, open Settings → Connectors → Add custom connector. ${addressLine}`;
+}
+
 export function startModulePrompt(moduleTitle: string): string {
   return `Let's work on "${moduleTitle}" from my AI Catalyst Founder Toolkit. Please pick up wherever I left off.`;
 }
