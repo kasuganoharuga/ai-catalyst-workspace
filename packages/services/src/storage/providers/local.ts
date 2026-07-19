@@ -1,7 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
@@ -11,58 +10,17 @@ import {
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 
 import type {
+  CopyObjectInput,
+  DownloadUrl,
+  DownloadUrlInput,
   ProviderObjectMetadata,
   PutObjectInput,
   StorageProvider,
 } from "../types.js";
 
-// Resolved from this module's own file location (via `import.meta.url`),
-// not `process.cwd()` — same technique as
-// packages/toolkit-content/src/paths.ts, and for the same reason: this
-// package is consumed as TypeScript source directly (no build step), and
-// `process.cwd()` differs between `next dev`, `vitest`, and any future
-// CLI, but this file's own location on disk never does.
-const currentFileDir = path.dirname(fileURLToPath(import.meta.url));
-
-// Distinguishes the repo root from every other ancestor directory. Chosen
-// over a package.json check (every directory up to the OS root has one of
-// those) or a `.git` check (not present in every checkout, e.g. some CI
-// tarball extractions) — this file only exists once, at the workspace
-// root, by construction of the pnpm workspace itself.
-const WORKSPACE_ROOT_MARKER = "pnpm-workspace.yaml";
-
-async function findRepoRoot(startDir: string): Promise<string> {
-  let dir = startDir;
-  for (;;) {
-    try {
-      await fs.access(path.join(dir, WORKSPACE_ROOT_MARKER));
-      return dir;
-    } catch {
-      const parentDir = path.dirname(dir);
-      if (parentDir === dir) {
-        throw new Error(
-          `Could not locate the repo root (no ${WORKSPACE_ROOT_MARKER} found above ${startDir}).`,
-        );
-      }
-      dir = parentDir;
-    }
-  }
-}
-
-// LOCAL_STORAGE_ROOT if set must resolve to an absolute path — a relative
-// value is resolved against the repo root (matching docker-compose.yml's
-// override to the absolute in-container /data/storage), never against
-// `process.cwd()`. Unset locally defaults to `<repo-root>/.data/storage`.
-async function resolveConfiguredRoot(): Promise<string> {
-  const configured = process.env.LOCAL_STORAGE_ROOT;
-  if (configured && path.isAbsolute(configured)) {
-    return configured;
-  }
-
-  const repoRoot = await findRepoRoot(currentFileDir);
-  return configured
-    ? path.join(repoRoot, configured)
-    : path.join(repoRoot, ".data", "storage");
+export interface LocalStorageProviderOptions {
+  /** Absolute path to the on-disk object root. Never read from process.env here. */
+  rootDir: string;
 }
 
 /**
@@ -71,24 +29,30 @@ async function resolveConfiguredRoot(): Promise<string> {
  * `putObject` writes to a unique temp file under the resolved root, then
  * `fsync`s + closes it, then `rename()`s it onto the final key — the
  * entire two-step sequence happens inside this one call; callers never
- * know a temp file was involved (StorageProvider's contract in
- * ../types.js declares this atomicity, it does not expose a separate
- * promote/commit step). A future S3-compatible provider's single PUT is
- * atomic on its own and slots into the same interface unchanged.
+ * know a temp file was involved.
  *
- * Acceptance note (see storage/index.ts's top-of-file comment for the
- * full statement): this Provider currently only guarantees
- * single-process/test-suite usability. It does NOT yet provide
- * cross-container (web/mcp) shared local file access under `docker:up` —
- * docker-compose.yml declares a named volume + LOCAL_STORAGE_ROOT
- * convention for it, but nothing has verified concurrent multi-container
- * access actually behaves correctly. That requires either 2.10's move to
- * an S3-compatible provider, or a follow-up PR that actually exercises a
- * shared bind mount across running containers.
+ * Acceptance note: this Provider currently only guarantees
+ * single-process/test-suite usability for concurrent web/mcp access.
+ * Cross-container sharing is the job of the S3 provider in cloud envs.
  */
 export class LocalStorageProvider implements StorageProvider {
+  private readonly rootDir: string;
+
+  constructor(options: LocalStorageProviderOptions) {
+    if (!options.rootDir || !path.isAbsolute(options.rootDir)) {
+      throw new Error(
+        "LocalStorageProvider requires an absolute rootDir (build StorageConfig at the composition root).",
+      );
+    }
+    this.rootDir = options.rootDir;
+  }
+
+  private async realRoot(): Promise<string> {
+    return resolveRealStorageRoot(this.rootDir);
+  }
+
   async putObject(input: PutObjectInput): Promise<ProviderObjectMetadata> {
-    const realRoot = await resolveRealStorageRoot(await resolveConfiguredRoot());
+    const realRoot = await this.realRoot();
     const finalPath = await resolveSafeStoragePath(realRoot, input.key, {
       createMissingDirs: true,
     });
@@ -116,7 +80,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async getObject(key: string): Promise<Buffer> {
-    const realRoot = await resolveRealStorageRoot(await resolveConfiguredRoot());
+    const realRoot = await this.realRoot();
     const targetPath = await resolveSafeStoragePath(realRoot, key, {
       createMissingDirs: false,
     });
@@ -124,7 +88,7 @@ export class LocalStorageProvider implements StorageProvider {
   }
 
   async headObject(key: string): Promise<ProviderObjectMetadata | null> {
-    const realRoot = await resolveRealStorageRoot(await resolveConfiguredRoot());
+    const realRoot = await this.realRoot();
     const targetPath = await resolveSafeStoragePath(realRoot, key, {
       createMissingDirs: false,
     });
@@ -145,19 +109,51 @@ export class LocalStorageProvider implements StorageProvider {
       );
     }
 
-    // The Local Provider has no separate at-rest checksum store (unlike
-    // S3's ETag) — the only way to answer "what does this object look
-    // like" is to read it back and hash it. Acceptable for V1's
-    // single-process/test usage; a real object store keeps this O(1).
     const body = await fs.readFile(targetPath);
     return { sizeBytes: stats.size, sha256: sha256(body) };
   }
 
+  async exists(key: string): Promise<boolean> {
+    return (await this.headObject(key)) !== null;
+  }
+
   async deleteObject(key: string): Promise<void> {
-    const realRoot = await resolveRealStorageRoot(await resolveConfiguredRoot());
+    const realRoot = await this.realRoot();
     const targetPath = await resolveSafeStoragePath(realRoot, key, {
       createMissingDirs: false,
     });
     await fs.rm(targetPath, { force: true });
+  }
+
+  /**
+   * Local escape hatch: a `file://` URL valid until `expiresAt`. Not for
+   * browsers in production — Artifact downloads should stream via getObject.
+   */
+  async createDownloadUrl(input: DownloadUrlInput): Promise<DownloadUrl> {
+    if (!(await this.exists(input.key))) {
+      throw new ServiceError(
+        "NOT_FOUND",
+        `No storage object at key "${input.key}".`,
+      );
+    }
+    const realRoot = await this.realRoot();
+    const targetPath = await resolveSafeStoragePath(realRoot, input.key, {
+      createMissingDirs: false,
+    });
+    const expiresAt = new Date(Date.now() + input.expiresInSeconds * 1000);
+    return {
+      url: `file://${targetPath.replace(/\\/g, "/")}`,
+      expiresAt,
+    };
+  }
+
+  async copyObject(input: CopyObjectInput): Promise<ProviderObjectMetadata> {
+    const body = await this.getObject(input.sourceKey);
+    // contentType is not stored separately on disk for local; use octet-stream.
+    return this.putObject({
+      key: input.destinationKey,
+      body,
+      contentType: "application/octet-stream",
+    });
   }
 }

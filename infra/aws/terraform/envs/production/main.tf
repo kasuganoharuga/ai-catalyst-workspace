@@ -1,0 +1,243 @@
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+
+  # Remote state — fill bucket/table after applying terraform/backend once.
+  backend "s3" {
+    bucket         = "ai-catalyst-tfstate-REPLACE_ME"
+    key            = "production/terraform.tfstate"
+    region         = "ap-southeast-2"
+    dynamodb_table = "ai-catalyst-terraform-locks"
+    encrypt        = true
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+}
+
+variable "aws_region" {
+  type    = string
+  default = "ap-southeast-2"
+}
+
+variable "name" {
+  type    = string
+  default = "ai-catalyst-production"
+}
+
+variable "artifact_bucket_name" {
+  type = string
+}
+
+variable "ses_email_identity" {
+  type = string
+}
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "web_image" {
+  type    = string
+  default = "public.ecr.aws/docker/library/nginx:alpine"
+}
+
+variable "api_image" {
+  type    = string
+  default = "public.ecr.aws/docker/library/nginx:alpine"
+}
+
+variable "mcp_image" {
+  type    = string
+  default = "public.ecr.aws/docker/library/nginx:alpine"
+}
+
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+module "vpc" {
+  source     = "../../modules/vpc"
+  name       = var.name
+  azs        = slice(data.aws_availability_zones.available.names, 0, 2)
+  cidr_block = "10.40.0.0/16"
+}
+
+module "observability" {
+  source = "../../modules/observability"
+  name   = var.name
+}
+
+module "ecr" {
+  source           = "../../modules/ecr"
+  name             = var.name
+  repository_names = ["web", "api", "mcp"]
+}
+
+module "s3" {
+  source      = "../../modules/s3"
+  bucket_name = var.artifact_bucket_name
+}
+
+module "secrets" {
+  source       = "../../modules/secrets"
+  name         = var.name
+  secret_names = ["database-url", "better-auth-secret"]
+}
+
+module "ses" {
+  source         = "../../modules/ses"
+  email_identity = var.ses_email_identity
+}
+
+module "alb" {
+  source     = "../../modules/alb"
+  name       = var.name
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.public_subnet_ids
+}
+
+resource "aws_security_group" "ecs" {
+  name   = "${var.name}-ecs"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    from_port       = 3000
+    to_port         = 3000
+    protocol        = "tcp"
+    security_groups = [module.alb.alb_security_group_id]
+  }
+
+  ingress {
+    from_port       = 8787
+    to_port         = 8787
+    protocol        = "tcp"
+    security_groups = [module.alb.alb_security_group_id]
+  }
+
+  ingress {
+    from_port = 8000
+    to_port   = 8000
+    protocol  = "tcp"
+    self      = true
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "rds" {
+  name   = "${var.name}-rds"
+  vpc_id = module.vpc.vpc_id
+
+  ingress {
+    from_port       = 5432
+    to_port         = 5432
+    protocol        = "tcp"
+    security_groups = [aws_security_group.ecs.id]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+module "rds" {
+  source                 = "../../modules/rds"
+  name                   = var.name
+  subnet_ids             = module.vpc.private_subnet_ids
+  vpc_security_group_ids = [aws_security_group.rds.id]
+  password               = var.db_password
+}
+
+module "iam" {
+  source              = "../../modules/iam"
+  name                = var.name
+  artifact_bucket_arn = module.s3.bucket_arn
+  secret_arns         = module.secrets.secret_arns
+  service_names       = ["web", "api", "mcp"]
+}
+
+module "ecs_cluster" {
+  source = "../../modules/ecs_cluster"
+  name   = var.name
+}
+
+locals {
+  common_env = {
+    AWS_REGION                    = var.aws_region
+    STORAGE_PROVIDER              = "s3"
+    STORAGE_CONTAINER             = module.s3.bucket_name
+    EMAIL_PROVIDER                = "ses"
+    EMAIL_FROM                    = var.ses_email_identity
+    MCP_OAUTH_TRUST_PROXY_HEADERS = "true"
+  }
+}
+
+module "web" {
+  source             = "../../modules/ecs_service"
+  name               = "${var.name}-web"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.ecs.id]
+  container_port     = 3000
+  image              = var.web_image
+  execution_role_arn = module.iam.execution_role_arn
+  task_role_arn      = module.iam.task_role_arns["web"]
+  target_group_arn   = module.alb.web_target_group_arn
+  aws_region         = var.aws_region
+  environment        = local.common_env
+}
+
+module "api" {
+  source             = "../../modules/ecs_service"
+  name               = "${var.name}-api"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.ecs.id]
+  container_port     = 8000
+  image              = var.api_image
+  execution_role_arn = module.iam.execution_role_arn
+  task_role_arn      = module.iam.task_role_arns["api"]
+  aws_region         = var.aws_region
+  environment = merge(local.common_env, {
+    APP_ENV = "production"
+  })
+}
+
+module "mcp" {
+  source             = "../../modules/ecs_service"
+  name               = "${var.name}-mcp"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.ecs.id]
+  container_port     = 8787
+  image              = var.mcp_image
+  execution_role_arn = module.iam.execution_role_arn
+  task_role_arn      = module.iam.task_role_arns["mcp"]
+  target_group_arn   = module.alb.mcp_target_group_arn
+  aws_region         = var.aws_region
+  environment        = local.common_env
+}
+
+output "alb_dns_name" { value = module.alb.alb_dns_name }
+output "ecr_urls" { value = module.ecr.repository_urls }
+output "artifact_bucket" { value = module.s3.bucket_name }
+output "rds_endpoint" { value = module.rds.endpoint }
+output "secret_arns" { value = module.secrets.secret_arns_by_name }
+output "log_prefix" { value = module.observability.log_prefix }

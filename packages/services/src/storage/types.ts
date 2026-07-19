@@ -4,11 +4,14 @@
 // (StorageService); a Provider only ever answers "is this exact key
 // present, and what does it look like at rest".
 //
+// Artifact download product default is stream-through-backend
+// (ArtifactService → getObject), not browser → signed URL → S3.
+// `createDownloadUrl` is an optional escape hatch on the provider;
+// business code must not depend on it.
+//
 // Type-only file: nothing here is imported by value, so it's a plain
-// relative import from every other file in this directory (index.ts,
-// providers/local.ts) without needing its own package.json exports entry
-// — see packages/services/src/internal/branch.ts for why *value* imports
-// across files in this package need one.
+// relative import from every other file in this directory without needing
+// its own package.json exports entry.
 
 export interface PutObjectInput {
   key: string;
@@ -16,11 +19,26 @@ export interface PutObjectInput {
   contentType: string;
 }
 
-// The Provider computes/returns what it can verify about what it actually
-// wrote (or already holds) at `key` — the Service (index.ts) remains the
-// source of truth for what the storage_objects row is allowed to trust,
-// and compares this against its own independently-computed hash rather
-// than taking a Provider's word for it.
+export interface CopyObjectInput {
+  sourceKey: string;
+  destinationKey: string;
+}
+
+export interface DownloadUrlInput {
+  key: string;
+  expiresInSeconds: number;
+  /** e.g. `attachment; filename="verdict.md"` for browser downloads. */
+  responseContentDisposition?: string;
+}
+
+export interface DownloadUrl {
+  url: string;
+  expiresAt: Date;
+}
+
+// Minimal V1 shape. May later grow toward a richer ArtifactMetadata
+// (etag, mime, createdAt, …) shared across Local / S3 / future OSS —
+// extend fields only when a real caller needs them.
 export interface ProviderObjectMetadata {
   sizeBytes: number;
   sha256: string;
@@ -42,9 +60,26 @@ export interface StorageProvider {
   /** Throws if no object exists at `key`. */
   getObject(key: string): Promise<Buffer>;
 
-  /** Returns `null` (not a throw) when no object exists at `key`. */
+  /**
+   * Returns `null` (not a throw) when no object exists at `key`.
+   * Prefer `exists` when only presence matters; use this when the caller
+   * needs size/checksum without a separate get.
+   */
   headObject(key: string): Promise<ProviderObjectMetadata | null>;
+
+  /** True iff an object is present at `key`. */
+  exists(key: string): Promise<boolean>;
 
   /** A missing object at `key` is not an error — deletion is idempotent. */
   deleteObject(key: string): Promise<void>;
+
+  /**
+   * Optional time-limited URL for direct download. Product default remains
+   * permissioned streaming via getObject; do not call this from Artifact
+   * business flows unless a use case explicitly needs a signed/direct URL.
+   */
+  createDownloadUrl(input: DownloadUrlInput): Promise<DownloadUrl>;
+
+  /** Copy within the same container; destination overwrite is allowed. */
+  copyObject(input: CopyObjectInput): Promise<ProviderObjectMetadata>;
 }

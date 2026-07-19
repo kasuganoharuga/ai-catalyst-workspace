@@ -175,3 +175,11 @@ private/
 # (packages/services/src/storage/providers/local.ts) — never committed,
 # same as any other runtime data directory.
 .data/
+
+# Terraform local state / secrets (remote state is S3 + DynamoDB lock)
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+infra/aws/scripts/.generated/

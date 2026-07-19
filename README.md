@@ -132,7 +132,22 @@ GitHub Actions validates the project on push to `main`/`develop` and on pull req
 - **frontend**: install workspace deps with the lockfile, check formatting, lint, typecheck, and build the Next.js app
 - **packages**: typecheck and test `packages/*`/`apps/mcp`, and check architectural import boundaries (`pnpm depcruise`)
 - **backend**: install FastAPI dependencies and smoke check the app import
-- **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, verify migration checksum protection, and build+smoke-test the `web`/`mcp` containers
+- **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, verify migration checksum protection, build+smoke-test the `web`/`mcp` containers, validate Terraform, and dry-run ECS task definition rendering
+
+Manual cloud deploy (no auto-push): [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — matrix build for `web` / `api` / `mcp`. See [`infra/aws/README.md`](infra/aws/README.md).
+
+## Cloud deploy architecture (Staging / Production)
+
+```text
+Developer → GitHub → Actions → ECR → ECS Fargate → ALB
+                                      → Web / MCP (public)
+                                      → API (private)
+                                      → RDS / S3 / SES / Secrets Manager
+```
+
+- `develop` → Staging, `main` → Production (isolated buckets, RDS, secrets).
+- Artifact downloads default to permissioned backend streaming, not browser → signed URL → S3.
+- Local/CI keep `STORAGE_PROVIDER=local` and `EMAIL_PROVIDER=noop`.
 
 ## Project Structure
 
@@ -147,7 +162,7 @@ packages/
   services/         Reserved Application Service Layer — the single home for business logic (scaffold, no logic yet)
 infra/
   docker/           Local Docker Compose setup
-  aws/              Future deployment notes
+  aws/              AWS Staging/Production prep (Terraform, SES, S3, deploy runbook)
 ```
 
 ## Architecture Direction

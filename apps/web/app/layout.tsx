@@ -24,6 +24,12 @@ export const metadata: Metadata = {
   title: "AI Catalyst Founder Toolkit",
   description:
     "A guided programme that takes a founder's raw idea apart and rebuilds it into a business case worth backing.",
+  // `app/icon.png` (Catalyst logo) is the App Router tab icon; public path
+  // kept for apple-touch and explicit link tags.
+  icons: {
+    icon: [{ url: "/catalyst-logo.png", type: "image/png" }],
+    apple: [{ url: "/catalyst-logo.png", type: "image/png" }],
+  },
 };
 
 export default function RootLayout({

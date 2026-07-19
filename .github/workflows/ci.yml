@@ -139,6 +139,23 @@ jobs:
       - name: Validate Docker Compose config
         run: docker compose -f infra/docker/docker-compose.yml config
 
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform fmt / validate (staging + production)
+        run: |
+          set -euo pipefail
+          terraform fmt -check -recursive infra/aws/terraform
+          terraform -chdir=infra/aws/terraform/envs/staging init -backend=false
+          terraform -chdir=infra/aws/terraform/envs/staging validate
+          terraform -chdir=infra/aws/terraform/envs/production init -backend=false
+          terraform -chdir=infra/aws/terraform/envs/production validate
+
+      - name: Dry-run ECS task definition render
+        run: node infra/aws/scripts/render-taskdef.mjs --env staging --all
+
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
         with:
