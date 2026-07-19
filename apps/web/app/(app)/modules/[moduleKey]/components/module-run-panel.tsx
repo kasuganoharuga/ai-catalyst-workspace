@@ -51,7 +51,7 @@ export function ModuleRunPanel({ context }: { context: ModuleContext }) {
         <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Where you&apos;re up to
         </h2>
-        <StatusBadge status={display} />
+        <StatusBadge status={display} moduleIndex={runModule.sequenceIndex} />
       </div>
 
       <dl className="text-sm">
@@ -80,7 +80,7 @@ export function ModuleRunPanel({ context }: { context: ModuleContext }) {
                 <StatusBadge
                   status={{
                     label: `Saved · v${savedSubmission.versionNumber}`,
-                    tone: "accent",
+                    tone: "soft",
                   }}
                 />
               ) : (

@@ -1,7 +1,9 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 
 import type { ModuleContext } from "@ai-catalyst/shared";
 
+import { Button } from "@/components/ui/button";
 import { getActiveContext } from "@/lib/active-context";
 import {
   getCurrentFounderActor,
@@ -10,12 +12,14 @@ import {
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
+import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
 import { getVenture } from "@/lib/ventures";
 
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModuleStatusCard } from "./components/module-status-card";
+import { NextActionCard } from "./components/next-action-card";
 import { SetupStepper, type SetupStep } from "./components/setup-stepper";
 
 function formatLifecycleStage(stage: string): string {
@@ -25,22 +29,20 @@ function formatLifecycleStage(stage: string): string {
     .join(" ");
 }
 
-function firstName(fullName: string): string {
-  return fullName.trim().split(/\s+/)[0] ?? fullName;
-}
-
 export default async function DashboardPage() {
   const [actor, session] = await Promise.all([
     getCurrentFounderActor(),
     getCurrentFounderSession(),
   ]);
 
-  const [catalog, activeContext, connection, runResult] = await Promise.all([
-    listModuleCatalog(actor),
-    getActiveContext(actor),
-    getMcpConnectionStatus(actor),
-    listRunModules(actor),
-  ]);
+  const [catalog, activeContext, connection, runResult, profile] =
+    await Promise.all([
+      listModuleCatalog(actor),
+      getActiveContext(actor),
+      getMcpConnectionStatus(actor),
+      listRunModules(actor),
+      getMyProfile(actor),
+    ]);
   const venture = activeContext.ventureId
     ? await getVenture(actor, activeContext.ventureId)
     : null;
@@ -82,7 +84,7 @@ export default async function DashboardPage() {
     {
       title: "Connect Claude",
       description: "A one-time secure link between Claude and this workspace",
-      done: connection.connected || module0Completed,
+      done: connection.authorised || module0Completed,
       href: "/connection",
     },
     {
@@ -107,145 +109,134 @@ export default async function DashboardPage() {
 
   const welcomeSub = (() => {
     if (!hasRun)
-      return "One click below sets up your module plan — then Claude takes it from there.";
-    if (!connection.connected && !module0Completed)
-      return "First things first: connect Claude, then let Module 0 check that everything works.";
+      return "Everything you work through here compounds — each answer feeds the next question.";
+    if (!connection.authorised && !module0Completed)
+      return "The thinking happens in Claude. Connect it once and it stays connected.";
     if (!module0Completed)
-      return "Claude is connected. Module 0 is a quick end-to-end check — ask Claude to start it whenever you're ready.";
+      return "Claude is connected. One short check and the real questions begin.";
     if (!verdictReady)
-      return "Module 0 is done and the pressure test is unlocked. It all happens in Claude — this page keeps score.";
-    return "Both foundation modules are done — your verdict is saved and ready for review.";
+      return "Your idea is on the table. Keep going until the case holds up on its own.";
+    return "The hard part is done — your idea has been through the wringer and survived on paper.";
+  })();
+
+  // One next action, chosen by where the founder actually is. This is
+  // what the single dark card on the page carries.
+  const nextAction = (() => {
+    if (!hasRun) {
+      return {
+        title: "Open up your programme",
+        body: venture
+          ? `Sets up your run of the toolkit for ${venture.name}, with the first module ready. It only happens once.`
+          : "Sets up your run of the toolkit, with the first module ready.",
+      };
+    }
+    if (!connection.authorised && !module0Completed) {
+      return {
+        title: "Connect Claude to your workspace",
+        body: "Every module runs as a conversation. Two minutes of setup, then you never think about it again.",
+        href: "/connection",
+        cta: "Set up the connection",
+      };
+    }
+    if (!module0Completed) {
+      return {
+        title: "Run the setup check",
+        body: "Five minutes in Claude to prove the whole path works, before anything is riding on it.",
+        href: `/modules/${MODULE_0_KEY}`,
+        cta: "Open Module 0",
+      };
+    }
+    if (!verdictReady) {
+      return {
+        title: "Put your idea under pressure",
+        body: "Six questions, an honest verdict, and a decision you have to defend: proceed, pivot or kill.",
+        href: `/modules/${MODULE_1_KEY}`,
+        cta: "Open Module 1",
+      };
+    }
+    return {
+      title: "Your verdict is on the record",
+      body: "It stays here, versioned, ready for a mentor to pick apart when review opens.",
+      href: "/artefacts",
+      cta: "View artefacts",
+    };
   })();
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-16">
+    <main className="mx-auto max-w-5xl px-6 py-14">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Welcome back, {firstName(session.user.name)}
+          <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+            Welcome back, {resolveGreetingName(profile, session.user.name)}
           </h1>
-          <p className="mt-3 max-w-2xl text-lg leading-8 text-muted-foreground">
+          <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
             {welcomeSub}
           </p>
         </div>
-        <RecheckButton className="shrink-0" />
+        <RecheckButton className="mt-2 shrink-0" />
       </div>
 
       <div className="mt-10">
-        {!hasRun ? (
-          <div className="rounded-[2rem] border border-border bg-card p-8 text-center shadow-sm">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-              Getting started
-            </p>
-            <h2 className="mt-4 text-2xl font-semibold tracking-tight">
-              Set up your module plan
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-muted-foreground">
-              This creates your personal run of the toolkit
-              {venture ? (
-                <>
-                  {" "}
-                  for <span className="font-semibold">{venture.name}</span>
-                </>
-              ) : null}
-              , with Module 0 ready to start. It only ever happens once.
-            </p>
-            {venture ? (
-              <StartRunButton
-                ventureId={venture.id}
-                className="mt-6 flex justify-center"
-              />
+        <NextActionCard title={nextAction.title} body={nextAction.body}>
+          {!hasRun ? (
+            venture ? (
+              <StartRunButton ventureId={venture.id} label="Set it up" />
             ) : (
-              <p className="mt-6 text-sm text-muted-foreground">
-                You need an active Venture first —{" "}
-                <Link href="/workspace" className="underline">
-                  create one here
-                </Link>
-                .
-              </p>
-            )}
-          </div>
-        ) : verdictReady ? (
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-border bg-muted/40 p-6">
-            <div>
-              <p className="text-base font-semibold text-foreground">
-                Next: review your Pressure-Test Verdict with a mentor
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Mentor review is coming in an upcoming release — your verdict is
-                safe here in the meantime.
-              </p>
-            </div>
-            <Link
-              href="/artefacts"
-              className="shrink-0 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted"
-            >
-              View artefacts
-            </Link>
-          </div>
-        ) : (
+              <Button asChild size="lg">
+                <Link href="/workspace">Create a venture first</Link>
+              </Button>
+            )
+          ) : nextAction.href ? (
+            <Button asChild size="lg">
+              <Link href={nextAction.href}>{nextAction.cta}</Link>
+            </Button>
+          ) : null}
+        </NextActionCard>
+      </div>
+
+      {hasRun && !verdictReady ? (
+        <div className="mt-12">
           <SetupStepper steps={steps} />
+        </div>
+      ) : null}
+
+      <div className="mt-12 grid grid-cols-3 divide-x divide-border border-y border-border">
+        <Stat value={`${unlockedCount}`} suffix={`/${catalog.length}`}>
+          Modules unlocked
+        </Stat>
+        <Stat value={`${artefactsSaved}`}>Artefacts saved</Stat>
+        {readyForReviewCount > 0 ? (
+          <Stat value={`${readyForReviewCount}`}>Ready for review</Stat>
+        ) : (
+          <Stat
+            value={venture ? formatLifecycleStage(venture.lifecycleStage) : "—"}
+          >
+            {venture ? (
+              "Current stage"
+            ) : (
+              <>
+                No venture yet ·{" "}
+                <Link href="/workspace" className="underline">
+                  create one
+                </Link>
+              </>
+            )}
+          </Stat>
         )}
       </div>
 
-      <div className="mt-6 grid gap-6 sm:grid-cols-3">
-        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-          <p className="text-3xl font-semibold tracking-tight">
-            {unlockedCount}
-            <span className="text-base font-semibold text-muted-foreground">
-              /{catalog.length}
-            </span>
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">Modules unlocked</p>
-        </div>
-        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-          <p className="text-3xl font-semibold tracking-tight">
-            {artefactsSaved}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">Artefacts saved</p>
-        </div>
-        <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm">
-          {readyForReviewCount > 0 ? (
-            <>
-              <p className="text-3xl font-semibold tracking-tight">
-                {readyForReviewCount}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Ready for review
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-3xl font-semibold tracking-tight">
-                {venture ? formatLifecycleStage(venture.lifecycleStage) : "—"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {venture ? (
-                  "Current stage"
-                ) : (
-                  <>
-                    No Venture yet ·{" "}
-                    <Link href="/workspace" className="underline">
-                      create one
-                    </Link>
-                  </>
-                )}
-              </p>
-            </>
-          )}
-        </div>
-      </div>
-
       <div className="mt-14 flex items-baseline justify-between gap-4">
-        <h2 className="text-2xl font-semibold tracking-tight">Your modules</h2>
+        <h2 className="font-serif text-2xl font-medium tracking-[-0.01em]">
+          Your modules
+        </h2>
         <Link
           href="/modules"
-          className="text-sm font-semibold text-foreground hover:underline"
+          className="text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
-          View all modules
+          View all
         </Link>
       </div>
-      <div className="mt-6 grid gap-6 md:grid-cols-2">
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
         {liveModules.map((module) => (
           <ModuleStatusCard
             key={module.moduleKey}
@@ -256,17 +247,38 @@ export default async function DashboardPage() {
       </div>
 
       {comingSoonCount > 0 ? (
-        <div className="mt-6 rounded-[2rem] border border-border bg-muted/40 p-6">
-          <p className="text-sm leading-6 text-muted-foreground">
-            <span className="font-semibold text-foreground">
-              {comingSoonCount} more modules
-            </span>{" "}
-            (customer discovery, validation and beyond) are on their way.
-            They&apos;ll appear here as the program grows — no action needed
-            from you.
-          </p>
-        </div>
+        <p className="mt-5 text-sm leading-6 text-muted-foreground">
+          <span className="font-medium text-foreground">
+            {comingSoonCount} more modules
+          </span>{" "}
+          — customer, problem, evidence, business model — open as you work
+          through the ones above.
+        </p>
       ) : null}
     </main>
+  );
+}
+
+// Figures get the display face and tabular numerals so a row of stats
+// lines up on the decimal and reads as data, not as body copy.
+function Stat({
+  value,
+  suffix,
+  children,
+}: {
+  value: string;
+  suffix?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="px-5 py-6 first:pl-0 last:pr-0">
+      <p className="font-serif text-[2rem] font-medium leading-none tabular-nums tracking-[-0.02em]">
+        {value}
+        {suffix ? (
+          <span className="text-lg text-muted-foreground">{suffix}</span>
+        ) : null}
+      </p>
+      <p className="mt-2 text-[13px] text-muted-foreground">{children}</p>
+    </div>
   );
 }

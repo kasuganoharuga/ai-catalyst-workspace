@@ -6,9 +6,11 @@ import {
   getCurrentFounderActor,
   getCurrentFounderSession,
 } from "@/lib/current-founder-actor";
+import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
 import { getVenture } from "@/lib/ventures";
 
 import { AppSidebarNavigation } from "./app-sidebar-navigation";
+import { UserMenu } from "./user-menu";
 
 export async function AppSidebar() {
   const [actor, session] = await Promise.all([
@@ -16,28 +18,32 @@ export async function AppSidebar() {
     getCurrentFounderSession(),
   ]);
 
-  const activeContext = await getActiveContext(actor);
+  const [activeContext, profile] = await Promise.all([
+    getActiveContext(actor),
+    getMyProfile(actor),
+  ]);
   const venture = activeContext.ventureId
     ? await getVenture(actor, activeContext.ventureId)
     : null;
 
   return (
-    <aside className="hidden w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
+    // Sticky full-height column: navigation and the account menu stay
+    // reachable no matter how long the page below scrolls.
+    <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
       <Link href="/dashboard" className="block px-6 py-6">
         <Logo />
       </Link>
 
       <AppSidebarNavigation />
 
-      <div className="mt-auto border-t border-sidebar-border px-6 py-5">
-        <p className="truncate text-sm font-semibold text-foreground">
-          {session.user.name}
-        </p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">
-          {venture
-            ? `${venture.name} · ${venture.lifecycleStage}`
-            : "No active Venture yet"}
-        </p>
+      <div className="mt-auto border-t border-sidebar-border p-3">
+        <UserMenu
+          name={resolveDisplayName(profile, session.user.name)}
+          email={session.user.email}
+          subtitle={venture ? venture.name : "No active venture"}
+          side="top"
+          align="start"
+        />
       </div>
     </aside>
   );

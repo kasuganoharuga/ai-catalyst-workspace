@@ -116,7 +116,10 @@ describe("mcp-auth service — database integration", () => {
     return accessToken;
   }
 
-  async function createVerification(value: object, options: { expired?: boolean } = {}): Promise<string> {
+  async function createVerification(
+    value: object,
+    options: { expired?: boolean } = {},
+  ): Promise<string> {
     const identifier = newConsentCode();
     await pool.query(
       `insert into verifications (identifier, value, expires_at)
@@ -124,11 +127,33 @@ describe("mcp-auth service — database integration", () => {
       [
         identifier,
         JSON.stringify(value),
-        options.expired ? new Date(Date.now() - 60_000) : new Date(Date.now() + 600_000),
+        options.expired
+          ? new Date(Date.now() - 60_000)
+          : new Date(Date.now() + 600_000),
       ],
     );
     createdVerificationIdentifiers.push(identifier);
     return identifier;
+  }
+
+  // Mirrors what apps/mcp's audit wrapper writes on every tool call.
+  // `created_at` is set explicitly so a test can place activity at a
+  // chosen distance in the past.
+  async function insertAuditLog(
+    userId: string,
+    options: { minutesAgo?: number; outcome?: string } = {},
+  ): Promise<void> {
+    await pool.query(
+      `insert into mcp_tool_audit_logs
+         (request_id, user_id, provider, tool_name, outcome, created_at)
+       values ($1, $2, 'claude', 'list_modules', $3, now() - ($4 * interval '1 minute'))`,
+      [
+        `${idPrefix}-req-${randomUUID()}`,
+        userId,
+        options.outcome ?? "success",
+        options.minutesAgo ?? 0,
+      ],
+    );
   }
 
   function hashConsentCodeForCleanup(consentCode: string): string {
@@ -137,24 +162,34 @@ describe("mcp-auth service — database integration", () => {
 
   function createPkcePair(): { codeVerifier: string; codeChallenge: string } {
     const codeVerifier = randomFromAlphabet(ALPHANUMERIC, 64);
-    const codeChallenge = createHash("sha256").update(codeVerifier, "utf8").digest("base64url");
+    const codeChallenge = createHash("sha256")
+      .update(codeVerifier, "utf8")
+      .digest("base64url");
     return { codeVerifier, codeChallenge };
   }
 
   afterAll(async () => {
-    await pool.query("delete from mcp_oauth_access_tokens where client_id = any($1::text[])", [
-      createdClientIds,
-    ]);
-    await pool.query("delete from mcp_oauth_consents where client_id = any($1::text[])", [
-      createdClientIds,
-    ]);
-    await pool.query("delete from mcp_oauth_applications where client_id = any($1::text[])", [
-      createdClientIds,
-    ]);
+    await pool.query(
+      "delete from mcp_tool_audit_logs where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query(
+      "delete from mcp_oauth_access_tokens where client_id = any($1::text[])",
+      [createdClientIds],
+    );
+    await pool.query(
+      "delete from mcp_oauth_consents where client_id = any($1::text[])",
+      [createdClientIds],
+    );
+    await pool.query(
+      "delete from mcp_oauth_applications where client_id = any($1::text[])",
+      [createdClientIds],
+    );
     if (createdVerificationIdentifiers.length > 0) {
-      await pool.query("delete from verifications where identifier = any($1::text[])", [
-        createdVerificationIdentifiers,
-      ]);
+      await pool.query(
+        "delete from verifications where identifier = any($1::text[])",
+        [createdVerificationIdentifiers],
+      );
     }
     if (createdConsentClaimHashes.length > 0) {
       await pool.query(
@@ -162,7 +197,9 @@ describe("mcp-auth service — database integration", () => {
         [createdConsentClaimHashes],
       );
     }
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
+    await pool.query("delete from users where id = any($1::uuid[])", [
+      createdUserIds,
+    ]);
   });
 
   describe("verifyMcpBearerToken", () => {
@@ -183,13 +220,17 @@ describe("mcp-auth service — database integration", () => {
     });
 
     it("rejects a malformed token without querying the database", async () => {
-      await expect(verifyMcpBearerToken("not-a-real-token")).rejects.toMatchObject({
+      await expect(
+        verifyMcpBearerToken("not-a-real-token"),
+      ).rejects.toMatchObject({
         code: "UNAUTHENTICATED",
       });
     });
 
     it("rejects an unknown token", async () => {
-      await expect(verifyMcpBearerToken(newAccessToken())).rejects.toMatchObject({
+      await expect(
+        verifyMcpBearerToken(newAccessToken()),
+      ).rejects.toMatchObject({
         code: "UNAUTHENTICATED",
       });
     });
@@ -197,7 +238,9 @@ describe("mcp-auth service — database integration", () => {
     it("rejects an expired token", async () => {
       const userId = await createUser("expired", "founder");
       const clientId = await createClient("expired");
-      const token = await createAccessToken(clientId, userId, { expired: true });
+      const token = await createAccessToken(clientId, userId, {
+        expired: true,
+      });
 
       await expect(verifyMcpBearerToken(token)).rejects.toMatchObject({
         code: "UNAUTHENTICATED",
@@ -206,7 +249,9 @@ describe("mcp-auth service — database integration", () => {
 
     it("rejects a token whose client is disabled", async () => {
       const userId = await createUser("disabled-client", "founder");
-      const clientId = await createClient("disabled-client", { disabled: true });
+      const clientId = await createClient("disabled-client", {
+        disabled: true,
+      });
       const token = await createAccessToken(clientId, userId);
 
       await expect(verifyMcpBearerToken(token)).rejects.toMatchObject({
@@ -341,7 +386,9 @@ describe("mcp-auth service — database integration", () => {
 
     it("throws NOT_FOUND when the client is disabled", async () => {
       const userId = await createUser("consent-disabled-client", "founder");
-      const clientId = await createClient("consent-disabled-client", { disabled: true });
+      const clientId = await createClient("consent-disabled-client", {
+        disabled: true,
+      });
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
@@ -565,7 +612,9 @@ describe("mcp-auth service — database integration", () => {
 
     it("rejects a disabled client as invalid_client", async () => {
       const userId = await createUser("redeem-disabled-client", "founder");
-      const clientId = await createClient("redeem-disabled-client", { disabled: true });
+      const clientId = await createClient("redeem-disabled-client", {
+        disabled: true,
+      });
       const { codeVerifier, codeChallenge } = createPkcePair();
       const code = await createVerification({
         clientId,
@@ -632,7 +681,10 @@ describe("mcp-auth service — database integration", () => {
         redirectUri: "https://claude.ai/callback",
         codeVerifier: `${codeVerifier}-tampered`,
       });
-      expect(wrongVerifier).toMatchObject({ ok: false, error: "invalid_grant" });
+      expect(wrongVerifier).toMatchObject({
+        ok: false,
+        error: "invalid_grant",
+      });
 
       const rightVerifier = await checkAuthorizationCodeIsRedeemable({
         code,
@@ -644,7 +696,9 @@ describe("mcp-auth service — database integration", () => {
     });
 
     it("rejects a deleted user's code as invalid_grant", async () => {
-      const userId = await createUser("redeem-deleted-user", "founder", { deleted: true });
+      const userId = await createUser("redeem-deleted-user", "founder", {
+        deleted: true,
+      });
       const clientId = await createClient("redeem-deleted-user");
       const { codeVerifier, codeChallenge } = createPkcePair();
       const code = await createVerification({
@@ -725,18 +779,26 @@ describe("mcp-auth service — database integration", () => {
       const clientId = await createClient("lookup-valid");
       const client = await getOAuthClientByClientId(clientId);
 
-      expect(client).toMatchObject({ clientId, disabled: false, type: "public" });
+      expect(client).toMatchObject({
+        clientId,
+        disabled: false,
+        type: "public",
+      });
       expect(isValidPublicOAuthClientRecord(client)).toBe(true);
     });
 
     it("returns null for an unknown client_id", async () => {
-      const client = await getOAuthClientByClientId(`${idPrefix}-does-not-exist`);
+      const client = await getOAuthClientByClientId(
+        `${idPrefix}-does-not-exist`,
+      );
       expect(client).toBeNull();
       expect(isValidPublicOAuthClientRecord(client)).toBe(false);
     });
 
     it("flags a disabled client as not a valid public client", async () => {
-      const clientId = await createClient("lookup-disabled", { disabled: true });
+      const clientId = await createClient("lookup-disabled", {
+        disabled: true,
+      });
       const client = await getOAuthClientByClientId(clientId);
       expect(isValidPublicOAuthClientRecord(client)).toBe(false);
     });
@@ -766,7 +828,9 @@ describe("mcp-auth service — database integration", () => {
     });
 
     it("returns null for a deleted account", async () => {
-      const userId = await createUser("authorizable-deleted", "founder", { deleted: true });
+      const userId = await createUser("authorizable-deleted", "founder", {
+        deleted: true,
+      });
       await expect(getAuthorizableUserById(userId)).resolves.toBeNull();
     });
 
@@ -779,24 +843,29 @@ describe("mcp-auth service — database integration", () => {
     it("rejects a non-founder actor", async () => {
       const userId = await createUser("conn-admin", "admin");
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "admin" })),
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "admin" }),
+        ),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
 
-    it("reports never-connected for a founder with no tokens or consents", async () => {
+    it("reports nothing at all for a founder with no tokens or consents", async () => {
       const userId = await createUser("conn-none", "founder");
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "founder" }),
+        ),
       ).resolves.toEqual({
-        connected: false,
+        authorised: false,
         clientName: null,
-        connectedAt: null,
+        authorisedAt: null,
         expiresAt: null,
-        hasEverConnected: false,
+        hasEverAuthorised: false,
+        lastActivityAt: null,
       });
     });
 
-    it("reports connected with client metadata for a live token", async () => {
+    it("reports authorised with client metadata for a live token", async () => {
       const userId = await createUser("conn-live", "founder");
       const clientId = await createClient("conn-live");
       await createAccessToken(clientId, userId);
@@ -809,14 +878,88 @@ describe("mcp-auth service — database integration", () => {
       const status = await getMcpConnectionStatus(
         createWebActorContext({ userId, role: "founder" }),
       );
-      expect(status.connected).toBe(true);
+      expect(status.authorised).toBe(true);
       expect(status.clientName).toBe("Test Client conn-live");
-      expect(status.hasEverConnected).toBe(true);
-      expect(status.connectedAt).not.toBeNull();
-      expect(new Date(status.expiresAt as string).getTime()).toBeGreaterThan(Date.now());
+      expect(status.hasEverAuthorised).toBe(true);
+      expect(status.authorisedAt).not.toBeNull();
+      expect(new Date(status.expiresAt as string).getTime()).toBeGreaterThan(
+        Date.now(),
+      );
     });
 
-    it("reports disconnected-but-previously-connected once every token has expired", async () => {
+    // The distinction the whole two-field split exists for: a valid token
+    // says nothing about whether the client has ever actually called us.
+    it("reports a live token with no tool calls as authorised but never used", async () => {
+      const userId = await createUser("conn-never-used", "founder");
+      const clientId = await createClient("conn-never-used");
+      await createAccessToken(clientId, userId);
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.authorised).toBe(true);
+      expect(status.lastActivityAt).toBeNull();
+    });
+
+    it("surfaces the most recent tool call as lastActivityAt", async () => {
+      const userId = await createUser("conn-activity", "founder");
+      const clientId = await createClient("conn-activity");
+      await createAccessToken(clientId, userId);
+
+      await insertAuditLog(userId, { minutesAgo: 90 });
+      await insertAuditLog(userId, { minutesAgo: 2 });
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      const elapsedMinutes =
+        (Date.now() - new Date(status.lastActivityAt as string).getTime()) /
+        60_000;
+      expect(elapsedMinutes).toBeGreaterThan(1);
+      expect(elapsedMinutes).toBeLessThan(5);
+    });
+
+    // A client that reaches us and gets rejected is still a client that
+    // reached us — failed calls are evidence of liveness too.
+    it("counts a denied tool call as activity", async () => {
+      const userId = await createUser("conn-denied-activity", "founder");
+      const clientId = await createClient("conn-denied-activity");
+      await createAccessToken(clientId, userId);
+      await insertAuditLog(userId, { minutesAgo: 1, outcome: "denied" });
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.lastActivityAt).not.toBeNull();
+    });
+
+    it("keeps one founder's activity out of another's status", async () => {
+      const userId = await createUser("conn-activity-mine", "founder");
+      const otherUserId = await createUser("conn-activity-theirs", "founder");
+      const clientId = await createClient("conn-activity-isolation");
+      await createAccessToken(clientId, userId);
+      await insertAuditLog(otherUserId, { minutesAgo: 1 });
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.lastActivityAt).toBeNull();
+    });
+
+    it("keeps reporting activity after the token has expired", async () => {
+      const userId = await createUser("conn-expired-activity", "founder");
+      const clientId = await createClient("conn-expired-activity");
+      await createAccessToken(clientId, userId, { expired: true });
+      await insertAuditLog(userId, { minutesAgo: 30 });
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.authorised).toBe(false);
+      expect(status.lastActivityAt).not.toBeNull();
+    });
+
+    it("reports previously-authorised once every token has expired", async () => {
       const userId = await createUser("conn-expired", "founder");
       const clientId = await createClient("conn-expired");
       await createAccessToken(clientId, userId, { expired: true });
@@ -827,11 +970,13 @@ describe("mcp-auth service — database integration", () => {
       );
 
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "founder" }),
+        ),
       ).resolves.toMatchObject({
-        connected: false,
+        authorised: false,
         clientName: null,
-        hasEverConnected: true,
+        hasEverAuthorised: true,
       });
     });
 
@@ -841,11 +986,13 @@ describe("mcp-auth service — database integration", () => {
       await createAccessToken(clientId, userId);
 
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
-      ).resolves.toMatchObject({ connected: false });
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "founder" }),
+        ),
+      ).resolves.toMatchObject({ authorised: false });
     });
 
-    it("does not treat a consent_given=false record as ever-connected", async () => {
+    it("does not treat a consent_given=false record as ever-authorised", async () => {
       const userId = await createUser("conn-denied", "founder");
       const clientId = await createClient("conn-denied");
       await pool.query(
@@ -855,8 +1002,13 @@ describe("mcp-auth service — database integration", () => {
       );
 
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
-      ).resolves.toMatchObject({ connected: false, hasEverConnected: false });
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "founder" }),
+        ),
+      ).resolves.toMatchObject({
+        authorised: false,
+        hasEverAuthorised: false,
+      });
     });
   });
 
@@ -930,11 +1082,24 @@ describe("mcp-auth service — database integration", () => {
 
       const remainingApplications = await pool.query<{ client_id: string }>(
         `select client_id from mcp_oauth_applications where client_id = any($1::text[])`,
-        [[expiredTokenClientId, liveTokenClientId, orphanedClientId, recentClientId]],
+        [
+          [
+            expiredTokenClientId,
+            liveTokenClientId,
+            orphanedClientId,
+            recentClientId,
+          ],
+        ],
       );
-      const remainingClientIds = remainingApplications.rows.map((row) => row.client_id);
+      const remainingClientIds = remainingApplications.rows.map(
+        (row) => row.client_id,
+      );
       expect(remainingClientIds).toEqual(
-        expect.arrayContaining([expiredTokenClientId, liveTokenClientId, recentClientId]),
+        expect.arrayContaining([
+          expiredTokenClientId,
+          liveTokenClientId,
+          recentClientId,
+        ]),
       );
       expect(remainingClientIds).not.toContain(orphanedClientId);
     });

@@ -101,12 +101,12 @@ export function Module0Guide({
           </span>
           <div>
             <p className="text-sm font-semibold text-foreground">
-              The Setup Summary saves itself — and Module 1 unlocks
+              Come back here and confirm
             </p>
             <p className="mt-1 text-sm leading-6 text-muted-foreground">
-              Once everything passes, a summary document lands in your workspace
-              automatically and Module 0 marks itself complete. No confirm
-              button, nothing to upload.
+              Once the checks pass, a Setup Summary lands in your workspace
+              automatically — but nothing moves on until you&apos;ve read it and
+              confirmed on this page. That&apos;s what opens Module 1.
             </p>
           </div>
         </li>

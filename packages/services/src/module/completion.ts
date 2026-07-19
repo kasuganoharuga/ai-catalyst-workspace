@@ -14,7 +14,10 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
-import { startOrResumeAttempt, submitAttempt } from "@ai-catalyst/services/attempt";
+import {
+  startOrResumeAttempt,
+  submitAttempt,
+} from "@ai-catalyst/services/attempt";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
   getArtifactSubmission,
@@ -79,7 +82,10 @@ function mapAttemptRow(row: AttemptRow): ModuleAttempt {
   };
 }
 
-async function loadAttemptRow(attemptId: string, workspaceId: string): Promise<AttemptRow | null> {
+async function loadAttemptRow(
+  attemptId: string,
+  workspaceId: string,
+): Promise<AttemptRow | null> {
   const result = await pool.query<AttemptRow>(
     `select ${ATTEMPT_COLUMNS} from module_attempts where id = $1 and workspace_id = $2`,
     [attemptId, workspaceId],
@@ -190,7 +196,10 @@ async function ensureSetupSummarySubmission(
     : `Run #${context.run_number}`;
 
   for (const { artifact_key: artifactKey } of requiredArtifactsResult.rows) {
-    const existing = await getArtifactSubmission(actor, { attemptId, artifactKey });
+    const existing = await getArtifactSubmission(actor, {
+      attemptId,
+      artifactKey,
+    });
     if (existing) {
       continue;
     }
@@ -277,14 +286,17 @@ export interface NextModuleUnlocked {
 }
 
 // Locks program_run_modules FIRST, then module_attempts — same
-// lock-ordering convention as attempt/index.ts. Only ever called once
-// runOfficialValidation has already moved the Attempt to
-// 'ready_for_review' within this same completeModuleAttempt invocation;
+// lock-ordering convention as attempt/index.ts. The Attempt must already
+// be at 'ready_for_review' (put there by runOfficialValidation); this
 // re-verifies that under the lock rather than trusting the caller's
 // now-stale read.
+//
+// `actor` is the Founder confirming their own output, not a system
+// actor: this is a deliberate human action, and the events and
+// accepted_by/completed_by columns record who took it.
 async function completeSystemModule(
   client: PoolClient,
-  systemActor: ActorContext,
+  actor: ActorContext,
   workspaceId: string,
   runModuleId: string,
   attemptId: string,
@@ -307,7 +319,10 @@ async function completeSystemModule(
     );
   }
 
-  const attemptResult = await client.query<{ id: string; status: ModuleAttemptStatus }>(
+  const attemptResult = await client.query<{
+    id: string;
+    status: ModuleAttemptStatus;
+  }>(
     `select id, status from module_attempts where id = $1 and program_run_module_id = $2 for update`,
     [attemptId, runModule.id],
   );
@@ -324,17 +339,17 @@ async function completeSystemModule(
 
   await client.query(
     `update module_attempts
-     set status = 'accepted', accepted_at = now(), accepted_by_user_id = null, updated_at = now()
+     set status = 'accepted', accepted_at = now(), accepted_by_user_id = $2, updated_at = now()
      where id = $1`,
-    [attempt.id],
+    [attempt.id, actor.userId],
   );
 
   await client.query(
     `update program_run_modules
-     set status = 'completed', completed_at = now(), completed_by_user_id = null,
+     set status = 'completed', completed_at = now(), completed_by_user_id = $3,
          accepted_attempt_id = $1, active_attempt_id = null, updated_at = now()
      where id = $2`,
-    [attempt.id, runModule.id],
+    [attempt.id, runModule.id, actor.userId],
   );
 
   await insertCompletionEvent(client, {
@@ -344,7 +359,7 @@ async function completeSystemModule(
     programRunModuleId: runModule.id,
     moduleAttemptId: attempt.id,
     eventType: "attempt_accepted",
-    actor: systemActor,
+    actor,
   });
   await insertCompletionEvent(client, {
     workspaceId,
@@ -353,7 +368,7 @@ async function completeSystemModule(
     programRunModuleId: runModule.id,
     moduleAttemptId: attempt.id,
     eventType: "module_completed",
-    actor: systemActor,
+    actor,
   });
 
   const nextModuleResult = await client.query<{
@@ -392,10 +407,14 @@ async function completeSystemModule(
     programRunModuleId: nextModule.id,
     moduleAttemptId: null,
     eventType: "module_unlocked",
-    actor: systemActor,
+    actor,
   });
 
-  return { id: nextModule.id, moduleKey: nextModule.module_key, title: nextModule.title_snapshot };
+  return {
+    id: nextModule.id,
+    moduleKey: nextModule.module_key,
+    title: nextModule.title_snapshot,
+  };
 }
 
 // Phase A of Pivot: cancels the Attempt the Founder just pivoted away
@@ -430,7 +449,10 @@ async function cancelAttemptForPivot(
     throw new ServiceError("NOT_FOUND", "Module not found.");
   }
 
-  const attemptResult = await client.query<{ id: string; status: ModuleAttemptStatus }>(
+  const attemptResult = await client.query<{
+    id: string;
+    status: ModuleAttemptStatus;
+  }>(
     `select id, status from module_attempts where id = $1 and program_run_module_id = $2 for update`,
     [attemptId, runModule.id],
   );
@@ -465,13 +487,18 @@ async function cancelAttemptForPivot(
   });
 }
 
-function normalizeCompleteModuleAttemptInput(input: unknown): { attemptId: string } {
+function normalizeCompleteModuleAttemptInput(input: unknown): {
+  attemptId: string;
+} {
   if (typeof input !== "object" || input === null || !("attemptId" in input)) {
     throw new ServiceError("VALIDATION_ERROR", "attemptId is required.");
   }
   const { attemptId } = input as { attemptId: unknown };
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   return { attemptId };
 }
@@ -482,12 +509,22 @@ export interface CompleteModuleAttemptResult {
   // Mirrors RunOfficialValidationResult's own field — required Artifacts
   // with no submission at all. Always [] once passed is true.
   missingArtifactKeys: string[];
-  // True only when this call (or an earlier idempotent one) drove the
-  // Module all the way to program_run_modules.status = 'completed' —
-  // i.e. the `completion_mode = 'system'` branch. Module 1-style Modules
-  // never set this; their real completion is a future Mentor decision.
+  // True only when the Module is already at
+  // program_run_modules.status = 'completed' — which, since Founder
+  // confirmation became a required step, only happens on the idempotent
+  // replay of an already-confirmed Attempt. A first successful pass
+  // through this function now leaves the Module awaiting confirmation
+  // instead.
   moduleCompleted: boolean;
+  // Set only when this call itself completed the Module, which is now
+  // exclusively confirmModuleCompletion's job. Kept on this result so an
+  // idempotent replay can still report what happened.
   nextModuleUnlocked: NextModuleUnlocked | null;
+  // True once validation has passed and the Attempt is sitting at
+  // 'ready_for_review', waiting for the Founder to confirm the output on
+  // the website. This is the normal terminal state of a successful
+  // `complete_module` call from MCP.
+  awaitingConfirmation: boolean;
   // True only on the Pivot branch: the submitted Attempt has been
   // cancelled and `retryAttempt` is the new one the Founder should
   // continue with instead.
@@ -524,7 +561,10 @@ export async function completeModuleAttempt(
 ): Promise<CompleteModuleAttemptResult> {
   assertRole(actor, ["founder"]);
   const normalized = normalizeCompleteModuleAttemptInput(input);
-  const attemptId = parseEntityIdOrNotFound(normalized.attemptId, "Attempt not found.");
+  const attemptId = parseEntityIdOrNotFound(
+    normalized.attemptId,
+    "Attempt not found.",
+  );
   const workspace = await resolveFounderWorkspace(actor);
 
   const initialAttempt = await loadAttemptRow(attemptId, workspace.id);
@@ -539,12 +579,16 @@ export async function completeModuleAttempt(
       missingArtifactKeys: [],
       moduleCompleted: true,
       nextModuleUnlocked: null,
+      awaitingConfirmation: false,
       pivoted: false,
       retryAttempt: null,
     };
   }
 
-  const context = await loadCompletionContext(initialAttempt.program_run_module_id, workspace.id);
+  const context = await loadCompletionContext(
+    initialAttempt.program_run_module_id,
+    workspace.id,
+  );
   if (!context) {
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
@@ -553,27 +597,37 @@ export async function completeModuleAttempt(
   }
 
   if (context.module_type === "setup") {
-    await ensureSetupSummarySubmission(actor, attemptId, context.module_definition_id, context);
+    await ensureSetupSummarySubmission(
+      actor,
+      attemptId,
+      context.module_definition_id,
+      context,
+    );
   }
 
   await submitAttempt(actor, { attemptId });
 
   // Only runOfficialValidation itself needs `source: 'system'` (its own
-  // assertOfficialValidationAuthority requires it) — the accept/complete/
-  // unlock branch below reuses the same synthetic actor purely for its
-  // own module_events attribution (a `completion_mode = 'system'` Module
-  // completes itself; nobody "reviewed" it), while the Pivot branch
-  // further down deliberately uses the original founder `actor` instead,
-  // because cancelling the pivoted-from Attempt and starting its Retry
-  // are both direct, transparent consequences of the Founder's own
-  // `final_decision` answer, not an autonomous system action.
+  // assertOfficialValidationAuthority requires it). Nothing else in this
+  // function uses a synthetic actor any more: accepting and unlocking
+  // moved out to confirmModuleCompletion, where the Founder is the one
+  // taking the action, and the Pivot branch below has always used the
+  // Founder's own actor because cancelling the pivoted-from Attempt is a
+  // direct consequence of their `final_decision` answer.
   const systemActor: ActorContext = { ...actor, source: "system" };
-  const validation = await runOfficialValidation(systemActor, { attemptId }, deps);
+  const validation = await runOfficialValidation(
+    systemActor,
+    { attemptId },
+    deps,
+  );
 
   if (!validation.passed) {
     const attemptRow = await loadAttemptRow(attemptId, workspace.id);
     if (!attemptRow) {
-      throw new ServiceError("INTERNAL_INVARIANT_ERROR", `Attempt ${attemptId} disappeared mid-flight.`);
+      throw new ServiceError(
+        "INTERNAL_INVARIANT_ERROR",
+        `Attempt ${attemptId} disappeared mid-flight.`,
+      );
     }
     return {
       attempt: mapAttemptRow(attemptRow),
@@ -581,41 +635,36 @@ export async function completeModuleAttempt(
       missingArtifactKeys: validation.missingArtifactKeys,
       moduleCompleted: false,
       nextModuleUnlocked: null,
+      awaitingConfirmation: false,
       pivoted: false,
       retryAttempt: null,
     };
   }
 
   if (context.completion_mode === "system") {
-    const client = await pool.connect();
-    let nextModuleUnlocked: NextModuleUnlocked | null = null;
-    try {
-      await client.query("begin");
-      nextModuleUnlocked = await completeSystemModule(
-        client,
-        systemActor,
-        workspace.id,
-        context.run_module_id,
-        attemptId,
-      );
-      await client.query("commit");
-    } catch (error) {
-      await client.query("rollback");
-      throw error;
-    } finally {
-      client.release();
-    }
-
+    // Deliberately stops here rather than completing the Module.
+    //
+    // A `completion_mode = 'system'` Module used to auto-accept and
+    // unlock the next one the moment validation passed, which meant the
+    // whole programme could advance without the Founder ever looking at
+    // the website — and without them ever confirming they were happy
+    // with what the AI produced. Unlocking is now an explicit Founder
+    // action on the website (confirmModuleCompletion); this call leaves
+    // the Attempt at 'ready_for_review' for them to confirm.
     const attemptRow = await loadAttemptRow(attemptId, workspace.id);
     if (!attemptRow) {
-      throw new ServiceError("INTERNAL_INVARIANT_ERROR", `Attempt ${attemptId} disappeared mid-flight.`);
+      throw new ServiceError(
+        "INTERNAL_INVARIANT_ERROR",
+        `Attempt ${attemptId} disappeared mid-flight.`,
+      );
     }
     return {
       attempt: mapAttemptRow(attemptRow),
       passed: true,
       missingArtifactKeys: [],
-      moduleCompleted: true,
-      nextModuleUnlocked,
+      moduleCompleted: false,
+      nextModuleUnlocked: null,
+      awaitingConfirmation: true,
       pivoted: false,
       retryAttempt: null,
     };
@@ -630,7 +679,10 @@ export async function completeModuleAttempt(
   if (finalDecision !== "pivot") {
     const attemptRow = await loadAttemptRow(attemptId, workspace.id);
     if (!attemptRow) {
-      throw new ServiceError("INTERNAL_INVARIANT_ERROR", `Attempt ${attemptId} disappeared mid-flight.`);
+      throw new ServiceError(
+        "INTERNAL_INVARIANT_ERROR",
+        `Attempt ${attemptId} disappeared mid-flight.`,
+      );
     }
     return {
       attempt: mapAttemptRow(attemptRow),
@@ -638,6 +690,7 @@ export async function completeModuleAttempt(
       missingArtifactKeys: [],
       moduleCompleted: false,
       nextModuleUnlocked: null,
+      awaitingConfirmation: true,
       pivoted: false,
       retryAttempt: null,
     };
@@ -646,7 +699,13 @@ export async function completeModuleAttempt(
   const client = await pool.connect();
   try {
     await client.query("begin");
-    await cancelAttemptForPivot(client, actor, workspace.id, context.run_module_id, attemptId);
+    await cancelAttemptForPivot(
+      client,
+      actor,
+      workspace.id,
+      context.run_module_id,
+      attemptId,
+    );
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
@@ -662,7 +721,10 @@ export async function completeModuleAttempt(
 
   const cancelledAttemptRow = await loadAttemptRow(attemptId, workspace.id);
   if (!cancelledAttemptRow) {
-    throw new ServiceError("INTERNAL_INVARIANT_ERROR", `Attempt ${attemptId} disappeared mid-flight.`);
+    throw new ServiceError(
+      "INTERNAL_INVARIANT_ERROR",
+      `Attempt ${attemptId} disappeared mid-flight.`,
+    );
   }
 
   return {
@@ -671,7 +733,147 @@ export async function completeModuleAttempt(
     missingArtifactKeys: [],
     moduleCompleted: false,
     nextModuleUnlocked: null,
+    awaitingConfirmation: false,
     pivoted: true,
     retryAttempt,
   };
+}
+
+// ---------------------------------------------------------------------
+// confirmModuleCompletion — the website's half of module completion.
+// ---------------------------------------------------------------------
+
+// Takes a programRunModuleId rather than a moduleKey so that resolving
+// the target never goes through the Founder's active context — per the
+// iteration plan's "Active Context is not authorisation", every write
+// path locates its row by id within the caller's own Workspace, the same
+// way startOrResumeAttempt does.
+function normalizeConfirmInput(input: unknown): { programRunModuleId: string } {
+  if (
+    typeof input !== "object" ||
+    input === null ||
+    !("programRunModuleId" in input)
+  ) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "programRunModuleId is required.",
+    );
+  }
+  const { programRunModuleId } = input as { programRunModuleId: unknown };
+  if (
+    typeof programRunModuleId !== "string" ||
+    programRunModuleId.trim().length === 0
+  ) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "programRunModuleId must be a non-blank string.",
+    );
+  }
+  return { programRunModuleId };
+}
+
+export interface ConfirmModuleCompletionResult {
+  programRunModuleId: string;
+  // False only on the idempotent replay path, where the Module was
+  // already completed before this call.
+  justConfirmed: boolean;
+  nextModuleUnlocked: NextModuleUnlocked | null;
+}
+
+/**
+ * The Founder confirming, on the website, that they are happy with what a
+ * Module produced — which is what actually completes it and unlocks the
+ * next one.
+ *
+ * This exists because `complete_module` (MCP) deliberately stops at
+ * `ready_for_review`. Letting the AI client both produce the output and
+ * declare it good would take the Founder out of their own programme: they
+ * could be three modules deep without ever having looked at what was
+ * written in their name. So the AI does the work, and the person whose
+ * business it is signs it off.
+ *
+ * Not a review in the PR 4.2 sense — that is a Mentor judging the content
+ * and is still to come. This is the Founder acknowledging their own
+ * output, so `accepted_by_user_id` is the Founder themselves.
+ *
+ * Idempotent: confirming an already-completed Module returns the current
+ * state rather than erroring, so a double-click or a stale tab can't
+ * produce a confusing failure.
+ */
+export async function confirmModuleCompletion(
+  actor: ActorContext,
+  input: unknown,
+): Promise<ConfirmModuleCompletionResult> {
+  assertRole(actor, ["founder"]);
+  const { programRunModuleId: rawId } = normalizeConfirmInput(input);
+  const programRunModuleId = parseEntityIdOrNotFound(
+    rawId,
+    "Module not found.",
+  );
+  const workspace = await resolveFounderWorkspace(actor);
+
+  const runModuleResult = await pool.query<{
+    id: string;
+    status: string;
+    active_attempt_id: string | null;
+  }>(
+    `select id, status, active_attempt_id
+     from program_run_modules
+     where id = $1 and workspace_id = $2`,
+    [programRunModuleId, workspace.id],
+  );
+  const runModule = runModuleResult.rows[0];
+  if (!runModule) {
+    throw new ServiceError("NOT_FOUND", "Module not found.");
+  }
+
+  if (runModule.status === "completed") {
+    return {
+      programRunModuleId,
+      justConfirmed: false,
+      nextModuleUnlocked: null,
+    };
+  }
+
+  if (!runModule.active_attempt_id) {
+    throw new ServiceError(
+      "MODULE_NOT_READY_FOR_CONFIRMATION",
+      "There's nothing to confirm on this module yet.",
+    );
+  }
+
+  const attempt = await loadAttemptRow(
+    runModule.active_attempt_id,
+    workspace.id,
+  );
+  if (!attempt) {
+    throw new ServiceError("NOT_FOUND", "Attempt not found.");
+  }
+  if (attempt.status !== "ready_for_review") {
+    throw new ServiceError(
+      "MODULE_NOT_READY_FOR_CONFIRMATION",
+      "This module's output hasn't passed its checks yet, so there's nothing to confirm.",
+    );
+  }
+
+  const client = await pool.connect();
+  let nextModuleUnlocked: NextModuleUnlocked | null = null;
+  try {
+    await client.query("begin");
+    nextModuleUnlocked = await completeSystemModule(
+      client,
+      actor,
+      workspace.id,
+      runModule.id,
+      attempt.id,
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  return { programRunModuleId, justConfirmed: true, nextModuleUnlocked };
 }

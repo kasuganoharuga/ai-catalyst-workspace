@@ -1,4 +1,7 @@
-import type { ActorContext, ActorRole } from "@ai-catalyst/contracts/actor-context";
+import type {
+  ActorContext,
+  ActorRole,
+} from "@ai-catalyst/contracts/actor-context";
 
 // Shared business-error shape for every service in this package (not just
 // invitation) — apps/web and apps/mcp both map ServiceError.code to their own
@@ -24,6 +27,12 @@ export type ServiceErrorCode =
   // validation errors: the request is well-formed, but the target
   // Attempt/run_module is not in a state that permits the operation.
   | "RUN_MODULE_NOT_AVAILABLE"
+  // confirmModuleCompletion was called against a Module with nothing to
+  // confirm — no Attempt at all, or one that hasn't passed its official
+  // validation yet. A state conflict (HTTP 409), same family as the
+  // ATTEMPT_* codes: the request is well-formed, the Module just isn't
+  // there yet.
+  | "MODULE_NOT_READY_FOR_CONFIRMATION"
   | "ATTEMPT_PENDING_REVIEW"
   | "ATTEMPT_NOT_EDITABLE"
   | "ATTEMPT_NOT_SUBMITTABLE"

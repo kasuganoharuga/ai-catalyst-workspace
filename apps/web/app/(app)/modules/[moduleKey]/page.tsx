@@ -3,13 +3,14 @@ import { notFound } from "next/navigation";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { getLatestValidation } from "@ai-catalyst/services/artifact";
-import type { ArtifactValidation } from "@ai-catalyst/shared";
+import type { ArtifactValidation, RunModuleSummary } from "@ai-catalyst/shared";
 
+import { Button } from "@/components/ui/button";
 import { getActiveContext } from "@/lib/active-context";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getModuleCatalogEntry } from "@/lib/module-catalog";
-import { getModuleContextByKey } from "@/lib/run-modules";
+import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { getVenture } from "@/lib/ventures";
 
 import { RecheckButton } from "../../components/recheck-button";
@@ -19,10 +20,12 @@ import {
   DECISION_QUESTION_KEYS,
   claudeChatUrl,
   deriveModuleDisplayStatus,
+  moduleAccentStyle,
   startModulePrompt,
 } from "../../lib/module-display";
 import { StatusPill } from "../components/status-pill";
 import { ExpectedOutputCard } from "./components/expected-output-card";
+import { ConfirmCompletionCard } from "./components/confirm-completion-card";
 import { DecisionCard } from "./components/decision-card";
 import { Module0Guide } from "./components/module0-guide";
 import { ModuleRunPanel } from "./components/module-run-panel";
@@ -51,12 +54,13 @@ export default async function ModuleDetailPage({
   }
 
   const isLive = entry.catalogStatus === "live";
-  const [context, connection] = isLive
+  const [context, connection, runResult] = isLive
     ? await Promise.all([
         getModuleContextByKey(actor, moduleKey),
         getMcpConnectionStatus(actor),
+        listRunModules(actor),
       ])
-    : [null, null];
+    : [null, null, { modules: [] as RunModuleSummary[] }];
 
   const runModule = context?.runModule ?? null;
   const activeAttempt = context?.activeAttempt ?? null;
@@ -64,6 +68,17 @@ export default async function ModuleDetailPage({
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
   const verdictReady = activeAttempt?.status === "ready_for_review";
+  // Passed validation and waiting on the Founder's own sign-off, which is
+  // what completes the module and opens the next one.
+  const awaitingConfirmation =
+    verdictReady && runModule !== null && context !== null;
+
+  // What confirming will open, so the card can name it rather than saying
+  // "the next module".
+  const nextModuleTitle = runModule
+    ? (runResult.modules.find((m) => m.sequenceIndex > runModule.sequenceIndex)
+        ?.title ?? null)
+    : null;
 
   // The real failure reasons, only when the last pass didn't stick —
   // fetched here (not in the run panel) so the page decides when the
@@ -103,7 +118,7 @@ export default async function ModuleDetailPage({
     return "Continue in Claude";
   })();
   const showClaudeAction =
-    Boolean(connection?.connected) && runModule !== null && !isLocked;
+    Boolean(connection?.authorised) && runModule !== null && !isLocked;
 
   // Needed only when there's no Run to attach state to yet.
   const activeContext =
@@ -123,7 +138,10 @@ export default async function ModuleDetailPage({
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-secondary font-mono text-base font-bold text-secondary-foreground">
+          <span
+            className="flex h-11 w-11 items-center justify-center rounded-full font-mono text-sm font-semibold tabular-nums text-white"
+            style={moduleAccentStyle(entry.sequenceIndex)}
+          >
             {isCompleted ? "✓" : String(entry.sequenceIndex).padStart(2, "0")}
           </span>
           <h1 className="text-4xl font-semibold tracking-tight">
@@ -136,6 +154,7 @@ export default async function ModuleDetailPage({
               runModule.status,
               activeAttempt?.status ?? null,
             )}
+            moduleIndex={entry.sequenceIndex}
           />
         ) : (
           <StatusPill status={entry.catalogStatus} />
@@ -155,12 +174,9 @@ export default async function ModuleDetailPage({
             This module is still being crafted. It&apos;ll open up as you
             progress through the program — nothing for you to do right now.
           </p>
-          <Link
-            href="/modules"
-            className="mt-6 inline-block rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-muted"
-          >
-            Back to modules
-          </Link>
+          <Button asChild variant="outline" size="lg" className="mt-6">
+            <Link href="/modules">Back to modules</Link>
+          </Button>
         </div>
       ) : null}
 
@@ -198,12 +214,9 @@ export default async function ModuleDetailPage({
             Each module builds on the one before it — finish the previous module
             and this one opens automatically.
           </p>
-          <Link
-            href="/modules"
-            className="shrink-0 rounded-full border border-border bg-card px-5 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted"
-          >
-            Back to modules
-          </Link>
+          <Button asChild variant="outline" className="shrink-0">
+            <Link href="/modules">Back to modules</Link>
+          </Button>
         </div>
       ) : null}
 
@@ -229,7 +242,7 @@ export default async function ModuleDetailPage({
 
             {isSetupModule ? (
               <Module0Guide
-                connected={Boolean(connection?.connected)}
+                connected={Boolean(connection?.authorised)}
                 startPrompt={startPrompt}
               />
             ) : (
@@ -257,41 +270,53 @@ export default async function ModuleDetailPage({
               </>
             )}
 
-            {verdictReady || isCompleted ? (
-              <div className="rounded-[2rem] border border-primary/40 bg-accent p-6">
+            {/* Passed its checks but not yet signed off — the one thing
+                only the Founder can do, and the gate the next module
+                sits behind. */}
+            {awaitingConfirmation ? (
+              <ConfirmCompletionCard
+                programRunModuleId={runModule.id}
+                artifactName={
+                  context.artifacts[0]?.name ??
+                  entry.expectedArtifacts[0]?.name ??
+                  null
+                }
+                nextModuleTitle={nextModuleTitle}
+              />
+            ) : null}
+
+            {isCompleted ? (
+              <div className="rounded-xl border border-primary/40 bg-accent p-6">
                 <p className="text-base font-semibold text-accent-foreground">
-                  {isSetupModule
-                    ? "All checks passed — Module 1 is unlocked"
-                    : "Verdict saved — mentor review comes next"}
+                  {nextModuleTitle
+                    ? `Confirmed — ${nextModuleTitle} is open`
+                    : "Confirmed and done"}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-accent-foreground/80">
-                  {isSetupModule
-                    ? "Your Setup Summary is saved in your workspace. On to the real work."
-                    : "Your Pressure-Test Verdict is safe in your workspace. We'll let you know when mentor review opens up."}
+                  Everything this module produced is saved in your workspace and
+                  stays there.
                 </p>
               </div>
             ) : null}
 
             <div className="flex flex-wrap gap-3">
               {showClaudeAction ? (
-                <a
-                  href={claudeChatUrl(startPrompt)}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-                >
-                  {claudeActionLabel}
-                </a>
+                <Button asChild size="lg">
+                  <a
+                    href={claudeChatUrl(startPrompt)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {claudeActionLabel}
+                  </a>
+                </Button>
               ) : null}
-              {!connection?.connected && !isLocked ? (
-                <Link
-                  href="/connection"
-                  className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-                >
-                  Connect Claude first
-                </Link>
+              {!connection?.authorised && !isLocked ? (
+                <Button asChild size="lg">
+                  <Link href="/connection">Connect Claude first</Link>
+                </Button>
               ) : null}
-              <RecheckButton />
+              <RecheckButton size="lg" />
             </div>
           </div>
 

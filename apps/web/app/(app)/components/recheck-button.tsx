@@ -1,9 +1,10 @@
 "use client";
 
+import { RotateCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 /**
  * Re-reads everything on the page from the database. This is how the
@@ -14,9 +15,13 @@ import { cn } from "@/lib/utils";
 export function RecheckButton({
   label = "Re-check status",
   className,
+  variant = "outline",
+  size,
 }: {
   label?: string;
   className?: string;
+  variant?: "outline" | "default" | "secondary";
+  size?: "default" | "sm" | "lg";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -32,16 +37,16 @@ export function RecheckButton({
   const busy = clicked && isPending;
 
   return (
-    <button
+    <Button
       type="button"
+      variant={variant}
+      size={size}
       onClick={handleClick}
       disabled={busy}
-      className={cn(
-        "rounded-full border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition hover:bg-muted disabled:opacity-60",
-        className,
-      )}
+      className={className}
     >
+      <RotateCw aria-hidden="true" className={busy ? "animate-spin" : ""} />
       {busy ? "Checking…" : label}
-    </button>
+    </Button>
   );
 }

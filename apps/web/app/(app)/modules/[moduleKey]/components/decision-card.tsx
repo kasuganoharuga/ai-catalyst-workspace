@@ -6,7 +6,7 @@ import type { ModuleDisplayStatus } from "../../../lib/module-display";
 function decisionBadge(decision: string): ModuleDisplayStatus {
   switch (decision) {
     case "proceed":
-      return { label: "Proceed", tone: "accent" };
+      return { label: "Proceed", tone: "lime" };
     case "pivot":
       return { label: "Pivot", tone: "warning" };
     case "kill":

@@ -53,24 +53,27 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
-      <div className="flex flex-1 flex-col justify-center px-6 py-16 sm:px-12 lg:px-20">
-        <div className="mx-auto w-full max-w-md">
-          <Logo priority />
-          <h1 className="mt-10 text-4xl font-semibold tracking-tight">
-            Enter your workspace
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Access your toolkit modules, track your progress, and review your
-            outputs. Invite-only.
-          </p>
+      <div className="flex flex-1 flex-col px-6 py-12 sm:px-12 lg:px-20 lg:py-16">
+        <Logo priority />
 
-          <SignInForm returnTo={safeTo} />
+        <div className="flex flex-1 items-center py-12">
+          <div className="w-full max-w-[24rem]">
+            <h1 className="font-serif text-[2.5rem] font-medium leading-[1.1] tracking-[-0.02em]">
+              Keep thinking it through
+            </h1>
+            <p className="mt-4 text-sm leading-6 text-muted-foreground">
+              Sign in to pick up your idea exactly where you left it.
+            </p>
 
-          <p className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
-            <Lock aria-hidden="true" className="h-3.5 w-3.5" />
-            Access is granted per cohort — this is not a public download page.
-          </p>
+            <SignInForm returnTo={safeTo} />
+          </div>
         </div>
+
+        <p className="flex items-center gap-2 border-t border-border pt-6 text-xs text-muted-foreground">
+          <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
+          Places are offered by cohort. Access stays with the founders in the
+          programme.
+        </p>
       </div>
       <SignInBenefitsPanel />
     </div>

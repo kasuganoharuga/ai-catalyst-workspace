@@ -15,22 +15,34 @@ export default async function ModulesPage() {
     runResult.modules.map((runModule) => [runModule.moduleKey, runModule]),
   );
 
+  const openCount = modules.filter((m) => m.catalogStatus === "live").length;
+
   return (
-    <main className="mx-auto max-w-6xl px-6 py-16">
-      <div className="max-w-3xl">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Your modules
+    <main className="mx-auto max-w-5xl px-6 py-14">
+      <div className="max-w-2xl">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          The programme
         </p>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight">
-          Founder Toolkit modules
+        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+          Every module, in order
         </h1>
-        <p className="mt-6 text-lg leading-8 text-muted-foreground">
-          Each module is a guided working session you run in Claude — this page
-          shows where you&apos;re up to. They unlock in order, so everything you
-          learn carries into the next one.
+        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+          Each one is a working session you run in Claude that ends with
+          something written down and kept. They open in sequence, so what you
+          work out in one is already on the table for the next.
         </p>
       </div>
-      <div className="mt-12 grid gap-6 md:grid-cols-2">
+
+      <div className="mt-10 flex items-baseline justify-between gap-4 border-t border-border pt-4">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          All modules
+        </p>
+        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          {openCount} of {modules.length} open
+        </p>
+      </div>
+
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
         {modules.map((module) => {
           const runModule = runModuleByKey.get(module.moduleKey);
           return (

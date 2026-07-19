@@ -29,6 +29,7 @@ function statusForCode(code: ServiceErrorCode): number {
     case "FOUNDER_WORKSPACE_ALREADY_EXISTS":
       return 409;
     case "RUN_MODULE_NOT_AVAILABLE":
+    case "MODULE_NOT_READY_FOR_CONFIRMATION":
     case "ATTEMPT_PENDING_REVIEW":
     case "ATTEMPT_NOT_EDITABLE":
     case "ATTEMPT_NOT_SUBMITTABLE":

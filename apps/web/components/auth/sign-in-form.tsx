@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
 export function SignInForm({ returnTo }: { returnTo: string | null }) {
@@ -33,15 +34,16 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 space-y-5">
+    <form onSubmit={handleSubmit} className="mt-10 space-y-6">
       <Field label="Email">
         <input
           type="email"
           required
           autoComplete="email"
+          placeholder="you@company.com"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+          className="h-11 w-full rounded-md border border-border bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground"
         />
       </Field>
       <Field label="Password">
@@ -51,23 +53,30 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
           autoComplete="current-password"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+          className="h-11 w-full rounded-md border border-border bg-card px-3.5 text-sm text-foreground outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
         />
       </Field>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p
+          role="alert"
+          className="border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
+        >
           {error}
         </p>
       ) : null}
 
-      <button
+      {/* Square-ish, not a pill: the only saturated element on the light
+          half of the page, so its shape does the work instead of a
+          consumer-style capsule. */}
+      <Button
         type="submit"
+        size="lg"
         disabled={isSubmitting}
-        className="w-full rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
+        className="w-full"
       >
-        {isSubmitting ? "Signing in..." : "Continue to workspace"}
-      </button>
+        {isSubmitting ? "Signing in…" : "Continue to workspace"}
+      </Button>
     </form>
   );
 }
@@ -81,7 +90,7 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <span className="mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         {label}
       </span>
       {children}

@@ -47,3 +47,8 @@ export type {
   ModuleContextQuestion,
   ModuleContextArtifactSummary,
 } from "./module-context.js";
+export type {
+  UserProfile,
+  UpdateUserProfileInput,
+  PreferredAiProvider,
+} from "./user-profile.js";

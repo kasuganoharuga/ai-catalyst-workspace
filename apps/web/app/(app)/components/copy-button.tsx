@@ -1,8 +1,9 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export function CopyButton({
   value,
@@ -37,16 +38,15 @@ export function CopyButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
+      size="sm"
       onClick={handleCopy}
-      className={cn(
-        "shrink-0 rounded-full border border-border bg-card px-4 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted",
-        copied && "border-transparent bg-accent text-accent-foreground",
-        className,
-      )}
+      className={className}
     >
+      {copied ? <Check aria-hidden="true" /> : <Copy aria-hidden="true" />}
       {copied ? copiedLabel : label}
-    </button>
+    </Button>
   );
 }

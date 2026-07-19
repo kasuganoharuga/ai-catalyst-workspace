@@ -3,8 +3,14 @@ import { randomUUID } from "node:crypto";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import { ServiceError, type ServiceErrorCode } from "@ai-catalyst/services/errors";
-import { recordMcpToolCall, type McpToolCallOutcome } from "@ai-catalyst/services/audit";
+import {
+  ServiceError,
+  type ServiceErrorCode,
+} from "@ai-catalyst/services/errors";
+import {
+  recordMcpToolCall,
+  type McpToolCallOutcome,
+} from "@ai-catalyst/services/audit";
 
 // The one place every apps/mcp tool handler routes through — per
 // architecture.mdc rule 1, tool handlers are thin shells; this wrapper is
@@ -50,7 +56,9 @@ export interface McpToolHandlerResult {
 // "denied"; every other typed business error -> "validation_error";
 // INTERNAL_INVARIANT_ERROR (never the caller's fault) ->
 // "system_error".
-function outcomeForServiceErrorCode(code: ServiceErrorCode): McpToolCallOutcome {
+function outcomeForServiceErrorCode(
+  code: ServiceErrorCode,
+): McpToolCallOutcome {
   switch (code) {
     case "FORBIDDEN":
     case "UNAUTHENTICATED":
@@ -62,6 +70,7 @@ function outcomeForServiceErrorCode(code: ServiceErrorCode): McpToolCallOutcome 
     case "INVITATION_NOT_PENDING":
     case "FOUNDER_WORKSPACE_ALREADY_EXISTS":
     case "RUN_MODULE_NOT_AVAILABLE":
+    case "MODULE_NOT_READY_FOR_CONFIRMATION":
     case "ATTEMPT_PENDING_REVIEW":
     case "ATTEMPT_NOT_EDITABLE":
     case "ATTEMPT_NOT_SUBMITTABLE":
@@ -131,10 +140,17 @@ export async function withMcpAudit(
   } catch (error) {
     const isServiceError = error instanceof ServiceError;
     if (!isServiceError) {
-      console.error(`Unexpected error in MCP tool "${params.toolName}":`, error);
+      console.error(
+        `Unexpected error in MCP tool "${params.toolName}":`,
+        error,
+      );
     }
-    const outcome = isServiceError ? outcomeForServiceErrorCode(error.code) : "system_error";
-    const clientMessage = isServiceError ? error.message : "Internal server error.";
+    const outcome = isServiceError
+      ? outcomeForServiceErrorCode(error.code)
+      : "system_error";
+    const clientMessage = isServiceError
+      ? error.message
+      : "Internal server error.";
 
     await recordMcpToolCall({
       requestId,

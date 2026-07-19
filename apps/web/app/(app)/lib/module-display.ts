@@ -20,7 +20,31 @@ export const DECISION_QUESTION_KEYS = new Set([
   "pivot_detail",
 ]);
 
-export type StatusTone = "muted" | "accent" | "ink" | "warning";
+// How many --module-accent-N custom properties globals.css defines.
+// Indices wrap, so the programme can grow past seven modules without a
+// code change — module 7 simply reuses module 0's hue.
+const MODULE_ACCENT_COUNT = 7;
+
+/**
+ * Background for a module's number badge — the single element allowed to
+ * carry a module's identity colour. Returned as an inline style rather
+ * than a class because the index is dynamic and Tailwind can only see
+ * class names it can read statically.
+ */
+export function moduleAccentStyle(sequenceIndex: number): {
+  backgroundColor: string;
+} {
+  const index =
+    ((sequenceIndex % MODULE_ACCENT_COUNT) + MODULE_ACCENT_COUNT) %
+    MODULE_ACCENT_COUNT;
+  return { backgroundColor: `var(--module-accent-${index})` };
+}
+
+// Fill treatments, not hues — see components/status-badge.tsx for why.
+// "module" is the exception: it resolves to the module's own accent at
+// render time, which is why StatusBadge needs the module index for it.
+export type StatusTone =
+  "muted" | "outline" | "lime" | "soft" | "ink" | "module" | "warning";
 
 export interface ModuleDisplayStatus {
   label: string;
@@ -30,10 +54,10 @@ export interface ModuleDisplayStatus {
 const RUN_STATUS_DISPLAY: Record<RunModuleStatus, ModuleDisplayStatus> = {
   locked: { label: "Locked", tone: "muted" },
   inherited: { label: "Carried over", tone: "muted" },
-  available: { label: "Ready to start", tone: "accent" },
-  in_progress: { label: "In progress", tone: "accent" },
-  ready_to_unlock: { label: "Almost there", tone: "accent" },
-  completed: { label: "Completed", tone: "accent" },
+  available: { label: "Ready to start", tone: "outline" },
+  in_progress: { label: "In progress", tone: "lime" },
+  ready_to_unlock: { label: "Almost there", tone: "outline" },
+  completed: { label: "Completed", tone: "module" },
 };
 
 /**
@@ -54,7 +78,7 @@ export function deriveModuleDisplayStatus(
       return { label: "Needs another pass", tone: "warning" };
     }
     if (activeAttemptStatus === "submitted") {
-      return { label: "Checking your work", tone: "accent" };
+      return { label: "Checking your work", tone: "soft" };
     }
   }
   return RUN_STATUS_DISPLAY[runStatus];

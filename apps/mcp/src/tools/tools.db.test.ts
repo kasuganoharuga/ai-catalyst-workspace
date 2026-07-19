@@ -7,7 +7,10 @@ import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
-import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
+import {
+  completeModuleAttempt,
+  confirmModuleCompletion,
+} from "@ai-catalyst/services/module/completion";
 import {
   cleanupFixtureAccounts,
   createFixtureFounderAccount,
@@ -218,11 +221,14 @@ describe("PR 2.7 MCP Tools — database integration", () => {
 
   // Every fixture Run seeds a `completion_mode = 'system'` Module 0
   // analogue (sequence_index 0) ahead of "mcp-module-a" (sequence_index
-  // 1) — this helper auto-completes that setup Module via direct Service
-  // calls (the same "bootstrap state the MCP layer itself cannot create
-  // yet" convention this file already uses for startOrResumeAttempt) so
-  // every *other* test below keeps its original, unchanged assumption
-  // that `runModuleId` (mcp-module-a) is immediately 'available'.
+  // 1) — this helper submits+validates that setup Module via
+  // completeModuleAttempt, then confirms it via confirmModuleCompletion
+  // (the website-only half of completion; MCP deliberately stops at
+  // ready_for_review). Same "bootstrap state the MCP layer itself cannot
+  // create yet" convention this file already uses for
+  // startOrResumeAttempt, so every *other* test below keeps its
+  // assumption that `runModuleId` (mcp-module-a) is immediately
+  // 'available'.
   async function createFounderWithActiveRun(label: string): Promise<{
     actor: ActorContext;
     workspaceId: string;
@@ -236,13 +242,14 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       programRunModuleId: setupModuleId,
     });
     await completeModuleAttempt(actor, { attemptId: setupAttempt.id });
+    await confirmModuleCompletion(actor, { programRunModuleId: setupModuleId });
 
     return { actor, workspaceId, ventureId, runModuleId: moduleAId };
   }
 
   // The un-bootstrapped variant, for tests that exercise the setup
-  // Module's own completion (start_module_attempt / complete_module)
-  // directly through the real MCP Tools instead of pre-completing it.
+  // Module's own MCP half of completion (start_module_attempt /
+  // complete_module) directly, without the website confirm step.
   async function createFounderWithFreshRun(label: string): Promise<{
     actor: ActorContext;
     workspaceId: string;
@@ -502,6 +509,7 @@ describe("PR 2.7 MCP Tools — database integration", () => {
         status: "validation_failed",
         passed: false,
         moduleCompleted: false,
+        awaitingConfirmation: false,
         pivoted: false,
         nextModuleUnlocked: null,
       });
@@ -533,8 +541,8 @@ describe("PR 2.7 MCP Tools — database integration", () => {
       expect(secondData.created).toBe(false);
     });
 
-    it("complete_module auto-completes a completion_mode='system' Module and unlocks the next one", async () => {
-      const { actor, setupModuleId, moduleAId } = await createFounderWithFreshRun("system-complete");
+    it("complete_module on a completion_mode='system' Module stops at ready_for_review awaiting website confirmation", async () => {
+      const { actor, setupModuleId } = await createFounderWithFreshRun("system-complete");
       const startResult = await callTool(actor, "start_module_attempt", {
         programRunModuleId: setupModuleId,
       });
@@ -547,24 +555,29 @@ describe("PR 2.7 MCP Tools — database integration", () => {
         attempt: { id: string; status: string };
         passed: boolean;
         moduleCompleted: boolean;
+        awaitingConfirmation: boolean;
         nextModuleUnlocked: { id: string; moduleKey: string } | null;
       };
-      expect(data.attempt.status).toBe("accepted");
+      // MCP must not unlock the next Module — that is
+      // confirmModuleCompletion's job on the website.
+      expect(data.attempt.status).toBe("ready_for_review");
       expect(data.passed).toBe(true);
-      expect(data.moduleCompleted).toBe(true);
-      expect(data.nextModuleUnlocked).toMatchObject({ id: moduleAId, moduleKey: "mcp-module-a" });
+      expect(data.moduleCompleted).toBe(false);
+      expect(data.awaitingConfirmation).toBe(true);
+      expect(data.nextModuleUnlocked).toBeNull();
 
       const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.result_metadata).toMatchObject({
-        status: "accepted",
+        status: "ready_for_review",
         passed: true,
-        moduleCompleted: true,
-        nextModuleUnlocked: "mcp-module-a",
+        moduleCompleted: false,
+        awaitingConfirmation: true,
+        nextModuleUnlocked: null,
       });
 
       const statusResult = await callTool(actor, "get_module_status", { moduleKey: "mcp-module-a" });
-      expect((statusResult.data as { status: string }).status).toBe("available");
+      expect((statusResult.data as { status: string }).status).toBe("locked");
     });
 
     it("save_founder_input on a cross-Workspace attemptId returns a denied/NOT_FOUND isError result", async () => {

@@ -5,7 +5,10 @@ import type { ModuleCatalogEntry, ModuleContext } from "@ai-catalyst/shared";
 import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
-import { deriveModuleDisplayStatus } from "../../lib/module-display";
+import {
+  deriveModuleDisplayStatus,
+  moduleAccentStyle,
+} from "../../lib/module-display";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-AU", {
@@ -41,27 +44,25 @@ export function ModuleStatusCard({
 
   const isSetupModule = catalog.moduleType === "setup";
   const reviewText = isSetupModule
-    ? isCompleted
-      ? "Checked automatically ✓"
-      : "Checked automatically"
+    ? "Automatic"
     : attemptStatus === "ready_for_review" || isCompleted
       ? null // rendered as a badge below instead
-      : "After your verdict is saved";
+      : "After the verdict";
 
   const footHint = (() => {
-    if (!runModule) return "Appears once your module plan is set up";
+    if (!runModule) return "Opens once your programme is set up";
     switch (runModule.status) {
       case "locked":
-        return "Unlocks when the module before it is done";
+        return "Opens when the module before it is done";
       case "available":
         return isSetupModule
-          ? "About 5 minutes, all in Claude"
-          : "Unlocked — run it in Claude when you're ready";
+          ? "About five minutes, all in Claude"
+          : "Open — start it in Claude whenever you're ready";
       case "in_progress":
         if (attemptStatus === "ready_for_review")
           return "Verdict saved — mentor review comes next";
         if (attemptStatus === "validation_failed")
-          return "Nearly there — Claude can help you fix the gaps";
+          return "Close. Claude can help you close the gaps";
         return "In progress — pick it up in Claude anytime";
       case "completed":
         return runModule.completedAt
@@ -73,64 +74,54 @@ export function ModuleStatusCard({
   })();
 
   return (
-    <div
+    <Link
+      href={`/modules/${catalog.moduleKey}`}
       className={cn(
-        "overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm",
-        isLocked && "opacity-70",
+        "group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
+        isLocked && "opacity-60",
       )}
     >
-      <div className="p-6">
-        <div className="flex items-center justify-between gap-4">
+      <div className="p-5">
+        <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-3">
+            {/* Identity, not status: the badge always wears the module's
+                own colour so it stays recognisable in every state, and
+                the pill to the right is what reports progress. */}
             <span
-              className={cn(
-                "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl font-mono text-sm font-bold",
-                isCompleted
-                  ? "bg-accent text-accent-foreground"
-                  : runModule && runModule.status !== "locked"
-                    ? "bg-surface-inverse text-brand-lime"
-                    : "bg-muted text-muted-foreground",
-              )}
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold tabular-nums text-white"
+              style={moduleAccentStyle(catalog.sequenceIndex)}
             >
               {isCompleted
                 ? "✓"
                 : String(catalog.sequenceIndex).padStart(2, "0")}
             </span>
-            <div>
-              <p className="text-base font-semibold tracking-tight text-foreground">
-                {catalog.title}
-              </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Module {catalog.sequenceIndex}
-              </p>
-            </div>
+            <p className="text-[15px] font-semibold tracking-tight text-foreground">
+              {catalog.title}
+            </p>
           </div>
-          <StatusBadge status={display} />
+          <StatusBadge status={display} moduleIndex={catalog.sequenceIndex} />
         </div>
 
-        <dl className="mt-5 text-sm">
-          <div className="flex items-center justify-between gap-4 py-2">
+        <dl className="mt-4 space-y-0 text-[13px]">
+          <div className="flex items-center justify-between gap-4 border-t border-border/70 py-2.5">
             <dt className="text-muted-foreground">Produces</dt>
-            <dd className="text-right font-semibold text-foreground">
+            <dd className="text-right font-medium text-foreground">
               {primaryArtifact?.name ?? catalogArtifact?.name ?? "—"}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-4 border-t border-border/60 py-2">
-            <dt className="text-muted-foreground">Saved to workspace</dt>
+          <div className="flex items-center justify-between gap-4 border-t border-border/70 py-2.5">
+            <dt className="text-muted-foreground">Saved</dt>
             <dd className="text-right">
               {savedSubmission ? (
-                <StatusBadge
-                  status={{
-                    label: `Saved · v${savedSubmission.versionNumber}`,
-                    tone: "accent",
-                  }}
-                />
+                <span className="font-mono text-xs tabular-nums text-foreground">
+                  v{savedSubmission.versionNumber}
+                </span>
               ) : (
                 <span className="text-muted-foreground">Not yet</span>
               )}
             </dd>
           </div>
-          <div className="flex items-center justify-between gap-4 border-t border-border/60 py-2">
+          <div className="flex items-center justify-between gap-4 border-t border-border/70 py-2.5">
             <dt className="text-muted-foreground">Review</dt>
             <dd className="text-right">
               {reviewText ? (
@@ -144,15 +135,9 @@ export function ModuleStatusCard({
           </div>
         </dl>
       </div>
-      <div className="flex items-center justify-between gap-4 border-t border-border bg-muted/40 px-6 py-4">
-        <p className="text-xs text-muted-foreground">{footHint}</p>
-        <Link
-          href={`/modules/${catalog.moduleKey}`}
-          className="shrink-0 rounded-full border border-border bg-card px-4 py-2 text-xs font-semibold text-foreground transition hover:bg-muted"
-        >
-          View module
-        </Link>
-      </div>
-    </div>
+      <p className="mt-auto border-t border-border bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
+        {footHint}
+      </p>
+    </Link>
   );
 }

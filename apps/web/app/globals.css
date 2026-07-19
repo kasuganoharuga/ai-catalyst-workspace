@@ -3,6 +3,9 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  /* Near-white with the faintest warmth. A stronger paper tint muddies
+     both the ink panels and the lime accent — they need a clean ground
+     to stay crisp. */
   --background: oklch(0.995 0.002 95);
   --foreground: oklch(0.16 0.004 285);
   --card: oklch(1 0 0);
@@ -18,6 +21,8 @@
   --accent: oklch(0.95 0.09 126);
   --accent-foreground: oklch(0.18 0.03 130);
   --destructive: oklch(0.577 0.245 27.325);
+  /* Business surfaces get their depth from hairlines and background
+     steps, not from shadows. */
   --border: oklch(0.9 0.005 95);
   --input: oklch(0.9 0.005 95);
   --ring: oklch(0.72 0.19 126);
@@ -34,7 +39,10 @@
   --sidebar-accent-foreground: oklch(0.18 0.03 130);
   --sidebar-border: oklch(0.9 0.005 95);
   --sidebar-ring: oklch(0.72 0.19 126);
-  --radius: 0.75rem;
+  /* Containers stay square-ish (8px base, 12px for cards via
+     --radius-xl); only pills — badges and the primary CTA — go fully
+     round. Large radii on panels read consumer, not business. */
+  --radius: 0.5rem;
 
   /* Brand surfaces: the black "inverse" panel/badges are a distinct surface
      from --secondary's utility usage, and --brand-lime is the raw accent
@@ -45,6 +53,23 @@
   --brand-ink: oklch(0.16 0.004 285);
   --brand-ink-foreground: oklch(0.98 0 0);
   --surface-inverse: var(--brand-ink);
+
+  /* Module identity colours. Deliberately scoped to one place only — the
+     32px number badge — so each module is recognisable at a glance
+     without any hue leaking into the surrounding chrome, which stays
+     ink / white / lime.
+
+     All sit at roughly the same lightness and low chroma so no single
+     module shouts over the others, and all clear the lime hue (126) by a
+     wide margin so a module colour is never mistaken for the brand
+     accent or for a "done" state. White text passes AA on every one. */
+  --module-accent-0: oklch(0.42 0.05 250);
+  --module-accent-1: oklch(0.43 0.13 25);
+  --module-accent-2: oklch(0.42 0.11 305);
+  --module-accent-3: oklch(0.44 0.09 220);
+  --module-accent-4: oklch(0.45 0.1 65);
+  --module-accent-5: oklch(0.43 0.07 195);
+  --module-accent-6: oklch(0.42 0.11 340);
   --surface-inverse-foreground: var(--brand-ink-foreground);
 }
 
@@ -88,6 +113,9 @@
   --color-surface-inverse-foreground: var(--surface-inverse-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Display-only: page titles and figures. Body copy stays sans —
+     the contrast between the two is what carries the editorial feel. */
+  --font-serif: var(--font-fraunces);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -133,6 +161,17 @@
   --brand-ink-foreground: oklch(0.16 0.004 285);
   --surface-inverse: var(--brand-ink);
   --surface-inverse-foreground: var(--brand-ink-foreground);
+
+  /* Same hues lifted for a dark ground — the badge keeps white text, so
+     these need to stay dark enough for that while still separating from
+     the page behind them. */
+  --module-accent-0: oklch(0.5 0.06 250);
+  --module-accent-1: oklch(0.5 0.14 25);
+  --module-accent-2: oklch(0.5 0.12 305);
+  --module-accent-3: oklch(0.51 0.1 220);
+  --module-accent-4: oklch(0.52 0.11 65);
+  --module-accent-5: oklch(0.5 0.08 195);
+  --module-accent-6: oklch(0.5 0.12 340);
 }
 
 body {

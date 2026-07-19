@@ -3,7 +3,10 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import { pool } from "@ai-catalyst/db";
-import type { ActorContext, ActorRole } from "@ai-catalyst/contracts/actor-context";
+import type {
+  ActorContext,
+  ActorRole,
+} from "@ai-catalyst/contracts/actor-context";
 import { createMcpActorContext } from "@ai-catalyst/contracts/actor-context";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
@@ -133,7 +136,10 @@ function isValidPublicClient(row: AccessTokenLookupRow): boolean {
 export async function verifyMcpBearerToken(
   rawToken: unknown,
 ): Promise<ActorContext> {
-  if (typeof rawToken !== "string" || !MCP_BEARER_TOKEN_PATTERN.test(rawToken)) {
+  if (
+    typeof rawToken !== "string" ||
+    !MCP_BEARER_TOKEN_PATTERN.test(rawToken)
+  ) {
     throw new ServiceError("UNAUTHENTICATED", "Invalid bearer token.");
   }
 
@@ -176,7 +182,10 @@ export async function verifyMcpBearerToken(
     row.user_deleted_at !== null ||
     !isKnownActorRole(row.user_role)
   ) {
-    throw new ServiceError("UNAUTHENTICATED", "The account for this token no longer exists.");
+    throw new ServiceError(
+      "UNAUTHENTICATED",
+      "The account for this token no longer exists.",
+    );
   }
 
   if (row.user_role === "pending") {
@@ -188,7 +197,10 @@ export async function verifyMcpBearerToken(
 
   const scopes = row.scopes.split(" ").filter((scope) => scope.length > 0);
   if (!scopes.includes(MCP_CONNECT_SCOPE)) {
-    throw new ServiceError("FORBIDDEN", "Token is missing the mcp:connect scope.");
+    throw new ServiceError(
+      "FORBIDDEN",
+      "Token is missing the mcp:connect scope.",
+    );
   }
 
   return createMcpActorContext({
@@ -252,14 +264,20 @@ async function findVerificationByIdentifier(
 // apart from the outside would have a consent-code/account enumeration
 // oracle. See PR 2.2 plan section 10.
 function pendingConsentNotFound(): ServiceError {
-  return new ServiceError("NOT_FOUND", "Pending MCP consent request was not found.");
+  return new ServiceError(
+    "NOT_FOUND",
+    "Pending MCP consent request was not found.",
+  );
 }
 
 export async function getPendingMcpConsentRequest(
   consentCode: unknown,
   currentUserId: string,
 ): Promise<PendingMcpConsentRequest> {
-  if (typeof consentCode !== "string" || !MCP_CONSENT_CODE_PATTERN.test(consentCode)) {
+  if (
+    typeof consentCode !== "string" ||
+    !MCP_CONSENT_CODE_PATTERN.test(consentCode)
+  ) {
     throw pendingConsentNotFound();
   }
 
@@ -345,8 +363,7 @@ export interface AuthorizationCodeCheckFailure {
 }
 
 export type AuthorizationCodeCheckResult =
-  | { ok: true }
-  | AuthorizationCodeCheckFailure;
+  { ok: true } | AuthorizationCodeCheckFailure;
 
 function rejectCode(
   error: AuthorizationCodeRejectionReason,
@@ -424,26 +441,38 @@ export async function checkAuthorizationCodeIsRedeemable(params: {
   // code — a still-`true` value means the user hasn't consented yet, and
   // this must not be treated as a redeemable authorization_code.
   if (value.requireConsent) {
-    return rejectCode("invalid_grant", "Consent has not been completed for this code.");
+    return rejectCode(
+      "invalid_grant",
+      "Consent has not been completed for this code.",
+    );
   }
 
   if (typeof clientId !== "string" || clientId.length === 0) {
     return rejectCode("invalid_client", "client_id is required.");
   }
   if (value.clientId !== clientId) {
-    return rejectCode("invalid_client", "client_id does not match the authorization request.");
+    return rejectCode(
+      "invalid_client",
+      "client_id does not match the authorization request.",
+    );
   }
 
   if (typeof redirectUri !== "string" || redirectUri.length === 0) {
     return rejectCode("invalid_request", "redirect_uri is required.");
   }
   if (value.redirectURI !== redirectUri) {
-    return rejectCode("invalid_client", "redirect_uri does not match the authorization request.");
+    return rejectCode(
+      "invalid_client",
+      "redirect_uri does not match the authorization request.",
+    );
   }
 
   const client = await getOAuthClientByClientId(clientId);
   if (!isValidPublicOAuthClientRecord(client)) {
-    return rejectCode("invalid_client", "Unknown, disabled, or non-public OAuth client.");
+    return rejectCode(
+      "invalid_client",
+      "Unknown, disabled, or non-public OAuth client.",
+    );
   }
 
   // V1 forces every registered client to be public
@@ -451,7 +480,10 @@ export async function checkAuthorizationCodeIsRedeemable(params: {
   // confidential-client client_secret path in this compatibility profile,
   // so every real request must present a PKCE code_verifier.
   if (typeof codeVerifier !== "string" || codeVerifier.length === 0) {
-    return rejectCode("invalid_request", "code_verifier is required for public clients.");
+    return rejectCode(
+      "invalid_request",
+      "code_verifier is required for public clients.",
+    );
   }
 
   // requirePKCE: true (apps/web/lib/auth.ts) already guarantees /mcp/authorize
@@ -505,7 +537,9 @@ const CONSENT_CLAIM_TTL_SECONDS = 60;
  * the underlying code is single-use regardless, so a claimed-but-failed
  * attempt simply can't be retried until the claim expires.
  */
-export async function tryClaimConsentCode(consentCode: string): Promise<boolean> {
+export async function tryClaimConsentCode(
+  consentCode: string,
+): Promise<boolean> {
   const result = await pool.query(
     `insert into mcp_oauth_consent_claims (consent_code_hash, expires_at)
      values ($1, now() + interval '1 second' * $2)
@@ -591,7 +625,12 @@ export async function getAuthorizableUserById(
     [userId],
   );
   const row = result.rows[0];
-  if (!row || row.deleted_at !== null || !isKnownActorRole(row.role) || row.role === "pending") {
+  if (
+    !row ||
+    row.deleted_at !== null ||
+    !isKnownActorRole(row.role) ||
+    row.role === "pending"
+  ) {
     return null;
   }
   return { userId: row.id, role: row.role };
@@ -604,23 +643,45 @@ export async function getAuthorizableUserById(
 // the OAuth protocol surfaces themselves.
 // ---------------------------------------------------------------------------
 
+/**
+ * Two independent facts, deliberately not collapsed into one "connected"
+ * boolean.
+ *
+ * `authorised` is something we know for certain — a row in our own
+ * database. Whether the AI client is *reachable right now* is something
+ * we cannot know: the MCP transport here is stateless Streamable HTTP
+ * (apps/mcp/src/server.ts builds a transport per request and closes it),
+ * so there is no session to hold open, no ping to send, and no
+ * disconnect event to receive. The client is also the only party that
+ * can initiate — nothing on this side can poll it.
+ *
+ * So the second fact is `lastActivityAt`: the last time the client
+ * actually called us. That is the only evidence of liveness that exists,
+ * and callers must present it as evidence rather than dressing an
+ * unexpired token up as a live connection. A Founder who authorised
+ * yesterday and has since quit Claude still has a perfectly valid token.
+ */
 export interface McpConnectionStatus {
   // True while at least one unexpired access token exists for this user
-  // against an enabled public client — the same liveness condition
+  // against an enabled public client — the same condition
   // verifyMcpBearerToken enforces per-request, minus the scope check
-  // (a connected-but-wrongly-scoped client is still "connected" for
-  // status display; it fails loudly at tool-call time instead).
-  connected: boolean;
+  // (a wrongly-scoped client still counts as authorised for display; it
+  // fails loudly at tool-call time instead).
+  authorised: boolean;
   clientName: string | null;
-  // Latest valid token's issue time; null when not connected.
-  connectedAt: string | null;
-  // Latest valid token's expiry; null when not connected.
+  // Latest valid token's issue time; null when not authorised.
+  authorisedAt: string | null;
+  // Latest valid token's expiry; null when not authorised.
   expiresAt: string | null;
   // True once the user has ever completed an Accept on the consent screen,
-  // even after every token has expired or been swept — backs the
-  // Connection page's "reconnect" (repair) state, distinguishing "expired,
-  // reconnect in Claude" from "never connected, start setup".
-  hasEverConnected: boolean;
+  // even after every token has expired or been swept — distinguishes
+  // "expired, reconnect" from "never set this up".
+  hasEverAuthorised: boolean;
+  // When this user's AI client last actually called an MCP tool. `null`
+  // means the connection has never been exercised, which is a distinct
+  // state from "authorised and working" — the authorise redirect can
+  // complete without a single tool call ever following it.
+  lastActivityAt: string | null;
 }
 
 interface ConnectionTokenRow {
@@ -630,9 +691,10 @@ interface ConnectionTokenRow {
 }
 
 /**
- * Read-only connection summary for the signed-in Founder's own MCP OAuth
- * state. Never returns token material — only liveness metadata for the
- * website's Connection/status UI.
+ * Read-only connection summary for the signed-in Founder's own MCP state.
+ * Never returns token material — only the two facts described on
+ * `McpConnectionStatus`, left separate so the caller cannot accidentally
+ * present an unexpired token as a live client.
  */
 export async function getMcpConnectionStatus(
   actor: ActorContext,
@@ -662,12 +724,29 @@ export async function getMcpConnectionStatus(
     [actor.userId],
   );
 
+  // Every MCP tool call routes through apps/mcp's audit wrapper, which
+  // writes one row here per call — including denied and failed ones, so
+  // a client that is reaching us but being rejected still counts as
+  // activity. That makes this table the single source of "has the client
+  // actually talked to us", with no separate connection-tracking table or
+  // write path to keep in step. Served by
+  // idx_mcp_tool_audit_logs_user_time, so this stays an index scan as the
+  // log grows.
+  const activityResult = await pool.query<{ last_activity_at: Date | null }>(
+    `select max(created_at) as last_activity_at
+     from mcp_tool_audit_logs
+     where user_id = $1`,
+    [actor.userId],
+  );
+
   return {
-    connected: token !== null,
+    authorised: token !== null,
     clientName: token?.client_name ?? null,
-    connectedAt: token?.created_at.toISOString() ?? null,
+    authorisedAt: token?.created_at.toISOString() ?? null,
     expiresAt: token?.access_token_expires_at.toISOString() ?? null,
-    hasEverConnected: consentResult.rows[0]?.exists ?? false,
+    hasEverAuthorised: consentResult.rows[0]?.exists ?? false,
+    lastActivityAt:
+      activityResult.rows[0]?.last_activity_at?.toISOString() ?? null,
   };
 }
 
@@ -740,4 +819,3 @@ export async function cleanupExpiredMcpOAuthState(): Promise<McpOAuthCleanupResu
     orphanedApplicationsDeleted: orphanedApplications.rowCount ?? 0,
   };
 }
-

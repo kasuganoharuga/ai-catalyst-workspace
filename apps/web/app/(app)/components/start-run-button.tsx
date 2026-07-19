@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,12 +14,14 @@ import { cn } from "@/lib/utils";
  */
 export function StartRunButton({
   ventureId,
-  label = "Unlock my modules",
+  label = "Unlock Module 0",
   className,
+  size = "lg",
 }: {
   ventureId: string;
   label?: string;
   className?: string;
+  size?: "default" | "sm" | "lg";
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -54,18 +57,11 @@ export function StartRunButton({
   }
 
   return (
-    <div className={className}>
-      <button
-        type="button"
-        onClick={handleClick}
-        disabled={busy}
-        className={cn(
-          "rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-60",
-        )}
-      >
+    <div className={cn("flex flex-col items-start gap-2", className)}>
+      <Button type="button" size={size} onClick={handleClick} disabled={busy}>
         {busy ? "Setting things up…" : label}
-      </button>
-      {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
+      </Button>
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
     </div>
   );
 }

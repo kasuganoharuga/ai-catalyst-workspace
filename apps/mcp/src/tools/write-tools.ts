@@ -15,17 +15,15 @@ import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 // function — no new business/state-machine logic is added at this layer
 // (architecture.mdc rule 1).
 //
-// `complete_module` no longer only wraps `submitAttempt` — as of PR 2.8 it
-// wraps `completeModuleAttempt`, which internally submits, then triggers
-// Official Validation with an actor whose `source` has been forced to
-// `'system'` (never the raw MCP actor), then — only for
-// `completion_mode = 'system'` Modules, or a Founder's own Pivot decision
-// — completes/unlocks or cancels-and-retries. An MCP-sourced Actor still
-// cannot call `runOfficialValidation` directly and still cannot force a
-// Mentor acceptance; it can only trigger this fixed, non-negotiable
-// orchestration by declaring an Attempt done. See
-// packages/services/src/module/completion.ts's own module-level comment
-// for the full behaviour.
+// `complete_module` wraps `completeModuleAttempt`, which submits, then
+// triggers Official Validation with an actor whose `source` has been
+// forced to `'system'` (never the raw MCP actor). On a pass it stops at
+// ready_for_review / awaitingConfirmation — completing the Module and
+// unlocking the next one is confirmModuleCompletion on the website. The
+// only further MCP-side branch is a Founder's own Pivot decision, which
+// cancels-and-retries. An MCP-sourced Actor still cannot call
+// `runOfficialValidation` directly and still cannot force a Mentor
+// acceptance. See packages/services/src/module/completion.ts.
 
 const RESPONSE_STATUS_VALUES = ["answered", "skipped", "not_applicable", "needs_follow_up"] as const;
 
@@ -179,7 +177,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Complete module",
       description:
-        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). If validation passes and the Module's completion_mode is 'system' (Module 0), it also auto-completes the Module and unlocks the next one. If the Founder's own recorded decision is 'pivot' (Module 1), it also cancels this Attempt and starts a Retry Attempt automatically. Never lets an MCP-sourced Actor force a Mentor acceptance.",
+        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. If the Founder's own recorded decision is 'pivot' (Module 1), it also cancels this Attempt and starts a Retry Attempt automatically. Never lets an MCP-sourced Actor force a Mentor acceptance.",
       inputSchema: ATTEMPT_ID_SHAPE,
     },
     async (args) => {
@@ -200,6 +198,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
                 status: result.attempt.status,
                 passed: result.passed,
                 moduleCompleted: result.moduleCompleted,
+                awaitingConfirmation: result.awaitingConfirmation,
                 pivoted: result.pivoted,
                 nextModuleUnlocked: result.nextModuleUnlocked?.moduleKey ?? null,
               },

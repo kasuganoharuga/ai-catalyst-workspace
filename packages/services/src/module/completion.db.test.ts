@@ -7,11 +7,17 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
-import { saveFounderResponse, startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import {
+  saveFounderResponse,
+  startOrResumeAttempt,
+} from "@ai-catalyst/services/attempt";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import type { Validator } from "../artifact/internal/validators/types.js";
 
-import { completeModuleAttempt } from "./completion.js";
+import {
+  completeModuleAttempt,
+  confirmModuleCompletion,
+} from "./completion.js";
 
 /**
  * Integration tests against the real Postgres database, following the
@@ -68,7 +74,9 @@ function adminActor(userId: string): ActorContext {
   return { userId, role: "admin" };
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>,
+): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -214,7 +222,11 @@ describe("completeModuleAttempt — database integration", () => {
     const workspaceResult = await pool.query<{ id: string }>(
       `insert into workspaces (founder_user_id, name, slug)
        values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `completion-service-${label}-${randomUUID()}`],
+      [
+        actor.userId,
+        `Fixture ${label}`,
+        `completion-service-${label}-${randomUUID()}`,
+      ],
     );
     const workspaceId = workspaceResult.rows[0].id;
 
@@ -238,8 +250,13 @@ describe("completeModuleAttempt — database integration", () => {
     module0Id: string;
     module1Id: string;
   }> {
-    const { actor, workspaceId, ventureId } = await createFounderWithWorkspaceAndVenture(label);
-    const result = await getOrCreateProgramRun(actor, { ventureId }, { programKey: PROGRAM_KEY });
+    const { actor, workspaceId, ventureId } =
+      await createFounderWithWorkspaceAndVenture(label);
+    const result = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey: PROGRAM_KEY },
+    );
 
     const modulesResult = await pool.query<{ id: string; module_key: string }>(
       `select id, module_key from program_run_modules
@@ -247,10 +264,16 @@ describe("completeModuleAttempt — database integration", () => {
        order by sequence_index`,
       [result.run.activeBranchId],
     );
-    const module0 = modulesResult.rows.find((row) => row.module_key === MODULE_0_KEY);
-    const module1 = modulesResult.rows.find((row) => row.module_key === MODULE_1_KEY);
+    const module0 = modulesResult.rows.find(
+      (row) => row.module_key === MODULE_0_KEY,
+    );
+    const module1 = modulesResult.rows.find(
+      (row) => row.module_key === MODULE_1_KEY,
+    );
     if (!module0 || !module1) {
-      throw new Error("Fixture program_run_modules were not seeded as expected.");
+      throw new Error(
+        "Fixture program_run_modules were not seeded as expected.",
+      );
     }
 
     return { actor, workspaceId, module0Id: module0.id, module1Id: module1.id };
@@ -287,7 +310,9 @@ describe("completeModuleAttempt — database integration", () => {
     return result.rows[0];
   }
 
-  async function getEventTypesForModule(runModuleId: string): Promise<
+  async function getEventTypesForModule(
+    runModuleId: string,
+  ): Promise<
     { event_type: string; actor_type: string; source_provider: string | null }[]
   > {
     const result = await pool.query<{
@@ -308,12 +333,27 @@ describe("completeModuleAttempt — database integration", () => {
     const { attempt } = await startOrResumeAttempt(fixture.actor, {
       programRunModuleId: fixture.module0Id,
     });
-    const result = await completeModuleAttempt(fixture.actor, { attemptId: attempt.id });
+    const result = await completeModuleAttempt(fixture.actor, {
+      attemptId: attempt.id,
+    });
     return { fixture, attempt, result };
   }
 
+  // Module 1 is only reachable once the Founder has confirmed Module 0 —
+  // `complete_module` alone no longer unlocks it. Tests that need to work
+  // on Module 1 go through this rather than completeModule0.
+  async function completeAndConfirmModule0(label: string) {
+    const outcome = await completeModule0(label);
+    await confirmModuleCompletion(outcome.fixture.actor, {
+      programRunModuleId: outcome.fixture.module0Id,
+    });
+    return outcome;
+  }
+
   beforeAll(async () => {
-    await withTransaction((client) => seedToolkitContent(client, buildFixtureContent(PROGRAM_KEY)));
+    await withTransaction((client) =>
+      seedToolkitContent(client, buildFixtureContent(PROGRAM_KEY)),
+    );
   });
 
   afterAll(async () => {
@@ -325,38 +365,48 @@ describe("completeModuleAttempt — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+    await pool.query("delete from programs where program_key = $1", [
+      PROGRAM_KEY,
+    ]);
   });
 
-  it("auto-completes a completion_mode='system' Module and unlocks the next one", async () => {
-    const { fixture, attempt, result } = await completeModule0("system-complete");
+  // The MCP side stops short of completing the Module: unlocking is the
+  // Founder's own action on the website (confirmModuleCompletion).
+  it("leaves a completion_mode='system' Module awaiting confirmation instead of unlocking the next one", async () => {
+    const { fixture, attempt, result } =
+      await completeModule0("system-complete");
 
     expect(result.passed).toBe(true);
-    expect(result.moduleCompleted).toBe(true);
+    expect(result.moduleCompleted).toBe(false);
+    expect(result.awaitingConfirmation).toBe(true);
     expect(result.pivoted).toBe(false);
-    expect(result.nextModuleUnlocked).toMatchObject({ id: fixture.module1Id, moduleKey: MODULE_1_KEY });
-    expect(result.attempt.status).toBe("accepted");
+    expect(result.nextModuleUnlocked).toBeNull();
+    expect(result.attempt.status).toBe("ready_for_review");
 
     const attemptRow = await getAttemptRow(attempt.id);
-    expect(attemptRow.status).toBe("accepted");
-    expect(attemptRow.accepted_by_user_id).toBeNull();
-    expect(attemptRow.accepted_at).not.toBeNull();
+    expect(attemptRow.status).toBe("ready_for_review");
+    expect(attemptRow.accepted_at).toBeNull();
 
     const module0Row = await getRunModuleRow(fixture.module0Id);
-    expect(module0Row.status).toBe("completed");
-    expect(module0Row.completed_by_user_id).toBeNull();
-    expect(module0Row.accepted_attempt_id).toBe(attempt.id);
-    expect(module0Row.active_attempt_id).toBeNull();
+    expect(module0Row.status).toBe("in_progress");
+    expect(module0Row.accepted_attempt_id).toBeNull();
 
+    // The whole point: the next Module stays shut until a human says so.
     const module1Row = await getRunModuleRow(fixture.module1Id);
-    expect(module1Row.status).toBe("available");
-    expect(module1Row.unlocked_at).not.toBeNull();
+    expect(module1Row.status).toBe("locked");
+    expect(module1Row.unlocked_at).toBeNull();
 
-    const submission = await pool.query<{ status: string; version_number: number }>(
+    const submission = await pool.query<{
+      status: string;
+      version_number: number;
+    }>(
       `select status, version_number from artifact_submissions where module_attempt_id = $1`,
       [attempt.id],
     );
@@ -370,22 +420,109 @@ describe("completeModuleAttempt — database integration", () => {
       "attempt_submitted",
       "validation_started",
       "validation_passed",
+    ]);
+  });
+
+  it("completes the Module and unlocks the next one when the Founder confirms", async () => {
+    const { fixture, attempt } = await completeModule0("system-confirm");
+
+    const confirmation = await confirmModuleCompletion(fixture.actor, {
+      programRunModuleId: fixture.module0Id,
+    });
+
+    expect(confirmation.justConfirmed).toBe(true);
+    expect(confirmation.nextModuleUnlocked).toMatchObject({
+      id: fixture.module1Id,
+      moduleKey: MODULE_1_KEY,
+    });
+
+    const attemptRow = await getAttemptRow(attempt.id);
+    expect(attemptRow.status).toBe("accepted");
+    expect(attemptRow.accepted_at).not.toBeNull();
+    // Attributed to the Founder who confirmed, not to a system actor.
+    expect(attemptRow.accepted_by_user_id).toBe(fixture.actor.userId);
+
+    const module0Row = await getRunModuleRow(fixture.module0Id);
+    expect(module0Row.status).toBe("completed");
+    expect(module0Row.completed_by_user_id).toBe(fixture.actor.userId);
+    expect(module0Row.accepted_attempt_id).toBe(attempt.id);
+    expect(module0Row.active_attempt_id).toBeNull();
+
+    const module1Row = await getRunModuleRow(fixture.module1Id);
+    expect(module1Row.status).toBe("available");
+    expect(module1Row.unlocked_at).not.toBeNull();
+
+    const module0Events = await getEventTypesForModule(fixture.module0Id);
+    expect(module0Events.map((row) => row.event_type)).toEqual([
+      "attempt_started",
+      "artifact_uploaded",
+      "attempt_submitted",
+      "validation_started",
+      "validation_passed",
       "attempt_accepted",
       "module_completed",
     ]);
-    const acceptedEvent = module0Events.find((row) => row.event_type === "attempt_accepted");
-    expect(acceptedEvent?.actor_type).toBe("system");
-    expect(acceptedEvent?.source_provider).toBe("system");
+    // 'user' rather than 'system': a person confirmed this, and the
+    // event log should say so.
+    const acceptedEvent = module0Events.find(
+      (row) => row.event_type === "attempt_accepted",
+    );
+    expect(acceptedEvent?.actor_type).toBe("user");
+    expect(acceptedEvent?.source_provider).toBe("website");
+  });
 
-    const module1Events = await getEventTypesForModule(fixture.module1Id);
-    const unlockedEvent = module1Events.find((row) => row.event_type === "module_unlocked");
-    expect(unlockedEvent?.actor_type).toBe("system");
+  it("is idempotent when the Founder confirms twice", async () => {
+    const { fixture } = await completeModule0("system-confirm-twice");
+
+    await confirmModuleCompletion(fixture.actor, {
+      programRunModuleId: fixture.module0Id,
+    });
+    const replay = await confirmModuleCompletion(fixture.actor, {
+      programRunModuleId: fixture.module0Id,
+    });
+
+    expect(replay.justConfirmed).toBe(false);
+    expect(replay.nextModuleUnlocked).toBeNull();
+
+    const module0Row = await getRunModuleRow(fixture.module0Id);
+    expect(module0Row.status).toBe("completed");
+  });
+
+  it("refuses to confirm a Module whose Attempt hasn't passed validation", async () => {
+    const fixture = await createRunWithModules("confirm-too-early");
+    await startOrResumeAttempt(fixture.actor, {
+      programRunModuleId: fixture.module0Id,
+    });
+
+    await expect(
+      confirmModuleCompletion(fixture.actor, {
+        programRunModuleId: fixture.module0Id,
+      }),
+    ).rejects.toMatchObject({ code: "MODULE_NOT_READY_FOR_CONFIRMATION" });
+
+    const module1Row = await getRunModuleRow(fixture.module1Id);
+    expect(module1Row.status).toBe("locked");
+  });
+
+  it("refuses to confirm a Module that has never been started", async () => {
+    const fixture = await createRunWithModules("confirm-not-started");
+
+    await expect(
+      confirmModuleCompletion(fixture.actor, {
+        programRunModuleId: fixture.module0Id,
+      }),
+    ).rejects.toMatchObject({ code: "MODULE_NOT_READY_FOR_CONFIRMATION" });
   });
 
   it("is idempotent for an already-accepted Attempt", async () => {
     const { attempt, fixture } = await completeModule0("system-idempotent");
+    await confirmModuleCompletion(fixture.actor, {
+      programRunModuleId: fixture.module0Id,
+    });
 
-    const replay = await completeModuleAttempt(fixture.actor, { attemptId: attempt.id });
+    const replay = await completeModuleAttempt(fixture.actor, {
+      attemptId: attempt.id,
+    });
 
     expect(replay.moduleCompleted).toBe(true);
     expect(replay.attempt.status).toBe("accepted");
@@ -400,10 +537,13 @@ describe("completeModuleAttempt — database integration", () => {
   });
 
   it("leaves a 'proceed' decision Attempt ready_for_review with no further action", async () => {
-    const { fixture } = await completeModule0("proceed");
-    const { attempt: module1Attempt } = await startOrResumeAttempt(fixture.actor, {
-      programRunModuleId: fixture.module1Id,
-    });
+    const { fixture } = await completeAndConfirmModule0("proceed");
+    const { attempt: module1Attempt } = await startOrResumeAttempt(
+      fixture.actor,
+      {
+        programRunModuleId: fixture.module1Id,
+      },
+    );
     await saveFounderResponse(fixture.actor, {
       attemptId: module1Attempt.id,
       questionKey: "final_decision",
@@ -415,9 +555,13 @@ describe("completeModuleAttempt — database integration", () => {
       content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
     });
 
-    const result = await completeModuleAttempt(fixture.actor, { attemptId: module1Attempt.id }, {
-      validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
-    });
+    const result = await completeModuleAttempt(
+      fixture.actor,
+      { attemptId: module1Attempt.id },
+      {
+        validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
+      },
+    );
 
     expect(result.passed).toBe(true);
     expect(result.moduleCompleted).toBe(false);
@@ -431,10 +575,13 @@ describe("completeModuleAttempt — database integration", () => {
   });
 
   it("cancels a 'pivot' decision Attempt and starts a Retry Attempt automatically", async () => {
-    const { fixture } = await completeModule0("pivot");
-    const { attempt: module1Attempt } = await startOrResumeAttempt(fixture.actor, {
-      programRunModuleId: fixture.module1Id,
-    });
+    const { fixture } = await completeAndConfirmModule0("pivot");
+    const { attempt: module1Attempt } = await startOrResumeAttempt(
+      fixture.actor,
+      {
+        programRunModuleId: fixture.module1Id,
+      },
+    );
     await saveFounderResponse(fixture.actor, {
       attemptId: module1Attempt.id,
       questionKey: "final_decision",
@@ -446,9 +593,13 @@ describe("completeModuleAttempt — database integration", () => {
       content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
     });
 
-    const result = await completeModuleAttempt(fixture.actor, { attemptId: module1Attempt.id }, {
-      validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
-    });
+    const result = await completeModuleAttempt(
+      fixture.actor,
+      { attemptId: module1Attempt.id },
+      {
+        validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
+      },
+    );
 
     expect(result.passed).toBe(true);
     expect(result.moduleCompleted).toBe(false);
@@ -467,7 +618,10 @@ describe("completeModuleAttempt — database integration", () => {
     expect(module1Row.status).toBe("in_progress");
     expect(module1Row.active_attempt_id).toBe(result.retryAttempt?.id);
 
-    const cancelledEvent = await pool.query<{ event_type: string; actor_type: string }>(
+    const cancelledEvent = await pool.query<{
+      event_type: string;
+      actor_type: string;
+    }>(
       `select event_type, actor_type from module_events
        where module_attempt_id = $1 and event_type = 'attempt_cancelled'`,
       [module1Attempt.id],
@@ -477,19 +631,26 @@ describe("completeModuleAttempt — database integration", () => {
   });
 
   it("returns passed:false with missingArtifactKeys when the required Artifact was never submitted", async () => {
-    const { fixture } = await completeModule0("validation-failed");
-    const { attempt: module1Attempt } = await startOrResumeAttempt(fixture.actor, {
-      programRunModuleId: fixture.module1Id,
-    });
+    const { fixture } = await completeAndConfirmModule0("validation-failed");
+    const { attempt: module1Attempt } = await startOrResumeAttempt(
+      fixture.actor,
+      {
+        programRunModuleId: fixture.module1Id,
+      },
+    );
     await saveFounderResponse(fixture.actor, {
       attemptId: module1Attempt.id,
       questionKey: "final_decision",
       value: "proceed",
     });
 
-    const result = await completeModuleAttempt(fixture.actor, { attemptId: module1Attempt.id }, {
-      validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
-    });
+    const result = await completeModuleAttempt(
+      fixture.actor,
+      { attemptId: module1Attempt.id },
+      {
+        validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
+      },
+    );
 
     expect(result.passed).toBe(false);
     expect(result.moduleCompleted).toBe(false);
@@ -500,7 +661,9 @@ describe("completeModuleAttempt — database integration", () => {
   it("rejects a non-founder actor", async () => {
     const { fixture, attempt } = await completeModule0("forbidden");
     await expect(
-      completeModuleAttempt(adminActor(fixture.actor.userId), { attemptId: attempt.id }),
+      completeModuleAttempt(adminActor(fixture.actor.userId), {
+        attemptId: attempt.id,
+      }),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

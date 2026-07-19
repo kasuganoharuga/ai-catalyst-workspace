@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import type { ModuleContext } from "@ai-catalyst/shared";
 
+import { Button } from "@/components/ui/button";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 
@@ -76,12 +77,9 @@ export default async function ArtefactsPage() {
             Nothing here yet — artefacts appear as you work through modules in
             Claude. Module 0 saves your first one.
           </p>
-          <Link
-            href="/dashboard"
-            className="mt-6 inline-block rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-          >
-            Back to dashboard
-          </Link>
+          <Button asChild size="lg" className="mt-6">
+            <Link href="/dashboard">Back to dashboard</Link>
+          </Button>
         </div>
       ) : (
         <>
@@ -121,7 +119,7 @@ export default async function ArtefactsPage() {
                       <StatusBadge
                         status={{
                           label: `Saved · v${row.versionNumber}`,
-                          tone: "accent",
+                          tone: "soft",
                         }}
                       />
                       {row.submittedAt ? (
