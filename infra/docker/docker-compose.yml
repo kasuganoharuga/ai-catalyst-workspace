@@ -1,3 +1,5 @@
+name: ai-catalyst-workspace
+
 services:
   api:
     build:
@@ -7,7 +9,93 @@ services:
       APP_ENV: local
       LOG_LEVEL: INFO
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
     ports:
       - "8000:8000"
     volumes:
       - ../../apps/api:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
+      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      # Must match the mcp service's own MCP_RESOURCE_URL below exactly —
+      # see apps/web/lib/mcp-oauth-compat/hooks.ts.
+      MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
+      # Declares the convention only — see local_storage_data below. The
+      # Local Storage Provider (packages/services/src/storage) does not yet
+      # have a real caller wired into a running container, so this volume
+      # currently has no consumer that actually needs cross-container
+      # sharing; PR 2.5's acceptance note covers this explicitly.
+      LOCAL_STORAGE_ROOT: /data/storage
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    volumes:
+      - local_storage_data:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  mcp:
+    build:
+      context: ../..
+      dockerfile: apps/mcp/Dockerfile
+    environment:
+      # Fixed container-internal port. MCP_HOST_PORT (below) is a distinct
+      # variable on purpose: templating both the container's own listener
+      # and the host-side publish from the same MCP_PORT would break the
+      # container's listener the moment a developer overrides it to dodge a
+      # host port clash.
+      MCP_PORT: 8787
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
+      # Public-facing URLs only, for OAuth discovery metadata (RFC 9728) —
+      # apps/mcp verifies platform Bearer tokens by querying Postgres
+      # directly (DATABASE_URL above), never by calling apps/web over HTTP
+      # (architecture.mdc rule 4).
+      MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
+      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
+      # See the web service's LOCAL_STORAGE_ROOT comment above — same
+      # named volume, so both services resolve the same in-container path,
+      # but nothing yet exercises this cross-container sharing for real.
+      LOCAL_STORAGE_ROOT: /data/storage
+    ports:
+      - "127.0.0.1:${MCP_HOST_PORT:-8787}:8787"
+    volumes:
+      - local_storage_data:/data/storage
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ai_catalyst
+      POSTGRES_USER: ai_catalyst
+      POSTGRES_PASSWORD: ai_catalyst
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_catalyst -d ai_catalyst"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  # Declares the local-storage convention for the containerized stack (see
+  # the web/mcp services' LOCAL_STORAGE_ROOT above). PR 2.5's Local
+  # Storage Provider only guarantees single-process/test-suite usability
+  # today — a shared bind mount that actually gives web and mcp real
+  # concurrent access to the same files is follow-up work (or is made moot
+  # entirely once 2.10 moves to an S3-compatible provider).
+  local_storage_data:

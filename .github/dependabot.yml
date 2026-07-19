@@ -67,3 +67,17 @@ updates:
       api-docker:
         patterns:
           - "*"
+
+  - package-ecosystem: "docker"
+    directory: "/infra/docker"
+    target-branch: "develop"
+    schedule:
+      interval: "weekly"
+    # Keep the database major version pinned until migrations/backups are planned.
+    ignore:
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
+    groups:
+      infrastructure-docker:
+        patterns:
+          - "*"

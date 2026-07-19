@@ -15,6 +15,19 @@ jobs:
     name: Frontend
     runs-on: ubuntu-latest
 
+    env:
+      # `next build` collects page data for /api/auth/[...all], which
+      # imports @ai-catalyst/db's pool at module load time; that module
+      # fails fast if DATABASE_URL is unset (see packages/db/src/pool.ts).
+      # pg.Pool never connects eagerly, so this placeholder value is enough
+      # to satisfy the build without a live database in this job.
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      BETTER_AUTH_SECRET: ci-build-secret-not-used-in-production
+      # apps/web/lib/auth.ts asserts this at module load time too (PR 2.2) —
+      # a placeholder is fine here since the build never makes a real
+      # network call to it.
+      AUTH_ISSUER_URL: http://127.0.0.1:3000
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -25,7 +38,7 @@ jobs:
           version: 10.18.0
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: pnpm
@@ -33,11 +46,56 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check formatting
+        run: pnpm format:check:web
+
       - name: Lint frontend
         run: pnpm lint
 
+      - name: Typecheck frontend
+        run: pnpm typecheck:web
+
       - name: Build frontend
         run: pnpm build
+
+  packages:
+    name: Packages
+    runs-on: ubuntu-latest
+
+    env:
+      # packages/services/src/mcp-auth (PR 2.2) imports @ai-catalyst/db's
+      # pool at module load time, and apps/mcp depends on
+      # @ai-catalyst/services — see the frontend job's DATABASE_URL comment
+      # above for why a placeholder is enough here (pg.Pool never connects
+      # eagerly).
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck packages/* and apps/mcp
+        run: pnpm typecheck:packages
+
+      - name: Test packages/*
+        run: pnpm test:packages
+
+      - name: Check architectural import boundaries
+        run: pnpm depcruise
 
   backend:
     name: Backend
@@ -65,9 +123,173 @@ jobs:
     name: Infrastructure
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
+      # Needed by the steps below that run apps/web directly on the runner
+      # (auth:check, test) rather than through docker-compose, which sets
+      # these itself on the web/mcp services — see docker-compose.yml.
+      AUTH_ISSUER_URL: http://127.0.0.1:3000
+      MCP_RESOURCE_URL: http://127.0.0.1:8787/mcp
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
 
       - name: Validate Docker Compose config
         run: docker compose -f infra/docker/docker-compose.yml config
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.18.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Start db
+        run: docker compose -f infra/docker/docker-compose.yml up -d --wait db
+
+      - name: Run migrations
+        run: pnpm --filter @ai-catalyst/db run migrate
+
+      - name: Seed founder-toolkit content (Module 0/1)
+        run: pnpm --filter @ai-catalyst/services run seed
+
+      - name: Re-run content seed (expect idempotent no-op)
+        run: |
+          set -euo pipefail
+          output=$(pnpm --filter @ai-catalyst/services run seed)
+          echo "$output"
+          echo "$output" | grep -q "already published; content matched" || {
+            echo "Expected a re-run against already-published content to be a no-op" >&2
+            exit 1
+          }
+
+      - name: Check Better Auth schema is in sync
+        run: pnpm --filter web run auth:check
+
+      - name: Assert schema_migrations bookkeeping
+        run: |
+          set -euo pipefail
+          count=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select count(*) from schema_migrations;")
+          echo "schema_migrations rows: $count"
+          if [ "$count" -lt 1 ]; then
+            echo "Expected at least 1 applied migration, found $count" >&2
+            exit 1
+          fi
+
+      - name: Assert key tables and functions exist
+        run: |
+          set -euo pipefail
+          result=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select
+              (to_regclass('public.users') is not null) and
+              (to_regclass('public.program_runs') is not null) and
+              (to_regclass('public.module_attempts') is not null) and
+              (to_regclass('public.mcp_tool_audit_logs') is not null) and
+              exists (select 1 from pg_proc where proname = 'normalize_email');")
+          echo "key objects present: $result"
+          if [ "$result" != "t" ]; then
+            echo "Expected users/program_runs/module_attempts/mcp_tool_audit_logs tables and normalize_email() to exist" >&2
+            exit 1
+          fi
+
+      - name: Run Better Auth integration tests
+        run: pnpm --filter web run test
+
+      - name: Test packages/services (DB-dependent)
+        run: pnpm --filter @ai-catalyst/services run test:db
+
+      - name: Test apps/mcp tool handlers (DB-dependent)
+        run: pnpm --filter @ai-catalyst/mcp run test:db
+
+      - name: Re-run migrations (expect no-op)
+        run: |
+          set -euo pipefail
+          output=$(pnpm --filter @ai-catalyst/db run migrate)
+          echo "$output"
+          echo "$output" | grep -q "No pending migrations." || {
+            echo "Expected a re-run with no pending migrations to be a no-op" >&2
+            exit 1
+          }
+          count=$(docker compose -f infra/docker/docker-compose.yml exec -T db \
+            psql -U ai_catalyst -d ai_catalyst -v ON_ERROR_STOP=1 -tAc \
+            "select count(*) from schema_migrations;")
+          file_count=$(ls infra/database/migrations/*.sql | wc -l)
+          if [ "$count" -ne "$file_count" ]; then
+            echo "Expected exactly $file_count applied migrations (one per file in infra/database/migrations) after a no-op re-run, found $count" >&2
+            exit 1
+          fi
+
+      - name: Build and start web + mcp
+        run: docker compose -f infra/docker/docker-compose.yml up -d --build --wait web mcp
+
+      - name: Smoke test web
+        run: |
+          set -euo pipefail
+          status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3000/login)
+          echo "GET /login -> $status"
+          if [ "$status" -ge 500 ]; then
+            echo "Expected /login to not 5xx, got $status" >&2
+            exit 1
+          fi
+
+      - name: Smoke test mcp
+        run: |
+          set -euo pipefail
+          health=$(curl -s http://127.0.0.1:8787/health)
+          echo "GET /health -> $health"
+          echo "$health" | grep -q '"status":"ok"' || {
+            echo "Expected mcp /health to report ok" >&2
+            exit 1
+          }
+
+          # PR 2.2: /mcp now requires a platform Bearer token (RFC 6750) —
+          # a bare request must be rejected, not served. The full
+          # authorize -> consent -> token -> Bearer-verified tools/list
+          # flow is covered by apps/web/tests/mcp-oauth.http.test.ts and
+          # apps/mcp/src/server.test.ts; scripting real DCR/PKCE/consent
+          # here would just duplicate that coverage against a container
+          # instead of the real HTTP handlers.
+          unauth_status=$(curl -s -o /tmp/unauth-body.json -w "%{http_code}" -X POST http://127.0.0.1:8787/mcp \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json, text/event-stream" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}')
+          unauth_body=$(cat /tmp/unauth-body.json)
+          echo "POST /mcp (no bearer token) -> $unauth_status $unauth_body"
+          if [ "$unauth_status" != "401" ]; then
+            echo "Expected an unauthenticated tools/list call to be rejected with 401, got $unauth_status" >&2
+            exit 1
+          fi
+          echo "$unauth_body" | grep -q "Missing bearer token" || {
+            echo "Expected the 401 body to report a missing bearer token" >&2
+            exit 1
+          }
+
+          resource_metadata=$(curl -s http://127.0.0.1:8787/.well-known/oauth-protected-resource)
+          echo "GET /.well-known/oauth-protected-resource -> $resource_metadata"
+          echo "$resource_metadata" | grep -q '"authorization_servers":\["http://localhost:3000"\]' || {
+            echo "Expected mcp's protected-resource metadata to point back at web as the Authorization Server" >&2
+            exit 1
+          }
+
+      # Destructive/expected-failure case — always last, so it never leaves
+      # the checkout in a tampered state for an earlier assertion to trip on.
+      - name: Tamper an applied migration and expect checksum failure
+        run: |
+          set -euo pipefail
+          echo "-- tamper test" >> infra/database/migrations/0001_aidb_v5_baseline.sql
+          if pnpm --filter @ai-catalyst/db run migrate; then
+            echo "Expected the migration runner to fail on a checksum mismatch" >&2
+            exit 1
+          fi

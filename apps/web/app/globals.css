@@ -3,38 +3,74 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  /* Near-white with the faintest warmth. A stronger paper tint muddies
+     both the ink panels and the lime accent — they need a clean ground
+     to stay crisp. */
+  --background: oklch(0.995 0.002 95);
+  --foreground: oklch(0.16 0.004 285);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.16 0.004 285);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --popover-foreground: oklch(0.16 0.004 285);
+  --primary: oklch(0.87 0.21 126);
+  --primary-foreground: oklch(0.18 0.03 130);
+  --secondary: oklch(0.16 0.004 285);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.96 0.004 95);
+  --muted-foreground: oklch(0.5 0.01 285);
+  --accent: oklch(0.95 0.09 126);
+  --accent-foreground: oklch(0.18 0.03 130);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  /* Business surfaces get their depth from hairlines and background
+     steps, not from shadows. */
+  --border: oklch(0.9 0.005 95);
+  --input: oklch(0.9 0.005 95);
+  --ring: oklch(0.72 0.19 126);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-  --radius: 0.625rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.16 0.004 285);
+  --sidebar-primary: oklch(0.16 0.004 285);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.95 0.09 126);
+  --sidebar-accent-foreground: oklch(0.18 0.03 130);
+  --sidebar-border: oklch(0.9 0.005 95);
+  --sidebar-ring: oklch(0.72 0.19 126);
+  /* Containers stay square-ish (8px base, 12px for cards via
+     --radius-xl); only pills — badges and the primary CTA — go fully
+     round. Large radii on panels read consumer, not business. */
+  --radius: 0.5rem;
+
+  /* Brand surfaces: the black "inverse" panel/badges are a distinct surface
+     from --secondary's utility usage, and --brand-lime is the raw accent
+     color kept outside the semantic primary/accent slots above so
+     both can reference the same hue without coupling. */
+  --brand-lime: oklch(0.87 0.21 126);
+  --brand-lime-foreground: oklch(0.18 0.03 130);
+  --brand-ink: oklch(0.16 0.004 285);
+  --brand-ink-foreground: oklch(0.98 0 0);
+  --surface-inverse: var(--brand-ink);
+
+  /* Module identity colours. Deliberately scoped to one place only — the
+     32px number badge — so each module is recognisable at a glance
+     without any hue leaking into the surrounding chrome, which stays
+     ink / white / lime.
+
+     All sit at roughly the same lightness and low chroma so no single
+     module shouts over the others, and all clear the lime hue (126) by a
+     wide margin so a module colour is never mistaken for the brand
+     accent or for a "done" state. White text passes AA on every one. */
+  --module-accent-0: oklch(0.42 0.05 250);
+  --module-accent-1: oklch(0.43 0.13 25);
+  --module-accent-2: oklch(0.42 0.11 305);
+  --module-accent-3: oklch(0.44 0.09 220);
+  --module-accent-4: oklch(0.45 0.1 65);
+  --module-accent-5: oklch(0.43 0.07 195);
+  --module-accent-6: oklch(0.42 0.11 340);
+  --surface-inverse-foreground: var(--brand-ink-foreground);
 }
 
 @theme inline {
@@ -69,8 +105,17 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand-lime: var(--brand-lime);
+  --color-brand-lime-foreground: var(--brand-lime-foreground);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-ink-foreground: var(--brand-ink-foreground);
+  --color-surface-inverse: var(--surface-inverse);
+  --color-surface-inverse-foreground: var(--surface-inverse-foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Display-only: page titles and figures. Body copy stays sans —
+     the contrast between the two is what carries the editorial feel. */
+  --font-serif: var(--font-fraunces);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -78,37 +123,55 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: oklch(0.16 0.004 285);
+  --foreground: oklch(0.96 0 0);
+  --card: oklch(0.2 0.004 285);
+  --card-foreground: oklch(0.96 0 0);
+  --popover: oklch(0.2 0.004 285);
+  --popover-foreground: oklch(0.96 0 0);
+  --primary: oklch(0.87 0.21 126);
+  --primary-foreground: oklch(0.16 0.03 130);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.16 0.004 285);
+  --muted: oklch(0.27 0.004 285);
+  --muted-foreground: oklch(0.7 0 0);
+  --accent: oklch(0.3 0.07 126);
+  --accent-foreground: oklch(0.92 0.1 126);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  --ring: oklch(0.75 0.19 126);
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar: oklch(0.18 0.004 285);
+  --sidebar-foreground: oklch(0.96 0 0);
+  --sidebar-primary: oklch(0.87 0.21 126);
+  --sidebar-primary-foreground: oklch(0.16 0.03 130);
+  --sidebar-accent: oklch(0.3 0.07 126);
+  --sidebar-accent-foreground: oklch(0.92 0.1 126);
   --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --sidebar-ring: oklch(0.75 0.19 126);
+
+  --brand-lime: oklch(0.87 0.21 126);
+  --brand-lime-foreground: oklch(0.16 0.03 130);
+  --brand-ink: oklch(0.94 0 0);
+  --brand-ink-foreground: oklch(0.16 0.004 285);
+  --surface-inverse: var(--brand-ink);
+  --surface-inverse-foreground: var(--brand-ink-foreground);
+
+  /* Same hues lifted for a dark ground — the badge keeps white text, so
+     these need to stay dark enough for that while still separating from
+     the page behind them. */
+  --module-accent-0: oklch(0.5 0.06 250);
+  --module-accent-1: oklch(0.5 0.14 25);
+  --module-accent-2: oklch(0.5 0.12 305);
+  --module-accent-3: oklch(0.51 0.1 220);
+  --module-accent-4: oklch(0.52 0.11 65);
+  --module-accent-5: oklch(0.5 0.08 195);
+  --module-accent-6: oklch(0.5 0.12 340);
 }
 
 body {

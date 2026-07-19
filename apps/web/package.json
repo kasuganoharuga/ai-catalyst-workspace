@@ -9,30 +9,45 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "auth:check": "tsx scripts/check-auth-schema.ts",
+    "oauth:cleanup": "tsx scripts/oauth-cleanup.ts",
+    "test": "vitest run",
+    "test:standalone": "node scripts/verify-standalone-build.mjs"
   },
   "dependencies": {
+    "@ai-catalyst/contracts": "workspace:*",
+    "@ai-catalyst/db": "workspace:*",
+    "@ai-catalyst/services": "workspace:*",
     "@ai-catalyst/shared": "workspace:*",
-    "@ai-catalyst/toolkit-content": "workspace:*",
     "@radix-ui/react-separator": "^1.1.11",
     "@radix-ui/react-slot": "^1.3.0",
+    "better-auth": "1.6.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.23.0",
+    "lucide-react": "^1.24.0",
     "next": "16.2.10",
+    "pg": "^8.16.3",
+    "radix-ui": "^1.6.2",
     "react": "19.2.7",
     "react-dom": "19.2.7",
-    "tailwind-merge": "^3.6.0"
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
+    "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "auth": "1.6.23",
+    "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
-    "prettier": "^3.9.4",
+    "prettier": "^3.9.5",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "tsx": "^4.20.6",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    # No hardcoded default: the correct value depends on how the API is
+    # started (docker-compose sets it to the `db` service hostname; local
+    # non-Docker runs set it via .env to 127.0.0.1). A fixed default here
+    # would silently be wrong in one of those contexts. Currently unused
+    # (reserved for future AI/DB workflows); defaults to None so it's
+    # explicit when it hasn't been configured.
+    database_url: str | None = None
     ai_provider: str = ""
     ai_api_key: str = ""
 

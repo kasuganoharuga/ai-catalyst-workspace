@@ -1,0 +1,212 @@
+import { z } from "zod";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+
+import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { resolveAttemptRunContext } from "@ai-catalyst/services/workflow";
+import { saveFounderResponse, startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
+import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
+
+import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
+
+// Registers the 4 write MCP capabilities: PR 2.7's save_founder_input and
+// save_artifact, plus PR 2.8's start_module_attempt and (rewired)
+// complete_module. Every handler here is a thin shell over a Service
+// function — no new business/state-machine logic is added at this layer
+// (architecture.mdc rule 1).
+//
+// `complete_module` wraps `completeModuleAttempt`, which submits, then
+// triggers Official Validation with an actor whose `source` has been
+// forced to `'system'` (never the raw MCP actor). On a pass it stops at
+// ready_for_review / awaitingConfirmation — completing the Module and
+// unlocking the next one is confirmModuleCompletion on the website. The
+// only further MCP-side branch is a Founder's own Pivot decision, which
+// cancels-and-retries. An MCP-sourced Actor still cannot call
+// `runOfficialValidation` directly and still cannot force a Mentor
+// acceptance. See packages/services/src/module/completion.ts.
+
+const RESPONSE_STATUS_VALUES = ["answered", "skipped", "not_applicable", "needs_follow_up"] as const;
+
+const SAVE_FOUNDER_INPUT_SHAPE = {
+  attemptId: z.string().min(1),
+  questionKey: z.string().min(1),
+  responseStatus: z.enum(RESPONSE_STATUS_VALUES).optional(),
+  value: z.unknown().optional(),
+};
+
+const SAVE_ARTIFACT_SHAPE = {
+  attemptId: z.string().min(1),
+  artifactKey: z.string().min(1),
+  content: z.string(),
+};
+
+const ATTEMPT_ID_SHAPE = { attemptId: z.string().min(1) };
+
+const START_MODULE_ATTEMPT_SHAPE = {
+  programRunModuleId: z.string().min(1),
+  basedOnAttemptId: z.string().min(1).optional(),
+};
+
+// Best-effort audit enrichment shared by all three write tools below —
+// tolerated if it fails (a bad attemptId already produced its own
+// NOT_FOUND from the real Service call above it), never allowed to mask
+// the tool's actual result. See resolveAttemptRunContext's own comment
+// for why this second lookup is necessary at all.
+async function resolveAuditHierarchy(actor: ActorContext, attemptId: string) {
+  return resolveAttemptRunContext(actor, attemptId).catch(() => null);
+}
+
+export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
+  mcp.registerTool(
+    "start_module_attempt",
+    {
+      title: "Start or resume a module attempt",
+      description:
+        "Starts a Founder's first Attempt at a Module, resumes the one currently in progress, or (with basedOnAttemptId) starts a Retry Attempt after a failed/cancelled one. Required before save_founder_input/save_artifact/complete_module can target a new Attempt.",
+      inputSchema: START_MODULE_ATTEMPT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "start_module_attempt",
+          actor,
+          requestMetadata: {
+            programRunModuleId: args.programRunModuleId,
+            basedOnAttemptId: args.basedOnAttemptId ?? null,
+          },
+        },
+        async () => {
+          const result = await startOrResumeAttempt(actor, args);
+          const hierarchy = await resolveAuditHierarchy(actor, result.attempt.id);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: hierarchy?.workspaceId ?? null,
+              programRunId: hierarchy?.programRunId ?? null,
+              programRunBranchId: hierarchy?.programRunBranchId ?? null,
+              programRunModuleId: hierarchy?.programRunModuleId ?? null,
+              moduleAttemptId: result.attempt.id,
+              resultMetadata: { status: result.attempt.status, created: result.created },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
+    "save_founder_input",
+    {
+      title: "Save founder input",
+      description:
+        "Validates and persists a Founder's structured answer to one Question within an Attempt. Idempotent for the same (attemptId, questionKey).",
+      inputSchema: SAVE_FOUNDER_INPUT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "save_founder_input",
+          actor,
+          requestMetadata: { attemptId: args.attemptId, questionKey: args.questionKey },
+        },
+        async () => {
+          const result = await saveFounderResponse(actor, args);
+          const hierarchy = await resolveAuditHierarchy(actor, result.moduleAttemptId);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: hierarchy?.workspaceId ?? null,
+              programRunId: hierarchy?.programRunId ?? null,
+              programRunBranchId: hierarchy?.programRunBranchId ?? null,
+              programRunModuleId: hierarchy?.programRunModuleId ?? null,
+              moduleAttemptId: result.moduleAttemptId,
+              resultMetadata: {
+                questionKey: result.questionKey,
+                responseStatus: result.responseStatus,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
+    "save_artifact",
+    {
+      title: "Save artifact",
+      description:
+        "Stores a new version of an Artifact's content through StorageService and creates its versioned submission. Hash-idempotent: an identical resubmission returns the existing version unchanged.",
+      inputSchema: SAVE_ARTIFACT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "save_artifact",
+          actor,
+          requestMetadata: { attemptId: args.attemptId, artifactKey: args.artifactKey },
+        },
+        async () => {
+          const result = await saveArtifactSubmission(actor, args);
+          const hierarchy = await resolveAuditHierarchy(actor, result.moduleAttemptId);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: hierarchy?.workspaceId ?? null,
+              programRunId: hierarchy?.programRunId ?? null,
+              programRunBranchId: hierarchy?.programRunBranchId ?? null,
+              programRunModuleId: hierarchy?.programRunModuleId ?? null,
+              moduleAttemptId: result.moduleAttemptId,
+              resultMetadata: {
+                artifactKey: args.artifactKey,
+                versionNumber: result.versionNumber,
+                status: result.status,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
+    "complete_module",
+    {
+      title: "Complete module",
+      description:
+        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. If the Founder's own recorded decision is 'pivot' (Module 1), it also cancels this Attempt and starts a Retry Attempt automatically. Never lets an MCP-sourced Actor force a Mentor acceptance.",
+      inputSchema: ATTEMPT_ID_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        { toolName: "complete_module", actor, requestMetadata: { attemptId: args.attemptId } },
+        async () => {
+          const result = await completeModuleAttempt(actor, args);
+          const hierarchy = await resolveAuditHierarchy(actor, result.attempt.id);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: hierarchy?.workspaceId ?? null,
+              programRunId: hierarchy?.programRunId ?? null,
+              programRunBranchId: hierarchy?.programRunBranchId ?? null,
+              programRunModuleId: hierarchy?.programRunModuleId ?? null,
+              moduleAttemptId: result.attempt.id,
+              resultMetadata: {
+                status: result.attempt.status,
+                passed: result.passed,
+                moduleCompleted: result.moduleCompleted,
+                awaitingConfirmation: result.awaitingConfirmation,
+                pivoted: result.pivoted,
+                nextModuleUnlocked: result.nextModuleUnlocked?.moduleKey ?? null,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+}

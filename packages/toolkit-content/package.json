@@ -3,7 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "description": "Toolkit content package — manifest.json, module markdown, and Skill files, plus path resolution for consumers. Read by packages/services/module; apps/web and apps/mcp never read it directly.",
   "exports": {
-    "./manifest.json": "./manifest.json"
+    "./manifest.json": "./manifest.json",
+    "./paths": "./src/paths.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
   }
 }

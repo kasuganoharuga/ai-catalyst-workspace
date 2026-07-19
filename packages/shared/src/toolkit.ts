@@ -1,4 +1,4 @@
-import type { ToolkitModule } from "./module";
+import type { ToolkitModule } from "./module.js";
 
 export type ToolkitManifest = {
   version: string;
