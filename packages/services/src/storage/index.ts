@@ -17,21 +17,22 @@ import {
   assertGeneratedTextSizeWithinLimit,
 } from "@ai-catalyst/services/storage/internal/validation";
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
-import { LocalStorageProvider } from "@ai-catalyst/services/storage/providers/local";
+import {
+  loadStorageConfigFromEnv,
+  storageIdentityFromConfig,
+  type StorageConfig,
+} from "@ai-catalyst/services/storage/config";
+import { resolveProvider as resolveProviderFromConfig } from "@ai-catalyst/services/storage/resolve-provider";
 
 import type { StorageProvider } from "./types.js";
 
-// ACCEPTANCE NOTE (read before wiring this into 2.6/2.7/2.9):
+// ACCEPTANCE NOTE:
 //
-// The Local Provider this Service defaults to
-// (storage/providers/local.ts) currently only guarantees
-// single-process/test-suite usability. It does NOT yet provide
-// cross-container (web/mcp) shared local file access under `docker:up` —
-// infra/docker/docker-compose.yml declares a named volume +
-// LOCAL_STORAGE_ROOT convention for it, but nothing exercises real
-// concurrent multi-container access. That requires either 2.10's move to
-// an S3-compatible provider, or a follow-up PR that actually wires a
-// shared bind mount into a running container.
+// The Local Provider guarantees single-process/test-suite usability.
+// Cross-container sharing under `docker:up` is still best-effort; Staging
+// / Production use STORAGE_PROVIDER=s3 via StorageConfig injection
+// (storage/config.ts + resolve-provider.ts). Artifact downloads default
+// to stream-through-backend (getObject), not createDownloadUrl.
 //
 // This module owns Storage Object business state (storage_objects rows,
 // authorization, the pending → uploaded → verified transaction
@@ -44,25 +45,55 @@ import type { StorageProvider } from "./types.js";
 export type QueryExecutor = Pool | PoolClient;
 
 export interface StorageServiceDependencies {
-  // Test-only seam: production always uses the real LocalStorageProvider
-  // (created lazily so nothing touches the filesystem at import time).
-  // Lets tests substitute a fake StorageProvider to deterministically
-  // exercise failure paths (Provider I/O throwing, an object that never
-  // becomes visible via headObject) that are otherwise a real race
-  // against the real filesystem — same DI pattern as
+  // Test-only seam: production builds a provider from StorageConfig
+  // (created lazily so nothing touches the filesystem / network at
+  // import time). Lets tests substitute a fake StorageProvider to
+  // deterministically exercise failure paths — same DI pattern as
   // module/catalog.ts's ModuleCatalogDependencies.
   provider?: StorageProvider;
+  /** Override config used when `provider` is omitted (tests / custom roots). */
+  storageConfig?: StorageConfig;
 }
 
 let defaultProvider: StorageProvider | null = null;
-function resolveProvider(deps: StorageServiceDependencies): StorageProvider {
+let defaultConfig: StorageConfig | null = null;
+let defaultProviderPromise: Promise<StorageProvider> | null = null;
+
+async function resolveProvider(
+  deps: StorageServiceDependencies,
+): Promise<StorageProvider> {
   if (deps.provider) {
     return deps.provider;
   }
-  if (!defaultProvider) {
-    defaultProvider = new LocalStorageProvider();
+  if (deps.storageConfig) {
+    return resolveProviderFromConfig(deps.storageConfig);
   }
-  return defaultProvider;
+  if (defaultProvider) {
+    return defaultProvider;
+  }
+  if (!defaultProviderPromise) {
+    defaultProviderPromise = (async () => {
+      defaultConfig = await loadStorageConfigFromEnv();
+      defaultProvider = resolveProviderFromConfig(defaultConfig);
+      return defaultProvider;
+    })();
+  }
+  return defaultProviderPromise;
+}
+
+function activeStorageIdentity(deps: StorageServiceDependencies): {
+  provider: "local" | "s3";
+  container: string;
+} {
+  if (deps.storageConfig) {
+    return storageIdentityFromConfig(deps.storageConfig);
+  }
+  if (defaultConfig) {
+    return storageIdentityFromConfig(defaultConfig);
+  }
+  // Before the lazy default provider has loaded, persist the local
+  // convention (matches prior hardcoded constants and CI/default envs).
+  return { provider: "local", container: "local-development" };
 }
 
 // DEVIATION from the plan's literal pseudocode, documented here because
@@ -89,14 +120,6 @@ function assertFounderOrSystemActor(actor: ActorContext): void {
     "You do not have permission to perform this action.",
   );
 }
-
-// V1 hardcodes both of these — see the schema's own column comment for
-// storage_provider ("local" for dev/test, "s3" for production) and
-// storage_container ("local-development" is the documented local
-// convention). 2.10's S3-compatible provider swap is expected to make
-// this a real per-environment decision, not a constant.
-const STORAGE_PROVIDER = "local";
-const STORAGE_CONTAINER = "local-development";
 
 const WRITABLE_UPLOAD_STATUSES: readonly StorageObjectUploadStatus[] = [
   "pending",
@@ -386,7 +409,7 @@ export async function getGeneratedTextContent(
     );
   }
 
-  const provider = resolveProvider(deps);
+  const provider = await resolveProvider(deps);
   const buffer = await provider.getObject(row.object_key);
   return buffer.toString("utf8");
 }
@@ -402,10 +425,15 @@ export async function getGeneratedTextContent(
 export async function createPendingGeneratedObject(
   actor: ActorContext,
   input: unknown,
+  deps: StorageServiceDependencies = {},
 ): Promise<{ id: string }> {
   assertFounderOrSystemActor(actor);
   const { workspaceId, filename } =
     normalizeCreatePendingGeneratedObjectInput(input);
+  // Ensure the default provider (and its config) is warm so
+  // storage_provider / storage_container match the active StorageConfig.
+  await resolveProvider(deps);
+  const identity = activeStorageIdentity(deps);
 
   return withTransaction(async (client) => {
     let resolvedWorkspaceId: string;
@@ -438,8 +466,8 @@ export async function createPendingGeneratedObject(
       [
         storageObjectId,
         resolvedWorkspaceId,
-        STORAGE_PROVIDER,
-        STORAGE_CONTAINER,
+        identity.provider,
+        identity.container,
         objectKey,
         sanitizedFilename,
         GENERATED_TEXT_CONTENT_TYPE,
@@ -543,7 +571,7 @@ export async function writeGeneratedTextContent(
     );
   }
 
-  const provider = resolveProvider(deps);
+  const provider = await resolveProvider(deps);
 
   // Orphan-recovery check: a prior call may have completed the Provider
   // write but failed before transaction B recorded it (see the module
@@ -656,7 +684,7 @@ export async function deleteUnverifiedUpload(
   // (a missing provider object is not an error) happens with no Postgres
   // transaction held open, same "no I/O inside a transaction" rule as
   // writeGeneratedTextContent.
-  const provider = resolveProvider(deps);
+  const provider = await resolveProvider(deps);
   await provider.deleteObject(lockedRow.object_key);
 
   const deletedRow = await withTransaction(async (client) => {

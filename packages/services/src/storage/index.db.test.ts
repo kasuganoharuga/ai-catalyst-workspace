@@ -177,7 +177,7 @@ describe("storage service — database integration", () => {
       // this, so it catches a junction the same way it would a symlink.
       await fs.symlink(outsideDir, linkPath, "junction");
 
-      const provider = new LocalStorageProvider();
+      const provider = new LocalStorageProvider({ rootDir: storageRoot });
       await expect(
         provider.putObject({
           key: "escape-link/payload.md",
@@ -325,7 +325,7 @@ describe("storage service — database integration", () => {
         await createFounderWithWorkspace("orphan-recovery");
 
       let putCalls = 0;
-      const delegate = new LocalStorageProvider();
+      const delegate = new LocalStorageProvider({ rootDir: storageRoot });
       const countingProvider: StorageProvider = {
         putObject: async (writeInput) => {
           putCalls += 1;
@@ -333,7 +333,10 @@ describe("storage service — database integration", () => {
         },
         getObject: (key) => delegate.getObject(key),
         headObject: (key) => delegate.headObject(key),
+        exists: (key) => delegate.exists(key),
         deleteObject: (key) => delegate.deleteObject(key),
+        createDownloadUrl: (input) => delegate.createDownloadUrl(input),
+        copyObject: (input) => delegate.copyObject(input),
       };
 
       const pending = await createPendingGeneratedObject(actor, {
@@ -397,7 +400,14 @@ describe("storage service — database integration", () => {
           throw new Error("object not found");
         },
         headObject: async () => null,
+        exists: async () => false,
         deleteObject: async () => undefined,
+        createDownloadUrl: async () => {
+          throw new Error("not found");
+        },
+        copyObject: async () => {
+          throw new Error("not found");
+        },
       };
 
       await expect(
