@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
+import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import { updateMyProfile } from "@ai-catalyst/services/profile";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { archiveVenture, createVenture } from "@ai-catalyst/services/venture";
@@ -47,6 +48,20 @@ export async function updateProfileAction(
     const actor = await requireFounderActor();
     await updateMyProfile(actor, input);
     revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+export async function updateCompanyProfileAction(
+  input: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await updateMyCompanyProfile(actor, input);
+    revalidateFounderAppShell();
+    revalidatePath("/company-profile");
     return { ok: true };
   } catch (error) {
     return toActionResult(error);

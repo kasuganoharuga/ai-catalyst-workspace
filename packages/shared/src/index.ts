@@ -52,3 +52,8 @@ export type {
   UpdateUserProfileInput,
   PreferredAiProvider,
 } from "./user-profile.js";
+export type {
+  CompanyProfile,
+  UpdateCompanyProfileInput,
+  CompanyProfileStatus,
+} from "./company-profile.js";

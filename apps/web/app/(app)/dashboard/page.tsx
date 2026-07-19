@@ -9,7 +9,11 @@ import {
   getCurrentFounderActor,
   getCurrentFounderSession,
 } from "@/lib/current-founder-actor";
-import { getMcpConnectionStatus } from "@/lib/mcp-connection";
+import {
+  deriveMcpConnectionState,
+  formatRelativeTime,
+  getMcpConnectionStatus,
+} from "@/lib/mcp-connection";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
@@ -17,7 +21,6 @@ import { appPageTitle } from "@/lib/page-metadata";
 import { ventureForActiveContext } from "@/lib/ventures";
 
 import { PageShell } from "../components/page-shell";
-import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModuleStatusCard } from "./components/module-status-card";
@@ -26,11 +29,47 @@ import { SetupStepper, type SetupStep } from "./components/setup-stepper";
 
 export const metadata = appPageTitle("Dashboard");
 
-function formatLifecycleStage(stage: string): string {
-  return stage
-    .split("_")
-    .map((word) => word[0]?.toUpperCase() + word.slice(1))
-    .join(" ");
+function connectionStatContent(
+  state: ReturnType<typeof deriveMcpConnectionState>,
+  lastActivityAt: string | null,
+): { value: string; label: ReactNode } {
+  switch (state) {
+    case "active":
+      return { value: "Active", label: "Claude connected" };
+    case "idle":
+      return {
+        value: "Connected",
+        label: lastActivityAt
+          ? `Last used ${formatRelativeTime(lastActivityAt)}`
+          : "Claude connected",
+      };
+    case "never_used":
+      return { value: "Connected", label: "Authorised — not used yet" };
+    case "expired":
+      return {
+        value: "Expired",
+        label: (
+          <>
+            Reconnect in{" "}
+            <Link href="/connection" className="underline">
+              MCP connection
+            </Link>
+          </>
+        ),
+      };
+    case "not_connected":
+      return {
+        value: "Not connected",
+        label: (
+          <>
+            Set up in{" "}
+            <Link href="/connection" className="underline">
+              MCP connection
+            </Link>
+          </>
+        ),
+      };
+  }
 }
 
 export default async function DashboardPage() {
@@ -80,7 +119,12 @@ export default async function DashboardPage() {
     .filter((context): context is ModuleContext => context !== null)
     .flatMap((context) => context.artifacts)
     .filter((artifact) => artifact.latestSubmission !== null).length;
-  const readyForReviewCount = verdictReady ? 1 : 0;
+
+  const connectionState = deriveMcpConnectionState(connection);
+  const connectionStat = connectionStatContent(
+    connectionState,
+    connection.lastActivityAt,
+  );
 
   const steps: SetupStep[] = [
     {
@@ -166,16 +210,13 @@ export default async function DashboardPage() {
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-            Welcome back, {resolveGreetingName(profile, session.user.name)}
-          </h1>
-          <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
-            {welcomeSub}
-          </p>
-        </div>
-        <RecheckButton className="mt-2 shrink-0" />
+      <div>
+        <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+          Welcome back, {resolveGreetingName(profile, session.user.name)}
+        </h1>
+        <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
+          {welcomeSub}
+        </p>
       </div>
 
       <div className="mt-10">
@@ -207,24 +248,7 @@ export default async function DashboardPage() {
           Modules unlocked
         </Stat>
         <Stat value={`${artefactsSaved}`}>Artefacts saved</Stat>
-        {readyForReviewCount > 0 ? (
-          <Stat value={`${readyForReviewCount}`}>Ready for review</Stat>
-        ) : (
-          <Stat
-            value={venture ? formatLifecycleStage(venture.lifecycleStage) : "—"}
-          >
-            {venture ? (
-              "Current stage"
-            ) : (
-              <>
-                No venture yet ·{" "}
-                <Link href="/workspace" className="underline">
-                  create one
-                </Link>
-              </>
-            )}
-          </Stat>
-        )}
+        <Stat value={connectionStat.value}>{connectionStat.label}</Stat>
       </div>
 
       <div className="mt-14 flex items-baseline justify-between gap-4">

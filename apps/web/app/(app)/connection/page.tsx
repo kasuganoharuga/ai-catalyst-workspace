@@ -1,4 +1,4 @@
-import { Check, ExternalLink, Minus } from "lucide-react";
+import { Check, Minus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { CopyButton } from "../components/copy-button";
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { StatusBadge } from "../components/status-badge";
-import { CLAUDE_CONNECTOR_SETTINGS_URL } from "../lib/module-display";
+import { claudeCoworkUrl, mcpConnectCoworkPrompt } from "../lib/module-display";
 import { appPageTitle } from "@/lib/page-metadata";
 
 export const metadata = appPageTitle("MCP connection");
@@ -229,13 +229,8 @@ export default async function ConnectionPage() {
 
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <a
-                  href={CLAUDE_CONNECTOR_SETTINGS_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open Claude settings
-                  <ExternalLink aria-hidden="true" />
+                <a href={claudeCoworkUrl(mcpConnectCoworkPrompt(endpointUrl))}>
+                  Open Claude Cowork
                 </a>
               </Button>
               <RecheckButton label="I've connected — check now" size="lg" />
