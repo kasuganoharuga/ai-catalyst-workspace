@@ -67,7 +67,10 @@ export function VentureClaudeProjectField({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-4 space-y-3 border-t border-border/70 pt-4">
+    <form
+      onSubmit={handleSubmit}
+      className="mt-4 space-y-3 border-t border-border/70 pt-4"
+    >
       <div>
         <label
           htmlFor={`claude-project-${ventureId}`}
@@ -77,7 +80,9 @@ export function VentureClaudeProjectField({
         </label>
         <p className="mt-1 text-xs leading-5 text-muted-foreground">
           From{" "}
-          <span className="font-medium text-foreground">claude.ai/projects</span>
+          <span className="font-medium text-foreground">
+            claude.ai/projects
+          </span>
           : open your Project and copy the UUID at the end of the URL.
         </p>
         <input

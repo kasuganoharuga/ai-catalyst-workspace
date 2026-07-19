@@ -286,7 +286,7 @@ jobs:
 
           resource_metadata=$(curl -s http://127.0.0.1:8787/.well-known/oauth-protected-resource)
           echo "GET /.well-known/oauth-protected-resource -> $resource_metadata"
-          echo "$resource_metadata" | grep -q "\"authorization_servers\":[\"${AUTH_ISSUER_URL}\"]" || {
+          echo "$resource_metadata" | grep -Fq "\"authorization_servers\":[\"${AUTH_ISSUER_URL}\"]" || {
             echo "Expected mcp's protected-resource metadata to point back at web as the Authorization Server (${AUTH_ISSUER_URL})" >&2
             exit 1
           }
