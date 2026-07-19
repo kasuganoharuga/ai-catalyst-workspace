@@ -93,6 +93,16 @@ export function claudeChatUrl(prompt: string): string {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
+/** Deep link to an existing Claude Chat Project (Desktop or browser handler). */
+export function claudeChatProjectUrl(projectId: string): string {
+  return `claude://claude.ai/project/${projectId}`;
+}
+
+/** Browser URL for the same Claude Chat Project. */
+export function claudeChatProjectWebUrl(projectId: string): string {
+  return `https://claude.ai/project/${projectId}`;
+}
+
 export const CLAUDE_CONNECTOR_SETTINGS_URL =
   "https://claude.ai/settings/connectors";
 

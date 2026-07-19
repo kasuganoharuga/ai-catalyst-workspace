@@ -22,4 +22,6 @@ export interface Venture {
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
+  /** Claude Chat Project UUID from claude.ai/project/{id} — null until saved. */
+  claudeProjectId: string | null;
 }
