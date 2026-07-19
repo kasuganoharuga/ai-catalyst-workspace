@@ -19,10 +19,7 @@ import { CopyButton } from "../components/copy-button";
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { StatusBadge } from "../components/status-badge";
-import {
-  claudeCoworkUrl,
-  mcpConnectCoworkPrompt,
-} from "../lib/module-display";
+import { claudeCoworkUrl, mcpConnectCoworkPrompt } from "../lib/module-display";
 import { appPageTitle } from "@/lib/page-metadata";
 
 export const metadata = appPageTitle("MCP connection");
