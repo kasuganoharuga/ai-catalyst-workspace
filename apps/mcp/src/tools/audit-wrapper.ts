@@ -12,10 +12,7 @@ import {
   type McpToolCallOutcome,
 } from "@ai-catalyst/services/audit";
 
-// The one place every apps/mcp tool handler routes through — per
-// architecture.mdc rule 1, tool handlers are thin shells; this wrapper is
-// the only piece of "MCP-specific" behavior (audit + error mapping) they
-// share, never a second business-logic implementation.
+// Shared audit + error mapping for every MCP tool handler.
 
 // Alias to the SDK's own `CallToolResult` (not a hand-rolled shape) — its
 // runtime schema carries an open index signature that a custom `{
@@ -91,15 +88,8 @@ function outcomeForServiceErrorCode(
 }
 
 /**
- * Runs one MCP tool handler and unconditionally records the call in
- * `mcp_tool_audit_logs` — on success, on a typed `ServiceError` (denied /
- * validation_error), and on any other unexpected error (system_error).
- * Per source doc §21 ("Failed and unauthorised Tool calls must still
- * produce audit records") and the iteration plan's "审计写入与业务事务
- * 分离", the audit write always runs after the handler has already
- * settled (committed or rolled back its own transaction, if any) —
- * `recordMcpToolCall` opens its own connection and never participates in
- * the handler's transaction.
+ * Runs one MCP tool handler and records the call in mcp_tool_audit_logs.
+ * Audit writes run after the handler finishes, outside any business transaction.
  *
  * Never lets a `ServiceError`'s message leak internal detail beyond what
  * the Service author already wrote for external consumption (every

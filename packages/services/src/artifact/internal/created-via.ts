@@ -15,8 +15,7 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 // `assertRole(actor, ["founder"])` gate.
 export function resolveSubmissionCreatedVia(actor: ActorContext): ArtifactSubmissionCreatedVia {
   if (actor.source === "mcp") {
-    // V1 constraint: exactly one Claude Remote MCP client
-    // (architecture.mdc) — same hardcode as the other two mappers.
+    // V1: one MCP client.
     return "claude";
   }
   if (actor.source === "web" || actor.source === undefined) {
@@ -24,8 +23,7 @@ export function resolveSubmissionCreatedVia(actor: ActorContext): ArtifactSubmis
   }
   // Structurally unreachable: saveArtifactSubmission only ever calls this
   // after assertRole(actor, ["founder"]), and a founder actor's source is
-  // always "web" or "mcp" in this PR (never "system" — a system actor has
-  // no business submitting a Founder's own Artifact).
+  // Founder submissions come from web or mcp only.
   throw new ServiceError(
     "INTERNAL_INVARIANT_ERROR",
     `Unexpected actor.source "${String(actor.source)}" for a founder Artifact submission.`,

@@ -2,7 +2,7 @@
 
 Platform-ready workspace for the AI Catalyst Founder Toolkit, starting with downloadable AI Skills and structured module content.
 
-This repository is a development-ready foundation for the MVP described in `local/AI Catalyst Workspace — Project Setup & Architecture Notes.pdf`. The `local/` folder is intentionally ignored by Git.
+This repository is a development-ready foundation for the AI Catalyst Founder Toolkit MVP.
 
 ## V1 Scope
 

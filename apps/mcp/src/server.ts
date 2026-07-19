@@ -37,12 +37,8 @@ const METHOD_NOT_ALLOWED_BODY = {
  * no shared state across requests) and both are torn down once the
  * response closes, matching the SDK's stateless reference implementation.
  *
- * `req.actorContext` is always set by this point (`verifyBearerToken`
- * runs before this handler on the `/mcp` route and never calls `next()`
- * on failure). A fresh `traceId` is stamped onto it here — one per
- * request, correlating every packages/services call and
- * `mcp_tool_audit_logs` row this single MCP call produces, per
- * architecture.mdc's ActorContext.traceId contract.
+ * `req.actorContext` is set by verifyBearerToken. A fresh traceId is added
+ * here to correlate service calls and audit rows for this request.
  */
 async function handleStatelessMcpRequest(req: Request, res: Response): Promise<void> {
   const baseActor = req.actorContext;

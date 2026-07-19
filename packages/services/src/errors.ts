@@ -22,10 +22,8 @@ export type ServiceErrorCode =
   | "INVITATION_NOT_PENDING"
   | "INVITATION_EMAIL_MISMATCH"
   | "FOUNDER_WORKSPACE_ALREADY_EXISTS"
-  // PR 2.4 (packages/services/src/attempt) — all five are state-conflict
-  // errors (HTTP 409 in apps/web/lib/service-error-response.ts), not
-  // validation errors: the request is well-formed, but the target
-  // Attempt/run_module is not in a state that permits the operation.
+  // Attempt/run_module state conflicts (HTTP 409): the request is
+  // well-formed but the target is not in a state that permits the operation.
   | "RUN_MODULE_NOT_AVAILABLE"
   // confirmModuleCompletion was called against a Module with nothing to
   // confirm — no Attempt at all, or one that hasn't passed its official
@@ -56,7 +54,7 @@ export type ServiceErrorCode =
   // row — lifecycle management of a verified object is out of scope for
   // this "clean up an unfinished upload" API.
   | "STORAGE_OBJECT_NOT_DELETABLE"
-  // PR 2.6 (packages/services/src/artifact) — both are state-conflict
+  // Artifact submission/validation state conflicts (HTTP 409).
   // errors (HTTP 409), matching the ATTEMPT_* codes above.
   //
   // An Artifact Definition's `validator_key` is null/unregistered but a

@@ -9,12 +9,7 @@ import { getArtifactSubmission } from "@ai-catalyst/services/artifact";
 
 import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
-// Registers the 5 read-only MCP capabilities from source doc §21:
-// get_active_context, list_modules, get_module_status, get_module_context,
-// get_artifact. Every handler here does nothing but validate its own MCP
-// input shape (zod) and call straight into packages/services — no
-// business logic, no direct table access (architecture.mdc rule 1 /
-// this PR's own acceptance criteria).
+// Read-only MCP tools: validate input and delegate to packages/services.
 
 const MODULE_KEY_SHAPE = { moduleKey: z.string().min(1) };
 const ARTIFACT_KEY_SHAPE = {

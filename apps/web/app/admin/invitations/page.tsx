@@ -1,10 +1,13 @@
 import { SiteHeader } from "@/components/site-header";
 import { requireAdminUser } from "@/lib/require-active-user";
+import { appPageTitle } from "@/lib/page-metadata";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { listFounderInvitations } from "@/lib/invitations";
 
 import { CreateInvitationForm } from "./create-invitation-form";
 import { RevokeInvitationButton } from "./revoke-invitation-button";
+
+export const metadata = appPageTitle("Founder invitations");
 
 export default async function AdminInvitationsPage() {
   const session = await requireAdminUser();

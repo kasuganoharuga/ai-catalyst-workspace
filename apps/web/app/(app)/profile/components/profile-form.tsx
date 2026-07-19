@@ -1,11 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import type { UserProfile } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
+import { updateProfileAction } from "@/lib/actions/founder-actions";
 
 type FormState = {
   firstName: string;
@@ -29,6 +30,7 @@ function toFormState(profile: UserProfile): FormState {
 
 export function ProfileForm({ profile }: { profile: UserProfile }) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<FormState>(() => toFormState(profile));
   const [saved, setSaved] = useState<FormState>(() => toFormState(profile));
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
@@ -58,28 +60,19 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
     );
 
     try {
-      const response = await fetch("/api/profile", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const result = await updateProfileAction(payload);
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        setError(
-          body?.error?.message ?? "That didn't save. Try again in a moment.",
-        );
+      if (!result.ok) {
+        setError(result.message);
         setStatus("idle");
         return;
       }
 
       setSaved(form);
       setStatus("saved");
-      // The greeting and the sidebar read the same profile, so refresh
-      // the server components to keep the whole shell in step.
-      router.refresh();
+      startTransition(() => {
+        router.refresh();
+      });
     } catch {
       setError("That didn't save. Try again in a moment.");
       setStatus("idle");
@@ -95,14 +88,14 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           value={form.firstName}
           onChange={(value) => update("firstName", value)}
           autoComplete="given-name"
-          placeholder="Sicong"
+          placeholder="Alex"
         />
         <Field
           label="Last name"
           value={form.lastName}
           onChange={(value) => update("lastName", value)}
           autoComplete="family-name"
-          placeholder="Fu"
+          placeholder="Smith"
         />
         <Field
           label="Job title"
@@ -147,8 +140,11 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
       ) : null}
 
       <div className="mt-6 flex items-center gap-4">
-        <Button type="submit" disabled={!isDirty || status === "saving"}>
-          {status === "saving" ? "Saving…" : "Save changes"}
+        <Button
+          type="submit"
+          disabled={!isDirty || status === "saving" || isPending}
+        >
+          {status === "saving" || isPending ? "Saving…" : "Save changes"}
         </Button>
         {status === "saved" && !isDirty ? (
           <span className="text-sm text-muted-foreground">Saved</span>

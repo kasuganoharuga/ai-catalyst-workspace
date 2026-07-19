@@ -9,21 +9,7 @@ import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
 
 import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
-// Registers the 4 write MCP capabilities: PR 2.7's save_founder_input and
-// save_artifact, plus PR 2.8's start_module_attempt and (rewired)
-// complete_module. Every handler here is a thin shell over a Service
-// function — no new business/state-machine logic is added at this layer
-// (architecture.mdc rule 1).
-//
-// `complete_module` wraps `completeModuleAttempt`, which submits, then
-// triggers Official Validation with an actor whose `source` has been
-// forced to `'system'` (never the raw MCP actor). On a pass it stops at
-// ready_for_review / awaitingConfirmation — completing the Module and
-// unlocking the next one is confirmModuleCompletion on the website. The
-// only further MCP-side branch is a Founder's own Pivot decision, which
-// cancels-and-retries. An MCP-sourced Actor still cannot call
-// `runOfficialValidation` directly and still cannot force a Mentor
-// acceptance. See packages/services/src/module/completion.ts.
+// Registers write MCP tools — thin shells over packages/services only.
 
 const RESPONSE_STATUS_VALUES = ["answered", "skipped", "not_applicable", "needs_follow_up"] as const;
 

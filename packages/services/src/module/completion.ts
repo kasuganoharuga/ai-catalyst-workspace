@@ -27,27 +27,11 @@ import {
 } from "@ai-catalyst/services/artifact";
 import { renderSetupSummaryMarkdown } from "@ai-catalyst/services/module/internal/setup-summary";
 
-// Orchestrates what happens once a Founder (via apps/mcp's `complete_module`
-// tool) declares a Module's Attempt done — the one piece of PR 2.7 that was
-// still missing: submitAttempt (2.4) and runOfficialValidation (2.6) both
-// already existed as correct, independently-tested primitives, but nothing
-// wired them together with the two source-doc (Module_0_and_Module_1_
-// Workflow_S3.md) behaviours neither of them owns on its own:
-//   1. `completion_mode = 'system'` Modules (Module 0) auto-accept once
-//      validation passes and unlock the next Module — no Mentor gate exists
-//      for these, so nothing else in the codebase will ever do this.
-//   2. A Founder's own "Pivot" decision (Module 1's `final_decision`
-//      answer) starts a Retry Attempt automatically instead of leaving the
-//      Founder stuck on a `ready_for_review` Attempt they can no longer
-//      edit.
-// Every other completion_mode/decision combination (Module 1's Proceed/Kill)
-// is a deliberate no-op here: real completion for those still requires a
-// Mentor decision (PR 4.2), not implemented yet.
-//
-// Deliberately its own row shapes/mappers rather than importing attempt/
-// index.ts's or artifact/index.ts's private ones — same "don't share
-// mappers/helpers across Service modules" convention already established
-// by artifact/internal/created-via.ts's own comment.
+// Orchestrates module completion after a Founder calls complete_module:
+// submitAttempt, runOfficialValidation, and module-specific follow-ups:
+//   1. system completion_mode (Module 0): auto-accept and unlock on pass.
+//   2. Pivot decision (Module 1): start a retry Attempt automatically.
+// Proceed/Kill stay at ready_for_review until a Mentor decision (future).
 
 const ATTEMPT_COLUMNS = `
   id, program_run_module_id, attempt_number, attempt_type, status,
@@ -156,9 +140,7 @@ function resolveAiClientLabel(actor: ActorContext): string {
   if (actor.source === "web") {
     return "Founder Toolkit (Web)";
   }
-  // V1 constraint: exactly one Claude Remote MCP client
-  // (architecture.mdc) — same hardcode as
-  // attempt/internal/interaction-provider.ts's resolveInteractionProvider.
+  // V1: one MCP AI client — same hardcode as resolveInteractionProvider.
   return "Claude (Remote MCP)";
 }
 
@@ -670,11 +652,8 @@ export async function completeModuleAttempt(
     };
   }
 
-  // Non-system Modules (Module 1: `artifact_and_confirmation`) never
-  // auto-complete — real completion requires a future Mentor decision
-  // (PR 4.2). Proceed/Kill are both a no-op past this point: the Attempt
-  // simply stays `ready_for_review`, awaiting that Mentor. Pivot is the
-  // one decision this PR does route further, per source doc §12.
+  // Non-system modules never auto-complete — Mentor decision required.
+  // Proceed/Kill stay ready_for_review. Pivot is handled below.
   const finalDecision = await loadFinalDecision(attemptId);
   if (finalDecision !== "pivot") {
     const attemptRow = await loadAttemptRow(attemptId, workspace.id);
@@ -743,11 +722,8 @@ export async function completeModuleAttempt(
 // confirmModuleCompletion — the website's half of module completion.
 // ---------------------------------------------------------------------
 
-// Takes a programRunModuleId rather than a moduleKey so that resolving
-// the target never goes through the Founder's active context — per the
-// iteration plan's "Active Context is not authorisation", every write
-// path locates its row by id within the caller's own Workspace, the same
-// way startOrResumeAttempt does.
+// Takes programRunModuleId (not moduleKey) so the target is resolved by id
+// within the caller's workspace — active context is navigation, not auth.
 function normalizeConfirmInput(input: unknown): { programRunModuleId: string } {
   if (
     typeof input !== "object" ||

@@ -2,9 +2,13 @@ import { getActiveContext } from "@/lib/active-context";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { listVentures } from "@/lib/ventures";
 import { getMyWorkspace } from "@/lib/workspace";
+import { appPageTitle } from "@/lib/page-metadata";
 
+import { PageShell } from "../components/page-shell";
 import { CreateVentureForm } from "./components/create-venture-form";
 import { VentureActions } from "./components/venture-actions";
+
+export const metadata = appPageTitle("Workspace");
 
 export default async function WorkspacePage() {
   const actor = await getCurrentFounderActor();
@@ -18,7 +22,7 @@ export default async function WorkspacePage() {
   const isWorkspaceActive = workspace.status === "active";
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
+    <PageShell className="max-w-4xl py-16">
       <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
         Workspace
       </p>
@@ -75,6 +79,6 @@ export default async function WorkspacePage() {
           ))
         )}
       </ul>
-    </main>
+    </PageShell>
   );
 }

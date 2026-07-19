@@ -6,17 +6,7 @@ import { pool } from "@ai-catalyst/db";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 
-// Test-only fixture helpers, exported purely so apps/mcp's own
-// *.db.test.ts suites (integration tests exercising the real /mcp
-// endpoint against a real Postgres fixture) never need to import
-// `pool` from `@ai-catalyst/db` directly — `.dependency-cruiser.js`'s
-// only-web-may-import-db-pool rule forbids that edge for apps/mcp (only
-// apps/web and packages/services may touch the raw pool), the same way
-// architecture.mdc rule 1 forbids apps/mcp from duplicating business
-// logic that belongs in this package. Every packages/services own
-// *.db.test.ts suite still uses `pool` directly (that boundary doesn't
-// apply within this package); this module exists only for *other*
-// packages'/apps' test fixtures.
+// Test fixtures for apps/mcp DB tests — avoids importing @ai-catalyst/db from apps/mcp.
 
 export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,

@@ -16,7 +16,7 @@ check, not just documentation-reading:
 ```powershell
 docker compose -f infra/docker/docker-compose.yml down -v
 docker compose -f infra/docker/docker-compose.yml up -d --wait db   # empty db
-pnpm --filter web exec auth generate --output ../../local/better-auth-reference-schema.sql --dialect postgresql -y
+pnpm --filter web exec auth generate --output ../../.data/better-auth-reference-schema.sql --dialect postgresql -y
 ```
 
 Against the **empty** database this generated the full reference schema
@@ -72,7 +72,7 @@ database (`0001` + `0002` applied) confirmed the gap is closed:
 Your schema is already up to date.
 ```
 
-## Deferred (Iteration 3, per `local/00/AI Catalyst V1 迭代计划.md`)
+## Deferred
 
 - OAuth provider schema pre-validation (`socialProviders` config, provider
   columns beyond what email/password needs).
@@ -80,10 +80,9 @@ Your schema is already up to date.
   provider is configured yet in V1, so no OAuth tokens are written to
   `accounts` to exercise it.
 
-## PR 2.2: MCP OAuth provider tables (`mcp_oauth_*`)
+## MCP OAuth provider tables (`mcp_oauth_*`)
 
-Better Auth's legacy `mcp()` plugin (enabled in `apps/web/lib/auth.ts` for
-PR 2.2) needs three tables that its own bundled schema
+Better Auth's legacy `mcp()` plugin needs three tables that its bundled schema
 (`plugins/oidc-provider/schema.mjs`) calls `oauthApplication` /
 `oauthAccessToken` / `oauthConsent`, with camelCase fields. This project
 renames them to `mcp_oauth_applications` / `mcp_oauth_access_tokens` /

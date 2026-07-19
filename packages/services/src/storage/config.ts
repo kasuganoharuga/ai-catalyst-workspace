@@ -3,9 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Provider-agnostic storage configuration. Built at the composition root
- * (env / test fixtures); StorageProvider implementations never read
- * `process.env` themselves.
+ * Provider-agnostic storage configuration. Built by callers from env or
+ * test fixtures; StorageProvider implementations never read process.env.
  */
 export type StorageConfig =
   | { kind: "local"; rootDir: string }
@@ -57,8 +56,8 @@ export async function resolveLocalStorageRoot(
 }
 
 /**
- * Build StorageConfig from environment variables. Call only from
- * composition roots / tests — not from inside a StorageProvider.
+ * Build StorageConfig from environment variables. Call from app wiring or
+ * tests — not from inside a StorageProvider.
  *
  * - `STORAGE_PROVIDER` = `local` (default) | `s3`
  * - local: `LOCAL_STORAGE_ROOT` (optional)

@@ -2,10 +2,8 @@ import type { ArtifactSubmissionStatus } from "./artifact-submission.js";
 import type { ModuleAttempt, ModuleResponseStatus, ModuleResponseType } from "./module-attempt.js";
 import type { RunModuleSummary } from "./run-module.js";
 
-// One Question's definition, joined with the current Attempt's Response
-// to it (if any) — the shape `get_module_context` (MCP) and PR 2.9's
-// status UI both need to render "what's already confirmed" and "what's
-// next" without a second round trip. `responseStatus: null` means this
+// Question definition plus the current Attempt's Response (if any) for
+// module context and status UI — responseStatus null means unanswered.
 // Question has no Response yet on the current Attempt at all (never
 // started, not merely skipped).
 export interface ModuleContextQuestion {

@@ -116,7 +116,7 @@ const EXPECTED_TOOL_NAMES = [
 ];
 
 describe("POST /mcp — tools/list", () => {
-  it("lists every Tool through PR 2.8 for an authenticated actor", async () => {
+  it("lists every registered tool for an authenticated actor", async () => {
     const res = await request(buildApp())
       .post("/mcp")
       .set("Host", "localhost")

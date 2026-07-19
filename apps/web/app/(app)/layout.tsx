@@ -1,26 +1,26 @@
 import type { ReactNode } from "react";
+import type { Metadata } from "next";
 
 import { Logo } from "@/components/logo";
-import {
-  getCurrentFounderActor,
-  getCurrentFounderSession,
-} from "@/lib/current-founder-actor";
-import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
+import { loadAppShellUser } from "@/lib/app-shell";
 
 import { AppSidebar } from "./components/app-sidebar";
 import { AppSidebarNavigation } from "./components/app-sidebar-navigation";
 import { UserMenu } from "./components/user-menu";
+
+export const metadata: Metadata = {
+  title: {
+    template: "%s · AI Catalyst",
+    default: "Founder Toolkit",
+  },
+};
 
 // Every route under this group is Founder-only. This redirect is a
 // route-level convenience, not the security boundary — every
 // packages/services call re-asserts the actor's role on its own regardless
 // of what this layout already checked.
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const actor = await getCurrentFounderActor();
-  const [session, profile] = await Promise.all([
-    getCurrentFounderSession(),
-    getMyProfile(actor),
-  ]);
+  const shellUser = await loadAppShellUser();
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row">
@@ -32,8 +32,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
         <AppSidebarNavigation orientation="horizontal" />
         <div className="justify-self-end">
           <UserMenu
-            name={resolveDisplayName(profile, session.user.name)}
-            email={session.user.email}
+            name={shellUser.displayName}
+            email={shellUser.email}
             showDetails={false}
             includeAccountLinks
             side="bottom"
@@ -41,7 +41,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           />
         </div>
       </header>
-      <AppSidebar />
+      <AppSidebar user={shellUser} />
       <main className="min-w-0 flex-1">{children}</main>
     </div>
   );

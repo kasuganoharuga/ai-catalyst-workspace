@@ -1,17 +1,7 @@
-// Bytes-only contract — a Provider never learns about Workspace, Actor,
-// `storage_objects`, or the pending/uploaded/verified/failed/deleted
-// state machine. All of that business state lives in index.ts
-// (StorageService); a Provider only ever answers "is this exact key
-// present, and what does it look like at rest".
-//
-// Artifact download product default is stream-through-backend
-// (ArtifactService → getObject), not browser → signed URL → S3.
-// `createDownloadUrl` is an optional escape hatch on the provider;
-// business code must not depend on it.
-//
-// Type-only file: nothing here is imported by value, so it's a plain
-// relative import from every other file in this directory without needing
-// its own package.json exports entry.
+// Bytes-only provider contract: no Workspace/Actor/`storage_objects`
+// awareness. Business state lives in StorageService (index.ts).
+// Downloads default to getObject (stream through backend);
+// createDownloadUrl is optional and must not be required by callers.
 
 export interface PutObjectInput {
   key: string;

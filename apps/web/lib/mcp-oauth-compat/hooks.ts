@@ -78,8 +78,7 @@ const authorizeEndpointBeforeHook = {
     // check, not real RFC 8707 enforcement: it only rejects a `resource`
     // value that is present *and* clearly wrong, and never requires one
     // to be sent (MCP_RESOURCE_URL is apps/mcp's own base URL, set once
-    // that app is deployed — see mcp-verify-middleware in the PR 2.2
-    // plan).
+    // that app is deployed (MCP_RESOURCE_URL).
     const expectedResource = process.env.MCP_RESOURCE_URL;
     if (
       expectedResource &&

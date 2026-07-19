@@ -1,24 +1,15 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 
-// Owns writes to `mcp_tool_audit_logs` — the only Service function
-// apps/mcp calls purely for its own audit trail, never for business
-// state. Per the iteration plan's risk 7 ("审计写入与业务事务被回滚"),
-// this is always called independently of whatever business transaction
-// the same MCP tool call already ran (never inside the same Postgres
-// transaction), and a failure here must never turn an otherwise
-// successful — or already-failed — tool call into something worse for
-// the caller; see recordMcpToolCall's own comment.
+// Owns writes to `mcp_tool_audit_logs`. Called independently of business
+// transactions — a failure here must not change the tool call outcome for
+// the caller.
 
 export type McpToolCallOutcome = "success" | "denied" | "validation_error" | "system_error";
 
-// V1 has exactly one AI client (architecture.mdc) and
-// mcp_tool_audit_logs.provider only accepts 'claude' | 'openai' — this
-// table only ever records MCP-originated calls (there is no 'website'/
-// 'system' value), so this is hardcoded the same way
-// resolveInteractionProvider (packages/services/src/attempt/internal)
-// and resolveStorageCreatedVia (packages/services/src/storage) hardcode
-// mcp -> claude elsewhere in this package.
+// V1 has one MCP AI client; mcp_tool_audit_logs.provider only accepts
+// 'claude' | 'openai'. Hardcoded the same way as other mcp → claude mappers
+// in this package.
 const MCP_AUDIT_PROVIDER = "claude";
 
 export interface RecordMcpToolCallInput {

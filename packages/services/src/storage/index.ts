@@ -26,21 +26,14 @@ import { resolveProvider as resolveProviderFromConfig } from "@ai-catalyst/servi
 
 import type { StorageProvider } from "./types.js";
 
-// ACCEPTANCE NOTE:
+// StorageService owns `storage_objects` business state: authorization and
+// the pending → uploaded → verified choreography. Apps call into this
+// module; they do not re-implement it. The column name is `upload_status`
+// (not `status`) to match the baseline schema check constraint.
 //
-// The Local Provider guarantees single-process/test-suite usability.
-// Cross-container sharing under `docker:up` is still best-effort; Staging
-// / Production use STORAGE_PROVIDER=s3 via StorageConfig injection
-// (storage/config.ts + resolve-provider.ts). Artifact downloads default
-// to stream-through-backend (getObject), not createDownloadUrl.
-//
-// This module owns Storage Object business state (storage_objects rows,
-// authorization, the pending → uploaded → verified transaction
-// choreography) — apps/web and apps/mcp are both thin shells that call
-// into this same Service, never re-implement any of this (architecture.mdc
-// rule 1). The status column on storage_objects is `upload_status`
-// (never `status`) everywhere in this file, on purpose — see the
-// 0001_aidb_v5_baseline.sql check constraint.
+// Local provider is for single-process / test use. Staging and Production
+// inject `STORAGE_PROVIDER=s3` via StorageConfig. Artifact downloads use
+// getObject (stream through the backend), not createDownloadUrl.
 
 export type QueryExecutor = Pool | PoolClient;
 
@@ -96,21 +89,9 @@ function activeStorageIdentity(deps: StorageServiceDependencies): {
   return { provider: "local", container: "local-development" };
 }
 
-// DEVIATION from the plan's literal pseudocode, documented here because
-// it's load-bearing for every public function below: the plan writes
-// `assertRole(actor, ["founder", "system"])`, but `ActorRole` (in the
-// unmodified packages/contracts/src/actor-context.ts — both this PR and
-// PR 2.4 are explicitly barred from touching that file) is only
-// `"pending" | "founder" | "mentor" | "admin"`. `"system"` is an
-// `ActorSource` value, not a role — `assertRole`'s `allowed: ActorRole[]`
-// parameter cannot express it, and `["founder", "system"]` does not
-// type-check as an `ActorRole[]` literal. The intended authorization
-// ("Founder actors, and trusted system-sourced callers, may call this")
-// is instead expressed directly against both fields: a Founder actor
-// passes on `role`; a system-sourced caller (any role, since a
-// server-side generation flow has no Founder session to carry) passes on
-// `source`. Every other actor is FORBIDDEN, matching assertRole's own
-// error shape.
+// Founders pass on `role`; trusted system callers pass on `source`.
+// `"system"` is an ActorSource, not an ActorRole, so this cannot be
+// expressed as assertRole(["founder", "system"]).
 function assertFounderOrSystemActor(actor: ActorContext): void {
   if (actor.role === "founder" || actor.source === "system") {
     return;
@@ -167,14 +148,8 @@ function mapStorageObjectRow(row: StorageObjectRow): StorageObject {
   };
 }
 
-// V1 has exactly one AI client (the Claude Remote MCP server, per
-// architecture.mdc) — this mapper is deliberately local to this file
-// (only createPendingGeneratedObject/writeGeneratedTextContent need it),
-// not a shared cross-PR module: PR 2.4's own
-// attempt/internal/interaction-provider.ts solves the analogous problem
-// for module_responses.source_provider, but the two PRs must not import
-// from each other (2.4's `attempt` module may not exist yet when this
-// file's tests run on this branch in isolation).
+// Maps ActorContext.source onto storage_objects.created_via. V1 has a
+// single MCP AI client, so mcp → "claude".
 function resolveStorageCreatedVia(
   actor: ActorContext,
 ): "website" | "claude" | "system" {
@@ -182,14 +157,9 @@ function resolveStorageCreatedVia(
     return "system";
   }
   if (actor.source === "mcp") {
-    // Hardcoded until a second AI client exists — see the equivalent
-    // comment in PR 2.4's resolveInteractionProvider for the full
-    // reasoning; the same constraint applies here.
     return "claude";
   }
-  // "web", or unset — every pre-2.2 ActorContext test fixture across this
-  // package omits `source` entirely and is always a web-originated
-  // Founder actor in practice.
+  // "web", or unset (common in tests) → website-originated founder.
   return "website";
 }
 
@@ -346,17 +316,9 @@ export async function getStorageObject(
   return mapStorageObjectRow(row);
 }
 
-// Deliberately its OWN assertion, not a reuse of assertFounderOrSystemActor
-// — that shared gate (and loadAuthorizedStorageObject's workspace check,
-// which unconditionally calls resolveFounderWorkspace for every
-// non-system actor) has no admin case at all: resolveFounderWorkspace
-// itself starts with assertRole(actor, ["founder"]), so an admin-role
-// actor throws FORBIDDEN there today. Widening the shared helpers would
-// also open every WRITE path (createPendingGeneratedObject,
-// writeGeneratedTextContent, deleteUnverifiedUpload) to admin, which is
-// not what's needed — only a read path, for PR 2.6's runOfficialValidation
-// (which runs as a system or admin actor and must be able to read any
-// Workspace's Artifact content) needs this.
+// Read-only gate: founders, admins, and system sources. Kept separate from
+// assertFounderOrSystemActor so write paths stay founder/system-only;
+// admin is allowed here for cross-workspace validation reads.
 function assertGeneratedContentReader(actor: ActorContext): void {
   if (actor.role === "founder" || actor.role === "admin" || actor.source === "system") {
     return;
@@ -368,14 +330,9 @@ function assertGeneratedContentReader(actor: ActorContext): void {
 }
 
 /**
- * Reads back the verified content of a generated-text Storage Object as
- * a UTF-8 string — the only entry point PR 2.6's Validators use to read
- * a saved Artifact's Markdown. founder actors are Workspace-scoped (same
- * check every other path uses); system/admin actors are trusted across
- * any Workspace, matching runOfficialValidation's own permission matrix
- * (there is no "system's own Workspace" or "admin's own Workspace" to
- * compare against, same reasoning as loadAuthorizedStorageObject's system
- * branch).
+ * Reads verified generated-text content as UTF-8. Founders are
+ * workspace-scoped; system/admin actors may read any workspace (used by
+ * official validation).
  */
 export async function getGeneratedTextContent(
   actor: ActorContext,
@@ -503,10 +460,9 @@ async function markFailed(id: string): Promise<void> {
  *   (Provider I/O, no transaction): re-fetch what was actually written.
  *   C: lock the row again, upload_status = 'verified'.
  *
- * Idempotency/retry is keyed on (storageObjectId, content hash) — see
- * the branches below, matching the plan's rules exactly: same id + same
- * hash resumes/no-ops forward; same id + different hash conflicts; a
- * dead (`failed`/`deleted`) row is never resurrected.
+ * Idempotency/retry is keyed on (storageObjectId, content hash): same id +
+ * same hash resumes/no-ops; same id + different hash conflicts; failed or
+ * deleted rows are not resurrected.
  */
 export async function writeGeneratedTextContent(
   actor: ActorContext,

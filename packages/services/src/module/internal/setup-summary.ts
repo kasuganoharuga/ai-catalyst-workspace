@@ -7,15 +7,8 @@
 // string — there is exactly one caller, and hand-written Markdown is far
 // less fragile than templating a "- Label:" bullet list at runtime).
 //
-// Deliberately does NOT try to embed this document's own content SHA-256
-// or version number in its own body — StorageService only knows a
-// version's checksum/version_number after saveArtifactSubmission has
-// already stored the exact bytes being described, so any value written
-// here would necessarily describe a *different* set of bytes than what
-// actually gets saved. The "Platform Storage" section instead states the
-// verification outcome in words: source doc §0.5's Setup Summary is
-// informational (validator_key is null; nothing gates on its content),
-// not a business artefact whose own hash needs to be self-referenced.
+// Does not embed this document's own SHA-256 — bytes are not known until after save.
+// The Platform Storage section describes verification outcome in words instead.
 
 export interface SetupSummaryRenderInput {
   workspaceName: string;

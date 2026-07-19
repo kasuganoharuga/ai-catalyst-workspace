@@ -56,14 +56,8 @@ function resourceMetadataChallenge(protectedResourceMetadataUrl: string, extra?:
 }
 
 /**
- * Express middleware guarding the MCP Resource Server's `/mcp` endpoint:
- * verifies the platform Bearer token (issued by apps/web's Authorization
- * Server) via `@ai-catalyst/services/mcp-auth`'s `verifyMcpBearerToken`, and
- * populates `req.actorContext` for downstream tool handlers on success.
- *
- * Per architecture.mdc rule 4, this is the *only* auth check apps/mcp ever
- * performs on an incoming request — it never itself talks to Google or any
- * other downstream provider.
+ * Verifies the platform Bearer token and sets req.actorContext for tool handlers.
+ * The only auth check on incoming MCP requests.
  */
 export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler {
   const verify = options.verify ?? verifyMcpBearerToken;

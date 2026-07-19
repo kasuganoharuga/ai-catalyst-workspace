@@ -1,8 +1,11 @@
 import { SiteHeader } from "@/components/site-header";
 import { SignOutButton } from "@/components/sign-out-button";
+import { appPageTitle } from "@/lib/page-metadata";
 import { requireAuthenticatedUser } from "@/lib/require-active-user";
 
 import { AcceptInvitationForm } from "./accept-invitation-form";
+
+export const metadata = appPageTitle("Awaiting invitation");
 
 export default async function PendingPage() {
   const session = await requireAuthenticatedUser();

@@ -29,10 +29,7 @@ export interface ArtifactSubmission {
 // Mirrors the `artifact_validations.validation_kind` check constraint.
 export type ArtifactValidationKind = "draft_check" | "official";
 
-// Mirrors the `artifact_validations.status` check constraint. `pending`/
-// `running` are reserved for a future asynchronous Validator (4.4's
-// FastAPI LLM check) — every Validator in this PR is a synchronous pure
-// function, so only `passed`/`failed` are ever produced here.
+// pending/running reserved for future async validators; sync validators use passed/failed only.
 export type ArtifactValidationStatus =
   | "pending"
   | "running"

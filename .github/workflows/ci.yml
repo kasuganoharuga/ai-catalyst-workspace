@@ -23,7 +23,7 @@ jobs:
       # to satisfy the build without a live database in this job.
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
       BETTER_AUTH_SECRET: ci-build-secret-not-used-in-production
-      # apps/web/lib/auth.ts asserts this at module load time too (PR 2.2) —
+      # apps/web/lib/auth.ts asserts AUTH_ISSUER_URL at module load time —
       # a placeholder is fine here since the build never makes a real
       # network call to it.
       AUTH_ISSUER_URL: http://127.0.0.1:3000
@@ -63,11 +63,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # packages/services/src/mcp-auth (PR 2.2) imports @ai-catalyst/db's
-      # pool at module load time, and apps/mcp depends on
-      # @ai-catalyst/services — see the frontend job's DATABASE_URL comment
-      # above for why a placeholder is enough here (pg.Pool never connects
-      # eagerly).
+      # packages/services/src/mcp-auth imports @ai-catalyst/db's pool at
+      # module load time — see the frontend job DATABASE_URL comment above.
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
 
     steps:
@@ -271,13 +268,8 @@ jobs:
             exit 1
           }
 
-          # PR 2.2: /mcp now requires a platform Bearer token (RFC 6750) —
-          # a bare request must be rejected, not served. The full
-          # authorize -> consent -> token -> Bearer-verified tools/list
-          # flow is covered by apps/web/tests/mcp-oauth.http.test.ts and
-          # apps/mcp/src/server.test.ts; scripting real DCR/PKCE/consent
-          # here would just duplicate that coverage against a container
-          # instead of the real HTTP handlers.
+          # /mcp requires a platform Bearer token (RFC 6750) — unauthenticated
+          # requests must be rejected. Full OAuth flow is covered by unit/HTTP tests.
           unauth_status=$(curl -s -o /tmp/unauth-body.json -w "%{http_code}" -X POST http://127.0.0.1:8787/mcp \
             -H "Content-Type: application/json" \
             -H "Accept: application/json, text/event-stream" \

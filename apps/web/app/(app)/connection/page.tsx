@@ -2,6 +2,7 @@ import { Check, ExternalLink, Minus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
 import { getActiveContext } from "@/lib/active-context";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import {
@@ -11,33 +12,29 @@ import {
   getMcpEndpointUrl,
 } from "@/lib/mcp-connection";
 import { listRunModules } from "@/lib/run-modules";
-import { getVenture } from "@/lib/ventures";
+import { ventureForActiveContext } from "@/lib/ventures";
 
+import { PageShell } from "../components/page-shell";
 import { CopyButton } from "../components/copy-button";
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { StatusBadge } from "../components/status-badge";
 import { CLAUDE_CONNECTOR_SETTINGS_URL } from "../lib/module-display";
+import { appPageTitle } from "@/lib/page-metadata";
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+export const metadata = appPageTitle("MCP connection");
 
 export default async function ConnectionPage() {
   const actor = await getCurrentFounderActor();
-  const [connection, runResult, activeContext] = await Promise.all([
+  const activeContextPromise = getActiveContext(actor);
+  const [connection, runResult, , venture] = await Promise.all([
     getMcpConnectionStatus(actor),
     listRunModules(actor),
-    getActiveContext(actor),
+    activeContextPromise,
+    activeContextPromise.then((context) =>
+      ventureForActiveContext(actor, context),
+    ),
   ]);
-  const venture = activeContext.ventureId
-    ? await getVenture(actor, activeContext.ventureId)
-    : null;
 
   const endpointUrl = getMcpEndpointUrl();
   const state = deriveMcpConnectionState(connection);
@@ -98,7 +95,7 @@ export default async function ConnectionPage() {
   })();
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-14">
+    <PageShell className="max-w-2xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Step one
       </p>
@@ -286,7 +283,7 @@ export default async function ConnectionPage() {
         the documents you produce. Every call is logged, and you can disconnect
         from Claude&apos;s settings at any time.
       </p>
-    </main>
+    </PageShell>
   );
 }
 

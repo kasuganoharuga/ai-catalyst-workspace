@@ -1,44 +1,38 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import { createInvitationAction } from "@/lib/actions/admin-actions";
 
 export function CreateInvitationForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [personalMessage, setPersonalMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setIsSubmitting(true);
-
-    const response = await fetch("/api/admin/invitations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    startTransition(async () => {
+      const result = await createInvitationAction({
         email,
         personalMessage:
           personalMessage.trim() === "" ? undefined : personalMessage,
-      }),
+      });
+
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setIssuedToken(result.rawToken);
+      setEmail("");
+      setPersonalMessage("");
+      router.refresh();
     });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to create invitation.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    const { rawToken } = await response.json();
-    setIssuedToken(rawToken);
-    setEmail("");
-    setPersonalMessage("");
-    setIsSubmitting(false);
-    router.refresh();
   }
 
   return (
@@ -70,10 +64,10 @@ export function CreateInvitationForm() {
 
         <button
           type="submit"
-          disabled={isSubmitting}
+          disabled={isPending}
           className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
         >
-          {isSubmitting ? "Creating invitation..." : "Create invitation"}
+          {isPending ? "Creating invitation..." : "Create invitation"}
         </button>
       </form>
 

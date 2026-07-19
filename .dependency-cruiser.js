@@ -1,6 +1,6 @@
 /**
  * Enforces the layering described in README.md's "MCP & Services
- * Architecture" section and architecture.mdc's 5 framework rules. Path
+ * Architecture" section framework rules. Path
  * patterns are matched against dependency-cruiser's post-resolution paths
  * (pnpm workspace symlinks are followed and normalized back to the real
  * `packages/*` / `apps/*` source files), so these rules hold regardless of
@@ -79,7 +79,7 @@ module.exports = {
     {
       name: "only-services-may-import-clients",
       severity: "error",
-      comment: "architecture.mdc rule 2: FastAPI is internal-only, reached exclusively through packages/services — apps/web and apps/mcp must never import packages/clients directly.",
+      comment: "FastAPI is internal-only, reached exclusively through packages/services — apps/web and apps/mcp must never import packages/clients directly.",
       from: { path: "^apps/" },
       to: { path: "^packages/clients/" },
     },
@@ -93,7 +93,7 @@ module.exports = {
     {
       name: "services-cannot-import-web-or-mcp",
       severity: "error",
-      comment: "packages/services is shared business logic consumed by both apps/web and apps/mcp — it must stay app-agnostic (architecture.mdc rule 1).",
+      comment: "packages/services is shared business logic consumed by both apps/web and apps/mcp — it must stay app-agnostic.",
       from: { path: "^packages/services/" },
       to: { path: "^apps/" },
     },

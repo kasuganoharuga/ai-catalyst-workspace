@@ -50,10 +50,7 @@ const CURRENT_STAGE_OPTIONS = [
   { value: "pivot", label: "Pivot" },
 ];
 
-// Module A's questions: one long_text with allow_skip: true, one
-// single_choice with options, and one conditional long_text — the exact
-// shape the PR 2.4 plan asks the fixture to cover, mirroring
-// content/module-1.ts's own current_stage / pivot_detail pattern.
+// Fixture questions: long_text, single_choice, and conditional follow-up.
 function buildSharedQuestions(): FixtureQuestion[] {
   return [
     {

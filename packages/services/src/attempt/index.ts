@@ -19,17 +19,13 @@ import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-i
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import { isRetryableAttemptStatus } from "@ai-catalyst/services/attempt/internal/retry";
 
-// This module owns Attempt/Response orchestration for a single Module —
-// starting/resuming an Attempt, saving a Founder's structured answers, and
-// submitting for review. Called by both apps/web route handlers (a future
-// PR) and apps/mcp tool handlers (PR 2.7) — architecture.mdc rule 1, no
-// duplicate business logic between the two. No web route exists yet in
-// this PR; DB integration tests are this PR's acceptance surface.
+// This module owns Attempt/Response orchestration for a single Module:
+// starting/resuming an Attempt, saving structured answers, and submitting
+// for review. Called by apps/web route handlers and apps/mcp tool handlers
+// through the same Service functions (no duplicate business logic).
 //
-// Lock ordering (applies everywhere in this module, to prevent deadlocks
-// with future concurrent callers): whenever a transaction needs to lock
-// both a program_run_modules row and a module_attempts row, it locks
-// program_run_modules FIRST, then module_attempts.
+// Lock ordering: when a transaction needs both program_run_modules and
+// module_attempts rows, lock program_run_modules first, then module_attempts.
 
 const RUN_MODULE_STARTABLE_STATUSES = ["available", "in_progress"] as const;
 
@@ -318,15 +314,13 @@ export interface StartOrResumeAttemptResult {
  * currently in progress. Also handles creating a Retry Attempt (based on
  * a failed/rejected prior Attempt) once history exists for this Module.
  *
- * Full branch table (see PR 2.4 plan for the authoritative version this
- * mirrors):
+ * Branch table:
  *  1. program_run_modules.status must be 'available' or 'in_progress' —
  *     otherwise RUN_MODULE_NOT_AVAILABLE.
  *  2. active_attempt_id set (resume): draft/in_progress -> return it;
  *     submitted/ready_for_review -> ATTEMPT_PENDING_REVIEW; any other
- *     status -> INTERNAL_INVARIANT_ERROR (2.6/4.2's job to clear
- *     active_attempt_id on a terminal Attempt; this combination should
- *     never be observed).
+ *     status -> INTERNAL_INVARIANT_ERROR (terminal Attempts should have
+ *     active_attempt_id cleared elsewhere; this should not happen).
  *  3. active_attempt_id null, no history: basedOnAttemptId absent ->
  *     create Initial; present -> VALIDATION_ERROR (nothing to retry).
  *  4. active_attempt_id null, history exists: basedOnAttemptId absent ->
@@ -416,8 +410,8 @@ export async function startOrResumeAttempt(
 
       // accepted / rejected / validation_failed / cancelled still
       // referenced by active_attempt_id — clearing that pointer on a
-      // terminal Attempt is 2.6/4.2's job (not implemented yet); this
-      // combination should never be observed from this PR's own writes.
+      // terminal Attempt is handled elsewhere; this combination should
+      // not occur in normal operation.
       throw new ServiceError(
         "INTERNAL_INVARIANT_ERROR",
         `program_run_module ${runModule.id}'s active_attempt_id points to Attempt ${active.id}, which is in terminal status "${active.status}".`,
@@ -569,11 +563,9 @@ async function evaluateConditionCurrentlyHolds(
   return actualValue === condition.value;
 }
 
-// Validates `value`/`responseStatus` against the question's own rules and
-// returns the `answer_text` to store. `structured` answer data is out of
-// scope for the three response_types this PR supports (short_text,
-// long_text, single_choice) — answer_data is always stored as null (see
-// saveFounderResponse's insert).
+// Validates `value`/`responseStatus` against the question's rules and
+// returns the `answer_text` to store. Structured answer data is not used
+// for short_text, long_text, and single_choice — answer_data stays null.
 async function resolveAnswerText(
   client: PoolClient,
   attemptId: string,
@@ -859,12 +851,9 @@ function normalizeSubmitAttemptInput(input: unknown): { attemptId: string } {
 }
 
 /**
- * Submits an Attempt for review: freezes its Responses into a
- * module_review_context_snapshots row (per that table's own "generates a
- * frozen Review context when an Attempt is submitted" comment — this is
- * 2.4's responsibility, not a later PR's) and moves the Attempt to
- * 'submitted'. Zero Responses is a valid submission — completeness is
- * PR 2.6 Validator's job, not this function's.
+ * Submits an Attempt for review: freezes Responses into a
+ * module_review_context_snapshots row and moves the Attempt to 'submitted'.
+ * Zero Responses is valid — completeness is checked by validators, not here.
  *
  * Idempotency is deliberately narrow: only 'submitted'/'ready_for_review'
  * short-circuit (returning the Attempt unchanged, no snapshot

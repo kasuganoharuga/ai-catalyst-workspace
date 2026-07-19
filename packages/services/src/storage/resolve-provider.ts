@@ -4,10 +4,7 @@ import { S3StorageProvider } from "@ai-catalyst/services/storage/providers/s3";
 
 import type { StorageProvider } from "./types.js";
 
-/**
- * Construct a StorageProvider from an injected StorageConfig.
- * Providers never read process.env — pass config from the composition root.
- */
+/** Build a StorageProvider from config. Providers never read process.env. */
 export function resolveProvider(config: StorageConfig): StorageProvider {
   if (config.kind === "local") {
     return new LocalStorageProvider({ rootDir: config.rootDir });

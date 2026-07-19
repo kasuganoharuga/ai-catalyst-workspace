@@ -23,9 +23,7 @@ import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-i
 // content-seed module, same reasoning as module/catalog.ts.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
 
-// This module owns Program Run / Branch / Module Attempt orchestration
-// logic, called by both apps/web route handlers and apps/mcp tool handlers
-// (architecture.mdc rule 1 — no duplicate business logic between the two).
+// Program Run / Branch / Module orchestration — shared by apps/web and apps/mcp.
 
 // Deliberately not the same concept as module/catalog.ts's V1_PROGRAM_KEY
 // resolution target: the catalog always reflects whatever is published
@@ -342,13 +340,8 @@ export interface CurrentVentureRun {
   activeBranchId: string;
 }
 
-// Resolves "the Venture the Founder is currently working in" via
-// user_active_contexts (the same resolution get_active_context itself
-// exposes) — exactly the navigation-state use architecture.mdc allows.
-// Every program_run_modules row returned off the back of this is still
-// scoped by workspace_id in the queries below, so a stale/tampered active
-// context can never leak another Workspace's data — only ever produce
-// "no Run for this Founder's own Venture yet".
+// Resolves the Founder's current Venture Run via user_active_contexts.
+// program_run_modules queries still filter by workspace_id.
 async function resolveCurrentVentureRun(actor: ActorContext): Promise<CurrentVentureRun | null> {
   const activeContext = await getActiveContext(actor);
   if (!activeContext.workspaceId || !activeContext.ventureId) {
@@ -440,7 +433,7 @@ export interface ListRunModulesResult {
 /**
  * Lists every program_run_modules row for the Founder's current active
  * Venture's current Run/Branch, in sequence order. Backs the MCP
- * `list_modules` capability (source doc §21).
+ * Module list for the list_modules MCP tool.
  */
 export async function listRunModules(actor: ActorContext): Promise<ListRunModulesResult> {
   assertRole(actor, ["founder"]);
@@ -524,10 +517,8 @@ export interface AttemptRunContext {
  * for the four Tools whose input is an `attemptId` rather than a
  * `programRunModuleId` (`save_founder_input`, `save_artifact`,
  * `complete_module`, `get_artifact`) — those Services' own DTOs
- * (`ModuleResponse`/`ModuleAttempt`/`ArtifactSubmission`) only carry
- * `moduleAttemptId`/`programRunModuleId`, not the full chain, and this PR
- * deliberately does not widen those already-shipped return shapes just
- * for an audit side channel.
+ * (`ModuleResponse`/`ModuleAttempt`/`ArtifactSubmission`) only carry partial
+ * ids — this helper fills run/branch/module columns for audit logging.
  */
 export async function resolveAttemptRunContext(
   actor: ActorContext,

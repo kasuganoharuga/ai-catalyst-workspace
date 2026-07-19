@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import { revokeInvitationAction } from "@/lib/actions/admin-actions";
 
 export function RevokeInvitationButton({
   invitationId,
@@ -9,27 +11,19 @@ export function RevokeInvitationButton({
   invitationId: string;
 }) {
   const router = useRouter();
-  const [isRevoking, setIsRevoking] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleRevoke() {
+  function handleRevoke() {
     setError(null);
-    setIsRevoking(true);
-
-    const response = await fetch(
-      `/api/admin/invitations/${invitationId}/revoke`,
-      { method: "POST" },
-    );
-
-    setIsRevoking(false);
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to revoke invitation.");
-      return;
-    }
-
-    router.refresh();
+    startTransition(async () => {
+      const result = await revokeInvitationAction(invitationId);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      router.refresh();
+    });
   }
 
   return (
@@ -37,10 +31,10 @@ export function RevokeInvitationButton({
       <button
         type="button"
         onClick={handleRevoke}
-        disabled={isRevoking}
+        disabled={isPending}
         className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:border-foreground disabled:opacity-50"
       >
-        {isRevoking ? "Revoking..." : "Revoke"}
+        {isPending ? "Revoking..." : "Revoke"}
       </button>
       {error ? (
         <p role="alert" className="text-xs text-destructive">

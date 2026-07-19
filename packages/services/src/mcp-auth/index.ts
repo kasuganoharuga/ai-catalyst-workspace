@@ -104,10 +104,7 @@ interface AccessTokenLookupRow {
 // A public client (V1 forces every DCR-registered client to be public —
 // apps/web/lib/mcp-oauth-compat/dcr-validation.ts) must have a null/empty
 // `client_secret`. There is deliberately no `authentication_scheme` column
-// to check instead — see infra/database/better-auth-schema-compatibility.md's
-// "PR 2.2" section for why Better Auth's own DCR handler makes that column
-// meaningless (it writes a field the plugin's own schema never declares,
-// silently dropped on insert).
+// to check — see infra/database/better-auth-schema-compatibility.md.
 function isValidPublicClient(row: AccessTokenLookupRow): boolean {
   return (
     !row.client_disabled &&
@@ -120,9 +117,7 @@ function isValidPublicClient(row: AccessTokenLookupRow): boolean {
  * Verifies a raw MCP platform Bearer token against `mcp_oauth_access_tokens`
  * and returns the `ActorContext` apps/mcp's tool handlers pass into every
  * packages/services call. Called from apps/mcp/src/auth/verify-bearer.ts —
- * never from apps/web (architecture.mdc rule 4: MCP -> platform token
- * verification is a Resource Server concern, distinct from the Authorization
- * Server in apps/web that issued the token).
+ * never from apps/web (MCP verifies platform tokens; web issues them).
  *
  * Throws `ServiceError("UNAUTHENTICATED", ...)` when the token itself no
  * longer identifies a usable subject (missing/expired/malformed token,
@@ -257,12 +252,8 @@ async function findVerificationByIdentifier(
   return result.rows[0];
 }
 
-// Every failure mode below collapses to the exact same NOT_FOUND error —
-// deliberately never distinguishing "code doesn't exist" from "belongs to
-// another user" from "already accepted" from "client disabled" from "wrong
-// scope" from "corrupt verification value". A caller that could tell those
-// apart from the outside would have a consent-code/account enumeration
-// oracle. See PR 2.2 plan section 10.
+// All failure modes below return the same NOT_FOUND — never distinguish
+// "code missing" from "wrong user" or "already accepted" (enumeration oracle).
 function pendingConsentNotFound(): ServiceError {
   return new ServiceError(
     "NOT_FOUND",
@@ -513,11 +504,8 @@ export async function checkAuthorizationCodeIsRedeemable(params: {
 }
 
 // ---------------------------------------------------------------------------
-// Atomic consent-accept claim (PR 2.2 plan section 15) — closes a real
-// concurrency gap in Better Auth's own oAuthConsent handler (its Accept path
-// is findVerificationValue -> updateVerificationByIdentifier -> create
-// oauthConsent, with no transaction/lock across those steps, unlike the
-// atomic consumeVerificationValue used at token-redemption time).
+// Atomic consent-accept claim — closes a concurrency gap in Better Auth's
+// oAuthConsent handler (Accept path is not transactional end-to-end).
 // ---------------------------------------------------------------------------
 
 function hashConsentCode(consentCode: string): string {
@@ -552,7 +540,7 @@ export async function tryClaimConsentCode(
 // ---------------------------------------------------------------------------
 // Lookups shared by the /mcp/token and /mcp/register before-hooks
 // (apps/web/lib/mcp-oauth-compat) — kept in packages/services per
-// architecture.mdc rule 1 rather than duplicated as raw queries in apps/web.
+// Shared with apps/web — not duplicated as raw queries in the web app.
 // ---------------------------------------------------------------------------
 
 export interface McpOAuthClientRecord {
@@ -637,10 +625,7 @@ export async function getAuthorizableUserById(
 }
 
 // ---------------------------------------------------------------------------
-// getMcpConnectionStatus — apps/web's read path for the Connection page
-// (PR 2.9). Web-session-facing, so it takes the standard ActorContext the
-// way workflow/attempt Services do — unlike everything above, which serves
-// the OAuth protocol surfaces themselves.
+// getMcpConnectionStatus — apps/web read path for the Connection page.
 // ---------------------------------------------------------------------------
 
 /**

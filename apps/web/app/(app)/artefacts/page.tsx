@@ -1,22 +1,15 @@
 import Link from "next/link";
 
-import type { ModuleContext } from "@ai-catalyst/shared";
-
 import { Button } from "@/components/ui/button";
+import { formatDateTime } from "@/lib/format";
+import { appPageTitle } from "@/lib/page-metadata";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
-import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
+import { listModuleContextsForActiveRun } from "@/lib/run-modules";
 
+import { PageShell } from "../components/page-shell";
 import { StatusBadge } from "../components/status-badge";
 
-function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("en-AU", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
+export const metadata = appPageTitle("Artefacts");
 
 interface ArtefactRow {
   moduleKey: string;
@@ -30,19 +23,7 @@ interface ArtefactRow {
 
 export default async function ArtefactsPage() {
   const actor = await getCurrentFounderActor();
-  const runResult = await listRunModules(actor);
-
-  // Read-only view over what the modules produced: one row per Artifact
-  // definition on the Founder's active-branch Modules, joined with its
-  // latest saved version. Writing/uploading never happens here — every
-  // artefact is saved from Claude through the MCP tools.
-  const contexts = (
-    await Promise.all(
-      runResult.modules.map((runModule) =>
-        getModuleContextByKey(actor, runModule.moduleKey),
-      ),
-    )
-  ).filter((context): context is ModuleContext => context !== null);
+  const contexts = await listModuleContextsForActiveRun(actor);
 
   const rows: ArtefactRow[] = contexts.flatMap((context) =>
     context.artifacts.map((artifact) => ({
@@ -58,7 +39,7 @@ export default async function ArtefactsPage() {
   const savedCount = rows.filter((row) => row.versionNumber !== null).length;
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
+    <PageShell className="max-w-4xl py-16">
       <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
         Artefacts
       </p>
@@ -144,6 +125,6 @@ export default async function ArtefactsPage() {
           </p>
         </>
       )}
-    </main>
+    </PageShell>
   );
 }

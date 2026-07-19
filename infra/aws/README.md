@@ -1,6 +1,6 @@
-# AWS infrastructure (PR 2.10 prep)
+# AWS infrastructure
 
-All-AWS Staging + Production readiness. **This workstream does not `terraform apply`** — it ships IaC, app config, and a manual deploy workflow so a later cutover is one documented apply away.
+Staging + Production readiness on AWS. **Do not `terraform apply` from this prep alone** — this tree ships IaC, app config, and a manual deploy workflow; live cutover is a separate, documented apply.
 
 ## Architecture
 
@@ -35,10 +35,10 @@ Browser → GET /artifacts/:id/download → ArtifactService (authz)
 
 Region default: `ap-southeast-2`.
 
-## Remote state (Must Fix — designed now)
+## Remote state
 
 1. Apply once: [`terraform/backend`](terraform/backend) → S3 state bucket + DynamoDB lock table.
-2. Put the real bucket name into each env's `backend "s3"` block (replace `ai-catalyst-tfstate-REPLACE_ME`).
+2. Put the real bucket name into each env's `backend "s3"` block (replace the placeholder bucket name).
 3. Env state keys: `staging/terraform.tfstate`, `production/terraform.tfstate`.
 
 ## Modules
@@ -66,9 +66,9 @@ Region default: `ap-southeast-2`.
 | OAuth extras | Manual |
 | SES | Task role credentials; identity is not a secret |
 
-## App configuration (composition root)
+## App configuration
 
-Providers never read `process.env` themselves. Composition roots build:
+Providers never read `process.env` themselves. App wiring builds:
 
 - `StorageConfig` via `loadStorageConfigFromEnv` → `resolveProvider(config)`
 - `EmailConfig` via `loadEmailConfigFromEnv` → `createEmailSenderFromConfig`

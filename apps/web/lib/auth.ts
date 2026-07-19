@@ -7,10 +7,7 @@ import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
 import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
 
 /**
- * Better Auth is the Authorization Server for the platform (architecture.mdc
- * rule 4). It owns users/sessions/accounts/verifications, mapped onto the
- * exact snake_case schema in
- * infra/database/migrations/0001_aidb_v5_baseline.sql.
+ * Better Auth is the platform Authorization Server (users, sessions, MCP OAuth).
  *
  * Registration is temporarily public (see the `pending` role default below
  * and apps/web/lib/require-active-user.ts) until invitation-gated
@@ -143,11 +140,8 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // OAuth 2.1 Authorization Server for MCP (architecture.mdc rule 4).
-    // apps/mcp is the Resource Server that verifies the opaque Bearer
-    // tokens issued here — see packages/services/src/mcp-auth and
-    // apps/web/lib/mcp-oauth-compat/README.md for the full compatibility
-    // profile this configuration relies on.
+    // OAuth 2.1 Authorization Server for MCP. apps/mcp verifies Bearer tokens
+    // issued here — see packages/services/src/mcp-auth.
     mcp({
       loginPage: "/login",
       oidcConfig: {

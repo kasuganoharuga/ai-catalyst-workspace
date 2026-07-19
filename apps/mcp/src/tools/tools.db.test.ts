@@ -30,11 +30,11 @@ import { createMcpApp, type CreateMcpAppOptions } from "../server.js";
  * via the real seedToolkitContent reconciler, a real Founder/Workspace/
  * Venture/Run built with the real Service functions (a Run's creation is
  * the website's job — no Tool creates one), then every read/write MCP
- * Tool through PR 2.8 exercised end-to-end through POST /mcp, asserting
+ * MCP tools exercised end-to-end through POST /mcp.
  * both the JSON-RPC response and the resulting `mcp_tool_audit_logs` row.
  * The fixture Program seeds a `completion_mode = 'system'` Module 0
  * analogue ahead of "mcp-module-a" specifically so `complete_module`'s
- * PR 2.8 system-completion/unlock branch can be exercised for real,
+ * system completion/unlock branch can be exercised with real DB fixtures.
  * through the real MCP Tool, with the real Validator registry (no DI
  * seam is threaded through the MCP layer).
  *
@@ -213,7 +213,7 @@ async function callTool(
 
 const getLatestAuditLogRow = getLatestFixtureMcpToolAuditLogRow;
 
-describe("PR 2.7 MCP Tools — database integration", () => {
+describe("MCP write tools — database integration", () => {
   const RUN_SUFFIX = randomBytes(4).toString("hex");
   const emailPrefix = `mcp-tools-test-${RUN_SUFFIX}`;
   const PROGRAM_KEY = `mcp-tools-${RUN_SUFFIX}`;

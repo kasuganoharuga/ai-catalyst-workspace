@@ -41,7 +41,7 @@ export class LocalStorageProvider implements StorageProvider {
   constructor(options: LocalStorageProviderOptions) {
     if (!options.rootDir || !path.isAbsolute(options.rootDir)) {
       throw new Error(
-        "LocalStorageProvider requires an absolute rootDir (build StorageConfig at the composition root).",
+        "LocalStorageProvider requires an absolute rootDir (pass it via StorageConfig).",
       );
     }
     this.rootDir = options.rootDir;

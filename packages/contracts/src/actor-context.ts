@@ -1,9 +1,7 @@
-// The single identity shape passed into every packages/services call,
-// regardless of caller: apps/web derives it from the Better Auth session,
-// apps/mcp derives it from the verified platform Bearer token (PR 2.2's
-// `verifyMcpBearerToken`, packages/services/src/mcp-auth). Per
-// architecture.mdc rule 5, MCP tools are stateless — this context travels
-// with every request rather than being cached in a session.
+// The single identity shape passed into every packages/services call.
+// apps/web derives it from the Better Auth session; apps/mcp derives it
+// from the verified platform Bearer token (verifyMcpBearerToken). MCP tools
+// are stateless — this context travels with every request.
 
 export type ActorRole = "pending" | "founder" | "mentor" | "admin";
 
@@ -16,12 +14,8 @@ export interface ActorContext {
   userId: string;
   role: ActorRole;
 
-  // `source`/`scopes`/`clientId`/`traceId` are all optional so that the many
-  // pre-existing ActorContext literals across packages/services's test
-  // suites (constructed before PR 2.2, with no OAuth concept at all) keep
-  // compiling unchanged. New code should always go through
-  // `createWebActorContext`/`createMcpActorContext` below rather than a
-  // bare object literal, which always populate them.
+  // Optional so existing test fixtures keep compiling. New code should use
+  // createWebActorContext / createMcpActorContext, which always populate these.
   source?: ActorSource;
   // OAuth scopes granted to the underlying Bearer token (e.g.
   // `["mcp:connect"]`). Empty/undefined for a web session actor, which is

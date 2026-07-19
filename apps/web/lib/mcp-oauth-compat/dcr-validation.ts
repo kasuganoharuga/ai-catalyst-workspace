@@ -7,12 +7,9 @@ interface RequestLikeContext {
 }
 
 // ---------------------------------------------------------------------------
-// Rate limiting — development-only, in-memory, per-process. A real
-// deployment (PR 2.10) MUST replace this with a shared limiter (Redis or a
-// database-backed one, matching whatever the rest of the platform's rate
-// limiting uses by then) once /mcp/register is reachable from more than one
-// server process — an in-memory Map means every process/replica gets its own
-// independent budget, and a restart resets it entirely.
+// Rate limiting — in-memory, per-process. Replace with a shared limiter
+// (Redis or DB-backed) before /mcp/register runs on more than one server
+// process: each replica has its own budget, and a restart clears it.
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -39,10 +36,9 @@ function isRateLimited(ip: string): boolean {
  * set that env var once this app is deployed behind a proxy/load balancer
  * that itself overwrites (not appends to) that header before forwarding.
  *
- * Without a trusted proxy in front (the local/CI case this PR covers),
- * every request falls into the same `"unknown"` bucket — a coarser,
- * global-per-process limit, not per-client, but still enough to blunt a
- * naive registration-flooding script in dev.
+ * Without a trusted proxy, every request falls into the same `"unknown"`
+ * bucket — a coarser, global-per-process limit, not per-client, but enough
+ * to blunt naive registration flooding in development.
  */
 function resolveClientIp(ctx: RequestLikeContext): string {
   if (process.env.MCP_OAUTH_TRUST_PROXY_HEADERS === "true") {

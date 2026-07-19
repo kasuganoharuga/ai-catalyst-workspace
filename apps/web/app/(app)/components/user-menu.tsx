@@ -17,7 +17,8 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
-import { ACCOUNT_NAV_ITEMS } from "./app-sidebar-navigation";
+import { ACCOUNT_NAV_ITEMS } from "./nav-items";
+import { NavMenuIcon } from "./nav-link";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -108,17 +109,14 @@ export function UserMenu({
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {includeAccountLinks
-          ? ACCOUNT_NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <DropdownMenuItem key={item.href} asChild>
-                  <Link href={item.href}>
-                    <Icon aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })
+          ? ACCOUNT_NAV_ITEMS.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link href={item.href}>
+                  <NavMenuIcon href={item.href} />
+                  {item.label}
+                </Link>
+              </DropdownMenuItem>
+            ))
           : null}
         {includeAccountLinks ? <DropdownMenuSeparator /> : null}
         <DropdownMenuItem

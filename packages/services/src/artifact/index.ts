@@ -35,24 +35,13 @@ import {
 
 import type { ValidationRunResult, Validator } from "./internal/validators/types.js";
 
-// Owns Artifact Submission versioning and the ValidationService
-// (draft_check / official validation) — apps/web and apps/mcp are both
-// thin shells that call into this same Service, never re-implement any
-// of this (architecture.mdc rule 1). `runOfficialValidation` itself is
-// still never exposed as an MCP *tool* the caller can invoke directly —
-// as of PR 2.8, it is invoked internally, with an actor whose `source`
-// has been forced to `'system'`, by `module/completion.ts`'s
-// `completeModuleAttempt` (the Service function behind the MCP
-// `complete_module` tool). An MCP-sourced actor can therefore trigger an
-// official validation to run, but can never call it directly, and never
-// controls its authority — matching the "MCP 请求 official validation 被
-// ... Service 权限矩阵拒绝" acceptance criterion. `submitAttempt` (2.4)
-// already completed the Attempt's own submitted transition — this module
-// never touches that; it only reacts to an already-submitted Attempt.
+// Owns Artifact Submission versioning and ValidationService (draft_check /
+// official validation). apps/web and apps/mcp call the same Service
+// functions. runOfficialValidation is not an MCP tool — it is invoked
+// internally (with a system-sourced actor) from completeModuleAttempt.
 //
-// Lock ordering (same module-level convention as attempt/index.ts):
-// whenever a transaction needs to lock both a program_run_modules row
-// and a module_attempts row, it locks program_run_modules FIRST.
+// Lock ordering: lock program_run_modules before module_attempts when both
+// are needed in one transaction.
 //
 // No Postgres transaction here is ever held open across Storage I/O
 // (createPendingGeneratedObject / writeGeneratedTextContent /
@@ -81,9 +70,8 @@ interface RunModuleRow {
   program_run_id: string;
   program_run_branch_id: string;
   active_attempt_id: string | null;
-  // Joined from module_definitions — only runOfficialValidation's PR 2.8
-  // "setup module, no validator configured" bypass reads this; every
-  // other caller of resolveAttemptContext simply ignores the extra column.
+  // Joined from module_definitions — used by runOfficialValidation's
+  // setup-module bypass when no validator is configured.
   module_type: ModuleType;
 }
 
@@ -406,12 +394,8 @@ async function insertArtifactModuleEvent(
 
 // Shared by runDraftCheck and runOfficialValidation. Always inserts a
 // terminal status (`passed`/`failed`) with both timestamps stamped "now"
-// — every Validator in this PR is a synchronous pure function, so there
-// is no real `pending`/`running` interval to record (those two statuses
-// are reserved for a future asynchronous Validator, e.g. 4.4's FastAPI
-// LLM check). `summary` is left null — V1 has no natural-language
-// summarizer; a future PR can start populating it without another
-// interface change.
+// — validators are synchronous pure functions today, so there is no real
+// `pending`/`running` interval. `summary` is left null for now.
 async function insertArtifactValidation(
   client: PoolClient,
   input: {
@@ -688,9 +672,8 @@ export interface ArtifactSubmissionWithContent {
  * Reads an Attempt's latest non-superseded/deleted Artifact Submission,
  * together with its stored content read back through StorageService
  * (`getGeneratedTextContent`) — the single read backing the MCP
- * `get_artifact` capability ("Read an authorised artefact through
- * StorageService", source doc §21), so a Tool caller never needs a
- * second round trip just to see what it saved. `null` when this Artifact
+ * `get_artifact` MCP tool — content read through StorageService. Returns null
+ * when no submission exists yet.
  * has never been saved yet, which is a normal state during drafting, not
  * an error.
  */
@@ -909,14 +892,9 @@ interface ArtifactRunOutcome {
  * started.
  *
  * This function alone never drives a Module past `ready_for_review` to
- * `completed`/`ready_to_unlock` — that requires either a real Mentor
- * decision (PR 4.2, not implemented yet) or, for `completion_mode =
- * 'system'` Modules only (Module 0), PR 2.8's own
- * `module/completion.ts#completeModuleAttempt`, which calls this function
- * and then performs the system-only accept/complete/unlock as a separate
- * step. This function's own responsibility stays exactly "run every
- * required Artifact's official check and record the Attempt-level
- * pass/fail", regardless of which orchestration called it.
+ * `completed`/`ready_to_unlock` — that requires a Mentor decision (not
+ * implemented yet) or, for system-completed modules only, the separate
+ * accept/complete/unlock step in completeModuleAttempt.
  */
 export async function runOfficialValidation(
   actor: ActorContext,
@@ -970,18 +948,10 @@ export async function runOfficialValidation(
       continue;
     }
     if (!artifactDefinition.validator_key) {
-      // A `module_type = 'setup'` Artifact (e.g. Module 0's
-      // Founder-Toolkit-Setup-Summary.md) is deliberately seeded with
-      // `validator_key: null` — per source doc §9, its completion is
-      // determined by the operational checks that already had to pass
-      // to save it (StorageService write/read/hash round-trip via
-      // saveArtifactSubmission), not by any content-quality Validator.
-      // A verified submission existing at all is therefore sufficient;
-      // no artifact_validations row is inserted for it below (there is
-      // no validator_key/validator_version to record). Every other
-      // module_type still throws — an accidentally-unconfigured Validator
-      // on a real content module must fail loudly, not be silently
-      // treated as passing.
+      // Setup modules (e.g. Module 0) may have validator_key null — completion
+      // is determined by operational checks (storage round-trip), not validators.
+      // No artifact_validations row is inserted below. Other module types with
+      // a missing validator_key still throw — misconfiguration must fail loudly.
       if (precheck.runModule.module_type === "setup") {
         outcomes.push({
           artifactDefinition,
@@ -1133,12 +1103,8 @@ function assertValidationReader(actor: ActorContext): void {
 }
 
 /**
- * Reads the single most recent artifact_validations row for
- * `(attemptId, artifactKey)`, across every version of that Artifact —
- * the minimal read entry point the iteration plan's "draft_check
- * results can be queried" acceptance criterion needs. `null` when no
- * validation has ever been run yet (not an error — a Founder who hasn't
- * run a draft check yet is a normal state).
+ * Reads the most recent artifact_validations row for (attemptId, artifactKey)
+ * across all submission versions. Returns null when no validation has run yet.
  */
 export async function getLatestValidation(
   actor: ActorContext,

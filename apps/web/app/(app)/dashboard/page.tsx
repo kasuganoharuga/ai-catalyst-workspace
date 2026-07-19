@@ -13,14 +13,18 @@ import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
-import { getVenture } from "@/lib/ventures";
+import { appPageTitle } from "@/lib/page-metadata";
+import { ventureForActiveContext } from "@/lib/ventures";
 
+import { PageShell } from "../components/page-shell";
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModuleStatusCard } from "./components/module-status-card";
 import { NextActionCard } from "./components/next-action-card";
 import { SetupStepper, type SetupStep } from "./components/setup-stepper";
+
+export const metadata = appPageTitle("Dashboard");
 
 function formatLifecycleStage(stage: string): string {
   return stage
@@ -35,25 +39,23 @@ export default async function DashboardPage() {
     getCurrentFounderSession(),
   ]);
 
-  const [catalog, activeContext, connection, runResult, profile] =
-    await Promise.all([
-      listModuleCatalog(actor),
-      getActiveContext(actor),
-      getMcpConnectionStatus(actor),
-      listRunModules(actor),
-      getMyProfile(actor),
-    ]);
-  const venture = activeContext.ventureId
-    ? await getVenture(actor, activeContext.ventureId)
-    : null;
+  const activeContextPromise = getActiveContext(actor);
+  const [catalog, , connection, runResult, profile] = await Promise.all([
+    listModuleCatalog(actor),
+    activeContextPromise,
+    getMcpConnectionStatus(actor),
+    listRunModules(actor),
+    getMyProfile(actor),
+  ]);
 
   const hasRun = runResult.runId !== null;
-  const [module0, module1] = hasRun
-    ? await Promise.all([
-        getModuleContextByKey(actor, MODULE_0_KEY),
-        getModuleContextByKey(actor, MODULE_1_KEY),
-      ])
-    : [null, null];
+  const [venture, module0, module1] = await Promise.all([
+    activeContextPromise.then((context) =>
+      ventureForActiveContext(actor, context),
+    ),
+    hasRun ? getModuleContextByKey(actor, MODULE_0_KEY) : Promise.resolve(null),
+    hasRun ? getModuleContextByKey(actor, MODULE_1_KEY) : Promise.resolve(null),
+  ]);
 
   const liveModules = catalog.filter((m) => m.catalogStatus === "live");
   const comingSoonCount = catalog.length - liveModules.length;
@@ -163,7 +165,7 @@ export default async function DashboardPage() {
   })();
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-14">
+    <PageShell>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
@@ -255,7 +257,7 @@ export default async function DashboardPage() {
           through the ones above.
         </p>
       ) : null}
-    </main>
+    </PageShell>
   );
 }
 

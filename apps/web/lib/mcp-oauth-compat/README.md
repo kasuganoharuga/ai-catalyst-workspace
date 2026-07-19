@@ -1,6 +1,6 @@
 # apps/web/lib/mcp-oauth-compat
 
-PR 2.2's compatibility layer between Better Auth 1.6.23's legacy `mcp()` /
+Compatibility layer between Better Auth 1.6.23's legacy `mcp()` /
 `oidc-provider` plugins (registered in [`apps/web/lib/auth.ts`](../auth.ts))
 and the OAuth 2.1 profile this project actually needs for MCP: opaque
 Bearer tokens, PKCE-only public clients, exactly one scope (`mcp:connect`),

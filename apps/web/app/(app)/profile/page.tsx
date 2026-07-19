@@ -1,22 +1,21 @@
+import type { ReactNode } from "react";
+
+import { formatDate } from "@/lib/format";
+import { appPageTitle } from "@/lib/page-metadata";
 import { getActiveContext } from "@/lib/active-context";
 import {
   getCurrentFounderActor,
   getCurrentFounderSession,
 } from "@/lib/current-founder-actor";
 import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
-import { getVenture } from "@/lib/ventures";
+import { ventureForActiveContext } from "@/lib/ventures";
 import { getMyWorkspace } from "@/lib/workspace";
 
+import { PageShell } from "../components/page-shell";
 import { PasswordSection } from "./components/password-section";
 import { ProfileForm } from "./components/profile-form";
 
-function formatDate(value: Date | string): string {
-  return new Date(value).toLocaleDateString("en-AU", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
+export const metadata = appPageTitle("Your profile");
 
 export default async function ProfilePage() {
   const [actor, session] = await Promise.all([
@@ -24,19 +23,19 @@ export default async function ProfilePage() {
     getCurrentFounderSession(),
   ]);
 
-  const [profile, workspace, activeContext] = await Promise.all([
+  const activeContextPromise = getActiveContext(actor);
+  const [profile, workspace, venture] = await Promise.all([
     getMyProfile(actor),
     getMyWorkspace(actor),
-    getActiveContext(actor),
+    activeContextPromise.then((context) =>
+      ventureForActiveContext(actor, context),
+    ),
   ]);
-  const venture = activeContext.ventureId
-    ? await getVenture(actor, activeContext.ventureId)
-    : null;
 
   const displayName = resolveDisplayName(profile, session.user.name);
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-14">
+    <PageShell className="max-w-2xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Your profile
       </p>
@@ -70,17 +69,11 @@ export default async function ProfilePage() {
           something is wrong, tell your programme lead.
         </p>
       </section>
-    </main>
+    </PageShell>
   );
 }
 
-function Row({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
+function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-6 border-b border-border py-3">
       <dt className="shrink-0 text-muted-foreground">{label}</dt>

@@ -21,10 +21,6 @@ export function resolveInteractionProvider(
   if (actor.source === "system") {
     return "system";
   }
-  // V1 constraint: exactly one Claude Remote MCP client (architecture.mdc).
-  // Hardcoding mcp -> claude is the correct V1 simplification. Once
-  // multiple AI clients exist, ActorContext needs an explicit aiProvider
-  // field and this hardcode must be replaced — don't add that field now,
-  // V1 has no use for it.
+  // V1: one MCP client — mcp maps to claude.
   return "claude";
 }

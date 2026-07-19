@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import { createVentureAction } from "@/lib/actions/founder-actions";
 
 export function useCreateVentureForm() {
   const router = useRouter();
@@ -9,35 +11,28 @@ export function useCreateVentureForm() {
   const [oneLiner, setOneLiner] = useState("");
   const [summary, setSummary] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setIsSubmitting(true);
-
-    const response = await fetch("/api/ventures", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    startTransition(async () => {
+      const result = await createVentureAction({
         name,
         oneLiner: oneLiner.trim() === "" ? undefined : oneLiner,
         summary: summary.trim() === "" ? undefined : summary,
-      }),
+      });
+
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+
+      setName("");
+      setOneLiner("");
+      setSummary("");
+      router.refresh();
     });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to create Venture.");
-      setIsSubmitting(false);
-      return;
-    }
-
-    setName("");
-    setOneLiner("");
-    setSummary("");
-    setIsSubmitting(false);
-    router.refresh();
   }
 
   return {
@@ -48,7 +43,7 @@ export function useCreateVentureForm() {
     summary,
     setSummary,
     error,
-    isSubmitting,
+    isSubmitting: isPending,
     handleSubmit,
   };
 }

@@ -34,10 +34,7 @@ export interface ModuleAttempt {
   updatedAt: string;
 }
 
-// Mirrors the `module_responses.response_type` check constraint. Only
-// `short_text` / `long_text` / `single_choice` are validated by
-// saveFounderResponse in this PR — the remaining values exist in the
-// schema for later content, same reasoning as ProgramRunStatus.
+// Response types validated by saveFounderResponse today; others exist in schema for future content.
 export type ModuleResponseType =
   | "short_text"
   | "long_text"

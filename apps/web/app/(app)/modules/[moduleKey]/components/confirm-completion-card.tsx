@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { confirmModuleCompletionAction } from "@/lib/actions/founder-actions";
 
 /**
  * The Founder's sign-off. Claude produces the output and gets it through
@@ -21,36 +22,22 @@ export function ConfirmCompletionCard({
   nextModuleTitle: string | null;
 }) {
   const router = useRouter();
-  const [busy, setBusy] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   async function handleConfirm() {
-    setBusy(true);
     setError(null);
-    try {
-      const response = await fetch("/api/modules/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ programRunModuleId }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
+    startTransition(async () => {
+      const result = await confirmModuleCompletionAction(programRunModuleId);
+      if (!result.ok) {
         setError(
-          body?.error?.message ??
+          result.message ??
             "That didn't work — give it another try in a moment.",
         );
-        setBusy(false);
         return;
       }
       router.refresh();
-      // No setBusy(false) on success: the refresh replaces this card with
-      // the completed state.
-    } catch {
-      setError("That didn't work — give it another try in a moment.");
-      setBusy(false);
-    }
+    });
   }
 
   return (
@@ -89,8 +76,13 @@ export function ConfirmCompletionCard({
       </p>
 
       <div className="mt-5 flex flex-wrap items-center gap-4">
-        <Button type="button" size="lg" onClick={handleConfirm} disabled={busy}>
-          {busy ? "Confirming…" : "Confirm and continue"}
+        <Button
+          type="button"
+          size="lg"
+          onClick={handleConfirm}
+          disabled={isPending}
+        >
+          {isPending ? "Confirming…" : "Confirm and continue"}
         </Button>
         <p className="text-xs text-surface-inverse-foreground/50">
           Not happy with it? Ask Claude to revise it — nothing is locked in

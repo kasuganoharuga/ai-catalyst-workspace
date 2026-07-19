@@ -14,5 +14,5 @@ export const PROGRAM_CONTENT: ProgramContent = {
   versionDescription:
     "Module 0 (Setup and Connection) and Module 1 (Pressure-Test My Idea) are fully specified and active. Modules 2-6 are draft placeholders pending their own workflow specs.",
   releaseNotes:
-    "PR 1.4 seeds Module 0/1 structured content per docs/product/module-0-and-module-1-workflow.md. This Program Version does not yet include executable Workflow definitions (workflow_definitions/workflow_steps) — those are loaded and published by PR 2.8. Attempts cannot be created against this Program Version until then.",
+    "Seeds Module 0/1 structured content per docs/product/module-0-and-module-1-workflow.md. Workflow definitions (workflow_definitions/workflow_steps) are not included in this Program Version yet.",
 };

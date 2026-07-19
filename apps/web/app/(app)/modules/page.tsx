@@ -1,9 +1,13 @@
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { listRunModules } from "@/lib/run-modules";
+import { appPageTitle } from "@/lib/page-metadata";
 
+import { PageShell } from "../components/page-shell";
 import { deriveModuleDisplayStatus } from "../lib/module-display";
 import { ModuleCatalogCard } from "./components/module-catalog-card";
+
+export const metadata = appPageTitle("Modules");
 
 export default async function ModulesPage() {
   const actor = await getCurrentFounderActor();
@@ -18,7 +22,7 @@ export default async function ModulesPage() {
   const openCount = modules.filter((m) => m.catalogStatus === "live").length;
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-14">
+    <PageShell>
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           The programme
@@ -58,6 +62,6 @@ export default async function ModulesPage() {
           );
         })}
       </div>
-    </main>
+    </PageShell>
   );
 }

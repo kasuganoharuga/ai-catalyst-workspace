@@ -353,11 +353,8 @@ describe("storage service — database integration", () => {
       expect(verified.uploadStatus).toBe("verified");
       expect(putCalls).toBe(1);
 
-      // Simulates "the Provider write succeeded but the transaction that
-      // was supposed to record it never committed" (the plan's Reconcile
-      // scope note): the row is reset back to pending with no recorded
-      // checksum, while the real object written above is left untouched
-      // on disk.
+      // Simulate provider write succeeding while the DB update never
+      // committed: row reset to pending, bytes still on disk.
       await pool.query(
         `update storage_objects
          set upload_status = 'pending', checksum_sha256 = null,

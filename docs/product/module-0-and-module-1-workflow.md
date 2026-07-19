@@ -9,11 +9,11 @@
 - Canonical artefact filenames hyphenated: `Founder-Toolkit-Setup-Summary.md` and `Pressure-Test-Verdict.md`, matching the §22 object key convention.
 - Module 0 completion rule made explicit for V1: system-completed on validation pass (`completion_mode = 'system'`); no Mentor review for Module 0.
 - Founder decision persistence defined: `initial_decision`, `final_decision`, and `pivot_detail` are structured Responses (question keys 7–9) saved through `save_founder_input`; the strongest counter-case is recorded in the Verdict artefact and enforced by the draft check.
-- V1 Pivot creates a linked revised Attempt (`based_on`) on the single main branch; new Branches/Forks are deferred beyond V1, consistent with the V1 constraints in the iteration plan.
+- V1 Pivot creates a linked revised Attempt (`based_on`) on the single main branch; new Branches/Forks are deferred beyond V1.
 
 ---
 
-**Provenance note:** This is the tracked, canonical copy of the product specification (mirrored from the gitignored `local/Module_0_and_Module_1_Workflow_S3.md` working draft as of PR 1.4). The seed script does not parse this file at runtime — the actual database content is authored and reviewed as TypeScript constants in `packages/services/src/content-seed/content/`, derived from this specification. If this document changes, the content constants must be updated and re-reviewed in a follow-up PR; they are not automatically kept in sync.
+**Provenance note:** This is the tracked, canonical product specification. The seed script does not parse this file at runtime — database content is authored as TypeScript constants in `packages/services/src/content-seed/content/`, derived from this specification. If this document changes, those constants must be updated in a follow-up change; they are not kept in sync automatically.
 
 ---
 

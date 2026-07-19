@@ -13,14 +13,8 @@ import type {
   Validator,
 } from "./types.js";
 
-// Implements the 8 draftRules + 4 submissionRules seeded onto the
-// "Pressure-Test Verdict" Artifact Definition by PR 1.4
-// (packages/services/src/content-seed/content/module-1.ts's
-// `validationConfig`). The section/label vocabulary below (headings,
-// `**Label:**` markers) mirrors that file's `PRESSURE_TEST_VERDICT_TEMPLATE`
-// exactly — this Validator is deliberately coupled to that one template,
-// not a generic Markdown-artifact checker (see markdown-sections.ts's own
-// file comment for the same reasoning).
+// Implements draftRules + submissionRules from module-1 content seed validationConfig.
+// Section/label vocabulary matches PRESSURE_TEST_VERDICT_TEMPLATE in content seed.
 
 type HeadingLookup = { kind: "heading"; level: number; heading: string };
 type LabelLookup = { kind: "label"; label: string };
