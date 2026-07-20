@@ -45,10 +45,15 @@ export async function ModuleDetailBody({
 
   const runModule = context?.runModule ?? null;
   const activeAttempt = context?.activeAttempt ?? null;
+  // After validation_failed, activeAttemptId is cleared; displayAttempt
+  // still points at the failed Attempt so we can show answers + issues.
+  const displayAttempt = context?.displayAttempt ?? activeAttempt;
   const isSetupModule = entry.moduleType === "setup";
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
-  const verdictReady = activeAttempt?.status === "ready_for_review";
+  const verdictReady =
+    activeAttempt?.status === "ready_for_review" ||
+    displayAttempt?.status === "ready_for_review";
   const awaitingConfirmation =
     verdictReady && runModule !== null && context !== null;
 
@@ -59,7 +64,7 @@ export async function ModuleDetailBody({
 
   const primaryArtifactKey = context?.artifacts[0]?.artifactKey ?? null;
   const needsValidation =
-    activeAttempt?.status === "validation_failed" &&
+    displayAttempt?.status === "validation_failed" &&
     primaryArtifactKey !== null;
   const needsRunSetup = isLive && !runModule;
 
@@ -72,9 +77,9 @@ export async function ModuleDetailBody({
       : Promise.resolve(null);
 
   const [validation, activeContext] = await Promise.all([
-    needsValidation && activeAttempt
+    needsValidation && displayAttempt
       ? getLatestValidation(actor, {
-          attemptId: activeAttempt.id,
+          attemptId: displayAttempt.id,
           artifactKey: primaryArtifactKey,
         })
       : Promise.resolve(null),

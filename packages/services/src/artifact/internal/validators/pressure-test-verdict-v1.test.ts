@@ -1,16 +1,57 @@
 import { describe, expect, it } from "vitest";
 
-import { MODULE_1_CONTENT } from "@ai-catalyst/services/content-seed/content/module-1";
-
 import { pressureTestVerdictV1 } from "./pressure-test-verdict-v1.js";
 import type { ValidationContext, ValidationContextResponse } from "./types.js";
 
-// Pulls the real seeded validationConfig (1.4's module-1.ts) rather than
-// a hand-rolled copy — this test is the thing that proves the Validator
-// actually implements the rules content declares, so it must run against
-// the same object content-seed writes to artifact_definitions.validation_config,
-// not a fixture that could silently drift from it.
-const VALIDATION_CONFIG = MODULE_1_CONTENT.artifacts[0].validationConfig;
+// Frozen snapshot of v1-module-0-1 Module 1 validationConfig bound to
+// pressure_test_verdict_v1. Current seed binds pressure_test_verdict_v2;
+// this suite keeps coverage for the v1 validator.
+const VALIDATION_CONFIG = {
+  schemaVersion: 1,
+  validatorKey: "pressure_test_verdict_v1",
+  draftRules: [
+    { key: "six_confirmed_responses", type: "response_count", expected: 6 },
+    {
+      key: "five_failure_reasons",
+      type: "list_length",
+      section: "failure_reasons",
+      expected: 5,
+    },
+    {
+      key: "three_named_alternatives",
+      type: "minimum_named_items",
+      section: "competitors_alternatives",
+      minimum: 3,
+    },
+    {
+      key: "success_conditions_actionable",
+      type: "section_non_empty",
+      section: "success_conditions",
+    },
+    { key: "investor_decision", type: "enum", allowed: ["yes", "no"] },
+    {
+      key: "single_strongest_reason",
+      type: "section_non_empty",
+      section: "single_biggest_reason",
+    },
+    {
+      key: "unsupported_evidence_labelled",
+      type: "section_non_empty",
+      section: "evidence_note",
+    },
+    {
+      key: "required_markdown_sections",
+      type: "sections_exist",
+      sections: ["confirmed_qa", "four_part_verdict", "founders_decision"],
+    },
+  ],
+  submissionRules: [
+    { key: "initial_decision_present" },
+    { key: "strongest_counter_case_present" },
+    { key: "final_decision_present" },
+    { key: "pivot_detail_when_pivot" },
+  ],
+};
 
 const VALID_CONTENT = `# Pressure-Test Verdict
 

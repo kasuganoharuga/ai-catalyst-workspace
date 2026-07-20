@@ -163,7 +163,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Complete module",
       description:
-        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. If the Founder's own recorded decision is 'pivot' (Module 1), it also cancels this Attempt and starts a Retry Attempt automatically. Never lets an MCP-sourced Actor force a Mentor acceptance.",
+        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. Proceed, Pivot, and Kill all share that success path (no auto-cancel / auto-retry). On failure, validationErrors lists the named checks to repair. Never lets an MCP-sourced Actor force a Mentor acceptance.",
       inputSchema: ATTEMPT_ID_SHAPE,
     },
     async (args) => {
@@ -185,7 +185,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
                 passed: result.passed,
                 moduleCompleted: result.moduleCompleted,
                 awaitingConfirmation: result.awaitingConfirmation,
-                pivoted: result.pivoted,
+                validationErrorCount: result.validationErrors.length,
                 nextModuleUnlocked: result.nextModuleUnlocked?.moduleKey ?? null,
               },
             },

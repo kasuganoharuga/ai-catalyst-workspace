@@ -47,6 +47,7 @@ export type {
   ModuleContext,
   ModuleContextQuestion,
   ModuleContextArtifactSummary,
+  ModuleContextPrompt,
 } from "./module-context.js";
 export type {
   UserProfile,

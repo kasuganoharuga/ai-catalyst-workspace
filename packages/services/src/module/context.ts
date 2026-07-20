@@ -8,6 +8,7 @@ import type {
   ModuleAttemptType,
   ModuleContext,
   ModuleContextArtifactSummary,
+  ModuleContextPrompt,
   ModuleContextQuestion,
   ModuleResponseStatus,
   ModuleResponseType,
@@ -83,6 +84,14 @@ interface ArtifactRowWithModuleId extends ArtifactRow {
   module_definition_id: string;
 }
 
+interface PromptRow {
+  module_definition_id: string;
+  purpose: string;
+  prompt_key: string;
+  version_number: number;
+  content: string;
+}
+
 function groupRowsByKey<T, K extends string | number>(
   rows: T[],
   keyOf: (row: T) => K,
@@ -114,6 +123,28 @@ async function loadAttemptsByIds(
     [attemptIds],
   );
   return new Map(result.rows.map((row) => [row.id, row]));
+}
+
+// When active_attempt_id is cleared (e.g. after validation_failed), the
+// latest Attempt for the Module still holds the Founder's answers — load
+// those ids so context can surface them as displayAttempt.
+async function loadLatestAttemptIdsByRunModuleIds(
+  runModuleIds: string[],
+): Promise<Map<string, string>> {
+  if (runModuleIds.length === 0) {
+    return new Map();
+  }
+  const result = await pool.query<{
+    program_run_module_id: string;
+    id: string;
+  }>(
+    `select distinct on (program_run_module_id) program_run_module_id, id
+     from module_attempts
+     where program_run_module_id = any($1::uuid[])
+     order by program_run_module_id, attempt_number desc`,
+    [runModuleIds],
+  );
+  return new Map(result.rows.map((row) => [row.program_run_module_id, row.id]));
 }
 
 async function loadQuestionsByModuleDefinitionIds(
@@ -189,6 +220,38 @@ async function loadArtifactsByModuleAttempts(
   return groupRowsByKey(result.rows, (row) => row.module_definition_id);
 }
 
+async function loadPromptsByModuleDefinitionIds(
+  moduleDefinitionIds: string[],
+): Promise<Map<string, ModuleContextPrompt[]>> {
+  if (moduleDefinitionIds.length === 0) {
+    return new Map();
+  }
+  const result = await pool.query<PromptRow>(
+    `select mpb.module_definition_id, mpb.purpose, pd.prompt_key,
+            pv.version_number, pv.content
+     from module_prompt_bindings mpb
+     join prompt_versions pv on pv.id = mpb.prompt_version_id
+     join prompt_definitions pd on pd.id = pv.prompt_definition_id
+     where mpb.module_definition_id = any($1::uuid[])
+     order by mpb.module_definition_id, mpb.purpose, mpb.sequence_index`,
+    [moduleDefinitionIds],
+  );
+  const grouped = groupRowsByKey(result.rows, (row) => row.module_definition_id);
+  return new Map(
+    [...grouped.entries()].map(([moduleDefinitionId, rows]) => [
+      moduleDefinitionId,
+      rows.map(
+        (row): ModuleContextPrompt => ({
+          purpose: row.purpose,
+          promptKey: row.prompt_key,
+          versionNumber: row.version_number,
+          content: row.content,
+        }),
+      ),
+    ]),
+  );
+}
+
 function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary[] {
   return rows.map((row) => ({
     artifactKey: row.artifact_key,
@@ -208,10 +271,12 @@ function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary
 
 function assembleModuleContext(
   runModule: RunModuleSummary,
+  displayAttemptId: string | null,
   attemptsById: Map<string, AttemptRow>,
   questionsByModuleDefinitionId: Map<string, QuestionRow[]>,
   responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
   artifactsByModuleDefinitionId: Map<string, ArtifactRow[]>,
+  promptsByModuleDefinitionId: Map<string, ModuleContextPrompt[]>,
 ): ModuleContext {
   let activeAttempt: ModuleAttempt | null = null;
   if (runModule.activeAttemptId) {
@@ -225,10 +290,18 @@ function assembleModuleContext(
     activeAttempt = mapAttemptRow(attemptRow);
   }
 
+  let displayAttempt: ModuleAttempt | null = activeAttempt;
+  if (!displayAttempt && displayAttemptId) {
+    const displayRow = attemptsById.get(displayAttemptId);
+    if (displayRow) {
+      displayAttempt = mapAttemptRow(displayRow);
+    }
+  }
+
   const questionRows =
     questionsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];
-  const responseMap = runModule.activeAttemptId
-    ? (responsesByAttemptId.get(runModule.activeAttemptId) ?? new Map())
+  const responseMap = displayAttempt
+    ? (responsesByAttemptId.get(displayAttempt.id) ?? new Map())
     : new Map<string, ResponseLookupRow>();
 
   const questions: ModuleContextQuestion[] = questionRows.map((row) => {
@@ -254,9 +327,11 @@ function assembleModuleContext(
   return {
     runModule,
     activeAttempt,
+    displayAttempt,
     resumeQuestionKey,
     questions,
     artifacts: mapArtifactSummaries(artifactRows),
+    prompts: promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
   };
 }
 
@@ -270,37 +345,48 @@ async function buildModuleContextsFromRunModules(
   const moduleDefinitionIds = runModules.map(
     (runModule) => runModule.moduleDefinitionId,
   );
-  const activeAttemptIds = [
-    ...new Set(
-      runModules
-        .map((runModule) => runModule.activeAttemptId)
-        .filter((attemptId): attemptId is string => attemptId !== null),
-    ),
+  const runModuleIds = runModules.map((runModule) => runModule.id);
+
+  const latestAttemptIdsByRunModule =
+    await loadLatestAttemptIdsByRunModuleIds(runModuleIds);
+
+  const displayAttemptIds = runModules.map((runModule) => {
+    if (runModule.activeAttemptId) {
+      return runModule.activeAttemptId;
+    }
+    if (runModule.acceptedAttemptId) {
+      return runModule.acceptedAttemptId;
+    }
+    return latestAttemptIdsByRunModule.get(runModule.id) ?? null;
+  });
+
+  const attemptIdsToLoad = [
+    ...new Set(displayAttemptIds.filter((id): id is string => id !== null)),
   ];
-  const artifactAttemptIds = runModules.map(
-    (runModule) =>
-      runModule.activeAttemptId ?? runModule.acceptedAttemptId ?? null,
-  );
 
   const [
     questionsByModuleDefinitionId,
     attemptsById,
     responsesByAttemptId,
     artifactsByModuleDefinitionId,
+    promptsByModuleDefinitionId,
   ] = await Promise.all([
     loadQuestionsByModuleDefinitionIds([...new Set(moduleDefinitionIds)]),
-    loadAttemptsByIds(activeAttemptIds),
-    loadResponsesByAttemptIds(activeAttemptIds),
-    loadArtifactsByModuleAttempts(moduleDefinitionIds, artifactAttemptIds),
+    loadAttemptsByIds(attemptIdsToLoad),
+    loadResponsesByAttemptIds(attemptIdsToLoad),
+    loadArtifactsByModuleAttempts(moduleDefinitionIds, displayAttemptIds),
+    loadPromptsByModuleDefinitionIds([...new Set(moduleDefinitionIds)]),
   ]);
 
-  return runModules.map((runModule) =>
+  return runModules.map((runModule, index) =>
     assembleModuleContext(
       runModule,
+      displayAttemptIds[index] ?? null,
       attemptsById,
       questionsByModuleDefinitionId,
       responsesByAttemptId,
       artifactsByModuleDefinitionId,
+      promptsByModuleDefinitionId,
     ),
   );
 }
@@ -308,7 +394,7 @@ async function buildModuleContextsFromRunModules(
 /**
  * Loads every ModuleContext on the Founder's active Run in one pass:
  * resolves the Run once via listRunModules, then builds each context from
- * four batched queries (questions, attempts, responses, artifacts).
+ * batched queries (questions, attempts, responses, artifacts, prompts).
  */
 export async function listModuleContextsForActiveRun(
   actor: ActorContext,
@@ -320,11 +406,14 @@ export async function listModuleContextsForActiveRun(
 
 /**
  * Loads everything a Facilitator (the AI client, via MCP) needs to run
- * one Module: the current Run/Module state, its active Attempt (if any),
- * every active Question joined with the current Attempt's Response (if
- * any), the resume point, and every Artifact's latest-version metadata.
+ * one Module: the current Run/Module state, its active/display Attempt,
+ * every active Question joined with that Attempt's Response, bound
+ * Prompts, the resume point, and every Artifact's latest-version metadata.
  */
-export async function getModuleContext(actor: ActorContext, input: unknown): Promise<ModuleContext> {
+export async function getModuleContext(
+  actor: ActorContext,
+  input: unknown,
+): Promise<ModuleContext> {
   assertRole(actor, ["founder"]);
   const runModule = await getRunModuleByKey(actor, input);
   const [context] = await buildModuleContextsFromRunModules([runModule]);

@@ -14,10 +14,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
-import {
-  startOrResumeAttempt,
-  submitAttempt,
-} from "@ai-catalyst/services/attempt";
+import { submitAttempt } from "@ai-catalyst/services/attempt";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
   getArtifactSubmission,
@@ -28,10 +25,9 @@ import {
 import { renderSetupSummaryMarkdown } from "@ai-catalyst/services/module/internal/setup-summary";
 
 // Orchestrates module completion after a Founder calls complete_module:
-// submitAttempt, runOfficialValidation, and module-specific follow-ups:
-//   1. system completion_mode (Module 0): auto-accept and unlock on pass.
-//   2. Pivot decision (Module 1): start a retry Attempt automatically.
-// Proceed/Kill stay at ready_for_review until a Mentor decision (future).
+// submitAttempt, runOfficialValidation, then leave the Attempt at
+// ready_for_review for website confirmModuleCompletion (which unlocks
+// the next module for any Founder decision — AI is advisor, not gatekeeper).
 
 const ATTEMPT_COLUMNS = `
   id, program_run_module_id, attempt_number, attempt_type, status,
@@ -197,15 +193,6 @@ async function ensureSetupSummarySubmission(
     });
     await saveArtifactSubmission(actor, { attemptId, artifactKey, content });
   }
-}
-
-async function loadFinalDecision(attemptId: string): Promise<string | null> {
-  const result = await pool.query<{ answer_text: string | null }>(
-    `select answer_text from module_responses
-     where module_attempt_id = $1 and question_key = 'final_decision'`,
-    [attemptId],
-  );
-  return result.rows[0]?.answer_text ?? null;
 }
 
 type CompletionEventType =
@@ -399,76 +386,6 @@ async function completeSystemModule(
   };
 }
 
-// Phase A of Pivot: cancels the Attempt the Founder just pivoted away
-// from and clears the Module's active_attempt_id, in its own short
-// transaction. Phase B (creating the Retry Attempt) is deliberately a
-// separate call to the public startOrResumeAttempt, made only after this
-// one has committed — see completion.ts's module-level comment history
-// (this two-phase split, not a direct call to attempt/index.ts's private
-// insertRetryAttempt, is what keeps a crash between the two phases
-// recoverable: the Founder/Claude can always retry by calling
-// start_module_attempt directly with the same basedOnAttemptId).
-async function cancelAttemptForPivot(
-  client: PoolClient,
-  actor: ActorContext,
-  workspaceId: string,
-  runModuleId: string,
-  attemptId: string,
-): Promise<void> {
-  const runModuleResult = await client.query<{
-    id: string;
-    program_run_id: string;
-    program_run_branch_id: string;
-  }>(
-    `select id, program_run_id, program_run_branch_id
-     from program_run_modules
-     where id = $1 and workspace_id = $2
-     for update`,
-    [runModuleId, workspaceId],
-  );
-  const runModule = runModuleResult.rows[0];
-  if (!runModule) {
-    throw new ServiceError("NOT_FOUND", "Module not found.");
-  }
-
-  const attemptResult = await client.query<{
-    id: string;
-    status: ModuleAttemptStatus;
-  }>(
-    `select id, status from module_attempts where id = $1 and program_run_module_id = $2 for update`,
-    [attemptId, runModule.id],
-  );
-  const attempt = attemptResult.rows[0];
-  if (!attempt) {
-    throw new ServiceError("NOT_FOUND", "Attempt not found.");
-  }
-  if (attempt.status !== "ready_for_review") {
-    throw new ServiceError(
-      "INTERNAL_INVARIANT_ERROR",
-      `Attempt ${attempt.id} is "${attempt.status}", expected "ready_for_review" after a passing official validation.`,
-    );
-  }
-
-  await client.query(
-    `update module_attempts set status = 'cancelled', cancelled_at = now(), updated_at = now() where id = $1`,
-    [attempt.id],
-  );
-  await client.query(
-    `update program_run_modules set active_attempt_id = null, updated_at = now() where id = $1`,
-    [runModule.id],
-  );
-
-  await insertCompletionEvent(client, {
-    workspaceId,
-    programRunId: runModule.program_run_id,
-    programRunBranchId: runModule.program_run_branch_id,
-    programRunModuleId: runModule.id,
-    moduleAttemptId: attempt.id,
-    eventType: "attempt_cancelled",
-    actor,
-  });
-}
-
 function normalizeCompleteModuleAttemptInput(input: unknown): {
   attemptId: string;
 } {
@@ -485,12 +402,20 @@ function normalizeCompleteModuleAttemptInput(input: unknown): {
   return { attemptId };
 }
 
+export interface ModuleValidationError {
+  key: string;
+  message: string;
+}
+
 export interface CompleteModuleAttemptResult {
   attempt: ModuleAttempt;
   passed: boolean;
   // Mirrors RunOfficialValidationResult's own field — required Artifacts
   // with no submission at all. Always [] once passed is true.
   missingArtifactKeys: string[];
+  // Failed official-validation checks (and missing-artifact keys) so the
+  // AI client can repair named gaps. Always [] once passed is true.
+  validationErrors: ModuleValidationError[];
   // True only when the Module is already at
   // program_run_modules.status = 'completed' — which, since Founder
   // confirmation became a required step, only happens on the idempotent
@@ -507,29 +432,44 @@ export interface CompleteModuleAttemptResult {
   // the website. This is the normal terminal state of a successful
   // `complete_module` call from MCP.
   awaitingConfirmation: boolean;
-  // True only on the Pivot branch: the submitted Attempt has been
-  // cancelled and `retryAttempt` is the new one the Founder should
-  // continue with instead.
-  pivoted: boolean;
-  retryAttempt: ModuleAttempt | null;
+}
+
+function collectValidationErrors(
+  missingArtifactKeys: string[],
+  validations: Awaited<ReturnType<typeof runOfficialValidation>>["validations"],
+): ModuleValidationError[] {
+  const errors: ModuleValidationError[] = missingArtifactKeys.map((key) => ({
+    key: `missing_artifact:${key}`,
+    message: `Required artifact "${key}" was never saved.`,
+  }));
+  for (const validation of validations) {
+    for (const check of validation.checks) {
+      if (!check.passed) {
+        errors.push({
+          key: check.key,
+          message: check.message ?? `Check "${check.key}" failed.`,
+        });
+      }
+    }
+    for (const issue of validation.issues) {
+      if (!errors.some((error) => error.message === issue)) {
+        errors.push({ key: "validation_issue", message: issue });
+      }
+    }
+  }
+  return errors;
 }
 
 /**
  * Orchestrates the full "Founder is done with this Attempt" flow behind
- * the MCP `complete_module` tool. See this file's module-level comment
- * for what it adds on top of submitAttempt/runOfficialValidation, and
- * Module_0_and_Module_1_Workflow_S3.md for the source specification.
+ * the MCP `complete_module` tool: submitAttempt + runOfficialValidation,
+ * then leave the Attempt at ready_for_review for website confirmation.
  *
- * Idempotency: an already-`accepted` Attempt short-circuits immediately
- * (no re-validation, no re-write). Every other repeat-call shape is
- * idempotent transitively, through the primitives it calls
- * (submitAttempt's own submitted/ready_for_review short-circuit,
- * runOfficialValidation's own ready_for_review/validation_failed
- * short-circuit) — this function adds no further short-circuiting of its
- * own for those, and does not attempt to make a repeat call against an
- * already-`cancelled` (post-Pivot) Attempt idempotent: that Attempt is
- * done, and the caller must resume the Retry Attempt via
- * `start_module_attempt` instead.
+ * Idempotency: an already-`accepted` Attempt short-circuits immediately.
+ * Other repeat-call shapes are idempotent via submitAttempt /
+ * runOfficialValidation short-circuits. Proceed / Pivot / Kill all share
+ * the same success path — the Founder's decision does not auto-cancel or
+ * start a Retry Attempt.
  */
 export async function completeModuleAttempt(
   actor: ActorContext,
@@ -559,11 +499,10 @@ export async function completeModuleAttempt(
       attempt: mapAttemptRow(initialAttempt),
       passed: true,
       missingArtifactKeys: [],
+      validationErrors: [],
       moduleCompleted: true,
       nextModuleUnlocked: null,
       awaitingConfirmation: false,
-      pivoted: false,
-      retryAttempt: null,
     };
   }
 
@@ -590,12 +529,8 @@ export async function completeModuleAttempt(
   await submitAttempt(actor, { attemptId });
 
   // Only runOfficialValidation itself needs `source: 'system'` (its own
-  // assertOfficialValidationAuthority requires it). Nothing else in this
-  // function uses a synthetic actor any more: accepting and unlocking
-  // moved out to confirmModuleCompletion, where the Founder is the one
-  // taking the action, and the Pivot branch below has always used the
-  // Founder's own actor because cancelling the pivoted-from Attempt is a
-  // direct consequence of their `final_decision` answer.
+  // assertOfficialValidationAuthority requires it). Accepting and
+  // unlocking remain confirmModuleCompletion's job on the website.
   const systemActor: ActorContext = { ...actor, source: "system" };
   const validation = await runOfficialValidation(
     systemActor,
@@ -615,106 +550,36 @@ export async function completeModuleAttempt(
       attempt: mapAttemptRow(attemptRow),
       passed: false,
       missingArtifactKeys: validation.missingArtifactKeys,
+      validationErrors: collectValidationErrors(
+        validation.missingArtifactKeys,
+        validation.validations,
+      ),
       moduleCompleted: false,
       nextModuleUnlocked: null,
       awaitingConfirmation: false,
-      pivoted: false,
-      retryAttempt: null,
     };
   }
 
-  if (context.completion_mode === "system") {
-    // Deliberately stops here rather than completing the Module.
-    //
-    // A `completion_mode = 'system'` Module used to auto-accept and
-    // unlock the next one the moment validation passed, which meant the
-    // whole programme could advance without the Founder ever looking at
-    // the website — and without them ever confirming they were happy
-    // with what the AI produced. Unlocking is now an explicit Founder
-    // action on the website (confirmModuleCompletion); this call leaves
-    // the Attempt at 'ready_for_review' for them to confirm.
-    const attemptRow = await loadAttemptRow(attemptId, workspace.id);
-    if (!attemptRow) {
-      throw new ServiceError(
-        "INTERNAL_INVARIANT_ERROR",
-        `Attempt ${attemptId} disappeared mid-flight.`,
-      );
-    }
-    return {
-      attempt: mapAttemptRow(attemptRow),
-      passed: true,
-      missingArtifactKeys: [],
-      moduleCompleted: false,
-      nextModuleUnlocked: null,
-      awaitingConfirmation: true,
-      pivoted: false,
-      retryAttempt: null,
-    };
-  }
-
-  // Non-system modules never auto-complete — Mentor decision required.
-  // Proceed/Kill stay ready_for_review. Pivot is handled below.
-  const finalDecision = await loadFinalDecision(attemptId);
-  if (finalDecision !== "pivot") {
-    const attemptRow = await loadAttemptRow(attemptId, workspace.id);
-    if (!attemptRow) {
-      throw new ServiceError(
-        "INTERNAL_INVARIANT_ERROR",
-        `Attempt ${attemptId} disappeared mid-flight.`,
-      );
-    }
-    return {
-      attempt: mapAttemptRow(attemptRow),
-      passed: true,
-      missingArtifactKeys: [],
-      moduleCompleted: false,
-      nextModuleUnlocked: null,
-      awaitingConfirmation: true,
-      pivoted: false,
-      retryAttempt: null,
-    };
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await cancelAttemptForPivot(
-      client,
-      actor,
-      workspace.id,
-      context.run_module_id,
-      attemptId,
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  const { attempt: retryAttempt } = await startOrResumeAttempt(actor, {
-    programRunModuleId: context.run_module_id,
-    basedOnAttemptId: attemptId,
-  });
-
-  const cancelledAttemptRow = await loadAttemptRow(attemptId, workspace.id);
-  if (!cancelledAttemptRow) {
+  // Deliberately stops here rather than completing the Module.
+  // Unlocking is an explicit Founder action on the website
+  // (confirmModuleCompletion); this call leaves the Attempt at
+  // 'ready_for_review' for them to confirm — for both system and
+  // non-system completion modes, and for any Founder decision.
+  const attemptRow = await loadAttemptRow(attemptId, workspace.id);
+  if (!attemptRow) {
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       `Attempt ${attemptId} disappeared mid-flight.`,
     );
   }
-
   return {
-    attempt: mapAttemptRow(cancelledAttemptRow),
+    attempt: mapAttemptRow(attemptRow),
     passed: true,
     missingArtifactKeys: [],
+    validationErrors: [],
     moduleCompleted: false,
     nextModuleUnlocked: null,
-    awaitingConfirmation: false,
-    pivoted: true,
-    retryAttempt,
+    awaitingConfirmation: true,
   };
 }
 

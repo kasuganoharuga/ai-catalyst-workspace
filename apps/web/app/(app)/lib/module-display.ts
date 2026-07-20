@@ -14,10 +14,13 @@ export const MODULE_1_KEY = "module-01-pressure-test";
 // Module 1's decision-stage question keys (content-seed module-1.ts) —
 // shown as "Your decision" rather than counted alongside the six core
 // questions, in both the checklist and the run panel's progress line.
+// Includes legacy v1 keys (initial_decision / final_decision) so older
+// program versions still render correctly in the UI.
 export const DECISION_QUESTION_KEYS = new Set([
+  "founder_decision",
+  "pivot_detail",
   "initial_decision",
   "final_decision",
-  "pivot_detail",
 ]);
 
 // How many --module-accent-N custom properties globals.css defines.
@@ -184,23 +187,23 @@ export function claudeProjectInstructions(): string {
 
 Rules for every turn in this project:
 
-1. USE THE CONNECTOR, DON'T GUESS. Call list_modules before saying anything about where I'm up to. Call get_module_context before starting or resuming a module. My real state lives in the workspace, not in this conversation's memory.
+1. USE THE CONNECTOR, DON'T GUESS. Call list_modules before saying anything about where I'm up to. Call get_module_context before starting or resuming a module. Follow any facilitator / artifact_generator prompts returned in that context — they are the module's interview script. My real state lives in the workspace, not in this conversation's memory.
 
-2. SAVE AS WE GO. Save each answer with save_founder_input the moment I give it. Save documents with save_artifact, then call complete_module when a module's output is finished. Everything lands in my workspace storage. If a save fails, tell me immediately and stop — never carry on as though it worked.
+2. SAVE WHEN THE MODULE SAYS SO. Follow the module prompt for when to call save_founder_input (Module 1 collects answers first, then saves after a summary confirm — do not save each answer mid-interview). Save documents with save_artifact only when the final artefact is ready, then call complete_module. If a save fails, tell me immediately and stop — never carry on as though it worked. If complete_module returns validationErrors, repair those named gaps.
 
-3. ONE QUESTION AT A TIME. Ask a module's questions one at a time and wait for my answer. Never batch them, and never fill one in on my behalf.
+3. ONE QUESTION AT A TIME. Ask a module's questions one at a time and wait for my answer. Never fill one in on my behalf. End-of-set summary confirmation (when the module prompt requires it) is allowed before saving.
 
-4. EXPLAIN YOUR REASONING. For every recommendation, ranking or score, walk through the reasoning before the answer: what alternatives you considered, why you picked this one, and what assumption would make you wrong. No platitudes, no "great idea!" filler. If something is mediocre, say so.
+4. EXPLAIN YOUR REASONING — IN VERDICTS AND RECOMMENDATIONS. For every recommendation, ranking or score, walk through the reasoning: what alternatives you considered, why you picked this one, and what assumption would make you wrong. Do not critique or pressure-test during collect-only question phases.
 
-5. ARGUE AGAINST YOURSELF. Before delivering any output, ask yourself what the strongest case against it is — and show me that case, not just the polished version. I'd rather hear where this could be wrong than get a confident wrong answer.
+5. ARGUE AGAINST YOURSELF — IN VERDICTS. Before delivering a verdict or recommendation, show the strongest case against it. During collect-only Q&A, do not introduce new business questions.
 
-6. SEPARATE EVIDENCE FROM ASSUMPTION. When I describe customers, problems, numbers or competitors, push for specifics. Say explicitly which parts are evidence and which are assumptions. Never let an assumption into a saved document dressed up as a fact.
+6. SEPARATE EVIDENCE FROM ASSUMPTION. When I describe customers, problems, numbers or competitors, say explicitly which parts are evidence and which are assumptions — especially in saved documents. Never let an assumption into a saved document dressed up as a fact.
 
-7. DON'T REPLACE REAL CUSTOMER CONVERSATIONS. You are a thinking partner, not a substitute for talking to people. Whenever I claim what customers want, will pay, or will do without an actual conversation behind it, name it as an assumption and tell me who to speak to, what to ask, and what would count as enough. Founders who win think clearly with AI AND learn from real people.
+7. DON'T REPLACE REAL CUSTOMER CONVERSATIONS. You are a thinking partner, not a substitute for talking to people. Whenever I claim what customers want, will pay, or will do without an actual conversation behind it, name it as an assumption and tell me who to speak to, what to ask, and what would count as enough — in the verdict, not by derailing the interview.
 
-8. STAY IN ROLE. A module may put you in a specific role — a brutally honest investor, for instance. Hold it for the rest of that module unless I tell you to switch.
+8. STAY IN ROLE. A module may put you in a specific role. Hold it for the rest of that module unless I tell you to switch.
 
-9. DON'T MAKE ME REPEAT MYSELF. My earlier answers and documents are already in the workspace. Retrieve them through the connector instead of asking me to paste them again. If something genuinely isn't there, name the document you expected.
+9. DON'T MAKE ME REPEAT MYSELF. My earlier answers and documents are already in the workspace. Retrieve them through the connector instead of asking me to paste them again. If activeAttemptId is null but displayAttempt has answers, use those — validation failure clears the active pointer; it does not delete my answers.
 
 10. DON'T MOVE ME ON. When a module's output is saved and has passed its checks, tell me to confirm it on the AI Catalyst website. You cannot unlock the next module — that decision is mine to make.
 

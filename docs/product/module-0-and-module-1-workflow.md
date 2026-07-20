@@ -1,15 +1,22 @@
-# Founder Toolkit V2 — Module 0 and Module 1 Workflow
+# Founder Toolkit V1 — Module 0 and Module 1 Workflow
 
 **Document status:** Draft for product, UX, MCP, and engineering alignment  
-**Version:** 1.2 — StorageService/S3 revision, plan-alignment fixes (2026-07-16)  
+**Version:** 1.3 — Module 1 interview flow / program_versions v2 (2026-07-20)  
 **Modules covered:** Module 0 — Setup and Connection; Module 1 — Pressure-Test My Idea
+
+**Revision notes (1.3):**
+
+- Content ships as a new `program_versions` row under `program_key = founder-toolkit-v1`: `version_number = 2`, `version_label = v2-module-1-interview-flow`. Published `v1-module-0-1` stays immutable for in-flight Runs; new Runs pick the highest published `version_number`. This is not a second overall product Program (a future product-line V2 would be a new `programs.program_key`).
+- Module 1 Q1–Q6 is collect-only: per-question repeat-back confirm does **not** persist. A fixed Summary Confirm authorizes six sequential `save_founder_input` calls.
+- Verdict uses locked template + validator key `pressure_test_verdict_v2`. Venture metadata is **Venture name only**. AI Recommendation lives only in the artefact; Founder Decision is `founder_decision` (+ `pivot_detail` when Pivot), mirrored into the artefact.
+- Removed Pivot auto-cancel / auto-retry. Proceed / Pivot / Kill all reach `ready_for_review`; website `confirmModuleCompletion` unlocks the next module for any decision (website CTAs differ by decision).
+- `get_module_context` returns module-bound prompts and `displayAttempt` (answers remain visible after `validation_failed`). `complete_module` returns `validationErrors` on failure.
 
 **Revision notes (1.2):**
 
 - Canonical artefact filenames hyphenated: `Founder-Toolkit-Setup-Summary.md` and `Pressure-Test-Verdict.md`, matching the §22 object key convention.
 - Module 0 completion rule made explicit for V1: system-completed on validation pass (`completion_mode = 'system'`); no Mentor review for Module 0.
-- Founder decision persistence defined: `initial_decision`, `final_decision`, and `pivot_detail` are structured Responses (question keys 7–9) saved through `save_founder_input`; the strongest counter-case is recorded in the Verdict artefact and enforced by the draft check.
-- V1 Pivot creates a linked revised Attempt (`based_on`) on the single main branch; new Branches/Forks are deferred beyond V1.
+- Earlier draft used `initial_decision` / `final_decision` / `pivot_detail`; current content uses `founder_decision` (+ `pivot_detail` when Pivot).
 
 ---
 
@@ -139,16 +146,14 @@ flowchart TD
     K --> L[Founder opens Module 1 overview]
     L --> M[Open or resume Claude]
     M --> N[MCP loads authorised Module 1 context]
-    N --> O[Ask and confirm six questions]
-    O --> P[Persist each confirmed response]
-    P --> Q[Generate Pressure-Test Verdict]
-    Q --> R[Run draft quality check]
-    R --> S[Founder chooses Proceed, Pivot, or Kill]
-    S --> T[Save versioned Verdict through StorageService]
-    T --> U[Verify hash, metadata, submission, and completion conditions]
-    U -->|Proceed| V[Move to ready for review; next module stays locked until required review]
-    U -->|Pivot| W[Preserve history and create a linked revised Attempt]
-    U -->|Kill| X[Stop current idea path]
+    N --> O[Collect Q1 to Q6 with per-question confirm only]
+    O --> P[Summary Confirm then batch-save six responses]
+    P --> Q[Draft verdict analysis in chat]
+    Q --> R[Founder Decision Proceed Pivot or Kill]
+    R --> S[Final chat verdict equals saved artefact]
+    S --> T[save_artifact then complete_module]
+    T --> U[ready_for_review for any decision]
+    U --> V[Website confirmModuleCompletion unlocks next module]
 ```
 
 ---
@@ -558,136 +563,80 @@ MCP returns only the context needed to continue safely.
 
 ---
 
-### Step 1A.2 — Evaluator Role
+### Step 1A.2 — Interview Role (collect-only)
 
-The AI acts as a rigorous evaluator, not a supportive copywriter.
+During Q1–Q6 the AI is a structured interviewer, not a debate partner or evaluator.
 
 It should:
 
-- ask one question at a time;
-- require concrete answers;
-- challenge vague or contradictory statements;
-- distinguish evidence from assumptions;
-- preserve the Founder’s meaning;
+- ask one question at a time using each question's exact `question_text` from `get_module_context`;
+- preserve the Founder's meaning;
 - avoid fabricating traction, customers, competitors, or market evidence;
-- repeat back each answer in one sentence;
-- wait for confirmation before moving to the next question.
+- repeat each answer back in one sentence and wait for confirmation before the next question;
+- **not** call `save_founder_input` during Q1–Q6 (per-question confirm ≠ persistence);
+- **not** evaluate, score, pressure-test, or introduce new business questions during Q1–Q6;
+- ask at most one neutral clarification when an answer is blank, refuses the question, or is too thin to record.
+
+Evaluation belongs only in the Verdict after the six answers are saved.
 
 ---
 
-### Step 1A.3 — Six Confirmed Questions
+### Step 1A.3 — Six Questions, then Summary Confirm
 
-Ask in this order:
+Ask in this order (wording from Module context):
 
-1. **What is your idea in one sentence?**
-2. **Who is your target customer? Describe them like a real person, not a segment.**
-3. **What problem does this solve for that target customer?**
-4. **How does this idea make money?**
-5. **What is the idea's current stage — idea only, prototype, early users, or paying customers?**
-6. **What alternatives or competitors do customers use today, including doing nothing?**
+1. Idea in one sentence
+2. Target customer
+3. Customer problem
+4. Business model
+5. Current stage
+6. Competitors, alternatives, and doing nothing
 
-For every question:
+After all six answers are collected, present a fixed Summary Confirm (no freeform). **Only** after the Founder confirms that summary, call `save_founder_input` once per core answer (six sequential saves). That summary confirmation is the sole authorization to persist the six responses.
 
-1. ask the question;
-2. receive the answer;
-3. identify material ambiguity when necessary;
-4. repeat the answer back in one sentence;
-5. ask for confirmation;
-6. persist only the confirmed version;
-7. advance only after confirmation.
-
-Confirmed responses are stored in PostgreSQL through `ResponseService`. They are not reconstructed only from the chat transcript.
+Confirmed responses are stored in PostgreSQL through the Response path. They are not reconstructed only from the chat transcript.
 
 ---
 
-### Step 1A.4 — Generate the Four-Part Verdict
+### Step 1A.4 — Draft Verdict Analysis (chat, not final artefact)
 
-#### Part 1 — Five reasons the business may fail
+After the six saves succeed, deliver a **draft** verdict analysis in chat covering the locked sections from AI Recommendation through Recommended Next Step. Do not call this the final artefact yet — Founder's Decision is still missing.
 
-Requirements:
+Locked analysis sections (see §17 template):
 
-- exactly five substantive reasons;
-- specific to the confirmed idea;
-- no generic filler;
-- each reason linked to a concrete assumption, dependency, or market risk.
-
-#### Part 2 — Existing competitors and alternatives
-
-Requirements:
-
-- at least three named competitors, alternatives, or substitute behaviours;
-- include “doing nothing” when relevant;
-- separate verified current information from general model knowledge;
-- do not invent unsupported claims.
-
-#### Part 3 — Conditions required for success
-
-Requirements:
-
-- actionable and testable;
-- connected to the failure risks;
-- include measurable milestones or evidence where practical.
-
-#### Part 4 — Investor decision today
-
-Required format:
-
-```text
-Would an investor invest today? Yes / No
-
-Single biggest reason:
-...
-```
-
-The decision must reflect current evidence, not the theoretical maximum potential of the idea.
+- AI Recommendation (Proceed / Pivot / Kill + Reason) — advisory only; may differ from the Founder's later choice
+- Five Failure Reasons (exactly five)
+- Competitors / Alternatives (at least three) + Evidence note
+- Success Conditions
+- Investor Decision (Yes / No + Single biggest reason)
+- Recommended Next Step
 
 ---
 
-### Step 1A.5 — Draft Quality Check
+### Step 1A.5 — Draft / Official Quality Check
 
-The draft check verifies at minimum:
+`pressure_test_verdict_v2` draft and official checks verify at minimum:
 
-- all six responses exist and are confirmed;
-- five concrete failure reasons exist;
-- at least three named competitors/alternatives exist;
-- success conditions are actionable;
-- the investor decision is exactly Yes or No;
-- one strongest reason is present;
-- unsupported evidence is labelled;
-- unresolved assumptions are separated;
-- required Markdown sections exist.
+- at least six answered Responses;
+- five concrete failure reasons;
+- at least three named competitors/alternatives;
+- success conditions, evidence note, AI recommendation + reason, investor decision, recommended next step, and required Markdown sections;
+- official submission also requires `founder_decision` answered, and `pivot_detail` when decision is Pivot.
 
-Draft Check does not mark the Module complete.
-
-When validation fails:
-
-1. preserve confirmed responses;
-2. identify the exact missing/weak section;
-3. regenerate or repair only that section when possible;
-4. submit a new version rather than overwriting accepted history.
+Draft Check does not mark the Module complete. On official failure, `complete_module` returns `validationErrors` with named checks; confirmed responses are preserved (visible via `displayAttempt` even when `activeAttemptId` is cleared).
 
 ---
 
 ### Step 1A.6 — Founder Decision
 
-Present:
-
-- Proceed;
-- Pivot;
-- Kill.
-
-After the Founder chooses, present the strongest counter-case against that choice.
-
-Then ask the Founder to confirm or revise the final decision.
+Present Proceed / Pivot / Kill once (no initial/final loop, no strongest-counter-case question).
 
 Persist:
 
-- initial decision — structured Response, `question_key = initial_decision` (`single_choice`: proceed / pivot / kill);
-- final decision — structured Response, `question_key = final_decision` (`single_choice`: proceed / pivot / kill);
-- Pivot detail, if applicable — structured Response, `question_key = pivot_detail` (`long_text`, `allow_skip = true`; required by the Service when `final_decision = pivot`);
-- strongest counter-case — recorded in the Verdict artefact's dedicated section (AI-generated, not a question); the draft check verifies the section exists and is non-empty.
+- Founder decision — structured Response, `question_key = founder_decision` (`single_choice`: proceed / pivot / kill);
+- Pivot detail, if applicable — structured Response, `question_key = pivot_detail` (`long_text`; required by the Service when `founder_decision = pivot`).
 
-Decision Responses are saved through the same idempotent `save_founder_input` path as the six core questions (`attempt_id + question_id` upsert).
+Then show the **final** verdict in chat (draft analysis + Founder's Decision filled) — this must exactly match the Markdown passed to `save_artifact`. Decision Responses use the same idempotent `save_founder_input` path (`attempt_id + question_id` upsert).
 
 ---
 
@@ -723,27 +672,26 @@ The system must:
 
 ## 14. Decision Routing
 
+The AI is an advisor, not a gatekeeper. Proceed / Pivot / Kill share the same technical success path after a passing official validation: Attempt → `ready_for_review` → Founder `confirmModuleCompletion` on the website → Module completed and next Module unlocked. There is **no** Pivot auto-cancel or auto-retry Attempt.
+
+Website CTAs and copy differ by decision (encourage continuing vs parking vs revising), but unlocking is not blocked by Pivot or Kill.
+
 ### Proceed
 
 - preserve the completed Verdict;
-- move the Attempt into the configured validation/review state;
-- do not mark the Module completed solely because the Founder selected Proceed;
-- do not unlock the next Module until the Program's required validation/review rule is satisfied.
+- after website confirmation, unlock the next Module normally.
 
 ### Pivot
 
-- preserve the original responses and Verdict as immutable history;
-- V1: create a linked revised Attempt (`based_on = previous_attempt_id`) on the single main branch; new Branches/Forks are deferred beyond V1;
-- record the relationship to the previous work;
-- do not silently copy previous responses as newly confirmed answers;
-- keep the normal next Module locked until the revised path satisfies completion rules.
+- preserve Responses and Verdict as history for this Attempt;
+- do **not** auto-create a revised Attempt;
+- after website confirmation, the next Module is available; the Founder may also re-run Module 1 with Claude on the revised framing.
 
 ### Kill
 
 - preserve all work as history;
-- stop normal progression for the current idea path;
-- do not unlock the next Module;
-- allow the Founder to create another Venture or intentionally start an approved new path later.
+- after website confirmation, the next Module is still unlocked (deliberate explore path remains available);
+- website copy emphasises parking this idea / starting a new Venture when that is the Founder's intent.
 
 ---
 
@@ -858,10 +806,6 @@ These checkpoints must not bypass canonical state transitions.
 
 ## Venture
 - Venture name:
-- Run:
-- Branch:
-- Attempt:
-- Completed at:
 
 ## Confirmed Q&A
 
@@ -877,9 +821,13 @@ These checkpoints must not bypass canonical state transitions.
 
 ### 6. Competitors, alternatives, and doing nothing
 
-## Four-Part Verdict
+## AI Recommendation
 
-### 1. Five reasons this business may fail
+**Recommendation:** Proceed / Pivot / Kill
+
+**Reason:**
+
+## Five Failure Reasons
 
 1.
 2.
@@ -887,7 +835,7 @@ These checkpoints must not bypass canonical state transitions.
 4.
 5.
 
-### 2. Existing competitors and alternatives
+## Competitors / Alternatives
 
 1.
 2.
@@ -895,23 +843,20 @@ These checkpoints must not bypass canonical state transitions.
 
 **Evidence note:**
 
-### 3. Conditions required for success
+## Success Conditions
 
-### 4. Would an investor invest today?
+## Investor Decision
 
 **Decision:** Yes / No
 
 **Single biggest reason:**
 
+## Recommended Next Step
+
 ## Founder's Decision
 
-### Initial decision
-
+### Decision
 Proceed / Pivot / Kill
-
-### Strongest counter-case
-
-### Final confirmed decision
 
 ### Pivot detail, if applicable
 
@@ -926,21 +871,16 @@ Proceed / Pivot / Kill
 
 Module 1 reaches the submission/review stage only when:
 
-- all six answers are confirmed;
-- confirmed answers are stored as structured Responses;
-- the four-part verdict is complete;
-- the draft quality check passes;
-- the Founder makes and confirms a Proceed/Pivot/Kill decision;
-- the strongest counter-case is recorded;
+- all six core answers are confirmed via Summary Confirm and stored as structured Responses;
+- AI Recommendation through Recommended Next Step are complete in the locked template;
+- the Founder Decision (`founder_decision`, plus `pivot_detail` when Pivot) is saved;
+- the final chat verdict exactly matches the Markdown saved as `Pressure-Test-Verdict.md`;
 - unsupported claims and unresolved assumptions are labelled;
-- one final versioned `Pressure-Test-Verdict.md` is stored through `StorageService`;
-- the storage object is private and readable by the authorised service;
 - SHA-256, size, MIME type, provider, and version metadata are recorded;
-- the Attempt is submitted through the valid Service state transition;
-- required official validation is performed by an authorised source;
-- the Module enters the configured review state.
+- the Attempt is submitted and official validation (`pressure_test_verdict_v2`) passes;
+- the Module enters `ready_for_review` for website confirmation.
 
-Module completion and next-module unlocking occur only after the required review/acceptance rule. A saved S3 object or successful chat response alone is insufficient.
+Module completion and next-module unlocking occur only after the Founder confirms on the website (`confirmModuleCompletion`). A saved S3 object or successful chat response alone is insufficient.
 
 ---
 
@@ -963,7 +903,7 @@ Module completion and next-module unlocking occur only after the required review
 - repeated `save_artifact` calls must not create uncontrolled duplicate versions;
 - repeated submit/complete requests return the current result;
 - submitted, rejected, accepted, or superseded history is immutable;
-- Pivot creates an explicitly linked revised Attempt (V1: same main branch, `based_on` set);
+- Pivot does not auto-create a revised Attempt; the Founder may start a new Attempt deliberately;
 - a storage write success followed by a callback failure can be reconciled by hash/version/idempotency key.
 
 Suggested idempotency inputs:
@@ -1135,11 +1075,11 @@ Rules:
 
 ### Scenario E — Pivot
 
-1. Founder chooses Pivot.
-2. The original Responses and Verdict remain read-only history.
-3. A linked revised Attempt (`based_on`) is created on the same main branch.
-4. Previous answers are visible as reference but not automatically reconfirmed.
-5. The normal next Module remains locked until the revised path satisfies completion rules.
+1. Founder chooses Pivot and supplies `pivot_detail`.
+2. The Verdict records AI Recommendation and Founder Decision (they may differ).
+3. Official validation passes; Attempt stays at `ready_for_review` (no auto-cancel / auto-retry).
+4. Founder confirms on the website; the next Module unlocks.
+5. Website copy invites continuing with the revised framing or re-running Module 1 deliberately.
 
 ### Scenario F — Archived Venture history
 

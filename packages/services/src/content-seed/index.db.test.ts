@@ -137,8 +137,7 @@ describe("seedToolkitContent", () => {
       "business_model",
       "current_stage",
       "competitors_alternatives",
-      "initial_decision",
-      "final_decision",
+      "founder_decision",
       "pivot_detail",
     ]);
 
@@ -294,7 +293,7 @@ describe("seedToolkitContent", () => {
     expect(row.rows[0].is_required).toBe(false);
     expect(row.rows[0].allow_skip).toBe(true);
     expect(row.rows[0].conditions).toEqual({
-      depends_on: "final_decision",
+      depends_on: "founder_decision",
       operator: "equals",
       value: "pivot",
     });

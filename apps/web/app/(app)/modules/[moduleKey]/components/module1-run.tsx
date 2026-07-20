@@ -500,9 +500,15 @@ function ConfirmStep({
 
   const documentSaved = artifactVersion !== null;
   const expected = expectedArtifacts[0] ?? null;
-  const finalDecision =
+  const founderDecision =
+    decisionQuestions.find((q) => q.questionKey === "founder_decision")
+      ?.answerText ??
     decisionQuestions.find((q) => q.questionKey === "final_decision")
-      ?.answerText ?? null;
+      ?.answerText ??
+    null;
+  const decisionLabel = founderDecision
+    ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
+    : null;
 
   function handleConfirm() {
     if (!programRunModuleId) return;
@@ -520,23 +526,48 @@ function ConfirmStep({
     });
   }
 
+  const completedTitle =
+    founderDecision === "kill"
+      ? "Signed off — this idea is parked"
+      : founderDecision === "pivot"
+        ? "Signed off — revised direction recorded"
+        : "Signed off — and the next module is open";
+
+  const completedBody =
+    founderDecision === "kill"
+      ? nextModuleTitle
+        ? `You chose Kill. This module is complete. You can return to your Venture, start a new one, or deliberately continue to ${nextModuleTitle} if you still want to explore.`
+        : "You chose Kill. This module is complete. You can return to your Venture or start a new one."
+      : founderDecision === "pivot"
+        ? nextModuleTitle
+          ? `You chose Pivot. ${nextModuleTitle} is available if you want to continue with the revised framing — or re-run this module with Claude first.`
+          : "You chose Pivot. Re-run this module with Claude if you want a fresh pressure-test on the revised idea."
+        : nextModuleTitle
+          ? `You confirmed this, which opened ${nextModuleTitle}. Your verdict stays in your workspace.`
+          : "You confirmed this. Your verdict stays in your workspace.";
+
+  const confirmCta =
+    founderDecision === "kill"
+      ? "Confirm completion"
+      : founderDecision === "pivot"
+        ? "Confirm and continue with revised direction"
+        : "Confirm and unlock the next module";
+
   return (
     <>
       <StepHeading
         title={
           isCompleted
-            ? "Signed off — and the next module is open"
+            ? completedTitle
             : awaitingConfirmation
               ? "Read it over, then sign it off"
               : "No file detected yet"
         }
         body={
           isCompleted
-            ? nextModuleTitle
-              ? `You confirmed this, which opened ${nextModuleTitle}. Your verdict stays in your workspace.`
-              : "You confirmed this. Your verdict stays in your workspace."
+            ? completedBody
             : awaitingConfirmation
-              ? "Your verdict is saved and has passed its checks. Confirming marks this module done — until you do, nothing moves."
+              ? "Your verdict is saved and has passed its checks. Confirming marks this module done — until you do, nothing moves. Proceed, Pivot, and Kill all complete the module; the next one unlocks either way."
               : "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off."
         }
       />
@@ -561,14 +592,8 @@ function ConfirmStep({
                 : "Not saved yet."
             }
           />
-          {finalDecision ? (
-            <CheckLine
-              ok
-              label="Your decision"
-              detail={
-                finalDecision.charAt(0).toUpperCase() + finalDecision.slice(1)
-              }
-            />
+          {decisionLabel ? (
+            <CheckLine ok label="Your decision" detail={decisionLabel} />
           ) : null}
         </dl>
         {expected && expected.outline.length > 0 ? (
@@ -591,10 +616,42 @@ function ConfirmStep({
       </div>
 
       {isCompleted ? (
-        <div className="mt-6">
-          <Button asChild size="lg" className="text-white" style={accent}>
-            <Link href="/modules">See your modules</Link>
-          </Button>
+        <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {founderDecision === "kill" ? (
+            <>
+              <Button asChild size="lg" className="text-white" style={accent}>
+                <Link href="/workspace">Return to Venture</Link>
+              </Button>
+              {nextModuleTitle ? (
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/modules">Continue anyway</Link>
+                </Button>
+              ) : null}
+            </>
+          ) : founderDecision === "pivot" ? (
+            <>
+              <Button asChild size="lg" className="text-white" style={accent}>
+                <Link href="/modules">
+                  {nextModuleTitle
+                    ? `Continue to ${nextModuleTitle}`
+                    : "See your modules"}
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href={`/modules/module-01-pressure-test`}>
+                  Redo Module 1
+                </Link>
+              </Button>
+            </>
+          ) : (
+            <Button asChild size="lg" className="text-white" style={accent}>
+              <Link href="/modules">
+                {nextModuleTitle
+                  ? `Continue to ${nextModuleTitle}`
+                  : "See your modules"}
+              </Link>
+            </Button>
+          )}
         </div>
       ) : awaitingConfirmation ? (
         <div className="mt-6">
@@ -606,7 +663,7 @@ function ConfirmStep({
             className="text-white hover:brightness-110"
             style={accent}
           >
-            {isPending ? "Confirming…" : "Confirm and unlock the next module"}
+            {isPending ? "Confirming…" : confirmCta}
           </Button>
           <p className="mt-2 text-xs text-muted-foreground">
             Not happy with it? Ask Claude to revise it — nothing is locked in

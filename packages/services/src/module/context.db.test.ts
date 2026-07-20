@@ -260,6 +260,8 @@ describe("getModuleContext — database integration", () => {
 
     expect(context.runModule.moduleKey).toBe("context-module-a");
     expect(context.activeAttempt).toBeNull();
+    expect(context.displayAttempt).toBeNull();
+    expect(context.prompts).toEqual([]);
     expect(context.resumeQuestionKey).toBe("first_question");
     expect(context.questions.map((q) => q.questionKey)).toEqual([
       "first_question",
@@ -289,6 +291,7 @@ describe("getModuleContext — database integration", () => {
 
     expect(context.activeAttempt).not.toBeNull();
     expect(context.activeAttempt?.id).toBe(attempt.id);
+    expect(context.displayAttempt?.id).toBe(attempt.id);
     expect(context.activeAttempt?.status).toBe("draft");
   });
 

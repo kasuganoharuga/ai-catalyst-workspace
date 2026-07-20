@@ -492,12 +492,14 @@ describe("MCP write tools — database integration", () => {
         attempt: { id: string; status: string };
         passed: boolean;
         missingArtifactKeys: string[];
+        validationErrors: Array<{ key: string; message: string }>;
         moduleCompleted: boolean;
       };
       expect(data.attempt.id).toBe(attempt.id);
       expect(data.attempt.status).toBe("validation_failed");
       expect(data.passed).toBe(false);
       expect(data.missingArtifactKeys).toEqual(["verdict"]);
+      expect(data.validationErrors.length).toBeGreaterThan(0);
       expect(data.moduleCompleted).toBe(false);
 
       expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe("validation_failed");
@@ -510,7 +512,7 @@ describe("MCP write tools — database integration", () => {
         passed: false,
         moduleCompleted: false,
         awaitingConfirmation: false,
-        pivoted: false,
+        validationErrorCount: expect.any(Number),
         nextModuleUnlocked: null,
       });
     });

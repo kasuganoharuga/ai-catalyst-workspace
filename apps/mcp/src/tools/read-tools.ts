@@ -95,7 +95,7 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Get module context",
       description:
-        "Loads a Module's active Attempt, every active Question joined with the current Attempt's Response, the resume point, and Artifact metadata.",
+        "Loads a Module's active/display Attempt, every active Question joined with that Attempt's Response, bound facilitator/artifact_generator prompts (follow these for the module's interview script), the resume point, and Artifact metadata. When activeAttemptId is null after validation_failed, displayAttempt still surfaces the failed Attempt's answers and artefacts — they were not deleted.",
       inputSchema: MODULE_KEY_SHAPE,
     },
     async (args) => {

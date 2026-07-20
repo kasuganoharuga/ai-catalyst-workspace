@@ -31,13 +31,31 @@ export interface ModuleContextArtifactSummary {
   } | null;
 }
 
+// Module-bound Prompt Version content returned so the AI client can follow
+// the Facilitator / Artifact Generator without relying on pasted project
+// instructions alone.
+export interface ModuleContextPrompt {
+  purpose: string;
+  promptKey: string;
+  versionNumber: number;
+  content: string;
+}
+
 export interface ModuleContext {
   runModule: RunModuleSummary;
+  // The Module's live active Attempt pointer (null after validation_failed
+  // clears it so a Retry can start). Prefer `displayAttempt` for reading
+  // prior answers when this is null.
   activeAttempt: ModuleAttempt | null;
-  // The first Question with no Response on the current Attempt yet —
+  // Attempt whose Responses/Artefacts are surfaced on `questions` /
+  // `artifacts`: the active Attempt when present, otherwise the latest
+  // Attempt for this Module (e.g. after validation_failed).
+  displayAttempt: ModuleAttempt | null;
+  // The first Question with no Response on the display Attempt yet —
   // null once every Question has one, or when the Module has none at all
   // (e.g. Module 0, which is `module_questions`-less by design).
   resumeQuestionKey: string | null;
   questions: ModuleContextQuestion[];
   artifacts: ModuleContextArtifactSummary[];
+  prompts: ModuleContextPrompt[];
 }

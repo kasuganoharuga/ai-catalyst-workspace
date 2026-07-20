@@ -17,9 +17,9 @@ function decisionBadge(decision: string): ModuleDisplayStatus {
 }
 
 /**
- * Shows the Founder's recorded Proceed / Pivot / Kill decisions once
- * they exist (design frame H6d's decision rows). Renders nothing until
- * at least the initial decision has been made in Claude.
+ * Shows the Founder's recorded Proceed / Pivot / Kill decision once it
+ * exists. Prefers `founder_decision` (current Module 1); falls back to
+ * legacy draft keys (`initial_decision` / `final_decision`) if present.
  */
 export function DecisionCard({
   questions,
@@ -27,11 +27,15 @@ export function DecisionCard({
   questions: ModuleContextQuestion[];
 }) {
   const byKey = new Map(questions.map((q) => [q.questionKey, q]));
+  const founder = byKey.get("founder_decision");
   const initial = byKey.get("initial_decision");
   const final = byKey.get("final_decision");
   const pivotDetail = byKey.get("pivot_detail");
 
-  if (!initial?.answerText && !final?.answerText) {
+  const decision =
+    founder?.answerText ?? final?.answerText ?? initial?.answerText ?? null;
+
+  if (!decision) {
     return null;
   }
 
@@ -41,7 +45,15 @@ export function DecisionCard({
         Your decision
       </h2>
       <dl className="mt-4 text-sm">
-        {initial?.answerText ? (
+        {founder?.answerText ? (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">Founder decision</dt>
+            <dd>
+              <StatusBadge status={decisionBadge(founder.answerText)} />
+            </dd>
+          </div>
+        ) : null}
+        {!founder?.answerText && initial?.answerText ? (
           <div className="flex items-center justify-between gap-4 py-2">
             <dt className="text-muted-foreground">First call</dt>
             <dd>
@@ -49,7 +61,7 @@ export function DecisionCard({
             </dd>
           </div>
         ) : null}
-        {final?.answerText ? (
+        {!founder?.answerText && final?.answerText ? (
           <div className="flex items-center justify-between gap-4 border-t border-border/60 py-2">
             <dt className="text-muted-foreground">
               After hearing the counter-case
@@ -60,7 +72,7 @@ export function DecisionCard({
           </div>
         ) : null}
       </dl>
-      {final?.answerText === "pivot" && pivotDetail?.answerText ? (
+      {decision === "pivot" && pivotDetail?.answerText ? (
         <div className="mt-3 rounded-2xl bg-muted/60 px-4 py-3">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
             What changes
@@ -69,12 +81,6 @@ export function DecisionCard({
             {pivotDetail.answerText}
           </p>
         </div>
-      ) : null}
-      {final?.answerText && initial?.answerText !== final?.answerText ? (
-        <p className="mt-3 text-xs leading-5 text-muted-foreground">
-          You changed your mind after seeing the strongest case against you —
-          that&apos;s the module working as intended.
-        </p>
       ) : null}
     </div>
   );

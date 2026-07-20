@@ -157,7 +157,12 @@ describe("listModuleCatalog", () => {
     expect(module1.expectedArtifacts[0].outline.map((section) => section.heading)).toEqual([
       "Venture",
       "Confirmed Q&A",
-      "Four-Part Verdict",
+      "AI Recommendation",
+      "Five Failure Reasons",
+      "Competitors / Alternatives",
+      "Success Conditions",
+      "Investor Decision",
+      "Recommended Next Step",
       "Founder's Decision",
       "Working Notes / Unresolved Assumptions",
     ]);
