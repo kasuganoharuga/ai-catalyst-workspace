@@ -24,8 +24,12 @@ const ONE_LINER_MAX_LENGTH = 300;
 const SUMMARY_MAX_LENGTH = 5000;
 const MAX_VENTURE_SLUG_ATTEMPTS = 3; // initial attempt + up to 2 retries
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+// Claude Chat Project IDs are UUIDs, but Claude issues UUID v7 (time-
+// ordered) rather than the v4 values our own tables use. Accept any
+// hex UUID shape — version 1–8 with the RFC 4122/9562 variant nibble —
+// so a Founder can paste the address bar without a false reject.
+const CLAUDE_PROJECT_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeClaudeProjectId(value: unknown): string | null {
   if (value === undefined || value === null) {
@@ -42,7 +46,7 @@ function normalizeClaudeProjectId(value: unknown): string | null {
   if (trimmed.length === 0) {
     return null;
   }
-  if (!UUID_PATTERN.test(trimmed)) {
+  if (!CLAUDE_PROJECT_ID_PATTERN.test(trimmed)) {
     throw new ServiceError(
       "VALIDATION_ERROR",
       "Claude project ID must be a valid UUID.",

@@ -233,6 +233,18 @@ describe("venture service — database integration", () => {
     expect(cleared.claudeProjectId).toBeNull();
   });
 
+  it("accepts a Claude-issued UUID v7 project id", async () => {
+    const { actor } = await createFounderWithWorkspace("claude-project-v7");
+    const venture = await createVenture(actor, { name: "UUID v7 Target" });
+    // Real Claude project ids look like this (version nibble = 7).
+    const projectId = "019f7e34-1bed-7132-8a68-e6e0d2d27d2c";
+
+    const updated = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: projectId,
+    });
+    expect(updated.claudeProjectId).toBe(projectId);
+  });
+
   it("rejects an invalid Claude project UUID", async () => {
     const { actor } = await createFounderWithWorkspace("invalid-claude-id");
     const venture = await createVenture(actor, { name: "Invalid UUID Target" });
