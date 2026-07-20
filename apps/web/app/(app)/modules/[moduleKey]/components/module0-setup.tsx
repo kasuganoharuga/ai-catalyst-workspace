@@ -16,6 +16,8 @@ import { CopyButton } from "../../../components/copy-button";
 import {
   claudeChatProjectUrl,
   claudeChatProjectWebUrl,
+  claudeChatUrl,
+  claudeDesktopChatUrl,
   claudeProjectInstructions,
   extractClaudeProjectId,
   moduleAccentStyle,
@@ -392,10 +394,16 @@ function CheckStep({
 }: Module0SetupProps & { accent: { backgroundColor: string } }) {
   const documentSaved = artifactVersion !== null;
   const projectId = claudeProjectId?.trim() || null;
-  // Prefer the Desktop deep link so "Open your project" lands in the local
-  // Claude app when installed; keep the https URL as a browser fallback.
-  const desktopUrl = projectId ? claudeChatProjectUrl(projectId) : null;
-  const webUrl = projectId ? claudeChatProjectWebUrl(projectId) : null;
+  // Prefer Desktop deep links. With a saved project, open that project; the
+  // project URL has no official `q=` prefill, so the prompt stays on-page to
+  // copy. Without a project, open a new Desktop chat with the prompt prefilled.
+  const desktopUrl = projectId
+    ? claudeChatProjectUrl(projectId)
+    : claudeDesktopChatUrl(startPrompt);
+  const webUrl = projectId
+    ? claudeChatProjectWebUrl(projectId)
+    : claudeChatUrl(startPrompt);
+  const openLabel = projectId ? "Open your project" : "Open Claude";
 
   return (
     <>
@@ -435,39 +443,30 @@ function CheckStep({
             className="w-full text-white hover:brightness-110"
             style={accent}
           >
-            {desktopUrl ? (
-              <a href={desktopUrl}>
-                Open your project
-                <ExternalLink aria-hidden="true" />
-              </a>
-            ) : (
-              <a
-                href="https://claude.ai/new"
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Claude
-                <ExternalLink aria-hidden="true" />
-              </a>
-            )}
+            <a href={desktopUrl}>
+              {openLabel}
+              <ExternalLink aria-hidden="true" />
+            </a>
           </Button>
-          {webUrl ? (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Opens in the Claude desktop app when installed.{" "}
-              <a
-                href={webUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="font-medium text-foreground underline-offset-2 hover:underline"
-              >
-                Open in browser instead
-              </a>
-            </p>
-          ) : (
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Save your project link in step 2 and this will open it directly.
-            </p>
-          )}
+          <p className="mt-2 text-center text-xs text-muted-foreground">
+            {projectId
+              ? "Opens your project in the Claude desktop app when installed. Paste the line above into a new chat there. "
+              : "Opens Claude Desktop with this message ready to send. "}
+            <a
+              href={webUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Open in browser instead
+            </a>
+            {!projectId ? (
+              <>
+                {" "}
+                Save your project link in step 2 to open the project directly.
+              </>
+            ) : null}
+          </p>
         </div>
       </div>
 
