@@ -19,8 +19,8 @@ import { CopyButton } from "../components/copy-button";
 import { RecheckButton } from "../components/recheck-button";
 import { StartRunButton } from "../components/start-run-button";
 import { StatusBadge } from "../components/status-badge";
-import { claudeCoworkUrl, mcpConnectCoworkPrompt } from "../lib/module-display";
 import { appPageTitle } from "@/lib/page-metadata";
+import { ConnectionSetup } from "./connection-setup";
 
 export const metadata = appPageTitle("MCP connection");
 
@@ -202,39 +202,10 @@ export default async function ConnectionPage() {
             <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
               How to connect
             </h2>
-            <ol className="mt-4 border-t border-border">
-              <Step index={1} title="Open Claude's connector settings">
-                In Claude, go to{" "}
-                <span className="font-medium text-foreground">
-                  Settings → Connectors
-                </span>{" "}
-                and choose{" "}
-                <span className="font-medium text-foreground">
-                  Add custom connector
-                </span>
-                .
-              </Step>
-              <Step index={2} title="Paste the address above">
-                That tells Claude where your workspace lives.
-              </Step>
-              <Step index={3} title="Approve access">
-                Claude sends you back here to sign in and approve. One click,
-                and you can revoke it from Claude whenever you like.
-              </Step>
-              <Step index={4} title="Come back and run the check">
-                Once it&apos;s connected, this page confirms it and opens your
-                first module.
-              </Step>
-            </ol>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <a href={claudeCoworkUrl(mcpConnectCoworkPrompt(endpointUrl))}>
-                  Open Claude Cowork
-                </a>
-              </Button>
-              <RecheckButton label="I've connected — check now" size="lg" />
-            </div>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Pick whichever suits you — both end on the same approval screen.
+            </p>
+            <ConnectionSetup endpointUrl={endpointUrl} />
           </section>
         </>
       )}
@@ -323,26 +294,3 @@ function CheckRow({
   );
 }
 
-function Step({
-  index,
-  title,
-  children,
-}: {
-  index: number;
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <li className="flex gap-4 border-b border-border py-4">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-inverse font-mono text-[11px] font-semibold text-brand-lime">
-        {index}
-      </span>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground">{title}</p>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          {children}
-        </p>
-      </div>
-    </li>
-  );
-}

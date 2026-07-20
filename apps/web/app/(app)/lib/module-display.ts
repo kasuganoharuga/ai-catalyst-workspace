@@ -124,16 +124,41 @@ export function extractClaudeProjectId(input: string): string | null {
 export const CLAUDE_CONNECTOR_SETTINGS_URL =
   "https://claude.ai/settings/connectors";
 
+/**
+ * Opens Claude Desktop on a new chat with a prefilled composer
+ * (`claude://claude.ai/new?q=…` — see Anthropic's Desktop deep-link docs).
+ */
+export function claudeDesktopChatUrl(prompt: string): string {
+  return `claude://claude.ai/new?q=${encodeURIComponent(prompt)}`;
+}
+
 /** Opens Claude Desktop Cowork with a prefilled composer (`claude://` deep link). */
 export function claudeCoworkUrl(prompt: string): string {
   return `claude://cowork/new?q=${encodeURIComponent(prompt)}`;
 }
 
-export function mcpConnectCoworkPrompt(endpointUrl: string | null): string {
-  const addressLine = endpointUrl
-    ? `Use this MCP address: ${endpointUrl}`
-    : "Use the workspace address from my AI Catalyst connection page.";
-  return `Help me connect my AI Catalyst Founder Toolkit. In Claude, open Settings → Connectors → Add custom connector. ${addressLine}`;
+/**
+ * Prefill text that asks Claude to walk the Founder through adding this
+ * workspace as a custom remote MCP connector. The Founder still has to
+ * approve the OAuth consent screen — Claude can open the UI and paste the
+ * URL, but it cannot grant access on their behalf.
+ */
+export function mcpConnectPrompt(endpointUrl: string | null): string {
+  const urlBlock = endpointUrl
+    ? endpointUrl
+    : "(copy the workspace address from my AI Catalyst connection page)";
+  return [
+    "Please help me connect my AI Catalyst Founder Toolkit to Claude as a custom remote MCP connector.",
+    "",
+    "Walk me through these steps in Claude:",
+    "1. Open Settings → Connectors → Add custom connector",
+    "2. Paste this as the remote MCP server URL:",
+    urlBlock,
+    '3. Name it something like "AI Catalyst"',
+    "4. When Claude asks me to sign in and approve access, I'll complete that step",
+    "",
+    "Guide me through any screens I see, then tell me when the connector is connected so I can continue.",
+  ].join("\n");
 }
 
 export function startModulePrompt(moduleTitle: string): string {
