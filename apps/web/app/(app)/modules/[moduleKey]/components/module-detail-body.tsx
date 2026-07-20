@@ -10,24 +10,18 @@ import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { ventureForActiveContext } from "@/lib/ventures";
 
-import { RecheckButton } from "../../../components/recheck-button";
 import { StartRunButton } from "../../../components/start-run-button";
 import { StatusBadge } from "../../../components/status-badge";
 import {
   DECISION_QUESTION_KEYS,
-  claudeChatUrl,
   deriveModuleDisplayStatus,
   moduleAccentStyle,
   startModulePrompt,
 } from "../../../lib/module-display";
 import { StatusPill } from "../../components/status-pill";
-import { ConfirmCompletionCard } from "./confirm-completion-card";
-import { DecisionCard } from "./decision-card";
 import { ExpectedOutputCard } from "./expected-output-card";
 import { Module0Setup } from "./module0-setup";
-import { ModuleRunPanel } from "./module-run-panel";
-import { QuestionChecklist } from "./question-checklist";
-import { StrongAnswerCard } from "./strong-answer-card";
+import { Module1Run } from "./module1-run";
 import { ValidationIssuesCard } from "./validation-issues-card";
 
 type ModuleDetailBodyProps = {
@@ -105,16 +99,6 @@ export async function ModuleDetailBody({
   const startPrompt = startModulePrompt(
     `Module ${entry.sequenceIndex} · ${entry.title}`,
   );
-  const claudeActionLabel = (() => {
-    if (!activeAttempt) return "Start in Claude";
-    if (activeAttempt.status === "validation_failed")
-      return "Fix it up in Claude";
-    if (verdictReady || isCompleted) return "Open Claude";
-    return "Continue in Claude";
-  })();
-  const showClaudeAction =
-    Boolean(connection?.authorised) && runModule !== null && !isLocked;
-
   return (
     <>
       <p className="text-sm font-semibold text-muted-foreground">
@@ -244,84 +228,31 @@ export async function ModuleDetailBody({
             />
           </section>
         ) : (
-          <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
-            <div className="space-y-6">
-              {failedValidation ? (
-                <ValidationIssuesCard validation={failedValidation} />
-              ) : null}
-
-              <div className="rounded-[2rem] border border-border bg-card p-6 shadow-sm lg:p-8">
-                <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  What this module does
-                </h2>
-                <p className="mt-4 text-base leading-7 text-muted-foreground">
-                  {entry.description ??
-                    "A guided working session you run in Claude."}
-                </p>
-                <p className="mt-4 text-base leading-7 text-muted-foreground">
-                  You&apos;ll answer the questions below one at a time, in
-                  conversation. Then the evaluator turns honest: a four-part
-                  verdict, the strongest case against your idea, and a decision
-                  only you can make — proceed, pivot, or kill.
-                </p>
-              </div>
-              {coreQuestions.length > 0 ? (
-                <QuestionChecklist questions={coreQuestions} />
-              ) : null}
-              {!isCompleted && !verdictReady ? <StrongAnswerCard /> : null}
-              <DecisionCard questions={decisionQuestions} />
-
-              {awaitingConfirmation ? (
-                <ConfirmCompletionCard
-                  programRunModuleId={runModule.id}
-                  artifactName={
-                    context.artifacts[0]?.name ??
-                    entry.expectedArtifacts[0]?.name ??
-                    null
-                  }
-                  nextModuleTitle={nextModuleTitle}
-                />
-              ) : null}
-
-              {isCompleted ? (
-                <div className="rounded-xl border border-primary/40 bg-accent p-6">
-                  <p className="text-base font-semibold text-accent-foreground">
-                    {nextModuleTitle
-                      ? `Confirmed — ${nextModuleTitle} is open`
-                      : "Confirmed and done"}
-                  </p>
-                  <p className="mt-1 text-sm leading-6 text-accent-foreground/80">
-                    Everything this module produced is saved in your workspace
-                    and stays there.
-                  </p>
-                </div>
-              ) : null}
-
-              <div className="flex flex-wrap gap-3">
-                {showClaudeAction ? (
-                  <Button asChild size="lg">
-                    <a
-                      href={claudeChatUrl(startPrompt)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      {claudeActionLabel}
-                    </a>
-                  </Button>
-                ) : null}
-                {!connection?.authorised && !isLocked ? (
-                  <Button asChild size="lg">
-                    <Link href="/connection">Connect Claude first</Link>
-                  </Button>
-                ) : null}
-                <RecheckButton size="lg" />
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <ModuleRunPanel context={context} />
-              <ExpectedOutputCard artifacts={entry.expectedArtifacts} />
-            </div>
+          <section className="mt-8 space-y-6">
+            {failedValidation ? (
+              <ValidationIssuesCard validation={failedValidation} />
+            ) : null}
+            <Module1Run
+              moduleIndex={entry.sequenceIndex}
+              programRunModuleId={runModule.id}
+              claudeProjectId={venture?.claudeProjectId ?? null}
+              connected={Boolean(connection?.authorised)}
+              coreQuestions={coreQuestions}
+              decisionQuestions={decisionQuestions}
+              artifactName={context.artifacts[0]?.name ?? null}
+              artifactVersion={
+                context.artifacts[0]?.latestSubmission?.versionNumber ?? null
+              }
+              artifactSavedAt={
+                context.artifacts[0]?.latestSubmission?.submittedAt ?? null
+              }
+              expectedArtifacts={entry.expectedArtifacts}
+              hasAttempt={activeAttempt !== null}
+              awaitingConfirmation={awaitingConfirmation}
+              isCompleted={isCompleted}
+              startPrompt={startPrompt}
+              nextModuleTitle={nextModuleTitle}
+            />
           </section>
         )
       ) : null}

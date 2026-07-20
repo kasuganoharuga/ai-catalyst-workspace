@@ -525,16 +525,7 @@ function ConfirmStep({
 
   const documentSaved = artifactVersion !== null;
   const checksPassed = awaitingConfirmation || isCompleted;
-  const expected =
-    expectedArtifacts[0] ??
-    (artifactName
-      ? {
-          artifactKey: "primary",
-          name: artifactName,
-          requiredFilename: null,
-          outline: [],
-        }
-      : null);
+  const expected = expectedArtifacts[0] ?? null;
 
   function handleConfirm() {
     if (!programRunModuleId) return;
@@ -560,7 +551,7 @@ function ConfirmStep({
             ? "Done — and the programme is open"
             : awaitingConfirmation
               ? "Check the file, then unlock the next module"
-              : "Nothing to confirm yet"
+              : "No file detected yet"
         }
         body={
           isCompleted ? (
@@ -588,65 +579,35 @@ function ConfirmStep({
                   </span>
                 </>
               ) : null}
-              . Not happy with it? Ask Claude to revise — nothing is locked in
-              until you confirm.
+              .
             </>
           ) : (
-            "Once Claude has saved your Setup Summary and it has passed its checks, this is where you sign it off. Nothing unlocks until you do."
+            "We haven't found a Setup Summary in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off. Nothing unlocks until you do."
           )
         }
       />
 
-      <div className="mt-8">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Expected output
-        </p>
-        {expected ? (
-          <div className="mt-3 rounded-md border border-border bg-muted/40 px-4 py-4">
-            <p className="text-sm font-medium text-foreground">
-              {expected.name}
-            </p>
-            {expected.requiredFilename ? (
-              <p className="mt-1 font-mono text-xs text-muted-foreground">
-                {expected.requiredFilename}
-              </p>
-            ) : null}
-            {expected.outline.length > 0 ? (
-              <ol className="mt-3 space-y-1.5 border-t border-border/70 pt-3 text-sm text-muted-foreground">
-                {expected.outline.map((section, index) => (
-                  <li key={section.heading} className="flex gap-2">
-                    <span className="w-4 shrink-0 font-mono text-xs tabular-nums text-muted-foreground/70">
-                      {index + 1}.
-                    </span>
-                    <span className="text-foreground">{section.heading}</span>
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-          </div>
-        ) : (
-          <p className="mt-3 text-sm text-muted-foreground">
-            This module doesn&apos;t require a submitted file.
+      {/* One card holding the file and its state, same as Module 1 — the
+          document being signed off and the evidence for signing it off
+          belong together, not in two lists a screen apart. */}
+      <div className="mt-6 overflow-hidden rounded-lg border border-border">
+        <div className="border-b border-border bg-muted/40 px-4 py-2.5">
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            The document
           </p>
-        )}
-      </div>
-
-      <div className="mt-8">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Where you&apos;re up to
-        </p>
-        <dl className="mt-3 text-sm">
+        </div>
+        <dl className="px-4 py-2 text-sm">
           <CheckLine
             ok={documentSaved}
-            label={expected?.name ?? "Document"}
+            label={artifactName ?? expected?.name ?? "Setup Summary"}
             detail={
               documentSaved
-                ? `Saved · v${artifactVersion}${
+                ? `Version ${artifactVersion}${
                     artifactSavedAt
                       ? ` · ${formatSavedAt(artifactSavedAt)}`
                       : ""
                   }`
-                : "Not saved yet"
+                : "Not saved yet."
             }
           />
           <CheckLine
@@ -654,71 +615,69 @@ function ConfirmStep({
             label="Passed its checks"
             detail={
               checksPassed
-                ? "Ready for you to look over"
+                ? "Ready for you to look over."
                 : documentSaved
-                  ? "Still running"
-                  : "Runs once the file is saved"
-            }
-          />
-          <CheckLine
-            ok={isCompleted}
-            label={
-              nextModuleTitle
-                ? `Unlock ${nextModuleTitle}`
-                : "Unlock the next module"
-            }
-            detail={
-              isCompleted
-                ? "Open"
-                : awaitingConfirmation
-                  ? "Waiting on your confirm"
-                  : "Locked until you confirm"
+                  ? "Still running."
+                  : "Runs once the file is saved."
             }
           />
         </dl>
+        {expected && expected.outline.length > 0 ? (
+          <div className="border-t border-border px-4 py-4">
+            <p className="text-xs font-medium text-muted-foreground">
+              It should cover
+            </p>
+            <ul className="mt-2 space-y-1">
+              {expected.outline.map((section) => (
+                <li
+                  key={section.heading}
+                  className="text-xs leading-5 text-muted-foreground"
+                >
+                  {section.heading}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
 
-      <div className="mt-8">
-        {isCompleted ? (
-          <Button
-            asChild
-            size="lg"
-            className="w-full text-white hover:brightness-110"
-            style={accent}
-          >
+      {isCompleted ? (
+        <div className="mt-6">
+          <Button asChild size="lg" className="text-white" style={accent}>
             <Link href="/modules">See your modules</Link>
           </Button>
-        ) : awaitingConfirmation ? (
-          <>
-            <Button
-              type="button"
-              size="lg"
-              className="w-full text-white hover:brightness-110"
-              style={accent}
-              onClick={handleConfirm}
-              disabled={isPending || !programRunModuleId}
-            >
-              {isPending
-                ? "Confirming…"
-                : nextModuleTitle
-                  ? `Confirm and open ${nextModuleTitle}`
-                  : "Confirm and continue"}
-            </Button>
-            {error ? (
-              <p
-                role="alert"
-                className="mt-2 text-center text-sm text-destructive"
-              >
-                {error}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-center text-sm text-muted-foreground">
-            Finish the check in the previous step first.
+        </div>
+      ) : awaitingConfirmation ? (
+        <div className="mt-6">
+          <Button
+            type="button"
+            size="lg"
+            className="text-white hover:brightness-110"
+            style={accent}
+            onClick={handleConfirm}
+            disabled={isPending || !programRunModuleId}
+          >
+            {isPending
+              ? "Confirming…"
+              : nextModuleTitle
+                ? `Confirm and open ${nextModuleTitle}`
+                : "Confirm and unlock the next module"}
+          </Button>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Not happy with it? Ask Claude to revise it — nothing is locked in
+            until you confirm.
           </p>
-        )}
-      </div>
+          {error ? (
+            <p role="alert" className="mt-2 text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="mt-6 text-sm text-muted-foreground">
+          Finish the check in the previous step first.
+        </p>
+      )}
     </>
   );
 }
