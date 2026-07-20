@@ -44,16 +44,18 @@ export interface ModuleContextPrompt {
 export interface ModuleContext {
   runModule: RunModuleSummary;
   // The Module's live active Attempt pointer (null after validation_failed
-  // clears it so a Retry can start). Prefer `displayAttempt` for reading
-  // prior answers when this is null.
+  // clears it so a Retry can start). Writes (save_founder_input /
+  // save_artifact / complete_module) always target this Attempt when set.
   activeAttempt: ModuleAttempt | null;
   // Attempt whose Responses/Artefacts are surfaced on `questions` /
-  // `artifacts`: the active Attempt when present, otherwise the latest
-  // Attempt for this Module (e.g. after validation_failed).
+  // `artifacts` for reading. Prefer this over inventing state when
+  // activeAttempt is null (failed Attempt still holds answers) or when
+  // activeAttempt is a fresh empty Retry (then this is the based_on
+  // Attempt so prior answers remain visible).
   displayAttempt: ModuleAttempt | null;
-  // The first Question with no Response on the display Attempt yet —
-  // null once every Question has one, or when the Module has none at all
-  // (e.g. Module 0, which is `module_questions`-less by design).
+  // The first Question with no Response on the *write* Attempt (active
+  // when set, otherwise display) — null once every Question has one, or
+  // when the Module has none at all (e.g. Module 0).
   resumeQuestionKey: string | null;
   questions: ModuleContextQuestion[];
   artifacts: ModuleContextArtifactSummary[];

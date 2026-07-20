@@ -48,7 +48,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Start or resume a module attempt",
       description:
-        "Starts a Founder's first Attempt at a Module, resumes the one currently in progress, or (with basedOnAttemptId) starts a Retry Attempt after a failed/cancelled one. Required before save_founder_input/save_artifact/complete_module can target a new Attempt.",
+        "Starts a Founder's first Attempt at a Module, resumes the one currently in progress, or starts a Retry after a failed/cancelled/rejected Attempt. Do not invent Attempt IDs — omit basedOnAttemptId and the Service picks the latest unused retryable Attempt. Optional basedOnAttemptId remains for callers that already know the source. Required before save_founder_input/save_artifact/complete_module can target a new Attempt.",
       inputSchema: START_MODULE_ATTEMPT_SHAPE,
     },
     async (args) => {

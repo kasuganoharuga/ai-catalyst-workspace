@@ -17,7 +17,10 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
-import { isRetryableAttemptStatus } from "@ai-catalyst/services/attempt/internal/retry";
+import {
+  RETRYABLE_ATTEMPT_STATUSES,
+  isRetryableAttemptStatus,
+} from "@ai-catalyst/services/attempt/internal/retry";
 
 // This module owns Attempt/Response orchestration for a single Module:
 // starting/resuming an Attempt, saving structured answers, and submitting
@@ -309,10 +312,43 @@ export interface StartOrResumeAttemptResult {
   created: boolean;
 }
 
+// Picks the latest Attempt on this Module that is still a valid Retry
+// source: retryable status, and not already consumed as based_on by a
+// later Attempt. Caller must already hold the program_run_modules row
+// lock so two concurrent auto-retries cannot pick the same source and
+// race the unique index.
+async function resolveLatestUnusedRetryableSource(
+  client: PoolClient,
+  programRunModuleId: string,
+): Promise<string> {
+  const result = await client.query<{ id: string }>(
+    `select ma.id
+     from module_attempts ma
+     where ma.program_run_module_id = $1
+       and ma.status = any($2::text[])
+       and not exists (
+         select 1 from module_attempts child
+         where child.based_on_attempt_id = ma.id
+       )
+     order by ma.attempt_number desc
+     limit 1
+     for update of ma`,
+    [programRunModuleId, [...RETRYABLE_ATTEMPT_STATUSES]],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new ServiceError(
+      "ATTEMPT_RETRY_SOURCE_INVALID",
+      "This Module has prior Attempts, but none are available to retry. Confirm the Module on the website, or start a new Venture path, before trying again.",
+    );
+  }
+  return row.id;
+}
+
 /**
  * Starts a Founder's first Attempt at a Module, or resumes the one
  * currently in progress. Also handles creating a Retry Attempt (based on
- * a failed/rejected prior Attempt) once history exists for this Module.
+ * a failed/rejected/cancelled prior Attempt) once history exists.
  *
  * Branch table:
  *  1. program_run_modules.status must be 'available' or 'in_progress' —
@@ -323,10 +359,12 @@ export interface StartOrResumeAttemptResult {
  *     active_attempt_id cleared elsewhere; this should not happen).
  *  3. active_attempt_id null, no history: basedOnAttemptId absent ->
  *     create Initial; present -> VALIDATION_ERROR (nothing to retry).
- *  4. active_attempt_id null, history exists: basedOnAttemptId absent ->
- *     VALIDATION_ERROR (must name a retry source, never silently assumes
- *     attempt_number 2 / attempt_type 'initial' — that would violate
- *     module_attempts_type_check); present -> Retry creation path.
+ *  4. active_attempt_id null, history exists: basedOnAttemptId optional.
+ *     When omitted, the Service picks the latest unused retryable Attempt
+ *     (validation_failed / rejected / cancelled). MCP callers must not be
+ *     required to invent Attempt IDs — Attempt identity is an internal
+ *     detail. Explicit basedOnAttemptId remains valid for website/admin
+ *     callers that already know the source.
  */
 export async function startOrResumeAttempt(
   actor: ActorContext,
@@ -338,7 +376,7 @@ export async function startOrResumeAttempt(
     normalized.programRunModuleId,
     "Module not found.",
   );
-  const basedOnAttemptId =
+  const requestedBasedOnAttemptId =
     normalized.basedOnAttemptId === null
       ? null
       : parseEntityIdOrNotFound(normalized.basedOnAttemptId, "Attempt not found.");
@@ -391,7 +429,10 @@ export async function startOrResumeAttempt(
       }
 
       if (active.status === "draft" || active.status === "in_progress") {
-        if (basedOnAttemptId !== null && active.based_on_attempt_id !== basedOnAttemptId) {
+        if (
+          requestedBasedOnAttemptId !== null &&
+          active.based_on_attempt_id !== requestedBasedOnAttemptId
+        ) {
           throw new ServiceError(
             "VALIDATION_ERROR",
             "basedOnAttemptId does not match the currently active Attempt's based_on_attempt_id.",
@@ -428,7 +469,7 @@ export async function startOrResumeAttempt(
     let eventType: "attempt_started" | "retry_started";
 
     if (!hasHistory) {
-      if (basedOnAttemptId !== null) {
+      if (requestedBasedOnAttemptId !== null) {
         throw new ServiceError(
           "VALIDATION_ERROR",
           "basedOnAttemptId was provided, but this Module has no prior Attempts to retry.",
@@ -437,12 +478,9 @@ export async function startOrResumeAttempt(
       newAttempt = await insertInitialAttempt(client, workspace.id, runModule.id, actor);
       eventType = "attempt_started";
     } else {
-      if (basedOnAttemptId === null) {
-        throw new ServiceError(
-          "VALIDATION_ERROR",
-          "basedOnAttemptId is required to retry a Module that already has prior Attempts.",
-        );
-      }
+      const basedOnAttemptId =
+        requestedBasedOnAttemptId ??
+        (await resolveLatestUnusedRetryableSource(client, runModule.id));
       newAttempt = await insertRetryAttempt(
         client,
         workspace.id,

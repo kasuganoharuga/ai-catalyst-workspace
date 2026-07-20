@@ -420,13 +420,18 @@ describe("attempt service — database integration", () => {
         return created.attempt.id;
       }
 
-      it("requires basedOnAttemptId once history exists", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-requires-based-on");
-        await createRejectedAttempt(actor, moduleAId);
+      it("auto-resolves the retry source when basedOnAttemptId is omitted", async () => {
+        const { actor, moduleAId } = await createRunWithModules("retry-auto-based-on");
+        const sourceAttemptId = await createRejectedAttempt(actor, moduleAId);
 
-        await expect(
-          startOrResumeAttempt(actor, { programRunModuleId: moduleAId }),
-        ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+        const result = await startOrResumeAttempt(actor, {
+          programRunModuleId: moduleAId,
+        });
+
+        expect(result.created).toBe(true);
+        expect(result.attempt.attemptType).toBe("retry");
+        expect(result.attempt.basedOnAttemptId).toBe(sourceAttemptId);
+        expect(result.attempt.attemptNumber).toBe(2);
       });
 
       it("creates a Retry Attempt with an incremented attempt_number", async () => {

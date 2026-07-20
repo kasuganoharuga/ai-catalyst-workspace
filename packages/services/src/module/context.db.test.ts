@@ -370,4 +370,50 @@ describe("getModuleContext — database integration", () => {
     expect(context.activeAttempt).toBeNull();
     expect(context.resumeQuestionKey).toBeNull();
   });
+
+  it("after validation_failed, startOrResumeAttempt auto-retries and context still surfaces prior answers", async () => {
+    const { actor } = await createFounderWithActiveVenture("retry-keeps-answers");
+    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const { attempt: failedAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    await saveFounderResponse(actor, {
+      attemptId: failedAttempt.id,
+      questionKey: "first_question",
+      value: "Kept after failure.",
+    });
+
+    // Manufactures the post-validation_failed shape complete_module leaves:
+    // terminal Attempt + cleared active pointer.
+    await pool.query(
+      `update module_attempts set status = 'validation_failed' where id = $1`,
+      [failedAttempt.id],
+    );
+    await pool.query(
+      `update program_run_modules set active_attempt_id = null where id = $1`,
+      [runModule.runModule.id],
+    );
+
+    const beforeRetry = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    expect(beforeRetry.activeAttempt).toBeNull();
+    expect(beforeRetry.displayAttempt?.id).toBe(failedAttempt.id);
+    expect(
+      beforeRetry.questions.find((q) => q.questionKey === "first_question")?.answerText,
+    ).toBe("Kept after failure.");
+
+    const { attempt: retryAttempt, created } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    expect(created).toBe(true);
+    expect(retryAttempt.basedOnAttemptId).toBe(failedAttempt.id);
+
+    const afterRetry = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    expect(afterRetry.activeAttempt?.id).toBe(retryAttempt.id);
+    expect(afterRetry.displayAttempt?.id).toBe(failedAttempt.id);
+    expect(
+      afterRetry.questions.find((q) => q.questionKey === "first_question")?.answerText,
+    ).toBe("Kept after failure.");
+    // Write target is the empty Retry — resume at the first unanswered Question there.
+    expect(afterRetry.resumeQuestionKey).toBe("first_question");
+  });
 });

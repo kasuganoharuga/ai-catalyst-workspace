@@ -269,9 +269,25 @@ function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary
   }));
 }
 
+function attemptHasAnsweredResponses(
+  attemptId: string,
+  responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
+): boolean {
+  const responses = responsesByAttemptId.get(attemptId);
+  if (!responses) {
+    return false;
+  }
+  for (const response of responses.values()) {
+    if (response.response_status === "answered" || response.response_status === "skipped") {
+      return true;
+    }
+  }
+  return false;
+}
+
 function assembleModuleContext(
   runModule: RunModuleSummary,
-  displayAttemptId: string | null,
+  fallbackDisplayAttemptId: string | null,
   attemptsById: Map<string, AttemptRow>,
   questionsByModuleDefinitionId: Map<string, QuestionRow[]>,
   responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
@@ -290,9 +306,21 @@ function assembleModuleContext(
     activeAttempt = mapAttemptRow(attemptRow);
   }
 
+  // Read surface: show prior answers when the active Attempt is a fresh
+  // empty Retry (based_on still holds them), or when active is cleared
+  // after validation_failed. Write surface stays on activeAttempt.
   let displayAttempt: ModuleAttempt | null = activeAttempt;
-  if (!displayAttempt && displayAttemptId) {
-    const displayRow = attemptsById.get(displayAttemptId);
+  if (
+    activeAttempt &&
+    !attemptHasAnsweredResponses(activeAttempt.id, responsesByAttemptId) &&
+    activeAttempt.basedOnAttemptId
+  ) {
+    const priorRow = attemptsById.get(activeAttempt.basedOnAttemptId);
+    if (priorRow) {
+      displayAttempt = mapAttemptRow(priorRow);
+    }
+  } else if (!displayAttempt && fallbackDisplayAttemptId) {
+    const displayRow = attemptsById.get(fallbackDisplayAttemptId);
     if (displayRow) {
       displayAttempt = mapAttemptRow(displayRow);
     }
@@ -300,12 +328,16 @@ function assembleModuleContext(
 
   const questionRows =
     questionsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];
-  const responseMap = displayAttempt
+  const readResponseMap = displayAttempt
     ? (responsesByAttemptId.get(displayAttempt.id) ?? new Map())
+    : new Map<string, ResponseLookupRow>();
+  const writeAttemptId = activeAttempt?.id ?? displayAttempt?.id ?? null;
+  const writeResponseMap = writeAttemptId
+    ? (responsesByAttemptId.get(writeAttemptId) ?? new Map())
     : new Map<string, ResponseLookupRow>();
 
   const questions: ModuleContextQuestion[] = questionRows.map((row) => {
-    const response = responseMap.get(row.question_key);
+    const response = readResponseMap.get(row.question_key);
     return {
       questionKey: row.question_key,
       sequenceIndex: row.sequence_index,
@@ -318,7 +350,7 @@ function assembleModuleContext(
     };
   });
   const resumeQuestionKey =
-    questions.find((question) => question.responseStatus === null)?.questionKey ??
+    questionRows.find((row) => !writeResponseMap.has(row.question_key))?.question_key ??
     null;
 
   const artifactRows =
@@ -350,7 +382,7 @@ async function buildModuleContextsFromRunModules(
   const latestAttemptIdsByRunModule =
     await loadLatestAttemptIdsByRunModuleIds(runModuleIds);
 
-  const displayAttemptIds = runModules.map((runModule) => {
+  const fallbackDisplayAttemptIds = runModules.map((runModule) => {
     if (runModule.activeAttemptId) {
       return runModule.activeAttemptId;
     }
@@ -360,28 +392,61 @@ async function buildModuleContextsFromRunModules(
     return latestAttemptIdsByRunModule.get(runModule.id) ?? null;
   });
 
-  const attemptIdsToLoad = [
-    ...new Set(displayAttemptIds.filter((id): id is string => id !== null)),
+  const seedAttemptIds = [
+    ...new Set(
+      [
+        ...fallbackDisplayAttemptIds,
+        ...runModules.map((runModule) => runModule.activeAttemptId),
+      ].filter((id): id is string => id !== null),
+    ),
   ];
 
   const [
     questionsByModuleDefinitionId,
-    attemptsById,
-    responsesByAttemptId,
-    artifactsByModuleDefinitionId,
+    seedAttemptsById,
     promptsByModuleDefinitionId,
   ] = await Promise.all([
     loadQuestionsByModuleDefinitionIds([...new Set(moduleDefinitionIds)]),
-    loadAttemptsByIds(attemptIdsToLoad),
-    loadResponsesByAttemptIds(attemptIdsToLoad),
-    loadArtifactsByModuleAttempts(moduleDefinitionIds, displayAttemptIds),
+    loadAttemptsByIds(seedAttemptIds),
     loadPromptsByModuleDefinitionIds([...new Set(moduleDefinitionIds)]),
   ]);
+
+  // Empty Retry Attempts still need their based_on Attempt loaded so
+  // prior answers remain visible on displayAttempt.
+  const basedOnIds = [...seedAttemptsById.values()]
+    .map((row) => row.based_on_attempt_id)
+    .filter((id): id is string => id !== null);
+  const attemptIdsToLoad = [...new Set([...seedAttemptIds, ...basedOnIds])];
+
+  const [attemptsById, responsesByAttemptId] = await Promise.all([
+    loadAttemptsByIds(attemptIdsToLoad),
+    loadResponsesByAttemptIds(attemptIdsToLoad),
+  ]);
+
+  const artifactAttemptIds = runModules.map((runModule, index) => {
+    const activeId = runModule.activeAttemptId;
+    if (activeId && attemptHasAnsweredResponses(activeId, responsesByAttemptId)) {
+      return activeId;
+    }
+    if (activeId) {
+      const active = attemptsById.get(activeId);
+      if (active?.based_on_attempt_id) {
+        return active.based_on_attempt_id;
+      }
+      return activeId;
+    }
+    return fallbackDisplayAttemptIds[index] ?? null;
+  });
+
+  const artifactsByModuleDefinitionId = await loadArtifactsByModuleAttempts(
+    moduleDefinitionIds,
+    artifactAttemptIds,
+  );
 
   return runModules.map((runModule, index) =>
     assembleModuleContext(
       runModule,
-      displayAttemptIds[index] ?? null,
+      fallbackDisplayAttemptIds[index] ?? null,
       attemptsById,
       questionsByModuleDefinitionId,
       responsesByAttemptId,

@@ -394,14 +394,15 @@ function CheckStep({
 }: Module0SetupProps & { accent: { backgroundColor: string } }) {
   const documentSaved = artifactVersion !== null;
   const projectId = claudeProjectId?.trim() || null;
-  // Prefer Desktop deep links. With a saved project, open that project; the
-  // project URL has no official `q=` prefill, so the prompt stays on-page to
-  // copy. Without a project, open a new Desktop chat with the prompt prefilled.
+  // Prefer Desktop deep links. With a saved project, open that project and
+  // pass `q=` so the starter line can prefill when the client supports it
+  // (the same text stays on-page to paste otherwise). Without a project,
+  // open a new Desktop chat with the prompt prefilled.
   const desktopUrl = projectId
-    ? claudeChatProjectUrl(projectId)
+    ? claudeChatProjectUrl(projectId, startPrompt)
     : claudeDesktopChatUrl(startPrompt);
   const webUrl = projectId
-    ? claudeChatProjectWebUrl(projectId)
+    ? claudeChatProjectWebUrl(projectId, startPrompt)
     : claudeChatUrl(startPrompt);
   const openLabel = projectId ? "Open your project" : "Open Claude";
 
@@ -450,7 +451,7 @@ function CheckStep({
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {projectId
-              ? "Opens your project in the Claude desktop app when installed. Paste the line above into a new chat there. "
+              ? "Opens your project in the Claude desktop app when installed, with this message ready when the client supports it. "
               : "Opens Claude Desktop with this message ready to send. "}
             <a
               href={webUrl}

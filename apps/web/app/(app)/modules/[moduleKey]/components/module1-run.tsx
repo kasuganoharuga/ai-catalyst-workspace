@@ -281,10 +281,10 @@ function WorkStep({
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
   const projectId = claudeProjectId?.trim() || null;
   const desktopUrl = projectId
-    ? claudeChatProjectUrl(projectId)
+    ? claudeChatProjectUrl(projectId, startPrompt)
     : claudeDesktopChatUrl(startPrompt);
   const webUrl = projectId
-    ? claudeChatProjectWebUrl(projectId)
+    ? claudeChatProjectWebUrl(projectId, startPrompt)
     : claudeChatUrl(startPrompt);
   const openLabel = projectId ? "Open your project" : "Open Claude";
 
@@ -344,7 +344,7 @@ function WorkStep({
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {projectId
-              ? "Opens your project in the Claude desktop app when installed. Paste the line above into a new chat there. "
+              ? "Opens your project in the Claude desktop app when installed, with this message ready when the client supports it. "
               : "Opens Claude Desktop with this message ready to send. "}
             <a
               href={webUrl}

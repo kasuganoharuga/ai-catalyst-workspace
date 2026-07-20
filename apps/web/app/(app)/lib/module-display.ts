@@ -96,14 +96,27 @@ export function claudeChatUrl(prompt: string): string {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
-/** Deep link to an existing Claude Chat Project (Desktop or browser handler). */
-export function claudeChatProjectUrl(projectId: string): string {
-  return `claude://claude.ai/project/${projectId}`;
+/**
+ * Deep link to an existing Claude Chat Project (Desktop or browser handler).
+ * Optional `prompt` is appended as `q=` so a new chat in that project can
+ * prefill the starter line when the client supports it; otherwise the
+ * Founder still has the same text on-page to paste.
+ */
+export function claudeChatProjectUrl(
+  projectId: string,
+  prompt?: string,
+): string {
+  const base = `claude://claude.ai/project/${projectId}`;
+  return prompt ? `${base}?q=${encodeURIComponent(prompt)}` : base;
 }
 
 /** Browser URL for the same Claude Chat Project. */
-export function claudeChatProjectWebUrl(projectId: string): string {
-  return `https://claude.ai/project/${projectId}`;
+export function claudeChatProjectWebUrl(
+  projectId: string,
+  prompt?: string,
+): string {
+  const base = `https://claude.ai/project/${projectId}`;
+  return prompt ? `${base}?q=${encodeURIComponent(prompt)}` : base;
 }
 
 const UUID_PATTERN =
@@ -203,7 +216,7 @@ Rules for every turn in this project:
 
 8. STAY IN ROLE. A module may put you in a specific role. Hold it for the rest of that module unless I tell you to switch.
 
-9. DON'T MAKE ME REPEAT MYSELF. My earlier answers and documents are already in the workspace. Retrieve them through the connector instead of asking me to paste them again. If activeAttemptId is null but displayAttempt has answers, use those — validation failure clears the active pointer; it does not delete my answers.
+9. DON'T MAKE ME REPEAT MYSELF. My earlier answers and documents are already in the workspace. Retrieve them through the connector instead of asking me to paste them again. If activeAttemptId is null but displayAttempt has answers, use those — validation failure clears the active pointer; it does not delete my answers. After a failed Attempt, call start_module_attempt without inventing basedOnAttemptId — the Service starts the Retry. A fresh empty Retry still surfaces prior answers on displayAttempt; re-save into the new active Attempt after I confirm.
 
 10. DON'T MOVE ME ON. When a module's output is saved and has passed its checks, tell me to confirm it on the AI Catalyst website. You cannot unlock the next module — that decision is mine to make.
 

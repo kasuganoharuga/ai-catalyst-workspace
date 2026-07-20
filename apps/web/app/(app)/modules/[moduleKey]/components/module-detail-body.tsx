@@ -68,13 +68,14 @@ export async function ModuleDetailBody({
     primaryArtifactKey !== null;
   const needsRunSetup = isLive && !runModule;
 
-  // Also needed for the setup module, whose walkthrough names the venture
-  // in the Claude project instructions and links to the project once one
-  // has been recorded against it.
-  const activeContextPromise =
-    needsRunSetup || isSetupModule
-      ? getActiveContext(actor)
-      : Promise.resolve(null);
+  // Needed whenever a live Module shows Claude open buttons — Module 0
+  // for project setup, and Module 1+ to reopen the same project UUID
+  // saved on the Venture. Skipping this left Module 1 with
+  // claudeProjectId=null forever, so buttons never deep-linked the project.
+  const needsVenture = needsRunSetup || (isLive && runModule !== null);
+  const activeContextPromise = needsVenture
+    ? getActiveContext(actor)
+    : Promise.resolve(null);
 
   const [validation, activeContext] = await Promise.all([
     needsValidation && displayAttempt
