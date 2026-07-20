@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 import { CopyButton } from "../../../components/copy-button";
 import {
+  claudeChatProjectUrl,
   claudeChatProjectWebUrl,
   claudeProjectInstructions,
   extractClaudeProjectId,
@@ -189,7 +190,7 @@ function ProjectStep() {
     <>
       <StepHeading
         title="Create a Claude project for this programme"
-        body="A project keeps the same instructions on every chat, so later modules never start from scratch. When you create it, you can set the name and Instructions in the same screen."
+        body="A project keeps the same instructions on every chat, so later modules never start from scratch. Create the project first, then add the instructions from its right-hand sidebar."
       />
 
       <ol className="mt-6 space-y-3 text-sm leading-6 text-muted-foreground">
@@ -215,11 +216,23 @@ function ProjectStep() {
             2.
           </span>
           <span>
-            Start a new{" "}
+            Create a new{" "}
             <span className="font-medium text-foreground">Project</span> (not a
-            plain chat). In that create screen, give it a name — for example{" "}
+            plain chat). Give it a name you&apos;ll recognise — for example{" "}
             <span className="font-medium text-foreground">AI Catalyst</span> —
-            and paste the Instructions below into the instructions field. Save.
+            and save.
+          </span>
+        </li>
+        <li className="flex gap-3">
+          <span className="w-5 shrink-0 font-mono text-xs tabular-nums text-muted-foreground/70">
+            3.
+          </span>
+          <span>
+            With the project open, use the{" "}
+            <span className="font-medium text-foreground">right sidebar</span>{" "}
+            to open{" "}
+            <span className="font-medium text-foreground">Instructions</span>.
+            Paste the text below and save.
           </span>
         </li>
       </ol>
@@ -378,9 +391,11 @@ function CheckStep({
   accent,
 }: Module0SetupProps & { accent: { backgroundColor: string } }) {
   const documentSaved = artifactVersion !== null;
-  const openUrl = claudeProjectId?.trim()
-    ? claudeChatProjectWebUrl(claudeProjectId.trim())
-    : null;
+  const projectId = claudeProjectId?.trim() || null;
+  // Prefer the Desktop deep link so "Open your project" lands in the local
+  // Claude app when installed; keep the https URL as a browser fallback.
+  const desktopUrl = projectId ? claudeChatProjectUrl(projectId) : null;
+  const webUrl = projectId ? claudeChatProjectWebUrl(projectId) : null;
 
   return (
     <>
@@ -420,16 +435,35 @@ function CheckStep({
             className="w-full text-white hover:brightness-110"
             style={accent}
           >
-            <a
-              href={openUrl ?? "https://claude.ai/new"}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {openUrl ? "Open your project" : "Open Claude"}
-              <ExternalLink aria-hidden="true" />
-            </a>
+            {desktopUrl ? (
+              <a href={desktopUrl}>
+                Open your project
+                <ExternalLink aria-hidden="true" />
+              </a>
+            ) : (
+              <a
+                href="https://claude.ai/new"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Open Claude
+                <ExternalLink aria-hidden="true" />
+              </a>
+            )}
           </Button>
-          {openUrl ? null : (
+          {webUrl ? (
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              Opens in the Claude desktop app when installed.{" "}
+              <a
+                href={webUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+              >
+                Open in browser instead
+              </a>
+            </p>
+          ) : (
             <p className="mt-2 text-center text-xs text-muted-foreground">
               Save your project link in step 2 and this will open it directly.
             </p>
