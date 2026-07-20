@@ -1,0 +1,248 @@
+name: Deploy to AWS
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_ACCOUNT_ID: "765332581489"
+      AWS_REGION: ap-southeast-2
+      AWS_ROLE_ARN: arn:aws:iam::765332581489:role/ai-catalyst-github-actions-deploy
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select deployment environment
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          case "${GITHUB_REF_NAME}" in
+            main)
+              {
+                echo "ENV_NAME=production"
+                echo "ENV_PREFIX=ai-catalyst-production"
+                echo "CLUSTER=ai-catalyst-production"
+                echo "SUBNETS=subnet-0ddbc7e753b4e8210,subnet-03355a2c923b59a25"
+                echo "SECURITY_GROUP=sg-01996f8e18c24c4aa"
+              } >> "$GITHUB_ENV"
+              ;;
+            develop)
+              {
+                echo "ENV_NAME=staging"
+                echo "ENV_PREFIX=ai-catalyst-staging"
+                echo "CLUSTER=ai-catalyst-staging"
+                echo "SUBNETS=subnet-07b302fc84ea32325,subnet-0463eda6ac077e977"
+                echo "SECURITY_GROUP=sg-0e0aad4d80002be63"
+              } >> "$GITHUB_ENV"
+              ;;
+            *)
+              echo "Unsupported branch: ${GITHUB_REF_NAME}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          IMAGE_TAG="${GITHUB_SHA}"
+
+          WEB_REPO="${REGISTRY}/${ENV_PREFIX}/web"
+          API_REPO="${REGISTRY}/${ENV_PREFIX}/api"
+          MCP_REPO="${REGISTRY}/${ENV_PREFIX}/mcp"
+
+          docker build -f apps/web/Dockerfile -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
+          docker build -f apps/api/Dockerfile -t "${API_REPO}:${IMAGE_TAG}" -t "${API_REPO}:latest" .
+          docker build -f apps/mcp/Dockerfile -t "${MCP_REPO}:${IMAGE_TAG}" -t "${MCP_REPO}:latest" .
+
+          docker push "${WEB_REPO}:${IMAGE_TAG}"
+          docker push "${WEB_REPO}:latest"
+          docker push "${API_REPO}:${IMAGE_TAG}"
+          docker push "${API_REPO}:latest"
+          docker push "${MCP_REPO}:${IMAGE_TAG}"
+          docker push "${MCP_REPO}:latest"
+
+          {
+            echo "WEB_IMAGE=${WEB_REPO}:${IMAGE_TAG}"
+            echo "API_IMAGE=${API_REPO}:${IMAGE_TAG}"
+            echo "MCP_IMAGE=${MCP_REPO}:${IMAGE_TAG}"
+          } >> "$GITHUB_ENV"
+
+      - name: Register ECS task definitions
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          register_task_definition() {
+            local family="$1"
+            local container_name="$2"
+            local image_uri="$3"
+            local current_json
+            local next_json
+
+            current_json="$(mktemp)"
+            next_json="$(mktemp)"
+
+            aws ecs describe-task-definition \
+              --task-definition "${family}" \
+              --query taskDefinition \
+              --output json > "${current_json}"
+
+            jq \
+              --arg container "${container_name}" \
+              --arg image "${image_uri}" \
+              '
+                .containerDefinitions |= map(
+                  if .name == $container then .image = $image else . end
+                )
+                | {
+                    family,
+                    taskRoleArn,
+                    executionRoleArn,
+                    networkMode,
+                    containerDefinitions,
+                    volumes,
+                    placementConstraints,
+                    requiresCompatibilities,
+                    cpu,
+                    memory,
+                    runtimePlatform,
+                    ephemeralStorage
+                  }
+                | with_entries(select(.value != null))
+              ' "${current_json}" > "${next_json}"
+
+            aws ecs register-task-definition \
+              --cli-input-json "file://${next_json}" \
+              --query taskDefinition.taskDefinitionArn \
+              --output text
+          }
+
+          WEB_TASK_DEF_ARN="$(register_task_definition "${ENV_PREFIX}-web" web "${WEB_IMAGE}")"
+          API_TASK_DEF_ARN="$(register_task_definition "${ENV_PREFIX}-api" api "${API_IMAGE}")"
+          MCP_TASK_DEF_ARN="$(register_task_definition "${ENV_PREFIX}-mcp" mcp "${MCP_IMAGE}")"
+
+          {
+            echo "WEB_TASK_DEF_ARN=${WEB_TASK_DEF_ARN}"
+            echo "API_TASK_DEF_ARN=${API_TASK_DEF_ARN}"
+            echo "MCP_TASK_DEF_ARN=${MCP_TASK_DEF_ARN}"
+          } >> "$GITHUB_ENV"
+
+      - name: Run database migration and seed
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_mcp_task() {
+            local label="$1"
+            shift
+
+            local command_json
+            command_json="$(printf '%s\n' "$@" | jq -R . | jq -sc .)"
+
+            local overrides
+            overrides="$(jq -nc \
+              --arg container "mcp" \
+              --argjson command "${command_json}" \
+              '{containerOverrides:[{name:$container,command:$command}]}')"
+
+            local run_output
+            run_output="$(aws ecs run-task \
+              --cluster "${CLUSTER}" \
+              --task-definition "${MCP_TASK_DEF_ARN}" \
+              --launch-type FARGATE \
+              --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED}" \
+              --overrides "${overrides}" \
+              --output json)"
+
+            local failures
+            failures="$(echo "${run_output}" | jq '.failures | length')"
+            if [ "${failures}" != "0" ]; then
+              echo "${run_output}" | jq '.failures' >&2
+              exit 1
+            fi
+
+            local task_arn
+            task_arn="$(echo "${run_output}" | jq -r '.tasks[0].taskArn')"
+            if [ -z "${task_arn}" ] || [ "${task_arn}" = "null" ]; then
+              echo "Failed to start ${label} task." >&2
+              echo "${run_output}" >&2
+              exit 1
+            fi
+
+            aws ecs wait tasks-stopped --cluster "${CLUSTER}" --tasks "${task_arn}"
+
+            local task_desc
+            task_desc="$(aws ecs describe-tasks \
+              --cluster "${CLUSTER}" \
+              --tasks "${task_arn}" \
+              --output json)"
+
+            local exit_code
+            exit_code="$(echo "${task_desc}" | jq -r '.tasks[0].containers[] | select(.name == "mcp") | .exitCode // empty')"
+
+            if [ "${exit_code}" != "0" ]; then
+              echo "${label} task failed with exit code ${exit_code:-missing}." >&2
+              echo "${task_desc}" | jq '.tasks[0].containers[] | select(.name == "mcp")' >&2
+              exit 1
+            fi
+          }
+
+          run_mcp_task "database migration" pnpm --filter @ai-catalyst/db run migrate
+          run_mcp_task "database seed" pnpm --filter @ai-catalyst/services run seed
+
+      - name: Update ECS services
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          aws ecs update-service \
+            --cluster "${CLUSTER}" \
+            --service "${ENV_PREFIX}-web" \
+            --task-definition "${WEB_TASK_DEF_ARN}" \
+            --no-cli-pager
+
+          aws ecs update-service \
+            --cluster "${CLUSTER}" \
+            --service "${ENV_PREFIX}-api" \
+            --task-definition "${API_TASK_DEF_ARN}" \
+            --no-cli-pager
+
+          aws ecs update-service \
+            --cluster "${CLUSTER}" \
+            --service "${ENV_PREFIX}-mcp" \
+            --task-definition "${MCP_TASK_DEF_ARN}" \
+            --no-cli-pager
+
+          aws ecs wait services-stable \
+            --cluster "${CLUSTER}" \
+            --services "${ENV_PREFIX}-web" "${ENV_PREFIX}-api" "${ENV_PREFIX}-mcp"
