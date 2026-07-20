@@ -218,7 +218,7 @@ export async function ModuleDetailBody({
 
       {runModule && context ? (
         isSetupModule ? (
-          <section className="mt-8 max-w-3xl space-y-6">
+          <section className="mt-8 space-y-6">
             {failedValidation ? (
               <ValidationIssuesCard validation={failedValidation} />
             ) : null}
