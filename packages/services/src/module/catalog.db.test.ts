@@ -138,16 +138,28 @@ describe("listModuleCatalog", () => {
         artifactKey: "setup_summary",
         name: "Founder Toolkit Setup Summary",
         requiredFilename: "Founder-Toolkit-Setup-Summary.md",
+        outline: [
+          { heading: "Founder Context", items: [] },
+          { heading: "Connection", items: [] },
+          { heading: "Platform Storage", items: [] },
+          { heading: "Module Status", items: [] },
+          { heading: "Notes", items: [] },
+        ],
       },
     ]);
 
     const module1 = entries.find((entry) => entry.moduleKey === "module-01-pressure-test")!;
-    expect(module1.expectedArtifacts).toEqual([
-      {
-        artifactKey: "pressure_test_verdict",
-        name: "Pressure-Test Verdict",
-        requiredFilename: "Pressure-Test-Verdict.md",
-      },
+    expect(module1.expectedArtifacts[0]).toMatchObject({
+      artifactKey: "pressure_test_verdict",
+      name: "Pressure-Test Verdict",
+      requiredFilename: "Pressure-Test-Verdict.md",
+    });
+    expect(module1.expectedArtifacts[0].outline.map((section) => section.heading)).toEqual([
+      "Venture",
+      "Confirmed Q&A",
+      "Four-Part Verdict",
+      "Founder's Decision",
+      "Working Notes / Unresolved Assumptions",
     ]);
 
     const placeholder = entries.find((entry) => entry.moduleKey === "module-02-hmw")!;
@@ -267,8 +279,18 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
     const entries = await listModuleCatalog(founderActor(), { programKey: ARTIFACT_KEY });
     expect(entries).toHaveLength(1);
     expect(entries[0].expectedArtifacts).toEqual([
-      { artifactKey: "fixture_artifact_one", name: "Fixture Artifact One", requiredFilename: "one.md" },
-      { artifactKey: "fixture_artifact_two", name: "Fixture Artifact Two", requiredFilename: "two.md" },
+      {
+        artifactKey: "fixture_artifact_one",
+        name: "Fixture Artifact One",
+        requiredFilename: "one.md",
+        outline: [],
+      },
+      {
+        artifactKey: "fixture_artifact_two",
+        name: "Fixture Artifact Two",
+        requiredFilename: "two.md",
+        outline: [],
+      },
     ]);
   });
 });

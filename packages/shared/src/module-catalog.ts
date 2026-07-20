@@ -12,10 +12,21 @@ export type ModuleCompletionMode =
   | "artifact_and_confirmation"
   | "system";
 
+/**
+ * Section checklist for an expected artefact, derived from ## headings in
+ * the Artifact Definition's `output_config.templateMarkdown`. `items` is
+ * reserved for a denser outline later; V1 keeps it empty.
+ */
+export interface ModuleCatalogArtifactOutlineSection {
+  heading: string;
+  items: string[];
+}
+
 export interface ModuleCatalogArtifact {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
+  outline: ModuleCatalogArtifactOutlineSection[];
 }
 
 export interface ModuleCatalogEntry {

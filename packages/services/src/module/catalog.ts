@@ -14,6 +14,7 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 // not for a read path consumed by apps/web.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
 import { resolvePublishedProgramVersionId } from "@ai-catalyst/services/internal/program-version";
+import { parseTemplateOutline } from "@ai-catalyst/services/module/internal/template-outline";
 
 // The catalog always resolves against this Program's current published
 // version — this is deliberately not the same concept as the fixed
@@ -30,6 +31,15 @@ export interface ModuleCatalogDependencies {
   programKey?: string;
 }
 
+interface RawCatalogArtifact {
+  artifactKey: string;
+  name: string;
+  requiredFilename: string | null;
+  // Internal-only — stripped in mapArtifact so the Founder DTO never
+  // ships the full template Markdown, only the derived outline.
+  templateMarkdown: string | null;
+}
+
 interface ModuleCatalogRow {
   module_key: string;
   sequence_index: number;
@@ -41,7 +51,16 @@ interface ModuleCatalogRow {
   completion_mode: ModuleCompletionMode;
   estimated_minutes: number | null;
   module_status: "draft" | "active" | "archived";
-  expected_artifacts: ModuleCatalogArtifact[];
+  expected_artifacts: RawCatalogArtifact[];
+}
+
+function mapArtifact(raw: RawCatalogArtifact): ModuleCatalogArtifact {
+  return {
+    artifactKey: raw.artifactKey,
+    name: raw.name,
+    requiredFilename: raw.requiredFilename,
+    outline: parseTemplateOutline(raw.templateMarkdown),
+  };
 }
 
 function mapRow(row: ModuleCatalogRow): ModuleCatalogEntry {
@@ -56,7 +75,7 @@ function mapRow(row: ModuleCatalogRow): ModuleCatalogEntry {
     completionMode: row.completion_mode,
     estimatedMinutes: row.estimated_minutes,
     catalogStatus: row.module_status === "active" ? "live" : "coming_soon",
-    expectedArtifacts: row.expected_artifacts,
+    expectedArtifacts: row.expected_artifacts.map(mapArtifact),
   };
 }
 
@@ -82,7 +101,8 @@ const CATALOG_QUERY = `
         jsonb_build_object(
           'artifactKey', ad.artifact_key,
           'name', ad.name,
-          'requiredFilename', ad.required_filename
+          'requiredFilename', ad.required_filename,
+          'templateMarkdown', ad.output_config->>'templateMarkdown'
         )
         order by ad.sequence_index
       ) filter (where ad.id is not null),

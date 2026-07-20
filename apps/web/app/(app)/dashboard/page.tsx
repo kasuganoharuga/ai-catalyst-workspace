@@ -104,10 +104,6 @@ export default async function DashboardPage() {
   ]);
 
   const module0Completed = module0?.runModule.status === "completed";
-  const module1Unlocked =
-    module1 !== null &&
-    module1.runModule.status !== "locked" &&
-    module1.runModule.status !== "inherited";
   const verdictReady =
     module1?.activeAttempt?.status === "ready_for_review" ||
     module1?.runModule.status === "completed";
@@ -126,40 +122,66 @@ export default async function DashboardPage() {
     connection.lastActivityAt,
   );
 
+  // A profile counts as set up once there's a real name on it. The
+  // password half of that step can't be detected — Better Auth doesn't
+  // expose whether the invitation password was ever changed — so it's
+  // prompted in the copy rather than gating the tick.
+  const profileComplete = Boolean(
+    profile.firstName?.trim() || profile.lastName?.trim(),
+  );
+  // Module 0 has produced something and passed its checks. Distinct from
+  // completed: the output exists but nobody has signed it off yet.
+  const module0OutputReady =
+    module0?.activeAttempt?.status === "ready_for_review" ||
+    Boolean(module0Completed);
+
+  // The four things standing between a brand-new account and a running
+  // programme, in the order they have to happen.
   const steps: SetupStep[] = [
     {
+      title: "Set up your profile",
+      description:
+        "Add your name and swap the invitation password for your own",
+      done: profileComplete,
+      href: "/profile",
+    },
+    {
       title: "Connect Claude",
-      description: "A one-time secure link between Claude and this workspace",
-      done: connection.authorised || module0Completed,
+      description: "One secure link between Claude and this workspace",
+      done: connection.authorised,
       href: "/connection",
     },
     {
-      title: "Complete Module 0",
-      description: "A five-minute check that everything works, run in Claude",
+      title: "Run Module 0 in Claude",
+      description:
+        "Set up a Claude project for your venture, then let it check the whole path end to end",
+      done: module0OutputReady,
+      href: hasRun ? `/modules/${MODULE_0_KEY}` : "/connection",
+    },
+    {
+      title: "Confirm what it produced",
+      description:
+        "Read the Setup Summary and sign it off — that's what opens Module 1",
       done: Boolean(module0Completed),
-      href: `/modules/${MODULE_0_KEY}`,
-    },
-    {
-      title: "Module 1 unlocks",
-      description: "Happens automatically the moment Module 0 passes",
-      done: module1Unlocked,
-      href: null,
-    },
-    {
-      title: "Save your verdict",
-      description: "Pressure-test your idea and land on proceed, pivot or kill",
-      done: Boolean(verdictReady),
-      href: `/modules/${MODULE_1_KEY}`,
+      href: hasRun ? `/modules/${MODULE_0_KEY}` : "/connection",
     },
   ];
 
+  // Once all four are behind them, this is just clutter on every future
+  // visit — the next-action card above carries the thread from here.
+  const settingUp = steps.some((step) => !step.done);
+
   const welcomeSub = (() => {
+    if (!profileComplete)
+      return "A couple of minutes of setup and the programme is yours — start with your own details.";
+    if (!connection.authorised)
+      return "The thinking happens in Claude. Connect it once and it stays connected.";
     if (!hasRun)
       return "Everything you work through here compounds — each answer feeds the next question.";
-    if (!connection.authorised && !module0Completed)
-      return "The thinking happens in Claude. Connect it once and it stays connected.";
-    if (!module0Completed)
+    if (!module0OutputReady)
       return "Claude is connected. One short check and the real questions begin.";
+    if (!module0Completed)
+      return "Claude has done its part. Nothing moves on until you've read it and said so.";
     if (!verdictReady)
       return "Your idea is on the table. Keep going until the case holds up on its own.";
     return "The hard part is done — your idea has been through the wringer and survived on paper.";
@@ -168,6 +190,22 @@ export default async function DashboardPage() {
   // One next action, chosen by where the founder actually is. This is
   // what the single dark card on the page carries.
   const nextAction = (() => {
+    if (!profileComplete) {
+      return {
+        title: "Start with your own details",
+        body: "Your name, and a password that isn't the one from your invitation email. It's what the rest of the toolkit greets you by.",
+        href: "/profile",
+        cta: "Set up your profile",
+      };
+    }
+    if (!connection.authorised) {
+      return {
+        title: "Connect Claude to your workspace",
+        body: "Every module runs as a conversation. Two minutes of setup, then you never think about it again.",
+        href: "/connection",
+        cta: "Set up the connection",
+      };
+    }
     if (!hasRun) {
       return {
         title: "Open up your programme",
@@ -176,20 +214,20 @@ export default async function DashboardPage() {
           : "Sets up your run of the toolkit, with the first module ready.",
       };
     }
-    if (!connection.authorised && !module0Completed) {
-      return {
-        title: "Connect Claude to your workspace",
-        body: "Every module runs as a conversation. Two minutes of setup, then you never think about it again.",
-        href: "/connection",
-        cta: "Set up the connection",
-      };
-    }
-    if (!module0Completed) {
+    if (!module0OutputReady) {
       return {
         title: "Run the setup check",
         body: "Five minutes in Claude to prove the whole path works, before anything is riding on it.",
         href: `/modules/${MODULE_0_KEY}`,
         cta: "Open Module 0",
+      };
+    }
+    if (!module0Completed) {
+      return {
+        title: "Sign off what Claude produced",
+        body: "Your Setup Summary is saved and it passed its checks. Read it over and confirm — that's what opens Module 1.",
+        href: `/modules/${MODULE_0_KEY}`,
+        cta: "Review and confirm",
       };
     }
     if (!verdictReady) {
@@ -237,7 +275,7 @@ export default async function DashboardPage() {
         </NextActionCard>
       </div>
 
-      {hasRun && !verdictReady ? (
+      {settingUp ? (
         <div className="mt-12">
           <SetupStepper steps={steps} />
         </div>

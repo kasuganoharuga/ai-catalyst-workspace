@@ -14,6 +14,7 @@ export type {
   ModuleType,
   ModuleCompletionMode,
   ModuleCatalogArtifact,
+  ModuleCatalogArtifactOutlineSection,
   ModuleCatalogEntry,
 } from "./module-catalog.js";
 export type { ProgramRun, ProgramRunStatus } from "./program-run.js";
