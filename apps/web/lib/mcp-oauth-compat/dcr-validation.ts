@@ -116,6 +116,36 @@ function isStringArrayEqualTo(
 }
 
 /**
+ * Claude (and other MCP hosts) register with
+ * `grant_types: ["authorization_code", "refresh_token"]` even when the
+ * authorization server only issues authorization_code grants. Accept that
+ * shape so DCR succeeds; the /mcp/token before-hook still rejects any
+ * non-authorization_code grant at token time (V1 does not hand out
+ * redeemable refresh tokens).
+ */
+function isAllowedGrantTypes(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) {
+    return false;
+  }
+  if (!value.every((item) => typeof item === "string")) {
+    return false;
+  }
+  const unique = new Set(value);
+  if (unique.size !== value.length) {
+    return false;
+  }
+  if (!unique.has("authorization_code")) {
+    return false;
+  }
+  for (const item of unique) {
+    if (item !== "authorization_code" && item !== "refresh_token") {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Hardens `POST /mcp/register` (Dynamic Client Registration, RFC 7591)
  * down to the single "public client, authorization_code + PKCE only"
  * profile this compatibility layer supports — better-auth@1.6.23's own DCR
@@ -135,6 +165,9 @@ function isStringArrayEqualTo(
  *   JWT/SAML bearer, `token`) — none of those are implemented by the
  *   token endpoint this profile relies on, so a client registered with
  *   them would simply fail confusingly later. Rejected here instead.
+ *   `refresh_token` is allowed *alongside* `authorization_code` only
+ *   because Claude's DCR payload always includes it; V1 still never
+ *   redeems a refresh_token grant (see token-validation.ts).
  * - `client_name` is optional in the handler's own zod schema but
  *   `name: body.client_name` is written straight into a `not null` column
  *   — required here explicitly instead of surfacing as a database error.
@@ -163,11 +196,11 @@ export const registerEndpointBeforeHook = {
 
     if (
       body.grant_types !== undefined &&
-      !isStringArrayEqualTo(body.grant_types, ["authorization_code"])
+      !isAllowedGrantTypes(body.grant_types)
     ) {
       throw oauthError(
         "invalid_client_metadata",
-        'grant_types must be exactly ["authorization_code"].',
+        'grant_types must be ["authorization_code"] or ["authorization_code","refresh_token"].',
       );
     }
 

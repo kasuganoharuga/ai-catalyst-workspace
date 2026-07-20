@@ -127,6 +127,24 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     const badBody = await badResponse.json();
     expect(badBody.error).toBe("invalid_client_metadata");
 
+    // Claude's DCR payload always includes refresh_token alongside
+    // authorization_code — accept it so connector signup works.
+    const claudeLikeResponse = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/register`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          client_name: "claudeai",
+          redirect_uris: ["https://claude.ai/api/mcp/auth_callback"],
+          token_endpoint_auth_method: "none",
+          grant_types: ["authorization_code", "refresh_token"],
+          response_types: ["code"],
+          scope: "claudeai",
+        }),
+      }),
+    );
+    expect(claudeLikeResponse.status).toBe(201);
+
     const response = await POST(
       new Request(`${BASE_URL}/api/auth/mcp/register`, {
         method: "POST",

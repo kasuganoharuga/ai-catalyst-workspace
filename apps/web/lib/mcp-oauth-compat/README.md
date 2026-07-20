@@ -53,11 +53,13 @@ oauthConsent`) is not atomic. This hook enforces same-origin submission,
   and accepts grant/response types this profile's token endpoint never
   implements. This hook forces every registered client down to
   `token_endpoint_auth_method: "none"` (public), `grant_types:
-["authorization_code"]`, `response_types: ["code"]`, a required
-  `client_name`, hardened `redirect_uris` (https, or http loopback for local
-  testing; no fragment/query/userinfo — see the file's own comment for why
-  query strings specifically must be banned), and a coarse
-  development-only in-memory rate limit.
+["authorization_code"]` (optionally plus `"refresh_token"` so Claude's
+  DCR payload is accepted — refresh grants are still rejected at
+  `/mcp/token`), `response_types: ["code"]`, a required `client_name`,
+  hardened `redirect_uris` (https, or http loopback for local testing; no
+  fragment/query/userinfo — see the file's own comment for why query
+  strings specifically must be banned), and a coarse development-only
+  in-memory rate limit.
 - **`discovery.ts`** — `buildAuthorizationServerMetadata`, consumed by
   [`apps/web/app/.well-known/oauth-authorization-server/route.ts`](../../app/.well-known/oauth-authorization-server/route.ts).
   Hand-written for a different reason than apps/mcp's protected-resource
