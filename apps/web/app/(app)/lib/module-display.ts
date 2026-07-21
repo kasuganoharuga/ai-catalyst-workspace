@@ -135,26 +135,31 @@ export function claudeChatUrl(prompt: string): string {
 }
 
 /**
- * Deep link to an existing Claude Chat Project (Desktop or browser handler).
- * Optional `prompt` is appended as `q=` so a new chat in that project can
- * prefill the starter line when the client supports it; otherwise the
- * Founder still has the same text on-page to paste.
+ * Desktop deep link that opens a Claude Chat Project home.
+ *
+ * Claude Desktop's `claude://` handler does not combine project + prompt:
+ * `/project/{id}` ignores `q=`, and `/new?q=` ignores `project=`. Use
+ * `claudeChatProjectWebUrl` when the Founder needs both (HTTPS `/new`
+ * supports `project` + `q` together).
  */
-export function claudeChatProjectUrl(
-  projectId: string,
-  prompt?: string,
-): string {
-  const base = `claude://claude.ai/project/${projectId}`;
-  return prompt ? `${base}?q=${encodeURIComponent(prompt)}` : base;
+export function claudeChatProjectUrl(projectId: string): string {
+  return `claude://claude.ai/project/${projectId}`;
 }
 
-/** Browser URL for the same Claude Chat Project. */
+/**
+ * Browser URL into a Claude Chat Project.
+ *
+ * With a prompt: `/new?project=…&q=…` opens a new chat in that project with
+ * the composer prefilled. Without a prompt: project home only.
+ */
 export function claudeChatProjectWebUrl(
   projectId: string,
   prompt?: string,
 ): string {
-  const base = `https://claude.ai/project/${projectId}`;
-  return prompt ? `${base}?q=${encodeURIComponent(prompt)}` : base;
+  if (prompt) {
+    return `https://claude.ai/new?project=${encodeURIComponent(projectId)}&q=${encodeURIComponent(prompt)}`;
+  }
+  return `https://claude.ai/project/${projectId}`;
 }
 
 const UUID_PATTERN =

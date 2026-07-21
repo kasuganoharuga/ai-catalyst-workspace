@@ -273,6 +273,7 @@ export async function ModuleDetailBody({
               needsRetry={needsRetry}
               awaitingConfirmation={awaitingConfirmation}
               isCompleted={isCompleted}
+              isLocked={isLocked}
               startPrompt={startPrompt}
               nextModuleTitle={nextModuleTitle}
             />

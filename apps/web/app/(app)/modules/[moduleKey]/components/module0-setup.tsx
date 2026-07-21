@@ -394,17 +394,18 @@ function CheckStep({
 }: Module0SetupProps & { accent: { backgroundColor: string } }) {
   const documentSaved = artifactVersion !== null;
   const projectId = claudeProjectId?.trim() || null;
-  // Prefer Desktop deep links. With a saved project, open that project and
-  // pass `q=` so the starter line can prefill when the client supports it
-  // (the same text stays on-page to paste otherwise). Without a project,
-  // open a new Desktop chat with the prompt prefilled.
-  const desktopUrl = projectId
-    ? claudeChatProjectUrl(projectId, startPrompt)
-    : claudeDesktopChatUrl(startPrompt);
-  const webUrl = projectId
+  // With a project: primary link is HTTPS `/new?project=&q=` so both the
+  // project scope and the starter line land together. Desktop `claude://`
+  // cannot combine them (project route drops `q`, `/new` drops `project`).
+  // Without a project: Desktop `/new?q=` still prefills cleanly.
+  const openUrl = projectId
     ? claudeChatProjectWebUrl(projectId, startPrompt)
+    : claudeDesktopChatUrl(startPrompt);
+  const secondaryUrl = projectId
+    ? claudeChatProjectUrl(projectId)
     : claudeChatUrl(startPrompt);
   const openLabel = projectId ? "Open your project" : "Open Claude";
+  const openInNewTab = Boolean(projectId);
 
   return (
     <>
@@ -444,22 +445,26 @@ function CheckStep({
             className="w-full text-white hover:brightness-110"
             style={accent}
           >
-            <a href={desktopUrl}>
+            <a
+              href={openUrl}
+              {...(openInNewTab ? { target: "_blank", rel: "noreferrer" } : {})}
+            >
               {openLabel}
               <ExternalLink aria-hidden="true" />
             </a>
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {projectId
-              ? "Opens your project in the Claude desktop app when installed, with this message ready when the client supports it. "
+              ? "Opens a new chat in your project in the browser, with this message ready to send. "
               : "Opens Claude Desktop with this message ready to send. "}
             <a
-              href={webUrl}
-              target="_blank"
-              rel="noreferrer"
+              href={secondaryUrl}
+              {...(projectId ? {} : { target: "_blank", rel: "noreferrer" })}
               className="font-medium text-foreground underline-offset-2 hover:underline"
             >
-              Open in browser instead
+              {projectId
+                ? "Open project in desktop app instead"
+                : "Open in browser instead"}
             </a>
             {!projectId ? (
               <>

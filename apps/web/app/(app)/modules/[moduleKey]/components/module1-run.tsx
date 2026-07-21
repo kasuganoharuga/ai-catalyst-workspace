@@ -44,6 +44,8 @@ type Module1RunProps = {
   needsRetry: boolean;
   awaitingConfirmation: boolean;
   isCompleted: boolean;
+  /** Preview-only: content stays visible, Claude/attempt CTAs stay hidden. */
+  isLocked: boolean;
   startPrompt: string;
   nextModuleTitle: string | null;
 };
@@ -279,16 +281,20 @@ function WorkStep({
   artifactVersion,
   awaitingConfirmation,
   isCompleted,
+  isLocked,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
   const projectId = claudeProjectId?.trim() || null;
-  const desktopUrl = projectId
-    ? claudeChatProjectUrl(projectId, startPrompt)
-    : claudeDesktopChatUrl(startPrompt);
-  const webUrl = projectId
+  // With a project: HTTPS `/new?project=&q=` (Desktop cannot combine both).
+  // Without: Desktop `/new?q=` still prefills.
+  const openUrl = projectId
     ? claudeChatProjectWebUrl(projectId, startPrompt)
+    : claudeDesktopChatUrl(startPrompt);
+  const secondaryUrl = projectId
+    ? claudeChatProjectUrl(projectId)
     : claudeChatUrl(startPrompt);
   const openLabel = projectId ? "Open your project" : "Open Claude";
+  const openInNewTab = Boolean(projectId);
 
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,
@@ -303,12 +309,16 @@ function WorkStep({
     <>
       <StepHeading
         title="Work through it in Claude"
-        body="Send the line below in your project. Claude asks the questions one at a time — this page tracks what it has saved as you go, so you can leave and come back."
+        body={
+          isLocked
+            ? "Preview of how this module works. Actions unlock once you finish the module before it."
+            : "Send the line below in your project. Claude asks the questions one at a time — this page tracks what it has saved as you go, so you can leave and come back."
+        }
       />
 
       <StrongAnswerCard />
 
-      {!connected ? (
+      {!isLocked && !connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
           Claude still needs a one-time connector to this workspace before it
           can save anything.{" "}
@@ -327,37 +337,50 @@ function WorkStep({
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
             Send this
           </p>
-          <CopyButton value={startPrompt} label="Copy" />
+          {!isLocked ? <CopyButton value={startPrompt} label="Copy" /> : null}
         </div>
         <p className="px-4 py-4 font-mono text-sm leading-6 text-foreground">
           {startPrompt}
         </p>
-        <div className="border-t border-border px-4 py-4">
-          <Button
-            asChild
-            size="lg"
-            className="w-full text-white hover:brightness-110"
-            style={accent}
-          >
-            <a href={desktopUrl}>
-              {openLabel}
-              <ExternalLink aria-hidden="true" />
-            </a>
-          </Button>
-          <p className="mt-2 text-center text-xs text-muted-foreground">
-            {projectId
-              ? "Opens your project in the Claude desktop app when installed, with this message ready when the client supports it. "
-              : "Opens Claude Desktop with this message ready to send. "}
-            <a
-              href={webUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              Open in browser instead
-            </a>
+        {isLocked ? (
+          <p className="border-t border-border px-4 py-4 text-sm leading-6 text-muted-foreground">
+            Opening Claude and starting this module unlocks after you finish the
+            previous one.
           </p>
-        </div>
+        ) : (
+          <div className="border-t border-border px-4 py-4">
+            <Button
+              asChild
+              size="lg"
+              className="w-full text-white hover:brightness-110"
+              style={accent}
+            >
+              <a
+                href={openUrl}
+                {...(openInNewTab
+                  ? { target: "_blank", rel: "noreferrer" }
+                  : {})}
+              >
+                {openLabel}
+                <ExternalLink aria-hidden="true" />
+              </a>
+            </Button>
+            <p className="mt-2 text-center text-xs text-muted-foreground">
+              {projectId
+                ? "Opens a new chat in your project in the browser, with this message ready to send. "
+                : "Opens Claude Desktop with this message ready to send. "}
+              <a
+                href={secondaryUrl}
+                {...(projectId ? {} : { target: "_blank", rel: "noreferrer" })}
+                className="font-medium text-foreground underline-offset-2 hover:underline"
+              >
+                {projectId
+                  ? "Open project in desktop app instead"
+                  : "Open in browser instead"}
+              </a>
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Milestones from what Claude actually saved. The six questions sit
@@ -495,6 +518,7 @@ function ConfirmStep({
   needsRetry,
   awaitingConfirmation,
   isCompleted,
+  isLocked,
   nextModuleTitle,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
@@ -519,6 +543,7 @@ function ConfirmStep({
     : hasAttempt
       ? "Resume attempt"
       : "Start attempt";
+  const canUseActions = !isLocked;
 
   function handleConfirm() {
     if (!programRunModuleId) return;
@@ -572,11 +597,12 @@ function ConfirmStep({
               No file detected yet
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              We haven&apos;t found a verdict in your workspace yet. Once Claude
-              saves it and it passes its checks, this is where you sign it off.
+              {isLocked
+                ? "You can look ahead here. Starting an attempt and saving a verdict unlock once this module opens."
+                : "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off."}
             </p>
           </div>
-          {programRunModuleId ? (
+          {canUseActions && programRunModuleId ? (
             <StartModuleAttemptButton
               programRunModuleId={programRunModuleId}
               label={attemptButtonLabel}
@@ -680,7 +706,7 @@ function ConfirmStep({
             </Button>
           )}
         </div>
-      ) : awaitingConfirmation ? (
+      ) : canUseActions && awaitingConfirmation ? (
         <div className="mt-6">
           <Button
             type="button"
@@ -704,7 +730,9 @@ function ConfirmStep({
         </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
-          Finish the conversation in the previous step first.
+          {isLocked
+            ? "Sign-off unlocks with this module."
+            : "Finish the conversation in the previous step first."}
         </p>
       )}
     </>
