@@ -71,7 +71,10 @@ export function PasswordSection() {
         Password
       </h2>
 
-      <form onSubmit={handleSubmit} className="mt-3 border-t border-border">
+      <form
+        onSubmit={handleSubmit}
+        className="mt-3 max-w-2xl space-y-5 border-t border-border pt-6"
+      >
         <PasswordField
           label="Current password"
           value={currentPassword}
@@ -165,22 +168,20 @@ function PasswordField({
   hint?: string;
 }) {
   return (
-    <label className="grid gap-2 border-b border-border py-4 sm:grid-cols-[10rem_1fr] sm:items-baseline sm:gap-6">
+    <label className="block space-y-2">
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="min-w-0">
-        <input
-          type="password"
-          value={value}
-          autoComplete={autoComplete}
-          onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
-        />
-        {hint ? (
-          <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
-      </span>
+      <input
+        type="password"
+        value={value}
+        autoComplete={autoComplete}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
+      />
+      {hint ? (
+        <span className="block text-xs leading-5 text-muted-foreground">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }

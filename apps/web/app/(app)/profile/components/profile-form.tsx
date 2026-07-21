@@ -7,6 +7,7 @@ import type { UserProfile } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
 import { updateProfileAction } from "@/lib/actions/founder-actions";
+import { cn } from "@/lib/utils";
 
 type FormState = {
   firstName: string;
@@ -80,8 +81,8 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8">
-      <fieldset className="border-t border-border">
+    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
+      <fieldset className="grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
         <legend className="sr-only">Your details</legend>
         <Field
           label="First name"
@@ -103,6 +104,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           onChange={(value) => update("jobTitle", value)}
           autoComplete="organization-title"
           placeholder="Co-founder"
+          className="sm:col-span-2"
         />
         <Field
           label="Contact email"
@@ -112,6 +114,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           autoComplete="email"
           placeholder="you@company.com"
           hint="Only used if someone on the programme needs to reach you — your sign-in email doesn't change."
+          className="sm:col-span-2"
         />
         <Field
           label="LinkedIn"
@@ -120,6 +123,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           type="url"
           autoComplete="url"
           placeholder="https://www.linkedin.com/in/you"
+          className="sm:col-span-2"
         />
         <Field
           label="About you"
@@ -127,6 +131,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           onChange={(value) => update("bio", value)}
           multiline
           placeholder="A couple of lines on your background."
+          className="sm:col-span-2"
         />
       </fieldset>
 
@@ -163,6 +168,7 @@ function Field({
   placeholder,
   autoComplete,
   hint,
+  className,
 }: {
   label: string;
   value: string;
@@ -172,38 +178,37 @@ function Field({
   placeholder?: string;
   autoComplete?: string;
   hint?: string;
+  className?: string;
 }) {
   const inputClass =
     "w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-foreground focus:ring-1 focus:ring-foreground";
 
   return (
-    <label className="grid gap-2 border-b border-border py-4 sm:grid-cols-[10rem_1fr] sm:items-baseline sm:gap-6">
+    <label className={cn("block space-y-2", className)}>
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="min-w-0">
-        {multiline ? (
-          <textarea
-            rows={3}
-            value={value}
-            placeholder={placeholder}
-            onChange={(event) => onChange(event.target.value)}
-            className={inputClass}
-          />
-        ) : (
-          <input
-            type={type}
-            value={value}
-            placeholder={placeholder}
-            autoComplete={autoComplete}
-            onChange={(event) => onChange(event.target.value)}
-            className={inputClass}
-          />
-        )}
-        {hint ? (
-          <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
-      </span>
+      {multiline ? (
+        <textarea
+          rows={3}
+          value={value}
+          placeholder={placeholder}
+          onChange={(event) => onChange(event.target.value)}
+          className={inputClass}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          onChange={(event) => onChange(event.target.value)}
+          className={inputClass}
+        />
+      )}
+      {hint ? (
+        <span className="block text-xs leading-5 text-muted-foreground">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }

@@ -7,6 +7,7 @@ import type { CompanyProfile } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
 import { updateCompanyProfileAction } from "@/lib/actions/founder-actions";
+import { cn } from "@/lib/utils";
 
 type FormState = {
   name: string;
@@ -96,14 +97,17 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8">
+    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
       {isArchived ? (
         <p className="mb-6 border-l-2 border-muted-foreground/40 bg-muted/40 py-2 pl-3 text-sm leading-6 text-muted-foreground">
           This company profile is archived and can no longer be edited.
         </p>
       ) : null}
 
-      <fieldset className="border-t border-border" disabled={isArchived}>
+      <fieldset
+        className="grid gap-5 border-t border-border pt-6 sm:grid-cols-2"
+        disabled={isArchived}
+      >
         <legend className="sr-only">Company details</legend>
         <Field
           label="Company name"
@@ -112,12 +116,14 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           autoComplete="organization"
           placeholder="Acme Pty Ltd"
           required={!profile.id}
+          className="sm:col-span-2"
         />
         <Field
           label="One-liner"
           value={form.oneLiner}
           onChange={(value) => update("oneLiner", value)}
           placeholder="What you do in one sentence."
+          className="sm:col-span-2"
         />
         <Field
           label="Description"
@@ -125,6 +131,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           onChange={(value) => update("description", value)}
           multiline
           placeholder="A short overview of the company, product, and market."
+          className="sm:col-span-2"
         />
         <Field
           label="Website"
@@ -165,18 +172,19 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           placeholder="Sydney"
         />
         <Field
-          label="Street address"
-          value={form.hqStreet}
-          onChange={(value) => update("hqStreet", value)}
-          autoComplete="street-address"
-          placeholder="1 Market St"
-        />
-        <Field
           label="Postcode"
           value={form.hqPostalCode}
           onChange={(value) => update("hqPostalCode", value)}
           autoComplete="postal-code"
           placeholder="2000"
+        />
+        <Field
+          label="Street address"
+          value={form.hqStreet}
+          onChange={(value) => update("hqStreet", value)}
+          autoComplete="street-address"
+          placeholder="1 Market St"
+          className="sm:col-span-2"
         />
         <Field
           label="Year founded"
@@ -219,6 +227,7 @@ function Field({
   hint,
   required,
   inputMode,
+  className,
 }: {
   label: string;
   value: string;
@@ -230,41 +239,40 @@ function Field({
   hint?: string;
   required?: boolean;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
+  className?: string;
 }) {
   const inputClass =
     "w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-foreground focus:ring-1 focus:ring-foreground";
 
   return (
-    <label className="grid gap-2 border-b border-border py-4 sm:grid-cols-[10rem_1fr] sm:items-baseline sm:gap-6">
+    <label className={cn("block space-y-2", className)}>
       <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="min-w-0">
-        {multiline ? (
-          <textarea
-            rows={4}
-            value={value}
-            placeholder={placeholder}
-            required={required}
-            onChange={(event) => onChange(event.target.value)}
-            className={inputClass}
-          />
-        ) : (
-          <input
-            type={type}
-            value={value}
-            placeholder={placeholder}
-            autoComplete={autoComplete}
-            required={required}
-            inputMode={inputMode}
-            onChange={(event) => onChange(event.target.value)}
-            className={inputClass}
-          />
-        )}
-        {hint ? (
-          <span className="mt-1.5 block text-xs leading-5 text-muted-foreground">
-            {hint}
-          </span>
-        ) : null}
-      </span>
+      {multiline ? (
+        <textarea
+          rows={4}
+          value={value}
+          placeholder={placeholder}
+          required={required}
+          onChange={(event) => onChange(event.target.value)}
+          className={inputClass}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          placeholder={placeholder}
+          autoComplete={autoComplete}
+          required={required}
+          inputMode={inputMode}
+          onChange={(event) => onChange(event.target.value)}
+          className={inputClass}
+        />
+      )}
+      {hint ? (
+        <span className="block text-xs leading-5 text-muted-foreground">
+          {hint}
+        </span>
+      ) : null}
     </label>
   );
 }
