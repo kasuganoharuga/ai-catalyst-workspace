@@ -81,6 +81,19 @@ const fixtureValidator: Validator = {
 };
 
 const FIXTURE_DEPS = { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } };
+const PASSING_FIXTURE_CONTENT = `# Verdict\n\n${REQUIRED_MARKER}\n`;
+
+function saveVerdict(
+  actor: ActorContext,
+  attemptId: string,
+  content: string = PASSING_FIXTURE_CONTENT,
+) {
+  return saveArtifactSubmission(
+    actor,
+    { attemptId, artifactKey: "verdict", content },
+    FIXTURE_DEPS,
+  );
+}
 
 function webFounderActor(userId: string): ActorContext {
   return { userId, role: "founder", source: "web" };
@@ -373,11 +386,7 @@ describe("artifact service — database integration", () => {
 
   async function createSubmittedAttempt(label: string, decision: "proceed" | "pivot" = "proceed") {
     const context = await createDraftAttempt(label);
-    await saveArtifactSubmission(context.actor, {
-      attemptId: context.attemptId,
-      artifactKey: "verdict",
-      content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-    });
+    await saveVerdict(context.actor, context.attemptId);
     await saveFounderResponse(context.actor, {
       attemptId: context.attemptId,
       questionKey: "final_decision",
@@ -467,11 +476,7 @@ describe("artifact service — database integration", () => {
     it("creates version 1 with created_via 'website' for a web-sourced founder", async () => {
       const { actor, attemptId } = await createDraftAttempt("save-v1");
 
-      const submission = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nFirst draft.\n",
-      });
+      const submission = await saveVerdict(actor, attemptId);
 
       expect(submission.versionNumber).toBe(1);
       expect(submission.status).toBe("draft");
@@ -484,11 +489,11 @@ describe("artifact service — database integration", () => {
     it("maps an mcp-sourced founder to created_via 'claude'", async () => {
       const { actor, attemptId } = await createDraftAttempt("save-mcp");
 
-      const submission = await saveArtifactSubmission(mcpFounderActor(actor.userId), {
+      const submission = await saveVerdict(
+        mcpFounderActor(actor.userId),
         attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nFrom Claude.\n",
-      });
+        `# Verdict\n\nFrom Claude.\n\n${REQUIRED_MARKER}\n`,
+      );
 
       expect(submission.createdVia).toBe("claude");
     });
@@ -496,16 +501,16 @@ describe("artifact service — database integration", () => {
     it("increments version_number and marks the prior version superseded on changed content", async () => {
       const { actor, attemptId } = await createDraftAttempt("save-supersede");
 
-      const first = await saveArtifactSubmission(actor, {
+      const first = await saveVerdict(
+        actor,
         attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nVersion one.\n",
-      });
-      const second = await saveArtifactSubmission(actor, {
+        `# Verdict\n\nVersion one.\n\n${REQUIRED_MARKER}\n`,
+      );
+      const second = await saveVerdict(
+        actor,
         attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nVersion two.\n",
-      });
+        `# Verdict\n\nVersion two.\n\n${REQUIRED_MARKER}\n`,
+      );
 
       expect(second.versionNumber).toBe(2);
       const firstRow = await getSubmissionRow(first.id);
@@ -516,16 +521,8 @@ describe("artifact service — database integration", () => {
     it("is hash-idempotent: identical content returns the same version, no new row", async () => {
       const { actor, attemptId } = await createDraftAttempt("save-idempotent");
 
-      const first = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nStable content.\n",
-      });
-      const second = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nStable content.\n",
-      });
+      const first = await saveVerdict(actor, attemptId);
+      const second = await saveVerdict(actor, attemptId);
 
       expect(second.id).toBe(first.id);
       expect(second.versionNumber).toBe(1);
@@ -557,20 +554,38 @@ describe("artifact service — database integration", () => {
 
     it("rejects saving once the Attempt is no longer editable", async () => {
       const { actor, attemptId } = await createDraftAttempt("save-not-editable");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      await saveVerdict(actor, attemptId);
       await submitAttempt(actor, { attemptId });
 
       await expect(
-        saveArtifactSubmission(actor, {
-          attemptId,
-          artifactKey: "verdict",
-          content: "Too late.",
-        }),
+        saveVerdict(actor, attemptId, `# Verdict\n\nToo late.\n\n${REQUIRED_MARKER}\n`),
       ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_EDITABLE" });
+    });
+
+    it("rejects content that fails the locked-schema draft check before writing Storage", async () => {
+      const { actor, attemptId } = await createDraftAttempt("save-draft-gate");
+
+      await expect(
+        saveArtifactSubmission(
+          actor,
+          {
+            attemptId,
+            artifactKey: "verdict",
+            content: "# Verdict\n\nFreestyle — missing required marker.\n",
+          },
+          FIXTURE_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("locked-schema draft check"),
+      });
+
+      const countResult = await pool.query<{ count: string }>(
+        `select count(*) as count from artifact_submissions where module_attempt_id = $1`,
+        [attemptId],
+      );
+      expect(Number(countResult.rows[0].count)).toBe(0);
     });
   });
 
@@ -584,37 +599,31 @@ describe("artifact service — database integration", () => {
 
     it("returns the submission metadata together with its stored content", async () => {
       const { actor, attemptId } = await createDraftAttempt("get-artifact-content");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nHello from the fixture.\n",
-      });
+      const content = `# Verdict\n\nHello from the fixture.\n\n${REQUIRED_MARKER}\n`;
+      await saveVerdict(actor, attemptId, content);
 
       const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
 
       expect(result).not.toBeNull();
       expect(result?.submission.versionNumber).toBe(1);
       expect(result?.submission.status).toBe("draft");
-      expect(result?.content).toBe("# Verdict\n\nHello from the fixture.\n");
+      expect(result?.content).toBe(content);
     });
 
     it("returns only the latest (non-superseded) version's content", async () => {
       const { actor, attemptId } = await createDraftAttempt("get-artifact-latest");
-      await saveArtifactSubmission(actor, {
+      await saveVerdict(
+        actor,
         attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nVersion one.\n",
-      });
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nVersion two.\n",
-      });
+        `# Verdict\n\nVersion one.\n\n${REQUIRED_MARKER}\n`,
+      );
+      const latest = `# Verdict\n\nVersion two.\n\n${REQUIRED_MARKER}\n`;
+      await saveVerdict(actor, attemptId, latest);
 
       const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
 
       expect(result?.submission.versionNumber).toBe(2);
-      expect(result?.content).toBe("# Verdict\n\nVersion two.\n");
+      expect(result?.content).toBe(latest);
     });
 
     it("rejects an artifactKey belonging to a different Module as NOT_FOUND", async () => {
@@ -638,32 +647,9 @@ describe("artifact service — database integration", () => {
   });
 
   describe("runDraftCheck", () => {
-    it("records a failing check when the content is missing the required marker", async () => {
-      const { actor, attemptId } = await createDraftAttempt("draft-check-fail");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "# Verdict\n\nIncomplete.\n",
-      });
-
-      const validation = await runDraftCheck(
-        actor,
-        { attemptId, artifactKey: "verdict" },
-        FIXTURE_DEPS,
-      );
-
-      expect(validation.status).toBe("failed");
-      expect(validation.validationKind).toBe("draft_check");
-      expect(validation.issues.length).toBeGreaterThan(0);
-    });
-
     it("records a passing check when the content has the required marker", async () => {
       const { actor, attemptId } = await createDraftAttempt("draft-check-pass");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      await saveVerdict(actor, attemptId);
 
       const validation = await runDraftCheck(
         actor,
@@ -698,11 +684,7 @@ describe("artifact service — database integration", () => {
 
     it("writes a complete artifact_validations row (rule_snapshot, terminal status, timestamps)", async () => {
       const { actor, attemptId } = await createDraftAttempt("draft-check-row-integrity");
-      const submission = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      const submission = await saveVerdict(actor, attemptId);
 
       await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
 
@@ -717,11 +699,7 @@ describe("artifact service — database integration", () => {
 
     it("appends a new history row on every call, with no status side effects", async () => {
       const { actor, attemptId } = await createDraftAttempt("draft-check-repeat");
-      const submission = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      const submission = await saveVerdict(actor, attemptId);
 
       await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
       await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
@@ -739,11 +717,7 @@ describe("artifact service — database integration", () => {
 
     it("serializes two concurrent draft checks into sequential validation_number values", async () => {
       const { actor, attemptId } = await createDraftAttempt("draft-check-concurrent");
-      const submission = await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      const submission = await saveVerdict(actor, attemptId);
 
       await Promise.all([
         runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS),
@@ -759,11 +733,7 @@ describe("artifact service — database integration", () => {
   describe("getLatestValidation", () => {
     it("returns the most recent validation result for (attempt, artifactKey)", async () => {
       const { actor, attemptId } = await createDraftAttempt("get-latest");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      await saveVerdict(actor, attemptId);
       await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
 
       const latest = await getLatestValidation(actor, { attemptId, artifactKey: "verdict" });
@@ -774,11 +744,7 @@ describe("artifact service — database integration", () => {
 
     it("returns null when no validation has ever been run", async () => {
       const { actor, attemptId } = await createDraftAttempt("get-latest-none");
-      await saveArtifactSubmission(actor, {
-        attemptId,
-        artifactKey: "verdict",
-        content: "Never checked.",
-      });
+      await saveVerdict(actor, attemptId);
 
       const latest = await getLatestValidation(actor, { attemptId, artifactKey: "verdict" });
       expect(latest).toBeNull();
@@ -914,11 +880,15 @@ describe("artifact service — database integration", () => {
       const created = await startOrResumeAttempt(context.actor, {
         programRunModuleId: context.availableModuleId,
       });
-      await saveArtifactSubmission(context.actor, {
-        attemptId: created.attempt.id,
-        artifactKey: "verdict-1",
-        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-      });
+      await saveArtifactSubmission(
+        context.actor,
+        {
+          attemptId: created.attempt.id,
+          artifactKey: "verdict-1",
+          content: PASSING_FIXTURE_CONTENT,
+        },
+        FIXTURE_DEPS,
+      );
       await saveFounderResponse(context.actor, {
         attemptId: created.attempt.id,
         questionKey: "final_decision",

@@ -520,10 +520,17 @@ function normalizeSaveArtifactSubmissionInput(input: unknown): {
  * version unchanged — no new version, no new Storage write, no new
  * module_event. A genuinely changed `content` always produces a new
  * version, superseding the prior `draft` one.
+ *
+ * When the Artifact Definition has a `validator_key`, the Validator's
+ * draft check runs against the incoming content *before* any Storage
+ * write. Failures throw VALIDATION_ERROR with the named issues so MCP
+ * callers can repair the locked schema instead of persisting freestyle
+ * Markdown that only fails later at complete_module.
  */
 export async function saveArtifactSubmission(
   actor: ActorContext,
   input: unknown,
+  deps: ArtifactServiceDependencies = {},
 ): Promise<ArtifactSubmission> {
   assertRole(actor, ["founder"]);
   const { attemptId: rawAttemptId, artifactKey, content } =
@@ -549,6 +556,34 @@ export async function saveArtifactSubmission(
   });
   if (precheckExisting && precheckExisting.content_sha256 === contentHash) {
     return mapArtifactSubmissionRow(precheckExisting);
+  }
+
+  if (artifactDefinition.validator_key) {
+    const validator = resolveValidator(artifactDefinition.validator_key, deps.validators);
+    const responses = await loadResponses(pool, attemptId);
+    const draftResult = validator.runDraftCheck({
+      content,
+      responses: responses.map((row) => ({
+        questionKey: row.question_key,
+        responseStatus: row.response_status,
+        answerText: row.answer_text,
+        answerData: row.answer_data,
+      })),
+      validationConfig: artifactDefinition.validation_config,
+    });
+    if (!draftResult.passed) {
+      const detail =
+        draftResult.issues.length > 0
+          ? draftResult.issues.join(" ")
+          : `Draft check "${draftResult.checks
+              .filter((check) => !check.passed)
+              .map((check) => check.key)
+              .join(", ")}" failed.`;
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        `Artifact content failed the locked-schema draft check: ${detail}`,
+      );
+    }
   }
 
   // Phase 2 (Storage I/O, no transaction held open): 2.5's own

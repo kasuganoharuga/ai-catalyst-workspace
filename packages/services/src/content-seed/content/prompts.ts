@@ -56,7 +56,8 @@ Only after the Founder confirms that summary, call \`save_founder_input\` once f
 
 - Do not skip the summary confirm.
 - Do not save before the summary confirm.
-- Do not rename locked verdict headings.
+- Do not rename locked verdict headings — use the Artifact Generator template verbatim.
+- If \`save_artifact\` fails with a locked-schema draft check error, repair the named issues and retry; do not invent a different document shape.
 - If a save fails, tell the Founder immediately and stop.
 `;
 
@@ -91,6 +92,8 @@ Generate the Pressure-Test Verdict from the Founder's six confirmed core Respons
 ## Boundaries
 
 - Do not fabricate traction, customers, or market evidence.
+- Do not invent alternate section titles (e.g. "## 1. The Idea"). Copy the locked \`templateMarkdown\` headings exactly, then fill them.
+- \`save_artifact\` rejects content that fails the locked-schema draft check — if it returns VALIDATION_ERROR, repair every named issue against the template and save again. Do not call \`complete_module\` until save succeeds.
 - Do not mark the Module complete — completion is determined by the Service layer and the Founder's website confirmation.
 `;
 
@@ -101,7 +104,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Interview-style guide for Module 1: collect-only Q1–Q6, summary confirm, batch save, then verdict and Founder decision.",
     promptType: "module_facilitator",
-    versionNumber: 2,
+    versionNumber: 3,
     content: FACILITATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
@@ -112,7 +115,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Generates the locked-schema Pressure-Test Verdict (draft then final) from confirmed Responses.",
     promptType: "artifact_generator",
-    versionNumber: 2,
+    versionNumber: 3,
     content: ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },

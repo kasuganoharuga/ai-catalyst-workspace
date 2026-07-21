@@ -124,7 +124,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Save artifact",
       description:
-        "Stores a new version of an Artifact's content through StorageService and creates its versioned submission. Hash-idempotent: an identical resubmission returns the existing version unchanged.",
+        "Stores a new version of an Artifact's content through StorageService and creates its versioned submission. When the Artifact has a Validator, the locked-schema draft check runs before any Storage write — freestyle Markdown that fails the check is rejected with VALIDATION_ERROR (repair the named issues and retry). Hash-idempotent: an identical resubmission returns the existing version unchanged.",
       inputSchema: SAVE_ARTIFACT_SHAPE,
     },
     async (args) => {

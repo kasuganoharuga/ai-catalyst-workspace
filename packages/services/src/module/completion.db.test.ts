@@ -546,11 +546,15 @@ describe("completeModuleAttempt — database integration", () => {
       questionKey: "final_decision",
       value: "proceed",
     });
-    await saveArtifactSubmission(fixture.actor, {
-      attemptId: module1Attempt.id,
-      artifactKey: DECISION_ARTIFACT_KEY,
-      content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-    });
+    await saveArtifactSubmission(
+      fixture.actor,
+      {
+        attemptId: module1Attempt.id,
+        artifactKey: DECISION_ARTIFACT_KEY,
+        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
+      },
+      { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } },
+    );
 
     const result = await completeModuleAttempt(
       fixture.actor,
@@ -584,11 +588,15 @@ describe("completeModuleAttempt — database integration", () => {
       questionKey: "final_decision",
       value: "pivot",
     });
-    await saveArtifactSubmission(fixture.actor, {
-      attemptId: module1Attempt.id,
-      artifactKey: DECISION_ARTIFACT_KEY,
-      content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-    });
+    await saveArtifactSubmission(
+      fixture.actor,
+      {
+        attemptId: module1Attempt.id,
+        artifactKey: DECISION_ARTIFACT_KEY,
+        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
+      },
+      { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } },
+    );
 
     const result = await completeModuleAttempt(
       fixture.actor,
