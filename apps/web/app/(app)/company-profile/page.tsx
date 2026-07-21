@@ -16,7 +16,7 @@ export default async function CompanyProfilePage() {
   const displayName = resolveCompanyDisplayName(profile);
 
   return (
-    <PageShell className="max-w-2xl">
+    <PageShell className="max-w-6xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Company profile
       </p>

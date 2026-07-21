@@ -21,7 +21,7 @@ export default async function ProfilePage() {
   const displayName = resolveDisplayName(profile, session.user.name);
 
   return (
-    <PageShell className="max-w-2xl">
+    <PageShell className="max-w-6xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Your profile
       </p>

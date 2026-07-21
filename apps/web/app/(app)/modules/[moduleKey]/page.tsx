@@ -48,13 +48,8 @@ export default async function ModuleDetailPage({
     throw error;
   }
 
-  // Setup (Module 0) is a single column — no right rail — so keep the shell
-  // at the same width as the walkthrough. Other modules keep the wider
-  // shell for the content + "where you're up to" grid.
-  const shellWidth = entry.moduleType === "setup" ? "max-w-3xl" : "max-w-6xl";
-
   return (
-    <PageShell className={`${shellWidth} py-16`}>
+    <PageShell className="max-w-6xl py-16">
       <Suspense
         fallback={
           <ModuleDetailSkeleton singleColumn={entry.moduleType === "setup"} />
