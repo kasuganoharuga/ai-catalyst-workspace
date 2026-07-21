@@ -78,6 +78,7 @@ interface ArtifactRow {
   submission_version_number: number | null;
   submission_status: ArtifactSubmissionStatus | null;
   submission_submitted_at: Date | null;
+  submission_updated_at: Date | null;
 }
 
 interface ArtifactRowWithModuleId extends ArtifactRow {
@@ -201,11 +202,12 @@ async function loadArtifactsByModuleAttempts(
             ad.required_filename, ad.sequence_index,
             s.version_number as submission_version_number,
             s.status as submission_status,
-            s.submitted_at as submission_submitted_at
+            s.submitted_at as submission_submitted_at,
+            s.updated_at as submission_updated_at
      from module_ctx mc
      join artifact_definitions ad on ad.module_definition_id = mc.module_definition_id
      left join lateral (
-       select version_number, status, submitted_at
+       select version_number, status, submitted_at, updated_at
        from artifact_submissions
        where module_attempt_id = mc.attempt_id
          and artifact_definition_id = ad.id
@@ -259,12 +261,13 @@ function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary
     isRequired: row.is_required,
     requiredFilename: row.required_filename,
     latestSubmission:
-      row.submission_version_number === null
+      row.submission_version_number === null || row.submission_updated_at === null
         ? null
         : {
             versionNumber: row.submission_version_number,
             status: row.submission_status as ArtifactSubmissionStatus,
             submittedAt: row.submission_submitted_at?.toISOString() ?? null,
+            updatedAt: row.submission_updated_at.toISOString(),
           },
   }));
 }

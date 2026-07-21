@@ -30,12 +30,14 @@ type ExpectedArtifact = {
 };
 
 type Module1RunProps = {
+  moduleKey: string;
   moduleIndex: number;
   programRunModuleId: string | null;
   claudeProjectId: string | null;
   connected: boolean;
   coreQuestions: ModuleContextQuestion[];
   decisionQuestions: ModuleContextQuestion[];
+  artifactKey: string | null;
   artifactName: string | null;
   artifactVersion: number | null;
   artifactSavedAt: string | null;
@@ -285,10 +287,11 @@ function WorkStep({
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
   const projectId = claudeProjectId?.trim() || null;
-  // With a project: HTTPS `/new?project=&q=` (Desktop cannot combine both).
-  // Without: Desktop `/new?q=` still prefills.
+  // With a project: open project home only (no prefilled `q`). Staying in the
+  // saved project beats auto-sending the starter line. Without: Desktop
+  // `/new?q=` still prefills.
   const openUrl = projectId
-    ? claudeChatProjectWebUrl(projectId, startPrompt)
+    ? claudeChatProjectWebUrl(projectId)
     : claudeDesktopChatUrl(startPrompt);
   const secondaryUrl = projectId
     ? claudeChatProjectUrl(projectId)
@@ -367,7 +370,7 @@ function WorkStep({
             </Button>
             <p className="mt-2 text-center text-xs text-muted-foreground">
               {projectId
-                ? "Opens a new chat in your project in the browser, with this message ready to send. "
+                ? "Opens your Claude project in the browser. Copy the line above and paste it into a chat there. "
                 : "Opens Claude Desktop with this message ready to send. "}
               <a
                 href={secondaryUrl}
@@ -508,7 +511,9 @@ function formatSavedAt(iso: string): string {
 }
 
 function ConfirmStep({
+  moduleKey,
   programRunModuleId,
+  artifactKey,
   artifactName,
   artifactVersion,
   artifactSavedAt,
@@ -664,6 +669,22 @@ function ConfirmStep({
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+        {documentSaved && artifactKey ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-4 py-3 text-xs">
+            <Link
+              href={`/artefacts/${moduleKey}/${artifactKey}`}
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Read document
+            </Link>
+            <a
+              href={`/artefacts/${moduleKey}/${artifactKey}/download`}
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Download
+            </a>
           </div>
         ) : null}
       </div>

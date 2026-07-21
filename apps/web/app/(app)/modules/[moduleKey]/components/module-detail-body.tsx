@@ -229,12 +229,14 @@ export async function ModuleDetailBody({
               />
             ) : null}
             <Module0Setup
+              moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
               programRunModuleId={runModule.id}
               ventureId={venture?.id ?? null}
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
               hasMcpActivity={Boolean(connection?.lastActivityAt)}
+              artifactKey={context.artifacts[0]?.artifactKey ?? null}
               artifactName={context.artifacts[0]?.name ?? null}
               artifactVersion={
                 context.artifacts[0]?.latestSubmission?.versionNumber ?? null
@@ -255,12 +257,14 @@ export async function ModuleDetailBody({
               <ValidationIssuesCard validation={failedValidation} />
             ) : null}
             <Module1Run
+              moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
               programRunModuleId={runModule.id}
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
               coreQuestions={coreQuestions}
               decisionQuestions={decisionQuestions}
+              artifactKey={context.artifacts[0]?.artifactKey ?? null}
               artifactName={context.artifacts[0]?.name ?? null}
               artifactVersion={
                 context.artifacts[0]?.latestSubmission?.versionNumber ?? null

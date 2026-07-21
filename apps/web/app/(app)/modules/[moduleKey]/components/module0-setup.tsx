@@ -31,12 +31,14 @@ type ExpectedArtifact = {
 };
 
 type Module0SetupProps = {
+  moduleKey: string;
   moduleIndex: number;
   programRunModuleId: string | null;
   ventureId: string | null;
   claudeProjectId: string | null;
   connected: boolean;
   hasMcpActivity: boolean;
+  artifactKey: string | null;
   artifactName: string | null;
   artifactVersion: number | null;
   artifactSavedAt: string | null;
@@ -394,12 +396,12 @@ function CheckStep({
 }: Module0SetupProps & { accent: { backgroundColor: string } }) {
   const documentSaved = artifactVersion !== null;
   const projectId = claudeProjectId?.trim() || null;
-  // With a project: primary link is HTTPS `/new?project=&q=` so both the
-  // project scope and the starter line land together. Desktop `claude://`
-  // cannot combine them (project route drops `q`, `/new` drops `project`).
-  // Without a project: Desktop `/new?q=` still prefills cleanly.
+  // With a project: open the project home (no prefilled `q`). Landing in the
+  // saved project matters more than auto-sending the starter line — Founders
+  // copy/paste "Send this" once they are inside the project. Without a
+  // project: Desktop `/new?q=` still prefills cleanly.
   const openUrl = projectId
-    ? claudeChatProjectWebUrl(projectId, startPrompt)
+    ? claudeChatProjectWebUrl(projectId)
     : claudeDesktopChatUrl(startPrompt);
   const secondaryUrl = projectId
     ? claudeChatProjectUrl(projectId)
@@ -455,7 +457,7 @@ function CheckStep({
           </Button>
           <p className="mt-2 text-center text-xs text-muted-foreground">
             {projectId
-              ? "Opens a new chat in your project in the browser, with this message ready to send. "
+              ? "Opens your Claude project in the browser. Copy the line above and paste it into a chat there. "
               : "Opens Claude Desktop with this message ready to send. "}
             <a
               href={secondaryUrl}
@@ -515,7 +517,9 @@ function formatSavedAt(iso: string): string {
 }
 
 function ConfirmStep({
+  moduleKey,
   programRunModuleId,
+  artifactKey,
   artifactName,
   artifactVersion,
   artifactSavedAt,
@@ -643,6 +647,22 @@ function ConfirmStep({
                 </li>
               ))}
             </ul>
+          </div>
+        ) : null}
+        {documentSaved && artifactKey ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-4 py-3 text-xs">
+            <Link
+              href={`/artefacts/${moduleKey}/${artifactKey}`}
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Read document
+            </Link>
+            <a
+              href={`/artefacts/${moduleKey}/${artifactKey}/download`}
+              className="font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              Download
+            </a>
           </div>
         ) : null}
       </div>

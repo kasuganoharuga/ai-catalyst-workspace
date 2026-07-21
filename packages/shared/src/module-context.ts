@@ -27,7 +27,10 @@ export interface ModuleContextArtifactSummary {
   latestSubmission: {
     versionNumber: number;
     status: ArtifactSubmissionStatus;
+    /** Set when the submission is officially submitted; null while still draft. */
     submittedAt: string | null;
+    /** Last write time (draft save or later update) — use for "Saved …" UI. */
+    updatedAt: string;
   } | null;
 }
 

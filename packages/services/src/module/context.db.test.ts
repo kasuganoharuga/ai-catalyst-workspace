@@ -354,7 +354,11 @@ describe("getModuleContext — database integration", () => {
     expect(artifact?.latestSubmission).toMatchObject({
       versionNumber: 1,
       status: "draft",
+      submittedAt: null,
     });
+    expect(artifact?.latestSubmission?.updatedAt).toEqual(
+      expect.any(String),
+    );
   });
 
   it("scopes Questions/Artifacts strictly to the requested Module (a locked sibling Module sees only its own)", async () => {

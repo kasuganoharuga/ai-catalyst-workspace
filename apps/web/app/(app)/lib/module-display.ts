@@ -149,8 +149,10 @@ export function claudeChatProjectUrl(projectId: string): string {
 /**
  * Browser URL into a Claude Chat Project.
  *
- * With a prompt: `/new?project=…&q=…` opens a new chat in that project with
- * the composer prefilled. Without a prompt: project home only.
+ * Default (no prompt): project home — preferred for "Open your project" so
+ * the Founder lands in the saved project rather than a prefilled `/new` chat
+ * that can feel like a separate thread. Optional `prompt` still builds
+ * `/new?project=…&q=…` for callers that explicitly want a prefilled composer.
  */
 export function claudeChatProjectWebUrl(
   projectId: string,

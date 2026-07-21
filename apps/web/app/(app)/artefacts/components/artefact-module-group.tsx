@@ -1,0 +1,56 @@
+import { moduleAccentStyle } from "../../lib/module-display";
+
+import {
+  ArtefactDocumentRow,
+  type ArtefactModuleGroupModel,
+} from "./artefact-card";
+
+/**
+ * Groups every document that belongs to one module. Multiple artefacts
+ * stack as rows in a single panel so the module identity is shown once.
+ */
+export function ArtefactModuleGroup({
+  group,
+}: {
+  group: ArtefactModuleGroupModel;
+}) {
+  const savedCount = group.artefacts.filter(
+    (row) => row.versionNumber !== null,
+  ).length;
+
+  return (
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <header className="flex items-start gap-4 border-b border-border bg-muted/30 px-5 py-4">
+        <span
+          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold tabular-nums text-white"
+          style={moduleAccentStyle(group.sequenceIndex)}
+        >
+          {String(group.sequenceIndex).padStart(2, "0")}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+            <h2 className="font-serif text-xl font-medium leading-snug tracking-[-0.01em] text-foreground">
+              {group.moduleTitle}
+            </h2>
+            <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {savedCount} of {group.artefacts.length} saved
+            </p>
+          </div>
+          {group.moduleSubtitle ? (
+            <p className="mt-1 text-[13px] leading-6 text-muted-foreground">
+              {group.moduleSubtitle}
+            </p>
+          ) : null}
+        </div>
+      </header>
+
+      <ul className="divide-y divide-border">
+        {group.artefacts.map((artefact) => (
+          <li key={artefact.artifactKey}>
+            <ArtefactDocumentRow artefact={artefact} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
