@@ -23,7 +23,7 @@ import { ventureForActiveContext } from "@/lib/ventures";
 import { PageShell } from "../components/page-shell";
 import { StartRunButton } from "../components/start-run-button";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
-import { ModuleStatusCard } from "./components/module-status-card";
+import { ModulesCarousel } from "./components/modules-carousel";
 import { NextActionCard } from "./components/next-action-card";
 import { SetupStepper, type SetupStep } from "./components/setup-stepper";
 
@@ -97,7 +97,6 @@ export default async function DashboardPage() {
   ]);
 
   const liveModules = catalog.filter((m) => m.catalogStatus === "live");
-  const comingSoonCount = catalog.length - liveModules.length;
   const contextByKey = new Map<string, ModuleContext | null>([
     [MODULE_0_KEY, module0],
     [MODULE_1_KEY, module1],
@@ -122,12 +121,12 @@ export default async function DashboardPage() {
     connection.lastActivityAt,
   );
 
-  // A profile counts as set up once there's a real name on it. The
-  // password half of that step can't be detected — Better Auth doesn't
-  // expose whether the invitation password was ever changed — so it's
-  // prompted in the copy rather than gating the tick.
+  // Profile must be filled in on Your profile before Connect Claude (or
+  // anything after) unlocks. Require both name parts so a half-filled or
+  // leftover single field never skips the first step. Password change
+  // still can't be detected from Better Auth — prompted in the copy only.
   const profileComplete = Boolean(
-    profile.firstName?.trim() || profile.lastName?.trim(),
+    profile.firstName?.trim() && profile.lastName?.trim(),
   );
   // Module 0 has produced something and passed its checks. Distinct from
   // completed: the output exists but nobody has signed it off yet.
@@ -149,21 +148,31 @@ export default async function DashboardPage() {
       title: "Connect Claude",
       description: "One secure link between Claude and this workspace",
       done: connection.authorised,
-      href: "/connection",
+      // Stay on profile until both name fields are saved — do not deep-link
+      // ahead of the first step.
+      href: profileComplete ? "/connection" : null,
     },
     {
       title: "Run Module 0 in Claude",
       description:
         "Set up a Claude project for your venture, then let it check the whole path end to end",
       done: module0OutputReady,
-      href: hasRun ? `/modules/${MODULE_0_KEY}` : "/connection",
+      href:
+        profileComplete && connection.authorised
+          ? hasRun
+            ? `/modules/${MODULE_0_KEY}`
+            : "/connection"
+          : null,
     },
     {
       title: "Confirm what it produced",
       description:
         "Read the Setup Summary and sign it off — that's what opens Module 1",
       done: Boolean(module0Completed),
-      href: hasRun ? `/modules/${MODULE_0_KEY}` : "/connection",
+      href:
+        profileComplete && connection.authorised && hasRun
+          ? `/modules/${MODULE_0_KEY}`
+          : null,
     },
   ];
 
@@ -259,19 +268,17 @@ export default async function DashboardPage() {
 
       <div className="mt-10">
         <NextActionCard title={nextAction.title} body={nextAction.body}>
-          {!hasRun ? (
-            venture ? (
-              <StartRunButton ventureId={venture.id} label="Set it up" />
-            ) : (
-              <Button asChild size="lg">
-                <Link href="/workspace">Create a venture first</Link>
-              </Button>
-            )
-          ) : nextAction.href ? (
+          {nextAction.href ? (
             <Button asChild size="lg">
               <Link href={nextAction.href}>{nextAction.cta}</Link>
             </Button>
-          ) : null}
+          ) : venture ? (
+            <StartRunButton ventureId={venture.id} label="Set it up" />
+          ) : (
+            <Button asChild size="lg">
+              <Link href="/workspace">Create a venture first</Link>
+            </Button>
+          )}
         </NextActionCard>
       </div>
 
@@ -300,25 +307,14 @@ export default async function DashboardPage() {
           View all
         </Link>
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-2">
-        {liveModules.map((module) => (
-          <ModuleStatusCard
-            key={module.moduleKey}
-            catalog={module}
-            context={contextByKey.get(module.moduleKey) ?? null}
-          />
-        ))}
+      <div className="mt-5">
+        <ModulesCarousel
+          items={liveModules.map((module) => ({
+            catalog: module,
+            context: contextByKey.get(module.moduleKey) ?? null,
+          }))}
+        />
       </div>
-
-      {comingSoonCount > 0 ? (
-        <p className="mt-5 text-sm leading-6 text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {comingSoonCount} more modules
-          </span>{" "}
-          — customer, problem, evidence, business model — open as you work
-          through the ones above.
-        </p>
-      ) : null}
     </PageShell>
   );
 }

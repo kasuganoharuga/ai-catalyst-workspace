@@ -19,9 +19,9 @@ function formatDate(iso: string): string {
 
 /**
  * One Module's live status card (design frames H2/H7's "modcard"): status
- * badge, what it produces, whether that output is saved, and where review
- * stands. `context` is null before the Founder's Run exists — the card
- * then renders from catalog data alone, in its pre-setup state.
+ * badge, what it produces, whether that output is saved, and when the
+ * module was completed. `context` is null before the Founder's Run
+ * exists — the card then renders from catalog data alone.
  */
 export function ModuleStatusCard({
   catalog,
@@ -49,11 +49,7 @@ export function ModuleStatusCard({
   const effectiveAttemptStatus = attemptStatus ?? displayAttemptStatus;
 
   const isSetupModule = catalog.moduleType === "setup";
-  const reviewText = isSetupModule
-    ? "Automatic"
-    : effectiveAttemptStatus === "ready_for_review" || isCompleted
-      ? null // rendered as a badge below instead
-      : "After the verdict";
+  const completedAt = runModule?.completedAt ?? null;
 
   const footHint = (() => {
     if (!runModule) return "Opens once your programme is set up";
@@ -87,7 +83,7 @@ export function ModuleStatusCard({
     <Link
       href={`/modules/${catalog.moduleKey}`}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
+        "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
         isLocked && "opacity-60",
       )}
     >
@@ -132,14 +128,14 @@ export function ModuleStatusCard({
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-border/70 py-2.5">
-            <dt className="text-muted-foreground">Review</dt>
+            <dt className="text-muted-foreground">Completed</dt>
             <dd className="text-right">
-              {reviewText ? (
-                <span className="text-muted-foreground">{reviewText}</span>
+              {completedAt ? (
+                <span className="font-mono text-xs tabular-nums text-foreground">
+                  {formatDate(completedAt)}
+                </span>
               ) : (
-                <StatusBadge
-                  status={{ label: "Ready for review", tone: "ink" }}
-                />
+                <span className="text-muted-foreground">Not yet</span>
               )}
             </dd>
           </div>
