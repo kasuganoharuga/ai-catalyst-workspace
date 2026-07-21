@@ -225,6 +225,52 @@ describe("seedToolkitContent", () => {
     expect(row.rows[0].question_text).toBe(originalQuestionText);
   });
 
+  it("updates prompt_definitions name/description drift in place", async () => {
+    await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+
+    const target = TEST_CONTENT.prompts[0]!;
+    await pool.query(
+      `update prompt_definitions
+       set description = 'Stale catalog copy that should be corrected on the next seed'
+       where prompt_key = $1`,
+      [target.promptKey],
+    );
+
+    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    expect(result.published).toBe(false);
+    expect(result.programVersionStatus).toBe("published");
+
+    const row = await pool.query<{ description: string }>(
+      "select description from prompt_definitions where prompt_key = $1",
+      [target.promptKey],
+    );
+    expect(row.rows[0].description).toBe(target.description);
+  });
+
+  it("rejects prompt_definitions prompt_type drift", async () => {
+    await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+
+    const target = TEST_CONTENT.prompts[0]!;
+    const otherType =
+      target.promptType === "module_facilitator"
+        ? ("artifact_generator" as const)
+        : ("module_facilitator" as const);
+
+    const mutated: ToolkitSeedContent = {
+      ...TEST_CONTENT,
+      prompts: TEST_CONTENT.prompts.map((prompt, index) =>
+        index === 0 ? { ...prompt, promptType: otherType } : prompt,
+      ),
+    };
+
+    await expect(
+      withTransaction((client) => seedToolkitContent(client, mutated)),
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "PUBLISHED_CONTENT_MISMATCH",
+    });
+  });
+
   it("rejects extra content rows not present in the content constants", async () => {
     const first = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
     const modules = await fetchModuleRows(first.programVersionId);

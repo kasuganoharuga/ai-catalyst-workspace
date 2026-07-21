@@ -11,21 +11,25 @@ export interface ReconciledPromptVersion {
   status: "draft" | "published" | "retired";
 }
 
-const DEFINITION_FIELDS = ["name", "description", "prompt_type"] as const;
+const DEFINITION_METADATA_FIELDS = ["name", "description"] as const;
 const VERSION_FIELDS = ["content", "content_format", "variable_config"] as const;
 
 // prompt_definitions has no draft/published lifecycle of its own — its
-// status is only active/archived, meaning "currently offered", not a
-// content-editability gate. Unlike the module_* tables, there is no
-// escape hatch here: any identity mismatch is always rejected.
+// status is only active/archived. Catalog metadata (name/description) may
+// be corrected in place so deploys can republish prompt copy without a
+// manual staging UPDATE. prompt_type is structural identity and still
+// rejected on mismatch; published prompt_versions.content stays immutable.
 async function reconcilePromptDefinition(
   client: PoolClient,
   prompt: PromptContent,
 ): Promise<string> {
-  const existing = await client.query<
-    { id: string } & Record<(typeof DEFINITION_FIELDS)[number], unknown>
-  >(
-    `select id, ${DEFINITION_FIELDS.join(", ")}
+  const existing = await client.query<{
+    id: string;
+    name: string;
+    description: string | null;
+    prompt_type: string;
+  }>(
+    `select id, name, description, prompt_type
      from prompt_definitions
      where prompt_key = $1`,
     [prompt.promptKey],
@@ -48,14 +52,25 @@ async function reconcilePromptDefinition(
     return inserted.rows[0].id;
   }
 
-  const differing = diffFields(expected, row, DEFINITION_FIELDS);
-  if (differing.length > 0) {
+  if (row.prompt_type !== expected.prompt_type) {
     throw new ContentSeedError(
       "PUBLISHED_CONTENT_MISMATCH",
-      `prompt_definitions "${prompt.promptKey}" already exists with a different ${differing.join("/")} ` +
-        "than the content constants. prompt_definitions identity is not editable by this script.",
+      `prompt_definitions "${prompt.promptKey}" already exists with a different prompt_type ` +
+        "than the content constants. prompt_type is not editable by this script.",
     );
   }
+
+  const differing = diffFields(expected, row, DEFINITION_METADATA_FIELDS);
+  if (differing.length === 0) {
+    return row.id;
+  }
+
+  await client.query(
+    `update prompt_definitions
+     set name = $1, description = $2
+     where id = $3`,
+    [expected.name, expected.description, row.id],
+  );
   return row.id;
 }
 
