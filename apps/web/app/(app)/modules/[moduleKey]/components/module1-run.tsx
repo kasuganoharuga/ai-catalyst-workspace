@@ -12,6 +12,7 @@ import { confirmModuleCompletionAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
 
 import { CopyButton } from "../../../components/copy-button";
+import { StartModuleAttemptButton } from "../../../components/start-module-attempt-button";
 import {
   claudeChatProjectUrl,
   claudeChatProjectWebUrl,
@@ -40,6 +41,7 @@ type Module1RunProps = {
   artifactSavedAt: string | null;
   expectedArtifacts: ExpectedArtifact[];
   hasAttempt: boolean;
+  needsRetry: boolean;
   awaitingConfirmation: boolean;
   isCompleted: boolean;
   startPrompt: string;
@@ -489,6 +491,8 @@ function ConfirmStep({
   artifactSavedAt,
   expectedArtifacts,
   decisionQuestions,
+  hasAttempt,
+  needsRetry,
   awaitingConfirmation,
   isCompleted,
   nextModuleTitle,
@@ -509,6 +513,12 @@ function ConfirmStep({
   const decisionLabel = founderDecision
     ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
     : null;
+  const showNoFileHeading = !isCompleted && !awaitingConfirmation;
+  const attemptButtonLabel = needsRetry
+    ? "Start another pass"
+    : hasAttempt
+      ? "Resume attempt"
+      : "Start attempt";
 
   function handleConfirm() {
     if (!programRunModuleId) return;
@@ -555,22 +565,39 @@ function ConfirmStep({
 
   return (
     <>
-      <StepHeading
-        title={
-          isCompleted
-            ? completedTitle
-            : awaitingConfirmation
-              ? "Read it over, then sign it off"
-              : "No file detected yet"
-        }
-        body={
-          isCompleted
-            ? completedBody
-            : awaitingConfirmation
-              ? "Your verdict is saved and has passed its checks. Confirming marks this module done — until you do, nothing moves. Proceed, Pivot, and Kill all complete the module; the next one unlocks either way."
-              : "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off."
-        }
-      />
+      {showNoFileHeading ? (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
+              No file detected yet
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              We haven&apos;t found a verdict in your workspace yet. Once Claude
+              saves it and it passes its checks, this is where you sign it off.
+            </p>
+          </div>
+          {programRunModuleId ? (
+            <StartModuleAttemptButton
+              programRunModuleId={programRunModuleId}
+              label={attemptButtonLabel}
+              size="default"
+              className="shrink-0 [&_button]:text-white [&_button]:hover:brightness-110"
+              style={accent}
+            />
+          ) : null}
+        </div>
+      ) : (
+        <StepHeading
+          title={
+            isCompleted ? completedTitle : "Read it over, then sign it off"
+          }
+          body={
+            isCompleted
+              ? completedBody
+              : "Your verdict is saved and has passed its checks. Confirming marks this module done — until you do, nothing moves. Proceed, Pivot, and Kill all complete the module; the next one unlocks either way."
+          }
+        />
+      )}
 
       <div className="mt-6 overflow-hidden rounded-lg border border-border">
         <div className="border-b border-border bg-muted/40 px-4 py-2.5">

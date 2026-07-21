@@ -16,12 +16,14 @@ import {
   DECISION_QUESTION_KEYS,
   deriveModuleDisplayStatus,
   moduleAccentStyle,
+  needsModuleRetry,
   startModulePrompt,
 } from "../../../lib/module-display";
 import { StatusPill } from "../../components/status-pill";
 import { ExpectedOutputCard } from "./expected-output-card";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
+import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
 
 type ModuleDetailBodyProps = {
@@ -48,6 +50,13 @@ export async function ModuleDetailBody({
   // After validation_failed, activeAttemptId is cleared; displayAttempt
   // still points at the failed Attempt so we can show answers + issues.
   const displayAttempt = context?.displayAttempt ?? activeAttempt;
+  const needsRetry =
+    runModule !== null &&
+    needsModuleRetry(
+      runModule.status,
+      activeAttempt?.status ?? null,
+      displayAttempt?.status ?? null,
+    );
   const isSetupModule = entry.moduleType === "setup";
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
@@ -55,7 +64,7 @@ export async function ModuleDetailBody({
     activeAttempt?.status === "ready_for_review" ||
     displayAttempt?.status === "ready_for_review";
   const awaitingConfirmation =
-    verdictReady && runModule !== null && context !== null;
+    verdictReady && runModule !== null && context !== null && !needsRetry;
 
   const nextModuleTitle = runModule
     ? (runResult.modules.find((m) => m.sequenceIndex > runModule.sequenceIndex)
@@ -131,6 +140,7 @@ export async function ModuleDetailBody({
             status={deriveModuleDisplayStatus(
               runModule.status,
               activeAttempt?.status ?? null,
+              displayAttempt?.status ?? null,
             )}
             moduleIndex={entry.sequenceIndex}
           />
@@ -212,6 +222,12 @@ export async function ModuleDetailBody({
             {failedValidation ? (
               <ValidationIssuesCard validation={failedValidation} />
             ) : null}
+            {needsRetry ? (
+              <RetryPassCard
+                programRunModuleId={runModule.id}
+                moduleIndex={entry.sequenceIndex}
+              />
+            ) : null}
             <Module0Setup
               moduleIndex={entry.sequenceIndex}
               programRunModuleId={runModule.id}
@@ -254,6 +270,7 @@ export async function ModuleDetailBody({
               }
               expectedArtifacts={entry.expectedArtifacts}
               hasAttempt={activeAttempt !== null}
+              needsRetry={needsRetry}
               awaitingConfirmation={awaitingConfirmation}
               isCompleted={isCompleted}
               startPrompt={startPrompt}

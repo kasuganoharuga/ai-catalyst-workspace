@@ -1,10 +1,12 @@
 import type { ModuleContext } from "@ai-catalyst/shared";
 
 import { RecheckButton } from "../../../components/recheck-button";
+import { StartModuleAttemptButton } from "../../../components/start-module-attempt-button";
 import { StatusBadge } from "../../../components/status-badge";
 import {
   DECISION_QUESTION_KEYS,
   deriveModuleDisplayStatus,
+  needsModuleRetry,
 } from "../../../lib/module-display";
 
 function formatDateTime(iso: string): string {
@@ -22,11 +24,23 @@ function formatDateTime(iso: string): string {
  * it can never disagree with what just happened in Claude.
  */
 export function ModuleRunPanel({ context }: { context: ModuleContext }) {
-  const { runModule, activeAttempt, artifacts, questions, resumeQuestionKey } =
-    context;
+  const {
+    runModule,
+    activeAttempt,
+    displayAttempt,
+    artifacts,
+    questions,
+    resumeQuestionKey,
+  } = context;
   const display = deriveModuleDisplayStatus(
     runModule.status,
     activeAttempt?.status ?? null,
+    displayAttempt?.status ?? null,
+  );
+  const needsRetry = needsModuleRetry(
+    runModule.status,
+    activeAttempt?.status ?? null,
+    displayAttempt?.status ?? null,
   );
   const primaryArtifact = artifacts[0] ?? null;
   const savedSubmission = primaryArtifact?.latestSubmission ?? null;
@@ -98,6 +112,23 @@ export function ModuleRunPanel({ context }: { context: ModuleContext }) {
           </div>
         ) : null}
       </dl>
+
+      {needsRetry ? (
+        <div className="space-y-3 rounded-2xl bg-muted/60 px-4 py-3">
+          <p className="text-sm leading-6 text-muted-foreground">
+            <span className="font-semibold text-foreground">
+              Start another pass
+            </span>{" "}
+            so Claude can save updates — your last attempt is closed.
+          </p>
+          <StartModuleAttemptButton
+            programRunModuleId={runModule.id}
+            label="Start another pass"
+            size="default"
+            className="w-full [&_button]:w-full"
+          />
+        </div>
+      ) : null}
 
       {resumeQuestion && activeAttempt ? (
         <p className="rounded-2xl bg-muted/60 px-4 py-3 text-sm leading-6 text-muted-foreground">

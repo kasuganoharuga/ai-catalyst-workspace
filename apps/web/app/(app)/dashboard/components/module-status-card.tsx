@@ -32,8 +32,13 @@ export function ModuleStatusCard({
 }) {
   const runModule = context?.runModule ?? null;
   const attemptStatus = context?.activeAttempt?.status ?? null;
+  const displayAttemptStatus = context?.displayAttempt?.status ?? null;
   const display = runModule
-    ? deriveModuleDisplayStatus(runModule.status, attemptStatus)
+    ? deriveModuleDisplayStatus(
+        runModule.status,
+        attemptStatus,
+        displayAttemptStatus,
+      )
     : { label: "Waiting for setup", tone: "muted" as const };
 
   const isLocked = runModule?.status === "locked";
@@ -41,11 +46,12 @@ export function ModuleStatusCard({
   const primaryArtifact = context?.artifacts[0] ?? null;
   const catalogArtifact = catalog.expectedArtifacts[0] ?? null;
   const savedSubmission = primaryArtifact?.latestSubmission ?? null;
+  const effectiveAttemptStatus = attemptStatus ?? displayAttemptStatus;
 
   const isSetupModule = catalog.moduleType === "setup";
   const reviewText = isSetupModule
     ? "Automatic"
-    : attemptStatus === "ready_for_review" || isCompleted
+    : effectiveAttemptStatus === "ready_for_review" || isCompleted
       ? null // rendered as a badge below instead
       : "After the verdict";
 
@@ -59,10 +65,14 @@ export function ModuleStatusCard({
           ? "About five minutes, all in Claude"
           : "Open — start it in Claude whenever you're ready";
       case "in_progress":
-        if (attemptStatus === "ready_for_review")
+        if (effectiveAttemptStatus === "ready_for_review")
           return "Verdict saved — mentor review comes next";
-        if (attemptStatus === "validation_failed")
-          return "Close. Claude can help you close the gaps";
+        if (
+          effectiveAttemptStatus === "validation_failed" ||
+          effectiveAttemptStatus === "rejected" ||
+          effectiveAttemptStatus === "cancelled"
+        )
+          return "Needs another pass — open the module to retry";
         return "In progress — pick it up in Claude anytime";
       case "completed":
         return runModule.completedAt

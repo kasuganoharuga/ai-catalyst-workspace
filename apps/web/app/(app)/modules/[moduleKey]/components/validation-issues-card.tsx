@@ -19,8 +19,9 @@ export function ValidationIssuesCard({
           Not quite there yet — and that&apos;s normal
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          The last check found a few gaps. Ask Claude to work through them with
-          you and save an updated version — then re-check here.
+          The last check found a few gaps. Start another pass if you need a
+          fresh attempt, then ask Claude to work through the gaps and save an
+          updated version — then re-check here.
         </p>
       </div>
       <ul className="space-y-3 px-6 py-5">

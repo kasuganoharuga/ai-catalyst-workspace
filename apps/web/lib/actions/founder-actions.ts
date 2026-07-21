@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
+import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
 import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import { updateMyProfile } from "@ai-catalyst/services/profile";
@@ -78,6 +79,24 @@ export async function confirmModuleCompletionAction(
   try {
     const actor = await requireFounderActor();
     await confirmModuleCompletion(actor, { programRunModuleId });
+    revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Starts the first Attempt, resumes a live one, or opens a Retry after
+ * validation_failed / rejected / cancelled. Omits basedOnAttemptId so the
+ * Service picks the latest unused retryable source — callers must not invent IDs.
+ */
+export async function startModuleAttemptAction(
+  programRunModuleId: string,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await startOrResumeAttempt(actor, { programRunModuleId });
     revalidateFounderAppShell();
     return { ok: true };
   } catch (error) {

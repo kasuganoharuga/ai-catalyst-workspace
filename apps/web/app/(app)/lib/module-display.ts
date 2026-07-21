@@ -63,24 +63,62 @@ const RUN_STATUS_DISPLAY: Record<RunModuleStatus, ModuleDisplayStatus> = {
   completed: { label: "Completed", tone: "module" },
 };
 
+/** Attempt statuses that clear active_attempt_id and need a Retry to write again. */
+const RETRYABLE_DISPLAY_STATUSES = new Set<ModuleAttemptStatus>([
+  "validation_failed",
+  "rejected",
+  "cancelled",
+]);
+
+/**
+ * True when the Module is startable but has no active Attempt, and the
+ * display Attempt is in a retryable terminal state — Claude cannot save
+ * until the Founder opens a fresh Attempt.
+ */
+export function needsModuleRetry(
+  runStatus: RunModuleStatus,
+  activeAttemptStatus: ModuleAttemptStatus | null | undefined,
+  displayAttemptStatus: ModuleAttemptStatus | null | undefined,
+): boolean {
+  if (runStatus !== "available" && runStatus !== "in_progress") {
+    return false;
+  }
+  if (activeAttemptStatus) {
+    return false;
+  }
+  return (
+    displayAttemptStatus != null &&
+    RETRYABLE_DISPLAY_STATUSES.has(displayAttemptStatus)
+  );
+}
+
 /**
  * The one label shown for a Module's current state. The active Attempt's
  * status refines the coarse Run-module status where the difference matters
  * to a Founder: "in progress" reads very differently from "waiting on your
  * mentor" or "needs another pass".
+ *
+ * When activeAttemptId is cleared after validation_failed, pass the
+ * display Attempt's status as the third argument so the badge still reads
+ * "Needs another pass" instead of a bare "In progress".
  */
 export function deriveModuleDisplayStatus(
   runStatus: RunModuleStatus,
   activeAttemptStatus: ModuleAttemptStatus | null | undefined,
+  displayAttemptStatus?: ModuleAttemptStatus | null,
 ): ModuleDisplayStatus {
   if (runStatus === "in_progress") {
-    if (activeAttemptStatus === "ready_for_review") {
+    const attemptStatus = activeAttemptStatus ?? displayAttemptStatus ?? null;
+    if (attemptStatus === "ready_for_review") {
       return { label: "Ready for review", tone: "ink" };
     }
-    if (activeAttemptStatus === "validation_failed") {
+    if (attemptStatus === "validation_failed") {
       return { label: "Needs another pass", tone: "warning" };
     }
-    if (activeAttemptStatus === "submitted") {
+    if (attemptStatus === "rejected" || attemptStatus === "cancelled") {
+      return { label: "Needs another pass", tone: "warning" };
+    }
+    if (attemptStatus === "submitted") {
       return { label: "Checking your work", tone: "soft" };
     }
   }
