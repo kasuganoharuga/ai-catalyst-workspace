@@ -9,13 +9,15 @@ import { Button } from "@/components/ui/button";
 import { updateProfileAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
 
+// `bio` is deliberately absent: the field was removed from the form, and
+// leaving it here would send an empty string on every save and quietly
+// wipe whatever an existing founder had written.
 type FormState = {
   firstName: string;
   lastName: string;
   contactEmail: string;
   jobTitle: string;
   linkedinUrl: string;
-  bio: string;
 };
 
 function toFormState(profile: UserProfile): FormState {
@@ -25,7 +27,6 @@ function toFormState(profile: UserProfile): FormState {
     contactEmail: profile.contactEmail ?? "",
     jobTitle: profile.jobTitle ?? "",
     linkedinUrl: profile.linkedinUrl ?? "",
-    bio: profile.bio ?? "",
   };
 }
 
@@ -113,7 +114,7 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           type="email"
           autoComplete="email"
           placeholder="you@company.com"
-          hint="Only used if someone on the programme needs to reach you — your sign-in email doesn't change."
+          hint="Only used if someone on the program needs to reach you. Your sign-in email doesn't change."
           className="sm:col-span-2"
         />
         <Field
@@ -125,14 +126,10 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
           placeholder="https://www.linkedin.com/in/you"
           className="sm:col-span-2"
         />
-        <Field
-          label="About you"
-          value={form.bio}
-          onChange={(value) => update("bio", value)}
-          multiline
-          placeholder="A couple of lines on your background."
-          className="sm:col-span-2"
-        />
+        {/* "About you" is gone: a free-text bio is a paragraph nobody
+            reads and nothing in the toolkit uses. The company web page it
+            was meant to become lives on Company profile instead, next to
+            the company name its first save requires. */}
       </fieldset>
 
       {error ? (

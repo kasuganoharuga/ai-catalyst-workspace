@@ -21,15 +21,14 @@ export function RetryPassCard({
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
           Your last attempt is closed, so nothing new can be saved until you
-          open a fresh one. Prior answers stay visible — start the pass, then
-          continue in Claude.
+          open a fresh one. Your earlier answers are kept.
         </p>
       </div>
       <div className="px-6 py-5">
         <StartModuleAttemptButton
           programRunModuleId={programRunModuleId}
           label="Start another pass"
-          className="[&_button]:text-white [&_button]:hover:brightness-110"
+          className="text-white hover:brightness-110"
           style={moduleAccentStyle(moduleIndex)}
         />
       </div>

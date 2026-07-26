@@ -1,11 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition, type CSSProperties } from "react";
+import { useTransition, type CSSProperties } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { startModuleAttemptAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
+
+import { errorCopy, toastCopy } from "../lib/copy";
 
 /**
  * Opens (or resumes) a writable Attempt for a Module. Used after
@@ -31,17 +34,14 @@ export function StartModuleAttemptButton({
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   function handleClick() {
-    setError(null);
     startTransition(async () => {
       const result = await startModuleAttemptAction(programRunModuleId);
       if (!result.ok) {
-        setError(
-          result.message ??
-            "That didn't work — give it another try in a moment.",
-        );
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message ?? errorCopy.generic,
+        });
         return;
       }
       router.refresh();
@@ -49,22 +49,16 @@ export function StartModuleAttemptButton({
   }
 
   return (
-    <div className={cn("flex flex-col items-start gap-2", className)}>
-      <Button
-        type="button"
-        size={size}
-        variant={variant}
-        onClick={handleClick}
-        disabled={isPending}
-        style={style}
-      >
-        {isPending ? pendingLabel : label}
-      </Button>
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-    </div>
+    <Button
+      type="button"
+      size={size}
+      variant={variant}
+      onClick={handleClick}
+      disabled={isPending}
+      style={style}
+      className={cn(className)}
+    >
+      {isPending ? pendingLabel : label}
+    </Button>
   );
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
 import { useVentureActions } from "../hooks/use-venture-actions";
 import type { VentureActionsProps } from "../types";
 
@@ -20,34 +22,38 @@ export function VentureActions({
 
   return (
     <div className="flex flex-col items-end gap-1">
+      {/* Pill buttons replaced with the app's own Button, and "..." with a
+          real ellipsis, so this row stops looking like a different app. */}
       <div className="flex gap-2">
         {isSelected ? (
-          <span className="rounded-full border border-accent bg-accent px-4 py-2 text-xs font-semibold text-accent-foreground">
+          <span className="rounded-md border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
             Currently selected
           </span>
         ) : (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleSetActive}
             disabled={isBusy}
-            className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:border-foreground disabled:opacity-50"
           >
             {isSettingActive
-              ? "Switching..."
+              ? "Switching…"
               : isArchived
                 ? "View history"
                 : "Set active"}
-          </button>
+          </Button>
         )}
         {!isArchived && canArchive ? (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={handleArchive}
             disabled={isBusy}
-            className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:border-foreground disabled:opacity-50"
           >
-            {isArchiving ? "Archiving..." : "Archive"}
-          </button>
+            {isArchiving ? "Archiving…" : "Archive"}
+          </Button>
         ) : null}
       </div>
       {error ? (

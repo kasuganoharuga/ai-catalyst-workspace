@@ -9,8 +9,12 @@ import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { ventureForActiveContext } from "@/lib/ventures";
+import { hasPendingSetupModule } from "@/lib/ensure-program-destination";
+import { getFounderArtifactDocument } from "@/lib/artifacts";
 
-import { StartRunButton } from "../../../components/start-run-button";
+import { MarkdownDocument } from "../../../components/markdown-document";
+
+import { ContinueProgrammeButton } from "../../../components/continue-programme-button";
 import { StatusBadge } from "../../../components/status-badge";
 import {
   DECISION_QUESTION_KEYS,
@@ -76,6 +80,7 @@ export async function ModuleDetailBody({
     displayAttempt?.status === "validation_failed" &&
     primaryArtifactKey !== null;
   const needsRunSetup = isLive && !runModule;
+  const setupPending = hasPendingSetupModule(runResult.modules);
 
   // Needed whenever a live Module shows Claude open buttons — Module 0
   // for project setup, and Module 1+ to reopen the same project UUID
@@ -98,6 +103,22 @@ export async function ModuleDetailBody({
 
   const failedValidation =
     validation && validation.status === "failed" ? validation : null;
+
+  // The saved document, read here rather than in the step that shows it:
+  // Module1Run is a client component, and rendering the Markdown on the
+  // server keeps react-markdown out of this page's client bundle. Only
+  // fetched once something has actually been saved.
+  const savedArtifact = context?.artifacts.find(
+    (artifact) => artifact.latestSubmission !== null,
+  );
+  const artifactDocument =
+    isLive && savedArtifact
+      ? await getFounderArtifactDocument(
+          actor,
+          moduleKey,
+          savedArtifact.artifactKey,
+        )
+      : null;
   const venture = activeContext
     ? await ventureForActiveContext(actor, activeContext)
     : null;
@@ -170,33 +191,46 @@ export async function ModuleDetailBody({
       {isLive && !runModule ? (
         <div className="mt-10 max-w-3xl rounded-[2rem] border border-border bg-card p-8 shadow-sm">
           <h2 className="text-xl font-semibold tracking-tight">
-            One quick step before this module can track your progress
+            One step before this module can track your progress
           </h2>
           <p className="mt-3 text-base leading-7 text-muted-foreground">
-            Set up your module plan — it creates your personal run of the
-            toolkit with Module 0 ready to go. One click, once ever.
+            This opens your own run of the toolkit. One click, once ever.
           </p>
-          {venture ? (
-            <StartRunButton ventureId={venture.id} className="mt-6" />
-          ) : (
-            <p className="mt-6 text-sm text-muted-foreground">
-              You need an active Venture first —{" "}
-              <Link href="/workspace" className="underline">
-                create one here
-              </Link>
-              .
-            </p>
-          )}
+          <ContinueProgrammeButton
+            className="mt-6"
+            label="Continue"
+            pendingLabel="Setting things up…"
+          />
         </div>
       ) : null}
 
-      {isLocked ? (
+      {/* Two different locks, and telling them apart matters. A module
+          waiting on the one before it is a normal, self-resolving state.
+          A module waiting on the hidden setup module is a dead end: the
+          founder is told to finish something that no longer appears
+          anywhere, so they get the button that finishes it for them. */}
+      {isLocked && setupPending ? (
+        <div className="mt-10 max-w-3xl rounded-[2rem] border border-border bg-card p-8 shadow-sm">
+          <h2 className="text-xl font-semibold tracking-tight">
+            Finish setting up your workspace
+          </h2>
+          <p className="mt-3 text-base leading-7 text-muted-foreground">
+            One check has to run against your workspace before this module
+            opens. It takes a few seconds and you only do it once.
+          </p>
+          <ContinueProgrammeButton
+            className="mt-6"
+            label="Finish setup"
+            pendingLabel="Setting things up…"
+          />
+        </div>
+      ) : isLocked ? (
         <div className="mt-10 flex max-w-3xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-border bg-muted/40 p-6">
           <p className="text-sm leading-6 text-muted-foreground">
             <span className="font-semibold text-foreground">
               Locked for now.
             </span>{" "}
-            Each module builds on the one before it — finish the previous module
+            Each module builds on the one before it. Finish the previous module
             and this one opens automatically.
           </p>
           <Button asChild variant="outline" className="shrink-0">
@@ -205,17 +239,10 @@ export async function ModuleDetailBody({
         </div>
       ) : null}
 
-      {isLive && runModule && !isSetupModule && !isLocked ? (
-        <div className="mt-8 flex items-start gap-3 rounded-2xl border border-border bg-muted/40 px-5 py-4">
-          <span className="mt-0.5 text-sm">✓</span>
-          <p className="text-sm leading-6 text-muted-foreground">
-            Your setup from Module 0 carries over — Claude already knows your
-            workspace and your venture. No re-explaining, just continue the
-            conversation.
-          </p>
-        </div>
-      ) : null}
-
+      {/* A "your setup from Module 0 carries over" reassurance used to sit
+          here. It reassured about a module the founder now never sees, and
+          it answered a worry nobody had: nothing in the UI ever suggested
+          they would have to re-explain themselves. */}
       {runModule && context ? (
         isSetupModule ? (
           <section className="mt-8 space-y-6">
@@ -232,7 +259,6 @@ export async function ModuleDetailBody({
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
               programRunModuleId={runModule.id}
-              ventureId={venture?.id ?? null}
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
               hasMcpActivity={Boolean(connection?.lastActivityAt)}
@@ -247,6 +273,7 @@ export async function ModuleDetailBody({
               expectedArtifacts={entry.expectedArtifacts}
               awaitingConfirmation={awaitingConfirmation}
               isCompleted={isCompleted}
+              needsRetry={needsRetry}
               startPrompt={startPrompt}
               nextModuleTitle={nextModuleTitle}
             />
@@ -260,6 +287,7 @@ export async function ModuleDetailBody({
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
               programRunModuleId={runModule.id}
+              ventureId={venture?.id ?? null}
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
               coreQuestions={coreQuestions}
@@ -276,6 +304,11 @@ export async function ModuleDetailBody({
               hasAttempt={activeAttempt !== null}
               needsRetry={needsRetry}
               awaitingConfirmation={awaitingConfirmation}
+              documentPreview={
+                artifactDocument ? (
+                  <MarkdownDocument content={artifactDocument.content} />
+                ) : null
+              }
               isCompleted={isCompleted}
               isLocked={isLocked}
               startPrompt={startPrompt}

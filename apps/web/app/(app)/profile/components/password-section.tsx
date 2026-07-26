@@ -135,7 +135,7 @@ export function PasswordSection() {
         </p>
         <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
           Reset-by-email isn&apos;t switched on yet. Until it is, ask your
-          programme lead and they&apos;ll sort it out for you.
+          program lead and they&apos;ll sort it out for you.
         </p>
         <Button
           type="button"

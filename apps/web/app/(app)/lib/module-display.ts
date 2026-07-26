@@ -193,11 +193,6 @@ export function claudeDesktopChatUrl(prompt: string): string {
   return `claude://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
-/** Opens Claude Desktop Cowork with a prefilled composer (`claude://` deep link). */
-export function claudeCoworkUrl(prompt: string): string {
-  return `claude://cowork/new?q=${encodeURIComponent(prompt)}`;
-}
-
 /**
  * Prefill text that asks Claude to walk the Founder through adding this
  * workspace as a custom remote MCP connector. The Founder still has to
@@ -209,61 +204,25 @@ export function mcpConnectPrompt(endpointUrl: string | null): string {
     ? endpointUrl
     : "(copy the workspace address from my AI Catalyst connection page)";
   return [
-    "Please help me connect my AI Catalyst Founder Toolkit to Claude as a custom remote MCP connector.",
+    "Please talk me through connecting my AI Catalyst Founder Toolkit to Claude as a custom remote MCP connector. I'll do the clicking — you can't reach these settings yourself.",
     "",
-    "Walk me through these steps in Claude:",
-    "1. Open Settings → Connectors → Add custom connector",
-    "2. Paste this as the remote MCP server URL:",
+    "The steps are:",
+    "1. Click my avatar in the bottom-left corner, then choose Settings",
+    "2. Go to Connectors",
+    '3. Click Add, then "Add custom connector"',
+    '4. Name it "AI Catalyst" and paste this as the URL:',
     urlBlock,
-    '3. Name it something like "AI Catalyst"',
-    "4. When Claude asks me to sign in and approve access, I'll complete that step",
+    "5. Open the link Claude shows, then sign in and approve in the browser",
+    "6. Set the tools to always allow",
     "",
-    "Guide me through any screens I see, then tell me when the connector is connected so I can continue.",
+    "Take them one at a time and wait for me. If a screen doesn't match what you described, help me work out what I'm looking at.",
+    "",
+    "Two things that stop people here, so check them with me if I get stuck: custom connectors need a paid Claude plan and don't appear on Free, and on a Team or Enterprise plan only the workspace owner can add one.",
+    "",
+    "Don't tell me the connector is connected — you have no way to see that. The AI Catalyst website detects it and moves me on by itself.",
   ].join("\n");
 }
 
 export function startModulePrompt(moduleTitle: string): string {
   return `Let's work on "${moduleTitle}" from my AI Catalyst Founder Toolkit. Please pick up wherever I left off.`;
-}
-
-/**
- * Project instructions the Founder pastes into their Claude project once,
- * at Module 0. A Claude project keeps them attached to every future chat,
- * which is what stops each module starting cold.
- *
- * Written in the Founder's voice ("my toolkit", "ask me") because that is
- * whose project it is — Claude reads these as standing instructions from
- * its user.
- *
- * The last paragraph is the important one: it tells Claude that unlocking
- * is not its call. The service layer enforces that regardless
- * (confirmModuleCompletion is website-only), but a model that knows the
- * rule won't tell the Founder it has moved them on when it hasn't.
- */
-export function claudeProjectInstructions(): string {
-  return `You are working with me through the AI Catalyst Founder Toolkit. We work module by module, and each module leaves behind an artefact the next one builds on.
-
-Rules for every turn in this project:
-
-1. USE THE CONNECTOR, DON'T GUESS. Call list_modules before saying anything about where I'm up to. Call get_module_context before starting or resuming a module. Follow any facilitator / artifact_generator prompts returned in that context — they are the module's interview script. My real state lives in the workspace, not in this conversation's memory.
-
-2. SAVE WHEN THE MODULE SAYS SO. Follow the module prompt for when to call save_founder_input (Module 1 collects answers first, then saves after a summary confirm — do not save each answer mid-interview). Save documents with save_artifact only when the final artefact is ready, then call complete_module. If a save fails, tell me immediately and stop — never carry on as though it worked. If complete_module returns validationErrors, repair those named gaps.
-
-3. ONE QUESTION AT A TIME. Ask a module's questions one at a time and wait for my answer. Never fill one in on my behalf. End-of-set summary confirmation (when the module prompt requires it) is allowed before saving.
-
-4. EXPLAIN YOUR REASONING — IN VERDICTS AND RECOMMENDATIONS. For every recommendation, ranking or score, walk through the reasoning: what alternatives you considered, why you picked this one, and what assumption would make you wrong. Do not critique or pressure-test during collect-only question phases.
-
-5. ARGUE AGAINST YOURSELF — IN VERDICTS. Before delivering a verdict or recommendation, show the strongest case against it. During collect-only Q&A, do not introduce new business questions.
-
-6. SEPARATE EVIDENCE FROM ASSUMPTION. When I describe customers, problems, numbers or competitors, say explicitly which parts are evidence and which are assumptions — especially in saved documents. Never let an assumption into a saved document dressed up as a fact.
-
-7. DON'T REPLACE REAL CUSTOMER CONVERSATIONS. You are a thinking partner, not a substitute for talking to people. Whenever I claim what customers want, will pay, or will do without an actual conversation behind it, name it as an assumption and tell me who to speak to, what to ask, and what would count as enough — in the verdict, not by derailing the interview.
-
-8. STAY IN ROLE. A module may put you in a specific role. Hold it for the rest of that module unless I tell you to switch.
-
-9. DON'T MAKE ME REPEAT MYSELF. My earlier answers and documents are already in the workspace. Retrieve them through the connector instead of asking me to paste them again. If activeAttemptId is null but displayAttempt has answers, use those — validation failure clears the active pointer; it does not delete my answers. After a failed Attempt, call start_module_attempt without inventing basedOnAttemptId — the Service starts the Retry. A fresh empty Retry still surfaces prior answers on displayAttempt; re-save into the new active Attempt after I confirm.
-
-10. DON'T MOVE ME ON. When a module's output is saved and has passed its checks, tell me to confirm it on the AI Catalyst website. You cannot unlock the next module — that decision is mine to make.
-
-Confirm you've understood these before we start.`;
 }

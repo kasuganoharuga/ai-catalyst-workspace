@@ -2,8 +2,12 @@
 
 import { Check, Copy } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+// No success toast: the button already flips to "Copied!", which is
+// quieter and sits where the founder just clicked.
+import { errorCopy } from "../lib/copy";
 
 export function CopyButton({
   value,
@@ -32,8 +36,11 @@ export function CopyButton({
       if (resetTimer.current) clearTimeout(resetTimer.current);
       resetTimer.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard access denied (e.g. non-secure context) — leave the
-      // value visible on screen so the user can still select it manually.
+      // navigator.clipboard is undefined outside a secure context and can
+      // reject when permission is denied. Failing silently here reads as a
+      // dead button, so say so — the value is on screen either way, which
+      // is why the recovery is genuinely "select it yourself".
+      toast.error(errorCopy.copyFailed);
     }
   }
 

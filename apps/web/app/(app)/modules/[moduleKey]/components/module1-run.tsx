@@ -1,9 +1,10 @@
 "use client";
 
-import { Check, ChevronDown, ExternalLink } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState, useTransition, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import type { ModuleContextQuestion } from "@ai-catalyst/shared";
 
@@ -11,15 +12,24 @@ import { Button } from "@/components/ui/button";
 import { confirmModuleCompletionAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
 
-import { CopyButton } from "../../../components/copy-button";
+import { SHOW_CLAUDE_PROJECT } from "@/lib/feature-flags";
+
+import { ClaudeHandoff } from "../../../components/claude-handoff";
 import { StartModuleAttemptButton } from "../../../components/start-module-attempt-button";
+import { DocumentPreview } from "./document-preview";
+import { useSoftModuleRefresh } from "../../../hooks/use-soft-module-refresh";
 import {
-  claudeChatProjectUrl,
-  claudeChatProjectWebUrl,
-  claudeChatUrl,
-  claudeDesktopChatUrl,
-  moduleAccentStyle,
-} from "../../../lib/module-display";
+  claudeHandoffCopy,
+  errorCopy,
+  toastCopy,
+  module1Copy,
+  module1CompletedBody,
+  module1CompletedTitle,
+  module1ConfirmCta,
+  type FounderDecision,
+} from "../../../lib/copy";
+import { moduleAccentStyle } from "../../../lib/module-display";
+import { OptionalClaudeProjectCard } from "./optional-claude-project-card";
 import { StrongAnswerCard } from "./strong-answer-card";
 
 type ExpectedArtifact = {
@@ -33,6 +43,7 @@ type Module1RunProps = {
   moduleKey: string;
   moduleIndex: number;
   programRunModuleId: string | null;
+  ventureId: string | null;
   claudeProjectId: string | null;
   connected: boolean;
   coreQuestions: ModuleContextQuestion[];
@@ -48,6 +59,12 @@ type Module1RunProps = {
   isCompleted: boolean;
   /** Preview-only: content stays visible, Claude/attempt CTAs stay hidden. */
   isLocked: boolean;
+  /**
+   * The saved document, already rendered on the server. Null until Claude
+   * has saved something — passed in rather than fetched here so this stays
+   * a client component without pulling react-markdown into its bundle.
+   */
+  documentPreview: ReactNode;
   startPrompt: string;
   nextModuleTitle: string | null;
 };
@@ -68,6 +85,11 @@ export function Module1Run(props: Module1RunProps) {
     hasAttempt,
     awaitingConfirmation,
     isCompleted,
+    isLocked,
+    connected,
+    needsRetry,
+    ventureId,
+    claudeProjectId,
   } = props;
 
   const answered = coreQuestions.filter(
@@ -76,10 +98,22 @@ export function Module1Run(props: Module1RunProps) {
   const started =
     hasAttempt || answered > 0 || awaitingConfirmation || isCompleted;
 
+  const shouldPoll =
+    connected &&
+    !isLocked &&
+    !awaitingConfirmation &&
+    !isCompleted &&
+    !needsRetry;
+
+  useSoftModuleRefresh(shouldPoll);
+
   const steps = [
-    { label: "What this is", done: started },
-    { label: "Work through it", done: awaitingConfirmation || isCompleted },
-    { label: "Confirm and unlock", done: isCompleted },
+    { label: module1Copy.stepBrief, done: started },
+    {
+      label: module1Copy.stepWork,
+      done: awaitingConfirmation || isCompleted,
+    },
+    { label: module1Copy.stepConfirm, done: isCompleted },
   ];
 
   const firstIncomplete = steps.findIndex((step) => !step.done);
@@ -90,83 +124,93 @@ export function Module1Run(props: Module1RunProps) {
   const accent = moduleAccentStyle(moduleIndex);
 
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
-      <ol className="flex divide-x divide-border border-b border-border">
-        {steps.map((step, index) => (
-          <li key={step.label} className="min-w-0 flex-1">
-            <button
+    <div className="space-y-6">
+      <div className="overflow-hidden rounded-xl border border-border bg-card">
+        <ol className="flex divide-x divide-border border-b border-border">
+          {steps.map((step, index) => (
+            <li key={step.label} className="min-w-0 flex-1">
+              <button
+                type="button"
+                onClick={() => setActive(index)}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-3 text-left transition sm:px-4",
+                  index === active ? "bg-muted/60" : "hover:bg-muted/30",
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums",
+                    step.done
+                      ? "text-white"
+                      : index === active
+                        ? "border border-foreground text-foreground"
+                        : "border border-border text-muted-foreground",
+                  )}
+                  style={step.done ? accent : undefined}
+                >
+                  {step.done ? (
+                    <Check
+                      aria-hidden="true"
+                      className="h-3 w-3"
+                      strokeWidth={3}
+                    />
+                  ) : (
+                    index + 1
+                  )}
+                </span>
+                <span
+                  className={cn(
+                    "hidden truncate text-[13px] sm:block",
+                    index === active
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {step.label}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ol>
+
+        <div className="p-6 lg:p-8">
+          {active === 0 ? <BriefStep {...props} /> : null}
+          {active === 1 ? <WorkStep {...props} accent={accent} /> : null}
+          {active === 2 ? <ConfirmStep {...props} accent={accent} /> : null}
+
+          <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-5">
+            <Button
               type="button"
-              onClick={() => setActive(index)}
-              className={cn(
-                "flex w-full items-center gap-2 px-3 py-3 text-left transition sm:px-4",
-                index === active ? "bg-muted/60" : "hover:bg-muted/30",
-              )}
+              variant="ghost"
+              size="sm"
+              onClick={() => setActive((n) => Math.max(0, n - 1))}
+              disabled={active === 0}
             >
-              <span
-                className={cn(
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-semibold tabular-nums",
-                  step.done
-                    ? "text-white"
-                    : index === active
-                      ? "border border-foreground text-foreground"
-                      : "border border-border text-muted-foreground",
-                )}
-                style={step.done ? accent : undefined}
-              >
-                {step.done ? (
-                  <Check
-                    aria-hidden="true"
-                    className="h-3 w-3"
-                    strokeWidth={3}
-                  />
-                ) : (
-                  index + 1
-                )}
-              </span>
-              <span
-                className={cn(
-                  "hidden truncate text-[13px] sm:block",
-                  index === active
-                    ? "font-semibold text-foreground"
-                    : "text-muted-foreground",
-                )}
-              >
-                {step.label}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ol>
-
-      <div className="p-6 lg:p-8">
-        {active === 0 ? <BriefStep {...props} /> : null}
-        {active === 1 ? <WorkStep {...props} accent={accent} /> : null}
-        {active === 2 ? <ConfirmStep {...props} accent={accent} /> : null}
-
-        <div className="mt-8 flex items-center justify-between gap-4 border-t border-border pt-5">
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setActive((n) => Math.max(0, n - 1))}
-            disabled={active === 0}
-          >
-            Back
-          </Button>
-          <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {active + 1} / {steps.length}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setActive((n) => Math.min(steps.length - 1, n + 1))}
-            disabled={active === steps.length - 1}
-          >
-            Next
-          </Button>
+              Back
+            </Button>
+            <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {active + 1} / {steps.length}
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setActive((n) => Math.min(steps.length - 1, n + 1))
+              }
+              disabled={active === steps.length - 1}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
+      {SHOW_CLAUDE_PROJECT && isCompleted && ventureId ? (
+        <OptionalClaudeProjectCard
+          ventureId={ventureId}
+          initialProjectId={claudeProjectId}
+        />
+      ) : null}
     </div>
   );
 }
@@ -198,75 +242,37 @@ function BriefStep({ moduleIndex }: Module1RunProps) {
   return (
     <>
       <StepHeading
-        title="What this module is for"
-        body="Claude takes the part of a veteran investor and puts your idea under real pressure — where it breaks, who you're actually competing with, and what would have to be true for it to work. You leave with a call you can defend: proceed, pivot, or kill."
+        title={module1Copy.briefTitle}
+        body={module1Copy.briefBody}
       />
 
       <div className="mt-8">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Why it matters
+          {module1Copy.whyHeading}
         </p>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Most ideas don&apos;t die because the founder couldn&apos;t build
-          them. They die because nobody asked the uncomfortable questions early
-          enough — and by the time the market answered them, a year and a lot of
-          money were gone. This is the cheapest version of that conversation:
-          one sitting, on paper, before you&apos;ve committed anything real.
+          {module1Copy.whyBody}
         </p>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Everything after Module {moduleIndex} builds on the verdict you write
-          here. A vague answer now quietly costs you in every module that
-          follows.
+          {module1Copy.whyBuildsOn(String(moduleIndex))}
         </p>
       </div>
 
       {/* The honest warning, before they start rather than after. */}
       <div className="mt-8 rounded-md border border-border bg-muted/40 p-5">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Before you start
+          {module1Copy.beforeHeading}
         </p>
         <ul className="mt-3 space-y-2.5 text-sm leading-6 text-muted-foreground">
-          <li className="flex gap-2.5">
-            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-            <span>
-              <span className="font-medium text-foreground">
-                Set aside 30–45 uninterrupted minutes.
-              </span>{" "}
-              Half-answers produce a verdict that isn&apos;t worth having.
-            </span>
-          </li>
-          <li className="flex gap-2.5">
-            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-            <span>
-              <span className="font-medium text-foreground">
-                Be specific, not polished.
-              </span>{" "}
-              &ldquo;Founders who&apos;ve cold-emailed 50 investors and
-              stalled&rdquo; beats &ldquo;early-stage startups&rdquo;. Rough
-              wording is fine.
-            </span>
-          </li>
-          <li className="flex gap-2.5">
-            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-            <span>
-              <span className="font-medium text-foreground">
-                Expect to be argued with.
-              </span>{" "}
-              Claude plays a veteran investor here. It will name the strongest
-              case against your idea and push back on vague answers — that is
-              the point, not a malfunction.
-            </span>
-          </li>
-          <li className="flex gap-2.5">
-            <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
-            <span>
-              <span className="font-medium text-foreground">
-                It can&apos;t replace talking to real customers.
-              </span>{" "}
-              Anything you assert without a real conversation behind it gets
-              recorded as an assumption, not evidence.
-            </span>
-          </li>
+          {module1Copy.before.map((item) => (
+            <li key={item.lead} className="flex gap-2.5">
+              <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-muted-foreground/50" />
+              <span>
+                <span className="font-medium text-foreground">{item.lead}</span>{" "}
+                {item.body}
+              </span>
+            </li>
+          ))}
         </ul>
       </div>
     </>
@@ -274,7 +280,6 @@ function BriefStep({ moduleIndex }: Module1RunProps) {
 }
 
 function WorkStep({
-  claudeProjectId,
   connected,
   startPrompt,
   coreQuestions,
@@ -284,21 +289,9 @@ function WorkStep({
   awaitingConfirmation,
   isCompleted,
   isLocked,
+  needsRetry,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
-  const projectId = claudeProjectId?.trim() || null;
-  // With a project: open project home only (no prefilled `q`). Staying in the
-  // saved project beats auto-sending the starter line. Without: Desktop
-  // `/new?q=` still prefills.
-  const openUrl = projectId
-    ? claudeChatProjectWebUrl(projectId)
-    : claudeDesktopChatUrl(startPrompt);
-  const secondaryUrl = projectId
-    ? claudeChatProjectUrl(projectId)
-    : claudeChatUrl(startPrompt);
-  const openLabel = projectId ? "Open your project" : "Open Claude";
-  const openInNewTab = Boolean(projectId);
-
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,
   ).length;
@@ -311,79 +304,35 @@ function WorkStep({
   return (
     <>
       <StepHeading
-        title="Work through it in Claude"
-        body={
-          isLocked
-            ? "Preview of how this module works. Actions unlock once you finish the module before it."
-            : "Send the line below in your project. Claude asks the questions one at a time — this page tracks what it has saved as you go, so you can leave and come back."
-        }
+        title={module1Copy.workTitle}
+        body={isLocked ? module1Copy.workBodyLocked : module1Copy.workBody}
       />
 
       <StrongAnswerCard />
 
       {!isLocked && !connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
-          Claude still needs a one-time connector to this workspace before it
-          can save anything.{" "}
+          {module1Copy.notConnected}{" "}
           <Link
             href="/connection"
             className="font-medium text-foreground underline-offset-2 hover:underline"
           >
-            Set up the connection
+            {module1Copy.notConnectedLink}
           </Link>
-          , then come back here.
+          {module1Copy.notConnectedSuffix}
         </div>
       ) : null}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border">
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-2.5">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Send this
-          </p>
-          {!isLocked ? <CopyButton value={startPrompt} label="Copy" /> : null}
-        </div>
-        <p className="px-4 py-4 font-mono text-sm leading-6 text-foreground">
-          {startPrompt}
-        </p>
-        {isLocked ? (
-          <p className="border-t border-border px-4 py-4 text-sm leading-6 text-muted-foreground">
-            Opening Claude and starting this module unlocks after you finish the
-            previous one.
-          </p>
-        ) : (
-          <div className="border-t border-border px-4 py-4">
-            <Button
-              asChild
-              size="lg"
-              className="w-full text-white hover:brightness-110"
-              style={accent}
-            >
-              <a
-                href={openUrl}
-                {...(openInNewTab
-                  ? { target: "_blank", rel: "noreferrer" }
-                  : {})}
-              >
-                {openLabel}
-                <ExternalLink aria-hidden="true" />
-              </a>
-            </Button>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              {projectId
-                ? "Opens your Claude project in the browser. Copy the line above and paste it into a chat there. "
-                : "Opens Claude Desktop with this message ready to send. "}
-              <a
-                href={secondaryUrl}
-                {...(projectId ? {} : { target: "_blank", rel: "noreferrer" })}
-                className="font-medium text-foreground underline-offset-2 hover:underline"
-              >
-                {projectId
-                  ? "Open project in desktop app instead"
-                  : "Open in browser instead"}
-              </a>
-            </p>
-          </div>
-        )}
+      <div className="mt-6">
+        <ClaudeHandoff
+          prompt={startPrompt}
+          label={
+            needsRetry ? claudeHandoffCopy.retryCta : claudeHandoffCopy.openCta
+          }
+          accent={accent}
+          disabled={isLocked}
+          disabledNote={module1Copy.workLockedNote}
+        />
       </div>
 
       {/* Milestones from what Claude actually saved. The six questions sit
@@ -415,12 +364,12 @@ function WorkStep({
                   ) : null}
                 </span>
                 <span className="text-foreground">
-                  Six pressure-test questions
+                  {module1Copy.questionsLabel}
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5 text-right text-xs leading-5 text-muted-foreground">
                 <span className="font-mono tabular-nums">
-                  {answered} / {coreQuestions.length} answered
+                  {module1Copy.questionsCount(answered, coreQuestions.length)}
                 </span>
                 <ChevronDown
                   aria-hidden="true"
@@ -471,29 +420,29 @@ function WorkStep({
 
         <CheckLine
           ok={decisionAnswered > 0}
-          label="Proceed, pivot or kill recorded"
+          label={module1Copy.progressDecision}
           detail={
             decisionAnswered > 0
-              ? "Your decision is saved."
-              : "Comes after the verdict."
+              ? module1Copy.progressDecisionDone
+              : module1Copy.progressDecisionPending
           }
         />
         <CheckLine
           ok={documentSaved}
-          label="Verdict saved to your workspace"
+          label={module1Copy.progressVerdict}
           detail={
             documentSaved
               ? `${artifactName ?? "Document"} · version ${artifactVersion}`
-              : "Nothing saved yet."
+              : module1Copy.progressVerdictPending
           }
         />
         <CheckLine
           ok={awaitingConfirmation || isCompleted}
-          label="Passed its checks"
+          label={module1Copy.progressChecks}
           detail={
             awaitingConfirmation || isCompleted
-              ? "Ready for you to look over."
-              : "Runs automatically once the verdict is saved."
+              ? module1Copy.progressChecksDone
+              : module1Copy.progressChecksPending
           }
         />
       </dl>
@@ -519,17 +468,16 @@ function ConfirmStep({
   artifactSavedAt,
   expectedArtifacts,
   decisionQuestions,
-  hasAttempt,
   needsRetry,
   awaitingConfirmation,
   isCompleted,
   isLocked,
   nextModuleTitle,
+  documentPreview,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   const documentSaved = artifactVersion !== null;
   const expected = expectedArtifacts[0] ?? null;
@@ -543,55 +491,37 @@ function ConfirmStep({
     ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
     : null;
   const showNoFileHeading = !isCompleted && !awaitingConfirmation;
-  const attemptButtonLabel = needsRetry
-    ? "Start another pass"
-    : hasAttempt
-      ? "Resume attempt"
-      : "Start attempt";
   const canUseActions = !isLocked;
 
   function handleConfirm() {
     if (!programRunModuleId) return;
-    setError(null);
     startTransition(async () => {
       const result = await confirmModuleCompletionAction(programRunModuleId);
       if (!result.ok) {
-        setError(
-          result.message ??
-            "That didn't work — give it another try in a moment.",
-        );
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message ?? errorCopy.generic,
+        });
         return;
       }
+      // Confirming is the one irreversible thing on this page, and the
+      // page it refreshes into looks much like the one before it. Say what
+      // the click actually achieved.
+      toast.success(toastCopy.moduleConfirmed, {
+        description: nextModuleTitle
+          ? toastCopy.moduleConfirmedNext(nextModuleTitle)
+          : undefined,
+      });
       router.refresh();
     });
   }
 
-  const completedTitle =
-    founderDecision === "kill"
-      ? "Signed off — this idea is parked"
-      : founderDecision === "pivot"
-        ? "Signed off — revised direction recorded"
-        : "Signed off — and the next module is open";
-
-  const completedBody =
-    founderDecision === "kill"
-      ? nextModuleTitle
-        ? `You chose Kill. This module is complete. You can return to your Venture, start a new one, or deliberately continue to ${nextModuleTitle} if you still want to explore.`
-        : "You chose Kill. This module is complete. You can return to your Venture or start a new one."
-      : founderDecision === "pivot"
-        ? nextModuleTitle
-          ? `You chose Pivot. ${nextModuleTitle} is available if you want to continue with the revised framing — or re-run this module with Claude first.`
-          : "You chose Pivot. Re-run this module with Claude if you want a fresh pressure-test on the revised idea."
-        : nextModuleTitle
-          ? `You confirmed this, which opened ${nextModuleTitle}. Your verdict stays in your workspace.`
-          : "You confirmed this. Your verdict stays in your workspace.";
-
-  const confirmCta =
-    founderDecision === "kill"
-      ? "Confirm completion"
-      : founderDecision === "pivot"
-        ? "Confirm and continue with revised direction"
-        : "Confirm and unlock the next module";
+  const decision: FounderDecision =
+    founderDecision === "kill" || founderDecision === "pivot"
+      ? founderDecision
+      : "proceed";
+  const completedTitle = module1CompletedTitle(decision);
+  const completedBody = module1CompletedBody(decision, nextModuleTitle);
+  const confirmCta = module1ConfirmCta(decision);
 
   return (
     <>
@@ -599,102 +529,103 @@ function ConfirmStep({
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
-              No file detected yet
+              {module1Copy.confirmNoFileTitle}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               {isLocked
-                ? "You can look ahead here. Starting an attempt and saving a verdict unlock once this module opens."
-                : "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off."}
+                ? module1Copy.confirmNoFileLocked
+                : module1Copy.confirmNoFileBody}
             </p>
           </div>
-          {canUseActions && programRunModuleId ? (
+          {canUseActions && needsRetry && programRunModuleId ? (
             <StartModuleAttemptButton
               programRunModuleId={programRunModuleId}
-              label={attemptButtonLabel}
+              label="Start another pass"
               size="default"
-              className="shrink-0 [&_button]:text-white [&_button]:hover:brightness-110"
+              className="shrink-0 text-white hover:brightness-110"
               style={accent}
             />
           ) : null}
         </div>
       ) : (
         <StepHeading
-          title={
-            isCompleted ? completedTitle : "Read it over, then sign it off"
-          }
-          body={
-            isCompleted
-              ? completedBody
-              : "Your verdict is saved and has passed its checks. Confirming marks this module done — until you do, nothing moves. Proceed, Pivot, and Kill all complete the module; the next one unlocks either way."
-          }
+          title={isCompleted ? completedTitle : module1Copy.confirmTitle}
+          body={isCompleted ? completedBody : module1Copy.confirmBody}
         />
       )}
 
-      <div className="mt-6 overflow-hidden rounded-lg border border-border">
-        <div className="border-b border-border bg-muted/40 px-4 py-2.5">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            The document
-          </p>
-        </div>
-        <dl className="px-4 py-2 text-sm">
-          <CheckLine
-            ok={documentSaved}
-            label={artifactName ?? expected?.name ?? "Verdict"}
-            detail={
-              documentSaved
-                ? `Version ${artifactVersion}${
-                    artifactSavedAt
-                      ? ` · ${formatSavedAt(artifactSavedAt)}`
-                      : ""
-                  }`
-                : "Not saved yet."
+      {/* Saved: show the document. Not saved: show what it will contain.
+          The outline is guidance for a document that doesn't exist yet —
+          once it does, the real headings say the same thing better. */}
+      {documentSaved && artifactKey && documentPreview ? (
+        <div className="mt-6 space-y-4">
+          <DocumentPreview
+            name={artifactName ?? expected?.name ?? "Verdict"}
+            meta={
+              artifactVersion !== null
+                ? module1Copy.documentMeta(
+                    artifactVersion,
+                    artifactSavedAt ? formatSavedAt(artifactSavedAt) : null,
+                  )
+                : null
             }
-          />
+            readHref={`/artefacts/${moduleKey}/${artifactKey}`}
+            downloadHref={`/artefacts/${moduleKey}/${artifactKey}/download`}
+          >
+            {documentPreview}
+          </DocumentPreview>
+
           {decisionLabel ? (
-            <CheckLine ok label="Your decision" detail={decisionLabel} />
+            <dl className="overflow-hidden rounded-lg border border-border px-4 py-2 text-sm">
+              <CheckLine
+                ok
+                label={module1Copy.documentDecisionLabel}
+                detail={decisionLabel}
+              />
+            </dl>
           ) : null}
-        </dl>
-        {expected && expected.outline.length > 0 ? (
-          <div className="border-t border-border px-4 py-4">
-            <p className="text-xs font-medium text-muted-foreground">
-              It should cover
+        </div>
+      ) : (
+        <div className="mt-6 overflow-hidden rounded-lg border border-border">
+          <div className="border-b border-border bg-muted/40 px-4 py-2.5">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+              {module1Copy.documentHeading}
             </p>
-            <ul className="mt-2 space-y-1">
-              {expected.outline.map((section) => (
-                <li
-                  key={section.heading}
-                  className="text-xs leading-5 text-muted-foreground"
-                >
-                  {section.heading}
-                </li>
-              ))}
-            </ul>
           </div>
-        ) : null}
-        {documentSaved && artifactKey ? (
-          <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-4 py-3 text-xs">
-            <Link
-              href={`/artefacts/${moduleKey}/${artifactKey}`}
-              className="font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              Read document
-            </Link>
-            <a
-              href={`/artefacts/${moduleKey}/${artifactKey}/download`}
-              className="font-medium text-foreground underline-offset-2 hover:underline"
-            >
-              Download
-            </a>
-          </div>
-        ) : null}
-      </div>
+          <dl className="px-4 py-2 text-sm">
+            <CheckLine
+              ok={false}
+              label={artifactName ?? expected?.name ?? "Verdict"}
+              detail={module1Copy.documentNotSaved}
+            />
+          </dl>
+          {expected && expected.outline.length > 0 ? (
+            <div className="border-t border-border px-4 py-4">
+              <p className="text-xs font-medium text-muted-foreground">
+                {module1Copy.documentCovers}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {expected.outline.map((section) => (
+                  <li
+                    key={section.heading}
+                    className="text-xs leading-5 text-muted-foreground"
+                  >
+                    {section.heading}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {isCompleted ? (
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {founderDecision === "kill" ? (
             <>
+              {/* "Venture" is the database's word, not the founder's. */}
               <Button asChild size="lg" className="text-white" style={accent}>
-                <Link href="/workspace">Return to Venture</Link>
+                <Link href="/workspace">{module1Copy.backToIdeas}</Link>
               </Button>
               {nextModuleTitle ? (
                 <Button asChild size="lg" variant="outline">
@@ -740,14 +671,8 @@ function ConfirmStep({
             {isPending ? "Confirming…" : confirmCta}
           </Button>
           <p className="mt-2 text-xs text-muted-foreground">
-            Not happy with it? Ask Claude to revise it — nothing is locked in
-            until you confirm.
+            {module1Copy.reviseHint}
           </p>
-          {error ? (
-            <p role="alert" className="mt-2 text-sm text-destructive">
-              {error}
-            </p>
-          ) : null}
         </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">

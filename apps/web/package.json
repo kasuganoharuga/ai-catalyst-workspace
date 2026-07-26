@@ -11,6 +11,8 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "auth:check": "tsx scripts/check-auth-schema.ts",
+    "seed:test-founders": "tsx scripts/seed-test-founders.ts",
+    "capture:onboarding": "tsx scripts/capture-onboarding.ts",
     "oauth:cleanup": "tsx scripts/oauth-cleanup.ts",
     "test": "vitest run",
     "test:standalone": "node scripts/verify-standalone-build.mjs"
@@ -34,6 +36,7 @@
     "react-dom": "19.2.7",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
     "zod": "^4.4.3"
   },
@@ -47,6 +50,7 @@
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "playwright-core": "^1.62.0",
     "prettier": "^3.9.5",
     "tailwindcss": "^4",
     "tsx": "^4.20.6",

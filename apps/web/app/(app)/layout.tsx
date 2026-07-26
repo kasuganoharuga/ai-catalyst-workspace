@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 
 import { Logo } from "@/components/logo";
+import { Toaster } from "@/components/ui/toaster";
 import { loadAppShellUser } from "@/lib/app-shell";
 
 import { AppSidebar } from "./components/app-sidebar";
@@ -43,6 +44,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </header>
       <AppSidebar user={shellUser} />
       <main className="min-w-0 flex-1">{children}</main>
+      <Toaster />
     </div>
   );
 }

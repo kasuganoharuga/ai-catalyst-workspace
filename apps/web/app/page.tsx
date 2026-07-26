@@ -72,7 +72,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <p className="flex items-center gap-2 border-t border-border pt-6 text-xs text-muted-foreground">
           <Lock aria-hidden="true" className="h-3.5 w-3.5 shrink-0" />
           Places are offered by cohort. Access stays with the founders in the
-          programme.
+          program.
         </p>
       </div>
       <SignInBenefitsPanel />

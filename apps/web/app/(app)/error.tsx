@@ -25,8 +25,7 @@ export default function AppError({
         We couldn&apos;t load this page
       </h1>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        Try again — if you just finished something in Claude, a re-check may
-        also help once the page reloads.
+        Try again. Your saved work is safe either way.
       </p>
       <Button type="button" size="lg" className="mt-6" onClick={reset}>
         Try again

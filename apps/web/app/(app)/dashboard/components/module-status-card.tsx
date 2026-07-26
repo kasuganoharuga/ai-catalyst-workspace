@@ -52,7 +52,7 @@ export function ModuleStatusCard({
   const completedAt = runModule?.completedAt ?? null;
 
   const footHint = (() => {
-    if (!runModule) return "Opens once your programme is set up";
+    if (!runModule) return "Opens once your program is set up";
     switch (runModule.status) {
       case "locked":
         return "Opens when the module before it is done";

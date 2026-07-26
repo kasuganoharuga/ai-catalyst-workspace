@@ -18,14 +18,16 @@ import { listModuleCatalog } from "@/lib/module-catalog";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
 import { appPageTitle } from "@/lib/page-metadata";
-import { ventureForActiveContext } from "@/lib/ventures";
-
+import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
+import { hasPendingSetupModule } from "@/lib/ensure-program-destination";
+import { hasSkippedProfilePrompt } from "@/lib/profile-prompt-dismissal";
 import { PageShell } from "../components/page-shell";
-import { StartRunButton } from "../components/start-run-button";
+import { ContinueProgrammeButton } from "../components/continue-programme-button";
+import { dashboardCopy } from "../lib/copy";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModulesCarousel } from "./components/modules-carousel";
 import { NextActionCard } from "./components/next-action-card";
-import { SetupStepper, type SetupStep } from "./components/setup-stepper";
+import { SkipProfileButton } from "./components/skip-profile-button";
 
 export const metadata = appPageTitle("Dashboard");
 
@@ -79,36 +81,48 @@ export default async function DashboardPage() {
   ]);
 
   const activeContextPromise = getActiveContext(actor);
-  const [catalog, , connection, runResult, profile] = await Promise.all([
-    listModuleCatalog(actor),
-    activeContextPromise,
-    getMcpConnectionStatus(actor),
-    listRunModules(actor),
-    getMyProfile(actor),
-  ]);
+  const [catalog, , connection, runResult, profile, profilePromptSkipped] =
+    await Promise.all([
+      listModuleCatalog(actor),
+      activeContextPromise,
+      getMcpConnectionStatus(actor),
+      listRunModules(actor),
+      getMyProfile(actor),
+      hasSkippedProfilePrompt(),
+    ]);
 
   const hasRun = runResult.runId !== null;
-  const [venture, module0, module1] = await Promise.all([
-    activeContextPromise.then((context) =>
-      ventureForActiveContext(actor, context),
-    ),
+  const [module0, module1] = await Promise.all([
     hasRun ? getModuleContextByKey(actor, MODULE_0_KEY) : Promise.resolve(null),
     hasRun ? getModuleContextByKey(actor, MODULE_1_KEY) : Promise.resolve(null),
   ]);
 
-  const liveModules = catalog.filter((m) => m.catalogStatus === "live");
+  // Module 0 is completed server-side and never shown, so it must not
+  // appear in the carousel or count towards "modules unlocked" either —
+  // a founder counting two modules where they have seen one is worse than
+  // no count at all.
+  const liveModules = catalog.filter(
+    (m) =>
+      m.catalogStatus === "live" &&
+      (SHOW_SETUP_MODULE || m.moduleType !== "setup"),
+  );
   const contextByKey = new Map<string, ModuleContext | null>([
     [MODULE_0_KEY, module0],
     [MODULE_1_KEY, module1],
   ]);
+  const visibleCatalogCount = catalog.filter(
+    (m) => SHOW_SETUP_MODULE || m.moduleType !== "setup",
+  ).length;
 
-  const module0Completed = module0?.runModule.status === "completed";
   const verdictReady =
     module1?.activeAttempt?.status === "ready_for_review" ||
     module1?.runModule.status === "completed";
 
   const unlockedCount = runResult.modules.filter(
-    (m) => m.status !== "locked" && m.status !== "inherited",
+    (m) =>
+      m.status !== "locked" &&
+      m.status !== "inherited" &&
+      (SHOW_SETUP_MODULE || m.moduleType !== "setup"),
   ).length;
   const artefactsSaved = [module0, module1]
     .filter((context): context is ModuleContext => context !== null)
@@ -121,137 +135,85 @@ export default async function DashboardPage() {
     connection.lastActivityAt,
   );
 
-  // Profile must be filled in on Your profile before Connect Claude (or
-  // anything after) unlocks. Require both name parts so a half-filled or
-  // leftover single field never skips the first step. Password change
-  // still can't be detected from Better Auth — prompted in the copy only.
+  // Both name parts, so a half-filled or leftover single field doesn't
+  // read as done. This no longer gates anything — it only decides whether
+  // the nudge is shown. The invitation password still can't be detected
+  // from Better Auth, which is why it is mentioned inside that nudge
+  // rather than prompted for separately.
   const profileComplete = Boolean(
     profile.firstName?.trim() && profile.lastName?.trim(),
   );
-  // Module 0 has produced something and passed its checks. Distinct from
-  // completed: the output exists but nobody has signed it off yet.
-  const module0OutputReady =
-    module0?.activeAttempt?.status === "ready_for_review" ||
-    Boolean(module0Completed);
 
-  // The four things standing between a brand-new account and a running
-  // programme, in the order they have to happen.
-  const steps: SetupStep[] = [
-    {
-      title: "Set up your profile",
-      description:
-        "Add your name and swap the invitation password for your own",
-      done: profileComplete,
-      href: "/profile",
-    },
-    {
-      title: "Connect Claude",
-      description: "One secure link between Claude and this workspace",
-      done: connection.authorised,
-      // Stay on profile until both name fields are saved — do not deep-link
-      // ahead of the first step.
-      href: profileComplete ? "/connection" : null,
-    },
-    {
-      title: "Run Module 0 in Claude",
-      description:
-        "Set up a Claude project for your venture, then let it check the whole path end to end",
-      done: module0OutputReady,
-      href:
-        profileComplete && connection.authorised
-          ? hasRun
-            ? `/modules/${MODULE_0_KEY}`
-            : "/connection"
-          : null,
-    },
-    {
-      title: "Confirm what it produced",
-      description:
-        "Read the Setup Summary and sign it off — that's what opens Module 1",
-      done: Boolean(module0Completed),
-      href:
-        profileComplete && connection.authorised && hasRun
-          ? `/modules/${MODULE_0_KEY}`
-          : null,
-    },
-  ];
+  // Nothing to come back to yet means this is a first visit, whatever the
+  // account's age. "Welcome back" on a screen someone has never seen is a
+  // small lie, and it lands on the one visit that sets expectations.
+  const isFirstVisit = !hasRun;
 
-  // Once all four are behind them, this is just clutter on every future
-  // visit — the next-action card above carries the thread from here.
-  const settingUp = steps.some((step) => !step.done);
+  const setupPending = hasPendingSetupModule(runResult.modules);
 
+  // Nothing under the greeting on a first visit. The card below already
+  // says what to do; a second sentence restating it is the first thing a
+  // new founder has to read past.
   const welcomeSub = (() => {
-    if (!profileComplete)
-      return "A couple of minutes of setup and the programme is yours — start with your own details.";
-    if (!connection.authorised)
-      return "The thinking happens in Claude. Connect it once and it stays connected.";
-    if (!hasRun)
-      return "Everything you work through here compounds — each answer feeds the next question.";
-    if (!module0OutputReady)
-      return "Claude is connected. One short check and the real questions begin.";
-    if (!module0Completed)
-      return "Claude has done its part. Nothing moves on until you've read it and said so.";
-    if (!verdictReady)
-      return "Your idea is on the table. Keep going until the case holds up on its own.";
-    return "The hard part is done — your idea has been through the wringer and survived on paper.";
+    if (isFirstVisit) return null;
+    if (!connection.authorised) return dashboardCopy.subNeedsConnection;
+    if (!hasRun || setupPending) return dashboardCopy.subNeedsRun;
+    if (!verdictReady) return dashboardCopy.subInProgress;
+    return dashboardCopy.subDone;
   })();
 
   // One next action, chosen by where the founder actually is. This is
   // what the single dark card on the page carries.
+  //
+  // The profile step leads, but it still gates nothing: every other route
+  // stays open in the sidebar, and skipping it costs the founder only the
+  // greeting using their invitation name. It is a recommended order, not a
+  // sequence they are locked into.
   const nextAction = (() => {
-    if (!profileComplete) {
+    if (!profileComplete && !profilePromptSkipped) {
       return {
-        title: "Start with your own details",
-        body: "Your name, and a password that isn't the one from your invitation email. It's what the rest of the toolkit greets you by.",
+        kicker: dashboardCopy.actionFirstKicker,
+        title: dashboardCopy.actionProfileTitle,
+        body: dashboardCopy.actionProfileBody,
         href: "/profile",
-        cta: "Set up your profile",
+        cta: dashboardCopy.actionProfileCta,
+        skippable: true as const,
       };
     }
     if (!connection.authorised) {
       return {
-        title: "Connect Claude to your workspace",
-        body: "Every module runs as a conversation. Two minutes of setup, then you never think about it again.",
+        title: dashboardCopy.actionConnectTitle,
+        body: dashboardCopy.actionConnectBody,
         href: "/connection",
-        cta: "Set up the connection",
+        cta: dashboardCopy.actionConnectCta,
       };
     }
-    if (!hasRun) {
+    // `setupPending` matters as much as `!hasRun`: a Run made before the
+    // setup Module was hidden still has it open, with everything after it
+    // locked. Linking straight to Module 1 there lands the founder on
+    // "finish the previous module" about a module with no entry point.
+    // Both cases go through the action that completes setup server-side.
+    if (!hasRun || setupPending) {
       return {
-        title: "Open up your programme",
-        body: venture
-          ? `Sets up your run of the toolkit for ${venture.name}, with the first module ready. It only happens once.`
-          : "Sets up your run of the toolkit, with the first module ready.",
-      };
-    }
-    if (!module0OutputReady) {
-      return {
-        title: "Run the setup check",
-        body: "Five minutes in Claude to prove the whole path works, before anything is riding on it.",
-        href: `/modules/${MODULE_0_KEY}`,
-        cta: "Open Module 0",
-      };
-    }
-    if (!module0Completed) {
-      return {
-        title: "Sign off what Claude produced",
-        body: "Your Setup Summary is saved and it passed its checks. Read it over and confirm — that's what opens Module 1.",
-        href: `/modules/${MODULE_0_KEY}`,
-        cta: "Review and confirm",
+        title: dashboardCopy.actionOpenRunTitle,
+        body: dashboardCopy.actionOpenRunBody,
+        ensure: true as const,
+        cta: dashboardCopy.actionOpenRunCta,
       };
     }
     if (!verdictReady) {
       return {
-        title: "Put your idea under pressure",
-        body: "Six questions, an honest verdict, and a decision you have to defend: proceed, pivot or kill.",
+        title: dashboardCopy.actionModule1Title,
+        body: dashboardCopy.actionModule1Body,
         href: `/modules/${MODULE_1_KEY}`,
-        cta: "Open Module 1",
+        cta: dashboardCopy.actionModule1Cta,
       };
     }
     return {
-      title: "Your verdict is on the record",
-      body: "It stays here, versioned, ready for a mentor to pick apart when review opens.",
+      title: dashboardCopy.actionDoneTitle,
+      body: dashboardCopy.actionDoneBody,
       href: "/artefacts",
-      cta: "View artefacts",
+      cta: dashboardCopy.actionDoneCta,
     };
   })();
 
@@ -259,52 +221,67 @@ export default async function DashboardPage() {
     <PageShell>
       <div>
         <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          Welcome back, {resolveGreetingName(profile, session.user.name)}
+          {isFirstVisit
+            ? dashboardCopy.greetingFirstVisit(
+                resolveGreetingName(profile, session.user.name),
+              )
+            : dashboardCopy.greetingReturning(
+                resolveGreetingName(profile, session.user.name),
+              )}
         </h1>
-        <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
-          {welcomeSub}
-        </p>
+        {welcomeSub ? (
+          <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
+            {welcomeSub}
+          </p>
+        ) : null}
       </div>
 
       <div className="mt-10">
-        <NextActionCard title={nextAction.title} body={nextAction.body}>
-          {nextAction.href ? (
-            <Button asChild size="lg">
-              <Link href={nextAction.href}>{nextAction.cta}</Link>
-            </Button>
-          ) : venture ? (
-            <StartRunButton ventureId={venture.id} label="Set it up" />
+        <NextActionCard
+          kicker={"kicker" in nextAction ? nextAction.kicker : undefined}
+          title={nextAction.title}
+          body={nextAction.body}
+        >
+          {"ensure" in nextAction && nextAction.ensure ? (
+            <ContinueProgrammeButton label={nextAction.cta ?? "Continue"} />
+          ) : nextAction.href ? (
+            <div className="flex flex-wrap items-center gap-4">
+              <Button asChild size="lg">
+                <Link href={nextAction.href}>{nextAction.cta}</Link>
+              </Button>
+              {"skippable" in nextAction && nextAction.skippable ? (
+                <SkipProfileButton />
+              ) : null}
+            </div>
           ) : (
-            <Button asChild size="lg">
-              <Link href="/workspace">Create a venture first</Link>
-            </Button>
+            <ContinueProgrammeButton label="Continue" />
           )}
         </NextActionCard>
       </div>
 
-      {settingUp ? (
-        <div className="mt-12">
-          <SetupStepper steps={steps} />
-        </div>
-      ) : null}
+      {/* The profile nudge that used to sit here is now the "First" card
+          above — one prompt, not two saying the same thing. */}
 
       <div className="mt-12 grid grid-cols-3 divide-x divide-border border-y border-border">
-        <Stat value={`${unlockedCount}`} suffix={`/${catalog.length}`}>
-          Modules unlocked
+        {/* Denominator matches the numerator's filter: counting Module 0
+            in the total while excluding it from the count would read as a
+            module the founder can never reach. */}
+        <Stat value={`${unlockedCount}`} suffix={`/${visibleCatalogCount}`}>
+          {dashboardCopy.statModules}
         </Stat>
-        <Stat value={`${artefactsSaved}`}>Artefacts saved</Stat>
+        <Stat value={`${artefactsSaved}`}>{dashboardCopy.statArtefacts}</Stat>
         <Stat value={connectionStat.value}>{connectionStat.label}</Stat>
       </div>
 
       <div className="mt-14 flex items-baseline justify-between gap-4">
         <h2 className="font-serif text-2xl font-medium tracking-[-0.01em]">
-          Your modules
+          {dashboardCopy.modulesHeading}
         </h2>
         <Link
           href="/modules"
           className="text-sm font-medium text-muted-foreground transition hover:text-foreground"
         >
-          View all
+          {dashboardCopy.modulesViewAll}
         </Link>
       </div>
       <div className="mt-5">

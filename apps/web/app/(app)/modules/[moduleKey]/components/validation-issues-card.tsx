@@ -16,12 +16,11 @@ export function ValidationIssuesCard({
     <div className="overflow-hidden rounded-[2rem] border border-destructive/30 bg-card shadow-sm">
       <div className="border-b border-destructive/20 bg-destructive/5 px-6 py-4">
         <h2 className="text-base font-semibold text-foreground">
-          Not quite there yet — and that&apos;s normal
+          A few gaps to close
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          The last check found a few gaps. Start another pass if you need a
-          fresh attempt, then ask Claude to work through the gaps and save an
-          updated version — then re-check here.
+          Ask Claude to work through the points below and save an updated
+          version. This page picks it up from there.
         </p>
       </div>
       <ul className="space-y-3 px-6 py-5">
@@ -38,7 +37,7 @@ export function ValidationIssuesCard({
       {validation.warnings.length > 0 ? (
         <div className="border-t border-border bg-muted/40 px-6 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.15em] text-muted-foreground">
-            Worth a look, but won&apos;t block you
+            Worth a look, but not blocking
           </p>
           <ul className="mt-2 space-y-1.5">
             {validation.warnings.map((warning, index) => (

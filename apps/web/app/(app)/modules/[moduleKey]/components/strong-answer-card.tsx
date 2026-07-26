@@ -30,9 +30,10 @@ export function StrongAnswerCard() {
           </p>
         </div>
       </div>
+      {/* "Rough wording is fine" already appears in the brief's Before you
+          start list; saying it twice on one screen made it read as filler. */}
       <p className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">
         A real person, a number, and evidence they already tried something.
-        Rough wording is fine — specific beats polished every time.
       </p>
     </div>
   );

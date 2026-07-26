@@ -5,8 +5,10 @@ import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { appPageTitle } from "@/lib/page-metadata";
 import { listModuleContextsForActiveRun } from "@/lib/run-modules";
+import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 
 import { PageShell } from "../components/page-shell";
+import { artefactsCopy } from "../lib/copy";
 import type {
   ArtefactCardModel,
   ArtefactModuleGroupModel,
@@ -26,7 +28,19 @@ export default async function ArtefactsPage() {
     catalog.map((entry) => [entry.moduleKey, entry]),
   );
 
-  const groups: ArtefactModuleGroupModel[] = contexts
+  // This page is framed as everything the founder's modules produce, and
+  // the Setup Summary is not that: it is a machine-written report on their
+  // own storage configuration, generated server-side, with nothing in it
+  // for them to read or act on. Listing it pads the count with a document
+  // they did not make. The direct URL still resolves, same as the setup
+  // module's own page, so support can still pull it up.
+  const visibleContexts = contexts.filter(
+    (context) =>
+      SHOW_SETUP_MODULE ||
+      catalogByKey.get(context.runModule.moduleKey)?.moduleType !== "setup",
+  );
+
+  const groups: ArtefactModuleGroupModel[] = visibleContexts
     .map((context) => {
       const entry = catalogByKey.get(context.runModule.moduleKey);
       const expectedByKey = new Map(
@@ -82,36 +96,35 @@ export default async function ArtefactsPage() {
     <PageShell>
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Your workspace
+          {artefactsCopy.kicker}
         </p>
         <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          Everything your modules produce
+          {artefactsCopy.title}
         </h1>
         <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          Each module ends with one or more documents Claude saves into your
-          workspace. They live here — versioned, checked, and ready whenever you
-          come back.
+          {artefactsCopy.intro}
         </p>
       </div>
 
       {groups.length === 0 ? (
         <div className="mt-10 rounded-xl border border-border bg-muted/40 p-8 text-center">
+          {/* Named Module 0 until it was hidden; the first document a
+              founder ever sees is now Module 1's verdict. */}
           <p className="text-[15px] leading-7 text-muted-foreground">
-            Nothing here yet — artefacts appear as you work through modules in
-            Claude. Module 0 saves your first one.
+            {artefactsCopy.empty}
           </p>
           <Button asChild size="lg" className="mt-6">
-            <Link href="/modules">Go to modules</Link>
+            <Link href="/modules">{artefactsCopy.emptyCta}</Link>
           </Button>
         </div>
       ) : (
         <>
           <div className="mt-10 flex items-baseline justify-between gap-4 border-t border-border pt-4">
             <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              By module
+              {artefactsCopy.byModule}
             </p>
             <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-              {savedCount} of {totalArtefacts} saved
+              {artefactsCopy.savedCount(savedCount, totalArtefacts)}
             </p>
           </div>
 
@@ -122,7 +135,7 @@ export default async function ArtefactsPage() {
           </div>
 
           <p className="mt-8 text-sm leading-6 text-muted-foreground">
-            Files are stored in your workspace — nothing lives only in the chat.
+            {artefactsCopy.storageNote}
           </p>
         </>
       )}

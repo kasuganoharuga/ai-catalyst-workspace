@@ -25,13 +25,12 @@ export default async function ProfilePage() {
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Your profile
       </p>
+      {/* No subtitle: the page is called "Your profile", the fields are
+          labelled, and a sentence explaining that a profile is how you
+          appear is the kind of line people learn to skip. */}
       <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
         {displayName}
       </h1>
-      <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-        How you appear across the programme. Your name here is what the rest of
-        the toolkit greets you by.
-      </p>
 
       <ProfileForm profile={profile} />
 

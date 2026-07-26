@@ -9,7 +9,9 @@ type DownloadRouteContext = {
 };
 
 function safeFilename(name: string): string {
-  return name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "artifact.md";
+  // Australian spelling: this lands in the founder's downloads folder.
+  // The `artifact*` identifiers around it are DTO field names, not copy.
+  return name.replace(/[\\/:*?"<>|]+/g, "_").trim() || "artefact.md";
 }
 
 export async function GET(_request: Request, context: DownloadRouteContext) {
