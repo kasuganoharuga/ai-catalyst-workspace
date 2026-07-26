@@ -49,7 +49,7 @@
     "auth": "1.6.23",
     "dotenv": "^17.4.2",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "16.2.11",
     "playwright-core": "^1.62.0",
     "prettier": "^3.9.5",
     "tailwindcss": "^4",
