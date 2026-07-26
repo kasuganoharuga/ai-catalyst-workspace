@@ -11,9 +11,13 @@ permissions:
   contents: read
   id-token: write
 
+# Rapid merges on develop used to queue many deploys; with cancel-in-progress
+# false, only the in-flight run finished and every other pending run was
+# cancelled — noisy red/cancelled noise in Actions. Prefer deploying the
+# latest tip only.
 concurrency:
   group: deploy-${{ github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:

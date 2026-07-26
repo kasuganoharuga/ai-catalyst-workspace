@@ -167,7 +167,24 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Start db
-        run: docker compose -f infra/docker/docker-compose.yml up -d --wait db
+        # Docker Hub pulls flake on shared runners (Client.Timeout awaiting
+        # headers). Retry a few times before failing the job.
+        run: |
+          set -euo pipefail
+          attempt=1
+          max_attempts=4
+          while true; do
+            if docker compose -f infra/docker/docker-compose.yml up -d --wait db; then
+              break
+            fi
+            if [ "${attempt}" -ge "${max_attempts}" ]; then
+              echo "Failed to start db after ${max_attempts} attempts" >&2
+              exit 1
+            fi
+            echo "db pull/start failed (attempt ${attempt}/${max_attempts}); retrying in 15s…" >&2
+            attempt=$((attempt + 1))
+            sleep 15
+          done
 
       - name: Run migrations
         run: pnpm --filter @ai-catalyst/db run migrate
