@@ -46,7 +46,7 @@
     "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "auth": "1.6.23",
+    "auth": "1.6.25",
     "dotenv": "^17.4.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.11",
