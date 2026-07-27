@@ -220,6 +220,24 @@ Not applicable.
 - Churn after the round closes is assumed acceptable but has not been modelled.
 `;
 
+/**
+ * Moves the credential row's `updated_at` forward, which is what
+ * hasChangedInvitationPassword reads.
+ *
+ * Not an actual password change: `authClient.changePassword` is a
+ * browser-side call, and re-hashing by hand would put this script back in
+ * the business of guessing Better Auth's hash format. The timestamp is
+ * the whole signal, so moving the timestamp is a faithful fixture.
+ */
+async function fakeChangedPassword(deps: Deps, userId: string): Promise<void> {
+  await deps.pool.query(
+    `update accounts
+     set updated_at = now() + interval '5 minutes'
+     where user_id = $1 and provider_id = 'credential'`,
+    [userId],
+  );
+}
+
 interface SeedSpec {
   label: string;
   displayName: string;
@@ -227,6 +245,13 @@ interface SeedSpec {
   shows: string;
   profileName: { firstName: string; lastName: string } | null;
   connected: boolean;
+  /**
+   * Whether this founder has replaced the password their invitation
+   * shipped with. Drives the dashboard's password prompt, which is a
+   * separate signal from the profile name — the two must be settable
+   * independently or the prompt can't be seen to behave.
+   */
+  passwordChanged: boolean;
   run: "none" | "setup-open" | "module-1" | "verdict-saved";
 }
 
@@ -238,6 +263,7 @@ const SPECS: SeedSpec[] = [
       "First visit. No name, not connected: greeting reads Welcome (not Welcome back), profile prompt showing, next action is Connect Claude.",
     profileName: null,
     connected: false,
+    passwordChanged: false,
     run: "none",
   },
   {
@@ -247,6 +273,7 @@ const SPECS: SeedSpec[] = [
       "Name filled, still not connected: profile prompt gone, next action still Connect Claude.",
     profileName: { firstName: "Ada", lastName: "Lovelace" },
     connected: false,
+    passwordChanged: false,
     run: "none",
   },
   {
@@ -256,6 +283,7 @@ const SPECS: SeedSpec[] = [
       "Connected, no run yet. Continue should complete the setup module server-side and land on Module 1 — no Module 0 screen anywhere.",
     profileName: { firstName: "Grace", lastName: "Hopper" },
     connected: true,
+    passwordChanged: true,
     run: "none",
   },
   {
@@ -265,6 +293,7 @@ const SPECS: SeedSpec[] = [
       "The migration case: a run from before this change, Module 0 in_progress with a draft attempt, Module 1 locked. Continue should unstick it.",
     profileName: { firstName: "Karen", lastName: "Sparck Jones" },
     connected: true,
+    passwordChanged: true,
     run: "setup-open",
   },
   {
@@ -274,6 +303,7 @@ const SPECS: SeedSpec[] = [
       "Setup already completed server-side: returning-visitor greeting, Module 1 open and waiting.",
     profileName: { firstName: "Barbara", lastName: "Liskov" },
     connected: true,
+    passwordChanged: true,
     run: "module-1",
   },
   {
@@ -283,6 +313,7 @@ const SPECS: SeedSpec[] = [
       "Module 1 with a saved, validated verdict awaiting sign-off. Open step 3 to see the document rendered inline.",
     profileName: { firstName: "Radia", lastName: "Perlman" },
     connected: true,
+    passwordChanged: true,
     run: "verdict-saved",
   },
 ];
@@ -357,11 +388,16 @@ async function fakeMcpConnection(deps: Deps, userId: string): Promise<void> {
      on conflict (client_id) do nothing`,
     [CLIENT_ID],
   );
+  // One hour, matching auth.ts's accessTokenExpiresIn. This used to be 30
+  // days, which quietly made the fixtures unable to reproduce the bug they
+  // were most useful for: a token that outlives the founder's intent is
+  // exactly what "I disconnected but the site still says connected" is
+  // about, and a month-long token hides how long that window really is.
   await deps.pool.query(
     `insert into mcp_oauth_access_tokens
        (access_token, refresh_token, access_token_expires_at,
         refresh_token_expires_at, client_id, user_id, scopes)
-     values ($1, $2, now() + interval '30 days', now() + interval '30 days', $3, $4, 'mcp:connect')`,
+     values ($1, $2, now() + interval '1 hour', now() + interval '7 days', $3, $4, 'mcp:connect')`,
     [
       `seed-access-${randomUUID()}`,
       `seed-refresh-${randomUUID()}`,
@@ -390,6 +426,9 @@ async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
   }
   if (spec.connected) {
     await fakeMcpConnection(deps, userId);
+  }
+  if (spec.passwordChanged) {
+    await fakeChangedPassword(deps, userId);
   }
 
   if (spec.run === "setup-open") {

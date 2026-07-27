@@ -15,6 +15,7 @@ import { StatusBadge } from "../components/status-badge";
 import { connectionCopy } from "../lib/copy";
 import { appPageTitle } from "@/lib/page-metadata";
 import { ConnectionSetup } from "./components/connection-setup";
+import { DisconnectButton } from "./components/disconnect-button";
 
 export const metadata = appPageTitle("MCP connection");
 
@@ -98,6 +99,21 @@ export default async function ConnectionPage() {
                 </p>
               </div>
             )}
+          </div>
+
+          {/* Below the status, not beside it: this ends the thing the rest
+              of the card is reporting on, so it should not be reachable by
+              accident while scanning. */}
+          <div className="flex flex-wrap items-start justify-between gap-4 border-t border-border px-6 py-5">
+            <div className="min-w-0 max-w-lg">
+              <p className="text-sm font-semibold text-foreground">
+                {connectionCopy.disconnectTitle}
+              </p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                {connectionCopy.disconnectBody}
+              </p>
+            </div>
+            <DisconnectButton />
           </div>
         </section>
       ) : (

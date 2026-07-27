@@ -128,6 +128,13 @@ const SHOTS: Shot[] = [
     },
   },
   {
+    name: "06b-connection-connected",
+    account: "verdict",
+    path: "/connection",
+    looksAt:
+      "The authorised view: status rows, then Disconnect with copy saying the connector stays in Claude.",
+  },
+  {
     name: "07-dashboard-connected",
     account: "connected",
     path: "/dashboard",

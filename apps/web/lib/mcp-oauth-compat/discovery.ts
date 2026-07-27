@@ -49,6 +49,18 @@ export function buildAuthorizationServerMetadata(
     authorization_endpoint: `${base}/mcp/authorize`,
     token_endpoint: `${base}/mcp/token`,
     registration_endpoint: `${base}/mcp/register`,
+    // Not under `${base}` like the three above: Better Auth's `[...all]`
+    // catch-all owns `/api/auth`, and this endpoint is ours
+    // (apps/web/app/api/mcp/revoke/route.ts). RFC 8414 places no path
+    // constraint on it, and a client that reads this document does not
+    // care where it lives.
+    //
+    // Advertised so a disconnect in the AI client has somewhere to land.
+    // Without it, removing the connector was purely client-side: the
+    // token stayed live and this server went on treating the Founder as
+    // connected until it expired.
+    revocation_endpoint: `${issuer}/api/mcp/revoke`,
+    revocation_endpoint_auth_methods_supported: ["none"],
     scopes_supported: ["mcp:connect"],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],

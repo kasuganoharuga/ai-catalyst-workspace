@@ -16,6 +16,7 @@ import { MarkdownDocument } from "../../../components/markdown-document";
 
 import { ContinueProgrammeButton } from "../../../components/continue-programme-button";
 import { StatusBadge } from "../../../components/status-badge";
+import { moduleGateCopy } from "../../../lib/copy";
 import {
   DECISION_QUESTION_KEYS,
   deriveModuleDisplayStatus,
@@ -24,7 +25,6 @@ import {
   startModulePrompt,
 } from "../../../lib/module-display";
 import { StatusPill } from "../../components/status-pill";
-import { ExpectedOutputCard } from "./expected-output-card";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
 import { RetryPassCard } from "./retry-pass-card";
@@ -188,19 +188,36 @@ export async function ModuleDetailBody({
         </div>
       ) : null}
 
+      {/* No Run yet, and the reason matters. Without a connection the
+          Continue button has nothing it can do — ensureActiveProgramDestination
+          returns not_connected and the founder gets an error toast for
+          pressing the only button on the page. Send them to the step that
+          actually unblocks them instead. */}
       {isLive && !runModule ? (
-        <div className="mt-10 max-w-3xl rounded-[2rem] border border-border bg-card p-8 shadow-sm">
-          <h2 className="text-xl font-semibold tracking-tight">
-            One step before this module can track your progress
+        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
+          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
+            {connection?.authorised
+              ? moduleGateCopy.needsRunTitle
+              : moduleGateCopy.needsConnectionTitle}
           </h2>
-          <p className="mt-3 text-base leading-7 text-muted-foreground">
-            This opens your own run of the toolkit. One click, once ever.
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {connection?.authorised
+              ? moduleGateCopy.needsRunBody
+              : moduleGateCopy.needsConnectionBody}
           </p>
-          <ContinueProgrammeButton
-            className="mt-6"
-            label="Continue"
-            pendingLabel="Setting things up…"
-          />
+          {connection?.authorised ? (
+            <ContinueProgrammeButton
+              className="mt-6"
+              label={moduleGateCopy.needsRunCta}
+              pendingLabel="Setting things up…"
+            />
+          ) : (
+            <Button asChild size="lg" className="mt-6">
+              <Link href="/connection">
+                {moduleGateCopy.needsConnectionCta}
+              </Link>
+            </Button>
+          )}
         </div>
       ) : null}
 
@@ -210,31 +227,29 @@ export async function ModuleDetailBody({
           founder is told to finish something that no longer appears
           anywhere, so they get the button that finishes it for them. */}
       {isLocked && setupPending ? (
-        <div className="mt-10 max-w-3xl rounded-[2rem] border border-border bg-card p-8 shadow-sm">
-          <h2 className="text-xl font-semibold tracking-tight">
-            Finish setting up your workspace
+        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
+          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
+            {moduleGateCopy.setupPendingTitle}
           </h2>
-          <p className="mt-3 text-base leading-7 text-muted-foreground">
-            One check has to run against your workspace before this module
-            opens. It takes a few seconds and you only do it once.
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {moduleGateCopy.setupPendingBody}
           </p>
           <ContinueProgrammeButton
             className="mt-6"
-            label="Finish setup"
+            label={moduleGateCopy.setupPendingCta}
             pendingLabel="Setting things up…"
           />
         </div>
       ) : isLocked ? (
-        <div className="mt-10 flex max-w-3xl flex-wrap items-center justify-between gap-4 rounded-[2rem] border border-border bg-muted/40 p-6">
+        <div className="mt-10 flex max-w-3xl flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 p-6">
           <p className="text-sm leading-6 text-muted-foreground">
             <span className="font-semibold text-foreground">
-              Locked for now.
+              {moduleGateCopy.lockedLead}
             </span>{" "}
-            Each module builds on the one before it. Finish the previous module
-            and this one opens automatically.
+            {moduleGateCopy.lockedBody}
           </p>
           <Button asChild variant="outline" className="shrink-0">
-            <Link href="/modules">Back to modules</Link>
+            <Link href="/modules">{moduleGateCopy.backToModules}</Link>
           </Button>
         </div>
       ) : null}
@@ -310,7 +325,7 @@ export async function ModuleDetailBody({
                 ) : null
               }
               isCompleted={isCompleted}
-              isLocked={isLocked}
+              preview={isLocked ? "locked" : null}
               startPrompt={startPrompt}
               nextModuleTitle={nextModuleTitle}
             />
@@ -318,22 +333,40 @@ export async function ModuleDetailBody({
         )
       ) : null}
 
-      {isLive && !runModule ? (
-        <section className="mt-8 grid gap-8 lg:grid-cols-[1fr_22rem]">
-          <div className="rounded-[2rem] border border-border bg-card p-8 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              What this module does
-            </h2>
-            <p className="mt-4 text-base leading-7 text-muted-foreground">
-              {entry.description ?? "No description yet."}
-            </p>
-            {entry.objective ? (
-              <p className="mt-4 text-base leading-7 text-muted-foreground">
-                {entry.objective}
-              </p>
-            ) : null}
-          </div>
-          <ExpectedOutputCard artifacts={entry.expectedArtifacts} />
+      {/* No Run yet: show the module itself, read-only, rather than a
+          summary of it.
+
+          What used to sit here was the seeded `description` and
+          `objective` — text written for the content spec and for Claude,
+          not for a founder. It read "a locked-schema Pressure-Test Verdict
+          with AI Recommendation" and "Help the Founder test whether…",
+          third person and all. Someone deciding whether to connect Claude
+          was being shown the module's internal blurb instead of the module. */}
+      {isLive && !runModule && !isSetupModule ? (
+        <section className="mt-8">
+          <Module1Run
+            moduleKey={entry.moduleKey}
+            moduleIndex={entry.sequenceIndex}
+            programRunModuleId={null}
+            ventureId={null}
+            claudeProjectId={null}
+            connected={Boolean(connection?.authorised)}
+            coreQuestions={[]}
+            decisionQuestions={[]}
+            artifactKey={null}
+            artifactName={null}
+            artifactVersion={null}
+            artifactSavedAt={null}
+            expectedArtifacts={entry.expectedArtifacts}
+            hasAttempt={false}
+            needsRetry={false}
+            awaitingConfirmation={false}
+            documentPreview={null}
+            isCompleted={false}
+            preview="not-started"
+            startPrompt={startPrompt}
+            nextModuleTitle={nextModuleTitle}
+          />
         </section>
       ) : null}
     </>

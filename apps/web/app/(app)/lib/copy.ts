@@ -66,20 +66,25 @@ export const connectionCopy = {
   // a founder gets stuck (see troubleshooting) is a plan restriction that
   // no amount of narration will fix.
   setupTitle: "Add the connector in Claude",
-  setupBody: "Six steps, once. You'll approve access at the end.",
+  setupBody: "Five steps, once. You'll approve access at the end.",
   setupPromptLabel: "Message to send",
   setupOpenCta: "Open Claude",
 
+  // Deliberately no menu route. Naming each click — avatar, Settings,
+  // Connectors — was accurate until Claude moved connectors under
+  // Customize, at which point every founder following these steps hit a
+  // screen that did not exist and had no way to tell a moved menu from a
+  // missing feature. The link goes straight to the page instead, and the
+  // steps describe what to do once there.
   manualSteps: [
     {
-      title: "Open Settings in Claude",
-      body: "Click your avatar in the bottom-left corner, then choose Settings.",
-      linkLabel: "Open settings",
+      title: "Open your connectors in Claude",
+      body: "They live under Customize.",
+      linkLabel: "Open connectors in the Claude app",
     },
-    { title: "Go to Connectors", body: "It's in the settings sidebar." },
     {
-      title: 'Click Add, then "Add custom connector"',
-      body: "The Add button sits at the top of the connectors list.",
+      title: "Add a custom connector",
+      body: "Use the Add button on that page and choose the custom option.",
     },
     {
       title: "Name it and paste this address",
@@ -96,6 +101,9 @@ export const connectionCopy = {
       optional: true,
     },
   ] as ManualStep[],
+
+  settingsFallbackPrefix: "Nothing happened?",
+  settingsFallbackLink: "Open connectors in your browser",
 
   claudeHelpSummary: "Rather have Claude walk you through it?",
   claudeHelpBody:
@@ -114,6 +122,14 @@ export const connectionCopy = {
       symptom: "You're on a Team or Enterprise plan",
       fix: "Only the workspace owner can add a connector. Ask them to add it once, and it appears for everyone.",
     },
+    // Added after Claude moved connectors out of Settings and into
+    // Customize. The steps above no longer name a menu route for exactly
+    // this reason, but a founder who navigates by memory can still land on
+    // the old screen and read "moved" as "missing".
+    {
+      symptom: "Claude's screens don't match these steps",
+      fix: "Claude moves this page from time to time — it currently sits under Customize. Use the link above rather than navigating by menu.",
+    },
     {
       symptom: "You approved access, but this page hasn't moved",
       fix: "Come back to this tab and leave it open for a few seconds. It checks while you're looking at it.",
@@ -129,6 +145,18 @@ export const connectionCopy = {
   connectedBody: "Opening your first module.",
   watchRetry: "Try again",
 
+  // Says what it does and what it doesn't. Removing the connector inside
+  // Claude never reached this server, so a founder could have "connected"
+  // on one screen and "disconnected" on the other; this is the button that
+  // makes them agree. It does not remove the connector from Claude — being
+  // vague about that would leave someone thinking they were done.
+  disconnectTitle: "Disconnect Claude",
+  disconnectBody:
+    "Revokes Claude's access to this workspace. The connector stays in your Claude settings, and reconnecting means approving access again.",
+  disconnectCta: "Disconnect",
+  disconnectPending: "Disconnecting…",
+  disconnectDone: "Claude no longer has access to this workspace.",
+
   statusHeading: "Connection status",
   statusClient: "Authorised client",
   statusValidUntil: "Authorisation valid until",
@@ -142,8 +170,11 @@ export const connectionCopy = {
     "Nothing recent to go on. Claude may simply be closed. Ask it to do anything in your workspace, then refresh.",
 
   privacyLabel: "What this connection does:",
+  // Was "you can disconnect from Claude's settings at any time" — which
+  // named the one place that has no effect here. Removing the connector in
+  // Claude is client-side; ending access is done on this page.
   privacyBody:
-    "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Every call is logged, and you can disconnect from Claude's settings at any time.",
+    "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Every call is logged, and you can end access from this page at any time.",
 } as const;
 
 // ── Opening Claude ──────────────────────────────────────────────────────
@@ -183,6 +214,16 @@ export const dashboardCopy = {
   actionProfileBody: "Allow 30 seconds.",
   actionProfileCta: "Start now",
   actionProfileSkip: "Skip for now",
+
+  // Its own prompt, not a clause inside the profile card. Bundled there,
+  // it vanished the moment a founder saved their name — so the one
+  // account most likely to still be on an emailed password was the one
+  // that never heard about it again. No skip: unlike a name, this has a
+  // real end state and disappears by itself once the password changes.
+  passwordPromptTitle: "You're still on your invitation password",
+  passwordPromptBody:
+    "It was sent to you by email, so treat it as known to anyone who has seen that inbox.",
+  passwordPromptCta: "Change it",
 
   actionConnectTitle: "Connect Claude",
   actionConnectBody:
@@ -249,10 +290,19 @@ export const module1Copy = {
   workTitle: "Work through it in Claude",
   workBody:
     "Send the message below. Claude asks the questions one at a time. This page updates as it saves, so you can leave and come back.",
+  // Two ways to be looking at this module without being able to work on
+  // it, and they need different sentences: one is waiting on the module
+  // before it, the other on a connection. Telling a founder to "finish the
+  // previous module" when what they actually need is to connect Claude
+  // sends them looking for a module that isn't the problem.
   workBodyLocked:
     "A preview of how this module works. Actions open once you finish the module before it.",
+  workBodyNotStarted:
+    "A preview of how this module works. The steps go live once Claude is connected.",
   workLockedNote:
     "Opening Claude and starting this module unlocks after you finish the previous one.",
+  workNotStartedNote:
+    "Connect Claude first. This message then opens a chat that starts the module.",
 
   notConnected:
     "Claude isn't connected to this workspace yet, so nothing can be saved.",
@@ -280,6 +330,10 @@ export const module1Copy = {
     "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, you sign it off here.",
   confirmNoFileLocked:
     "You can look ahead here. Starting an attempt and saving a verdict open once this module does.",
+  confirmNoFileNotStarted:
+    "You can look ahead here. Sign-off appears once Claude has saved your verdict.",
+  confirmUnavailable: "Sign-off opens along with this module.",
+  confirmFinishFirst: "Finish the conversation in the previous step first.",
   reviseHint:
     "Not happy with it? Ask Claude to revise. Nothing is locked in until you confirm.",
 
@@ -332,6 +386,39 @@ export function module1ConfirmCta(decision: FounderDecision): string {
   if (decision === "pivot") return "Confirm and continue";
   return "Confirm and open the next module";
 }
+
+// ── Module gates ────────────────────────────────────────────────────────
+
+// What a founder sees on a module page before that module can be worked
+// on. Each of these is a different reason, and each names the one action
+// that resolves it — a single "Continue" for all of them was how someone
+// with no connection ended up clicking a button that could only fail.
+export const moduleGateCopy = {
+  // The case that was broken: no connection, so the Continue button had
+  // nothing it could do. It called the action anyway and returned an
+  // error toast, which reads as the site being broken rather than as a
+  // step not done yet.
+  needsConnectionTitle: "Connect Claude to start this module",
+  needsConnectionBody:
+    "You work through this module by talking to Claude, so it needs access to your workspace first. It takes about two minutes and you only do it once.",
+  needsConnectionCta: "Connect Claude",
+
+  // Connected, but no Run exists yet. Here the button genuinely works.
+  needsRunTitle: "Open this module",
+  needsRunBody:
+    "This sets up your workspace for the program and opens the module.",
+  needsRunCta: "Open module",
+
+  setupPendingTitle: "Finish setting up your workspace",
+  setupPendingBody:
+    "One check has to run against your workspace before this module opens. It takes a few seconds and you only do it once.",
+  setupPendingCta: "Finish setup",
+
+  lockedLead: "Locked for now.",
+  lockedBody:
+    "Each module builds on the one before it. Finish the previous module and this one opens automatically.",
+  backToModules: "Back to modules",
+} as const;
 
 // ── Modules and artefacts ───────────────────────────────────────────────
 

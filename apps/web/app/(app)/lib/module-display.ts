@@ -182,8 +182,25 @@ export function extractClaudeProjectId(input: string): string | null {
   return match ? match[0].toLowerCase() : null;
 }
 
+/**
+ * Claude's connector page, desktop first.
+ *
+ * `/customize/connectors`, not `/settings/connectors`: Claude moved
+ * connectors out of Settings and into Customize, and the old path now
+ * lands on a "these have moved" notice. The desktop deep link is
+ * confirmed to open the client.
+ *
+ * Linking straight here is also what lets the steps beside it stop
+ * describing a menu route. Naming each click (avatar, then Settings, then
+ * Connectors) meant the instructions broke the moment Anthropic
+ * rearranged their own UI — and broke silently, in a way that reads to a
+ * founder like the feature is missing rather than moved.
+ */
+export const CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL =
+  "claude://claude.ai/customize/connectors";
+
 export const CLAUDE_CONNECTOR_SETTINGS_URL =
-  "https://claude.ai/settings/connectors";
+  "https://claude.ai/customize/connectors";
 
 /**
  * Opens Claude Desktop on a new chat with a prefilled composer
@@ -207,15 +224,14 @@ export function mcpConnectPrompt(endpointUrl: string | null): string {
     "Please talk me through connecting my AI Catalyst Founder Toolkit to Claude as a custom remote MCP connector. I'll do the clicking — you can't reach these settings yourself.",
     "",
     "The steps are:",
-    "1. Click my avatar in the bottom-left corner, then choose Settings",
-    "2. Go to Connectors",
-    '3. Click Add, then "Add custom connector"',
-    '4. Name it "AI Catalyst" and paste this as the URL:',
+    "1. Open my connectors — they're under Customize, at claude.ai/customize/connectors",
+    "2. Add a custom connector",
+    '3. Name it "AI Catalyst" and paste this as the URL:',
     urlBlock,
-    "5. Open the link Claude shows, then sign in and approve in the browser",
-    "6. Set the tools to always allow",
+    "4. Open the link Claude shows, then sign in and approve in the browser",
+    "5. Set the tools to always allow",
     "",
-    "Take them one at a time and wait for me. If a screen doesn't match what you described, help me work out what I'm looking at.",
+    "Take them one at a time and wait for me. If a screen doesn't match what you described, help me work out what I'm looking at — this page has moved before, so trust what I can see over the exact wording above.",
     "",
     "Two things that stop people here, so check them with me if I get stuck: custom connectors need a paid Claude plan and don't appear on Free, and on a Team or Enterprise plan only the workspace owner can add one.",
     "",

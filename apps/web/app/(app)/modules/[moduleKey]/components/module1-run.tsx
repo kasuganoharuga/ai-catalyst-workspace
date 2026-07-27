@@ -32,6 +32,15 @@ import { moduleAccentStyle } from "../../../lib/module-display";
 import { OptionalClaudeProjectCard } from "./optional-claude-project-card";
 import { StrongAnswerCard } from "./strong-answer-card";
 
+/**
+ * Why this module is being shown read-only.
+ *
+ * "locked" — an earlier module has to be finished first.
+ * "not-started" — no Run exists yet, usually because Claude isn't
+ *   connected. The founder can read everything; nothing can be saved.
+ */
+export type ModulePreviewReason = "locked" | "not-started" | null;
+
 type ExpectedArtifact = {
   artifactKey: string;
   name: string;
@@ -57,8 +66,16 @@ type Module1RunProps = {
   needsRetry: boolean;
   awaitingConfirmation: boolean;
   isCompleted: boolean;
-  /** Preview-only: content stays visible, Claude/attempt CTAs stay hidden. */
-  isLocked: boolean;
+  /**
+   * Preview-only when set: the module's content stays fully visible and
+   * every action is withheld. The reason picks the wording — "finish the
+   * previous module" and "connect Claude" are different problems, and
+   * naming the wrong one sends a founder to fix something that isn't
+   * broken.
+   *
+   * `null` means the module is live and workable.
+   */
+  preview: ModulePreviewReason;
   /**
    * The saved document, already rendered on the server. Null until Claude
    * has saved something — passed in rather than fetched here so this stays
@@ -85,12 +102,13 @@ export function Module1Run(props: Module1RunProps) {
     hasAttempt,
     awaitingConfirmation,
     isCompleted,
-    isLocked,
+    preview,
     connected,
     needsRetry,
     ventureId,
     claudeProjectId,
   } = props;
+  const isPreview = preview !== null;
 
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,
@@ -100,7 +118,7 @@ export function Module1Run(props: Module1RunProps) {
 
   const shouldPoll =
     connected &&
-    !isLocked &&
+    !isPreview &&
     !awaitingConfirmation &&
     !isCompleted &&
     !needsRetry;
@@ -288,10 +306,11 @@ function WorkStep({
   artifactVersion,
   awaitingConfirmation,
   isCompleted,
-  isLocked,
+  preview,
   needsRetry,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
+  const isPreview = preview !== null;
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,
   ).length;
@@ -301,16 +320,28 @@ function WorkStep({
   const documentSaved = artifactVersion !== null;
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
+  const previewBody =
+    preview === "locked"
+      ? module1Copy.workBodyLocked
+      : module1Copy.workBodyNotStarted;
+  const previewNote =
+    preview === "locked"
+      ? module1Copy.workLockedNote
+      : module1Copy.workNotStartedNote;
+
   return (
     <>
       <StepHeading
         title={module1Copy.workTitle}
-        body={isLocked ? module1Copy.workBodyLocked : module1Copy.workBody}
+        body={isPreview ? previewBody : module1Copy.workBody}
       />
 
       <StrongAnswerCard />
 
-      {!isLocked && !connected ? (
+      {/* Only when the module is live: in preview the heading above has
+          already said why nothing here works yet, and repeating it turns
+          one explanation into two. */}
+      {!isPreview && !connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
           {module1Copy.notConnected}{" "}
           <Link
@@ -330,8 +361,8 @@ function WorkStep({
             needsRetry ? claudeHandoffCopy.retryCta : claudeHandoffCopy.openCta
           }
           accent={accent}
-          disabled={isLocked}
-          disabledNote={module1Copy.workLockedNote}
+          disabled={isPreview}
+          disabledNote={previewNote}
         />
       </div>
 
@@ -471,13 +502,14 @@ function ConfirmStep({
   needsRetry,
   awaitingConfirmation,
   isCompleted,
-  isLocked,
+  preview,
   nextModuleTitle,
   documentPreview,
   accent,
 }: Module1RunProps & { accent: { backgroundColor: string } }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const isPreview = preview !== null;
 
   const documentSaved = artifactVersion !== null;
   const expected = expectedArtifacts[0] ?? null;
@@ -491,7 +523,7 @@ function ConfirmStep({
     ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
     : null;
   const showNoFileHeading = !isCompleted && !awaitingConfirmation;
-  const canUseActions = !isLocked;
+  const canUseActions = !isPreview;
 
   function handleConfirm() {
     if (!programRunModuleId) return;
@@ -532,9 +564,11 @@ function ConfirmStep({
               {module1Copy.confirmNoFileTitle}
             </h3>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {isLocked
+              {preview === "locked"
                 ? module1Copy.confirmNoFileLocked
-                : module1Copy.confirmNoFileBody}
+                : preview === "not-started"
+                  ? module1Copy.confirmNoFileNotStarted
+                  : module1Copy.confirmNoFileBody}
             </p>
           </div>
           {canUseActions && needsRetry && programRunModuleId ? (
@@ -676,9 +710,9 @@ function ConfirmStep({
         </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
-          {isLocked
-            ? "Sign-off unlocks with this module."
-            : "Finish the conversation in the previous step first."}
+          {isPreview
+            ? module1Copy.confirmUnavailable
+            : module1Copy.confirmFinishFirst}
         </p>
       )}
     </>
