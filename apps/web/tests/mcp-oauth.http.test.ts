@@ -365,6 +365,10 @@ describe("GET /.well-known/oauth-authorization-server", () => {
     expect(body.registration_endpoint).toBe(
       `${body.issuer}/api/auth/mcp/register`,
     );
+    // Not under /api/auth: that prefix belongs to Better Auth's catch-all,
+    // so revocation is served from this app's own route.
+    expect(body.revocation_endpoint).toBe(`${body.issuer}/api/mcp/revoke`);
+    expect(body.revocation_endpoint_auth_methods_supported).toEqual(["none"]);
     expect(body.scopes_supported).toEqual(["mcp:connect"]);
     expect(body.grant_types_supported).toEqual(["authorization_code"]);
     expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);

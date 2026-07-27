@@ -4,6 +4,7 @@ import { ClaudeHandoff } from "../../components/claude-handoff";
 import { CopyButton } from "../../components/copy-button";
 import { connectionCopy } from "../../lib/copy";
 import {
+  CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL,
   CLAUDE_CONNECTOR_SETTINGS_URL,
   mcpConnectPrompt,
 } from "../../lib/module-display";
@@ -36,10 +37,9 @@ export function ConnectionSetup({ endpointUrl }: { endpointUrl: string }) {
           {connectionCopy.setupBody}
         </p>
 
-        {/* Steps 1-3 are single clicks through Claude's own menus. Step 4
-            is the only one carrying data, so it holds the address and its
-            copy button — the list gets its centre of gravity from that row
-            being genuinely bigger, rather than from decoration. */}
+        {/* Step 3 is the only one carrying data, so it holds the address
+            and its copy button — the list gets its centre of gravity from
+            that row being genuinely bigger, rather than from decoration. */}
         <ol className="mt-6 border-t border-border">
           {connectionCopy.manualSteps.map((step, index) => (
             <li
@@ -61,19 +61,35 @@ export function ConnectionSetup({ endpointUrl }: { endpointUrl: string }) {
                 <p className="mt-1 text-sm leading-6 text-muted-foreground">
                   {step.body}
                 </p>
-                {/* Underlined and on its own line. Run into the sentence
-                    with hover-only underline, it read as emphasis rather
-                    than as something to click. */}
+                {/* Desktop first, matching the step's own wording and the
+                    Claude hand-off elsewhere on this page. The browser
+                    line is phrased as a symptom because a claude:// link
+                    on a machine without the app does nothing visible at
+                    all — no error, no new tab. */}
                 {step.linkLabel ? (
-                  <a
-                    href={CLAUDE_CONNECTOR_SETTINGS_URL}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-1.5 inline-flex items-center gap-1 text-sm font-medium text-foreground underline underline-offset-4"
-                  >
-                    {step.linkLabel}
-                    <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
-                  </a>
+                  <div className="mt-1.5">
+                    <a
+                      href={CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL}
+                      className="inline-flex items-center gap-1 text-sm font-medium text-foreground underline underline-offset-4"
+                    >
+                      {step.linkLabel}
+                      <ExternalLink
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                      />
+                    </a>
+                    <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                      {connectionCopy.settingsFallbackPrefix}{" "}
+                      <a
+                        href={CLAUDE_CONNECTOR_SETTINGS_URL}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-foreground underline underline-offset-2"
+                      >
+                        {connectionCopy.settingsFallbackLink}
+                      </a>
+                    </p>
+                  </div>
                 ) : null}
                 {step.showAddress ? (
                   <div className="mt-3 flex flex-wrap items-start gap-3">

@@ -17,6 +17,7 @@ import {
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
+import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 import { appPageTitle } from "@/lib/page-metadata";
 import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 import { hasPendingSetupModule } from "@/lib/ensure-program-destination";
@@ -27,6 +28,7 @@ import { dashboardCopy } from "../lib/copy";
 import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModulesCarousel } from "./components/modules-carousel";
 import { NextActionCard } from "./components/next-action-card";
+import { PasswordPrompt } from "./components/password-prompt";
 import { SkipProfileButton } from "./components/skip-profile-button";
 
 export const metadata = appPageTitle("Dashboard");
@@ -81,15 +83,23 @@ export default async function DashboardPage() {
   ]);
 
   const activeContextPromise = getActiveContext(actor);
-  const [catalog, , connection, runResult, profile, profilePromptSkipped] =
-    await Promise.all([
-      listModuleCatalog(actor),
-      activeContextPromise,
-      getMcpConnectionStatus(actor),
-      listRunModules(actor),
-      getMyProfile(actor),
-      hasSkippedProfilePrompt(),
-    ]);
+  const [
+    catalog,
+    ,
+    connection,
+    runResult,
+    profile,
+    profilePromptSkipped,
+    passwordChanged,
+  ] = await Promise.all([
+    listModuleCatalog(actor),
+    activeContextPromise,
+    getMcpConnectionStatus(actor),
+    listRunModules(actor),
+    getMyProfile(actor),
+    hasSkippedProfilePrompt(),
+    hasChangedInvitationPassword(actor),
+  ]);
 
   const hasRun = runResult.runId !== null;
   const [module0, module1] = await Promise.all([
@@ -136,10 +146,12 @@ export default async function DashboardPage() {
   );
 
   // Both name parts, so a half-filled or leftover single field doesn't
-  // read as done. This no longer gates anything — it only decides whether
-  // the nudge is shown. The invitation password still can't be detected
-  // from Better Auth, which is why it is mentioned inside that nudge
-  // rather than prompted for separately.
+  // read as done. Gates nothing — it only decides whether the nudge shows.
+  //
+  // The password prompt is deliberately a separate signal
+  // (hasChangedInvitationPassword). It used to be a sentence inside this
+  // card, which meant saving a name silently ended the only reminder a
+  // founder ever got about the password they were emailed.
   const profileComplete = Boolean(
     profile.firstName?.trim() && profile.lastName?.trim(),
   );
@@ -167,8 +179,9 @@ export default async function DashboardPage() {
   //
   // The profile step leads, but it still gates nothing: every other route
   // stays open in the sidebar, and skipping it costs the founder only the
-  // greeting using their invitation name. It is a recommended order, not a
-  // sequence they are locked into.
+  // greeting, which falls back to their email address (auth.ts forces
+  // users.name to the email on create — there is no invitation name). A
+  // recommended order, not a sequence they are locked into.
   const nextAction = (() => {
     if (!profileComplete && !profilePromptSkipped) {
       return {
@@ -259,8 +272,13 @@ export default async function DashboardPage() {
         </NextActionCard>
       </div>
 
-      {/* The profile nudge that used to sit here is now the "First" card
-          above — one prompt, not two saying the same thing. */}
+      {/* Independent of the card above: a founder can have their name in
+          and still be on the emailed password, or the reverse. */}
+      {!passwordChanged ? (
+        <div className="mt-6">
+          <PasswordPrompt />
+        </div>
+      ) : null}
 
       <div className="mt-12 grid grid-cols-3 divide-x divide-border border-y border-border">
         {/* Denominator matches the numerator's filter: counting Module 0

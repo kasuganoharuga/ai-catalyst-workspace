@@ -13,6 +13,8 @@ import {
   getOAuthClientByClientId,
   getPendingMcpConsentRequest,
   isValidPublicOAuthClientRecord,
+  revokeMcpAccessToken,
+  revokeMcpConnectionForUser,
   tryClaimConsentCode,
   verifyMcpBearerToken,
 } from "./index.js";
@@ -1009,6 +1011,108 @@ describe("mcp-auth service — database integration", () => {
         authorised: false,
         hasEverAuthorised: false,
       });
+    });
+  });
+
+  // Until these existed, "disconnect" had no server-side meaning at all:
+  // removing the connector in Claude is client-side, so the token stayed
+  // live and both the website and verifyMcpBearerToken went on honouring
+  // it.
+  describe("revokeMcpConnectionForUser", () => {
+    it("removes every live token the Founder holds and reports the count", async () => {
+      const userId = await createUser("revoke-all", "founder");
+      const clientA = await createClient("revoke-a");
+      const clientB = await createClient("revoke-b");
+      await createAccessToken(clientA, userId);
+      await createAccessToken(clientB, userId);
+
+      const result = await revokeMcpConnectionForUser(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+
+      expect(result.accessTokensRevoked).toBe(2);
+      await expect(
+        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+      ).resolves.toMatchObject({ authorised: false });
+    });
+
+    it("leaves other Founders' tokens alone", async () => {
+      const mine = await createUser("revoke-mine", "founder");
+      const theirs = await createUser("revoke-theirs", "founder");
+      const clientId = await createClient("revoke-shared");
+      await createAccessToken(clientId, mine);
+      const theirToken = await createAccessToken(clientId, theirs);
+
+      await revokeMcpConnectionForUser(
+        createWebActorContext({ userId: mine, role: "founder" }),
+      );
+
+      // Still a working credential for the other Founder — revocation is
+      // per-user, not per-client.
+      await expect(verifyMcpBearerToken(theirToken)).resolves.toMatchObject({
+        userId: theirs,
+      });
+    });
+
+    // Reachable by a double-click or a stale tab, so it must not error.
+    it("is idempotent when there is nothing to revoke", async () => {
+      const userId = await createUser("revoke-twice", "founder");
+      const clientId = await createClient("revoke-twice-client");
+      await createAccessToken(clientId, userId);
+      const actor = createWebActorContext({ userId, role: "founder" });
+
+      await expect(
+        revokeMcpConnectionForUser(actor),
+      ).resolves.toMatchObject({ accessTokensRevoked: 1 });
+      await expect(
+        revokeMcpConnectionForUser(actor),
+      ).resolves.toMatchObject({ accessTokensRevoked: 0 });
+    });
+
+    it("records the withdrawal without making the Founder look new", async () => {
+      const userId = await createUser("revoke-consent", "founder");
+      const clientId = await createClient("revoke-consent-client");
+      await createAccessToken(clientId, userId);
+      const actor = createWebActorContext({ userId, role: "founder" });
+
+      await revokeMcpConnectionForUser(actor);
+
+      // hasEverAuthorised drives "reconnect" vs "set this up" copy, and it
+      // reads consent_given — a withdrawal row must not switch a returning
+      // Founder back to first-time wording.
+      const withdrawals = await pool.query<{ count: string }>(
+        `select count(*)::text as count from mcp_oauth_consents
+         where user_id = $1 and consent_given = false`,
+        [userId],
+      );
+      expect(Number(withdrawals.rows[0].count)).toBe(1);
+    });
+  });
+
+  describe("revokeMcpAccessToken", () => {
+    it("kills the token for the enforcement path, not just the display one", async () => {
+      const userId = await createUser("revoke-token", "founder");
+      const clientId = await createClient("revoke-token-client");
+      const token = await createAccessToken(clientId, userId);
+
+      await expect(verifyMcpBearerToken(token)).resolves.toMatchObject({
+        userId,
+      });
+
+      await revokeMcpAccessToken(token);
+
+      await expect(verifyMcpBearerToken(token)).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+    });
+
+    // RFC 7009 §2.2: an unknown token is a success, so the endpoint can't
+    // be used to probe which tokens exist.
+    it("treats an unknown or blank token as a no-op", async () => {
+      await expect(
+        revokeMcpAccessToken("no-such-token-value"),
+      ).resolves.toBeUndefined();
+      await expect(revokeMcpAccessToken("")).resolves.toBeUndefined();
     });
   });
 

@@ -736,6 +736,94 @@ export async function getMcpConnectionStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Revocation
+//
+// Until this existed, "disconnect" had no server-side representation at
+// all. Removing the connector in Claude is purely client-side: the token
+// row stayed, so the website kept reporting the Founder as connected, and
+// — worse — verifyMcpBearerToken kept honouring that token for the rest of
+// its hour. A Founder who deliberately revoked access still had a live
+// credential against their own workspace.
+//
+// Deleting rather than flagging: mcp_oauth_access_tokens is only ever read
+// through an expiry-gated lookup, so a `revoked` column would add a second
+// condition every caller has to remember. A row that must not work again
+// is better gone. `mcp_oauth_consents` keeps the history, which is what
+// that table is for.
+// ---------------------------------------------------------------------------
+
+export interface McpRevocationResult {
+  /** How many live tokens this call removed. Zero is a normal outcome. */
+  accessTokensRevoked: number;
+}
+
+/**
+ * Revokes every access token this Founder holds, whichever client issued
+ * them.
+ *
+ * Idempotent: revoking with nothing to revoke returns zero rather than
+ * erroring, so a double-click or a stale tab can't produce a confusing
+ * failure.
+ */
+export async function revokeMcpConnectionForUser(
+  actor: ActorContext,
+): Promise<McpRevocationResult> {
+  assertRole(actor, ["founder"]);
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const deleted = await client.query<{ client_id: string }>(
+      `delete from mcp_oauth_access_tokens
+       where user_id = $1
+       returning client_id`,
+      [actor.userId],
+    );
+
+    // One withdrawal row per client the Founder had a live token for.
+    // This table is a permanent history log, not a live gate (see
+    // 0004_mcp_oauth_provider_schema.sql), so writing consent_given =
+    // false records the decision without changing any read path.
+    const clientIds = [...new Set(deleted.rows.map((row) => row.client_id))];
+    for (const clientId of clientIds) {
+      await client.query(
+        `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
+         values ($1, $2, $3, false)`,
+        [clientId, actor.userId, MCP_CONNECT_SCOPE],
+      );
+    }
+
+    await client.query("commit");
+    return { accessTokensRevoked: deleted.rowCount ?? 0 };
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * RFC 7009 revocation by token value, for the `revocation_endpoint`.
+ *
+ * Unauthenticated by design: V1 issues only public clients with no
+ * secret, so possession of the token is the only credential there is.
+ * That is also why this returns nothing — RFC 7009 §2.2 requires the
+ * endpoint to answer 200 whether or not the token existed, so a caller
+ * cannot use it to probe which tokens are real.
+ */
+export async function revokeMcpAccessToken(token: string): Promise<void> {
+  if (typeof token !== "string" || token.trim().length === 0) {
+    return;
+  }
+  await pool.query(
+    `delete from mcp_oauth_access_tokens where access_token = $1`,
+    [token],
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Periodic cleanup (apps/web/scripts/oauth-cleanup.ts's `oauth:cleanup` CLI)
 // — nothing here is required for correctness (every gate above is already
 // enforced at read time by expiry checks / the unique claim constraint),

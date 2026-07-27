@@ -9,7 +9,10 @@ import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion
 import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import { updateMyProfile } from "@ai-catalyst/services/profile";
 import { ServiceError } from "@ai-catalyst/services/errors";
-import { getMcpConnectionStatus } from "@ai-catalyst/services/mcp-auth";
+import {
+  getMcpConnectionStatus,
+  revokeMcpConnectionForUser,
+} from "@ai-catalyst/services/mcp-auth";
 import {
   archiveVenture,
   createVenture,
@@ -74,6 +77,26 @@ export async function skipProfilePromptAction(): Promise<ActionResult> {
     await requireFounderActor();
     await setProfilePromptSkipped();
     revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Drops every MCP access token this Founder holds.
+ *
+ * The only path that makes the two sides agree. Removing the connector in
+ * Claude is client-side and reaches nothing here, so without this a
+ * Founder who disconnected still had a live token against their own
+ * workspace and a website insisting they were connected.
+ */
+export async function revokeMcpConnectionAction(): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await revokeMcpConnectionForUser(actor);
+    revalidateFounderAppShell();
+    revalidatePath("/connection");
     return { ok: true };
   } catch (error) {
     return toActionResult(error);
