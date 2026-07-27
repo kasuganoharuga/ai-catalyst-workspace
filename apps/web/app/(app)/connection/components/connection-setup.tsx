@@ -37,10 +37,9 @@ export function ConnectionSetup({ endpointUrl }: { endpointUrl: string }) {
           {connectionCopy.setupBody}
         </p>
 
-        {/* Steps 1-3 are single clicks through Claude's own menus. Step 4
-            is the only one carrying data, so it holds the address and its
-            copy button — the list gets its centre of gravity from that row
-            being genuinely bigger, rather than from decoration. */}
+        {/* Step 3 is the only one carrying data, so it holds the address
+            and its copy button — the list gets its centre of gravity from
+            that row being genuinely bigger, rather than from decoration. */}
         <ol className="mt-6 border-t border-border">
           {connectionCopy.manualSteps.map((step, index) => (
             <li
@@ -74,7 +73,10 @@ export function ConnectionSetup({ endpointUrl }: { endpointUrl: string }) {
                       className="inline-flex items-center gap-1 text-sm font-medium text-foreground underline underline-offset-4"
                     >
                       {step.linkLabel}
-                      <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
+                      <ExternalLink
+                        aria-hidden="true"
+                        className="h-3.5 w-3.5"
+                      />
                     </a>
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       {connectionCopy.settingsFallbackPrefix}{" "}
