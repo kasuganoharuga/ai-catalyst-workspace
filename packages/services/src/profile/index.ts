@@ -95,6 +95,51 @@ export async function getMyProfile(actor: ActorContext): Promise<UserProfile> {
 }
 
 // ---------------------------------------------------------------------
+// hasChangedInvitationPassword
+// ---------------------------------------------------------------------
+
+// Better Auth stamps `created_at` and `updated_at` from a single
+// `new Date()` when it inserts the credential row, so they start equal.
+// A second of slack keeps sub-millisecond clock noise from reading as a
+// password change; nobody changes their password inside a second of the
+// account being created.
+const PASSWORD_CHANGE_SLACK_SECONDS = 1;
+
+/**
+ * Whether this user has replaced the password their invitation shipped
+ * with.
+ *
+ * The signal is `accounts.updated_at` on the `credential` row: Better
+ * Auth's core schema declares that column with an `onUpdate` hook, and
+ * `changePassword` writes the row through `updateAccount`, so the
+ * timestamp moves forward the first time a password is set by hand.
+ *
+ * (An earlier comment in apps/web's dashboard claimed this could not be
+ * detected. It could; nothing was reading it.)
+ *
+ * Returns true when there is no credential row at all. That should not
+ * happen for an invited Founder, but the alternative is nagging an
+ * account that has no password to change — a prompt nobody can ever
+ * satisfy is worse than a prompt occasionally not shown.
+ */
+export async function hasChangedInvitationPassword(
+  actor: ActorContext,
+): Promise<boolean> {
+  assertRole(actor, ["founder", "mentor", "admin"]);
+
+  const result = await pool.query<{ changed: boolean }>(
+    `select updated_at > created_at + make_interval(secs => $2) as changed
+     from accounts
+     where user_id = $1 and provider_id = 'credential'
+     order by created_at
+     limit 1`,
+    [actor.userId, PASSWORD_CHANGE_SLACK_SECONDS],
+  );
+
+  return result.rows[0]?.changed ?? true;
+}
+
+// ---------------------------------------------------------------------
 // updateMyProfile
 // ---------------------------------------------------------------------
 

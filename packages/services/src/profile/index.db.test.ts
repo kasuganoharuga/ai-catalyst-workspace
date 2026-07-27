@@ -5,7 +5,11 @@ import { pool } from "@ai-catalyst/db";
 import { createWebActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 
-import { getMyProfile, updateMyProfile } from "./index.js";
+import {
+  getMyProfile,
+  hasChangedInvitationPassword,
+  updateMyProfile,
+} from "./index.js";
 
 /**
  * Integration tests against the real Postgres database (see
@@ -66,6 +70,59 @@ describe("profile service — database integration", () => {
       await expect(getMyProfile(actor)).rejects.toMatchObject({
         code: "FORBIDDEN",
       });
+    });
+  });
+
+  // The dashboard prompts on this until it flips. Better Auth writes the
+  // credential row's updated_at through an onUpdate hook when
+  // changePassword runs, so the two timestamps diverge the first time a
+  // password is set by hand.
+  describe("hasChangedInvitationPassword", () => {
+    async function createCredentialAccount(
+      userId: string,
+      options: { changedAgo?: string } = {},
+    ): Promise<void> {
+      // Mirrors Better Auth's own insert: both timestamps from one clock
+      // read. `changedAgo` moves updated_at forward the way a real
+      // password change would.
+      await pool.query(
+        `insert into accounts (user_id, account_id, provider_id, password, created_at, updated_at)
+         values ($1, $2, 'credential', 'not-a-real-hash', now(), now() + coalesce($3::interval, interval '0'))`,
+        [userId, userId, options.changedAgo ?? null],
+      );
+    }
+
+    it("is false while the account still has its original password", async () => {
+      const actor = await createUser("password-untouched");
+      await createCredentialAccount(actor.userId);
+
+      expect(await hasChangedInvitationPassword(actor)).toBe(false);
+    });
+
+    it("is true once the credential row has been updated", async () => {
+      const actor = await createUser("password-changed");
+      await createCredentialAccount(actor.userId, { changedAgo: "10 minutes" });
+
+      expect(await hasChangedInvitationPassword(actor)).toBe(true);
+    });
+
+    // Sub-second drift between the two timestamps at creation is clock
+    // noise, not somebody changing their password inside a second.
+    it("ignores sub-second drift between the timestamps", async () => {
+      const actor = await createUser("password-drift");
+      await createCredentialAccount(actor.userId, {
+        changedAgo: "300 milliseconds",
+      });
+
+      expect(await hasChangedInvitationPassword(actor)).toBe(false);
+    });
+
+    // Nagging an account with no password to change is a prompt nobody can
+    // ever satisfy, so the no-row case reports done.
+    it("reports true when there is no credential row at all", async () => {
+      const actor = await createUser("password-no-credential");
+
+      expect(await hasChangedInvitationPassword(actor)).toBe(true);
     });
   });
 
