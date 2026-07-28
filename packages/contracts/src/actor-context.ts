@@ -17,9 +17,12 @@ export interface ActorContext {
   // Optional so existing test fixtures keep compiling. New code should use
   // createWebActorContext / createMcpActorContext, which always populate these.
   source?: ActorSource;
-  // OAuth scopes granted to the underlying Bearer token (e.g.
-  // `["mcp:connect"]`). Empty/undefined for a web session actor, which is
-  // not scope-restricted — role is the only gate for those.
+  // OAuth scopes granted to the underlying Bearer token — today always
+  // `["mcp:connect", "offline_access"]` for an MCP actor. Authorization
+  // checks must look for the scope they need rather than compare the whole
+  // array, since `offline_access` governs token lifetime, not access.
+  // Empty/undefined for a web session actor, which is not scope-restricted —
+  // role is the only gate for those.
   scopes?: string[];
   // The OAuth client_id that requested the token, when source is "mcp".
   clientId?: string;

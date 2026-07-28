@@ -148,11 +148,14 @@ export const auth = betterAuth({
         // Required by OIDCOptions's own type even though mcp() already
         // hard-codes this same value onto `opts.loginPage` for us.
         loginPage: "/login",
-        // The only scope V1 ever issues or accepts — every other scope
-        // (including the plugin's own hardcoded "openid"/"profile"/
-        // "email"/"offline_access" baseline) is rejected by the
-        // /mcp/authorize before-hook in mcp-oauth-compat/hooks.ts before
-        // it ever reaches this plugin's own scope check.
+        // The only *resource* scope this server issues or accepts. Every
+        // other scope in the plugin's own hardcoded "openid"/"profile"/
+        // "email"/"offline_access" baseline is rejected by the
+        // /mcp/authorize before-hook in mcp-oauth-compat/hooks.ts before it
+        // ever reaches this plugin's own scope check — with the single
+        // exception of `offline_access`, which that hook adds to every
+        // authorization itself. It is not listed here because the plugin
+        // prepends it unconditionally; see that hook for why it is granted.
         scopes: ["mcp:connect"],
         defaultScope: "mcp:connect",
         requirePKCE: true,
@@ -160,17 +163,22 @@ export const auth = betterAuth({
         allowDynamicClientRegistration: true,
         consentPage: "/oauth/consent",
         codeExpiresIn: 600,
+        // Deliberately short, and deliberately *not* raised to extend how
+        // long a connection lasts: a Founder stays connected because their
+        // client silently refreshes, not because any one bearer token lives
+        // a long time. A leaked access token is only useful for an hour.
         accessTokenExpiresIn: 3600,
-        // V1 never hands out a redeemable refresh token (the
-        // /mcp/authorize hook strips offline_access, and the /mcp/token
-        // hook rejects any non-authorization_code grant type), so this
-        // value is unused in practice — left at the plugin default.
-        refreshTokenExpiresIn: 604800,
+        // 30 days, and sliding — every refresh issues a new token with a
+        // fresh 30 days (and revokes the old one, see
+        // mcp-oauth-compat/token-validation.ts). A Founder who uses Claude
+        // even once a month never reconnects; only 30 days of complete
+        // inactivity ends the connection.
+        refreshTokenExpiresIn: 2_592_000,
       },
     }),
     // Must come after mcp() in this array — see that file's top-of-file
     // comment for why table/field renaming for the mcp() plugin's schema
-    // can only be applied this way in better-auth@1.6.23.
+    // can only be applied this way in better-auth@1.6.25.
     mcpOAuthSchemaOverridePlugin,
     // Every before-hook that hardens the mcp()/oidc-provider endpoints
     // above — see apps/web/lib/mcp-oauth-compat/README.md.

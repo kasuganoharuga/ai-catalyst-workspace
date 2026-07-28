@@ -1,12 +1,22 @@
 import type { BetterAuthPlugin } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 
+import { GRANTED_MCP_SCOPES } from "@ai-catalyst/services/mcp-auth";
+
 import { consentEndpointBeforeHook } from "./consent-validation";
 import { registerEndpointBeforeHook } from "./dcr-validation";
 import { oauthError } from "./oauth-errors";
-import { tokenEndpointBeforeHook } from "./token-validation";
+import {
+  tokenEndpointAfterHook,
+  tokenEndpointBeforeHook,
+} from "./token-validation";
 
-const MCP_CONNECT_SCOPE = "mcp:connect";
+// The exact `scope` value every authorization is rewritten to, and therefore
+// the exact string stored in `mcp_oauth_access_tokens.scopes`. Shared with
+// the service layer (which validates against the same set) rather than
+// duplicated, so the two can never drift apart.
+const GRANTED_SCOPE_VALUE = GRANTED_MCP_SCOPES.join(" ");
+const ALLOWED_REQUEST_SCOPES = new Set(GRANTED_MCP_SCOPES);
 
 function parsePromptValues(raw: unknown): Set<string> {
   const value = typeof raw === "string" ? raw : "";
@@ -38,10 +48,21 @@ function parsePromptValues(raw: unknown): Set<string> {
  *    `email` / `offline_access` no matter what `oidcConfig.scopes` is
  *    configured to in `apps/web/lib/auth.ts` — those four are
  *    unconditionally prepended by `mcp()` itself before that check ever
- *    runs. This hook independently rejects any requested scope other than
- *    `mcp:connect` (including all four of those), and force-normalizes an
- *    empty/omitted scope to exactly `mcp:connect` rather than falling
+ *    runs. This hook independently rejects any requested scope outside the
+ *    granted set (so `openid`/`profile`/`email` are still refused), and
+ *    force-normalizes the scope to exactly that set rather than falling
  *    through to the plugin's own `defaultScope`.
+ *
+ * `offline_access` is **granted unconditionally**, whether or not the client
+ * asked for it. It is not a permission over the Founder's data — it is the
+ * switch that makes the plugin return a `refresh_token` at token time
+ * (`plugins/mcp/index.mjs` only includes one when the granted scopes contain
+ * it) and accept one back later. Leaving it up to the client would mean any
+ * client that omits it silently gets the old behaviour: a connection that
+ * dies after an hour and has to be set up again in Claude. RFC 6749 §3.3
+ * expressly allows an authorization server to grant a scope the client did
+ * not request, and the token response reports the real granted `scope` back,
+ * so nothing is hidden from the client.
  */
 const authorizeEndpointBeforeHook = {
   matcher: (ctx: { path?: string }): boolean => ctx.path === "/mcp/authorize",
@@ -62,12 +83,12 @@ const authorizeEndpointBeforeHook = {
       .split(" ")
       .filter((entry) => entry.length > 0);
     const disallowedScopes = requestedScopes.filter(
-      (scope) => scope !== MCP_CONNECT_SCOPE,
+      (scope) => !ALLOWED_REQUEST_SCOPES.has(scope),
     );
     if (disallowedScopes.length > 0) {
       throw oauthError(
         "invalid_scope",
-        `Unsupported scope(s): ${disallowedScopes.join(", ")}. Only "${MCP_CONNECT_SCOPE}" is supported.`,
+        `Unsupported scope(s): ${disallowedScopes.join(", ")}. Only "${GRANTED_SCOPE_VALUE}" is supported.`,
       );
     }
 
@@ -97,7 +118,7 @@ const authorizeEndpointBeforeHook = {
         query: {
           ...query,
           prompt: Array.from(promptValues).join(" "),
-          scope: MCP_CONNECT_SCOPE,
+          scope: GRANTED_SCOPE_VALUE,
         },
       },
     };
@@ -105,13 +126,13 @@ const authorizeEndpointBeforeHook = {
 };
 
 /**
- * Every before-hook this compatibility layer needs, bundled as a single
- * plugin so `apps/web/lib/auth.ts` only has to add one entry to its
- * `plugins` array. Order within `plugins` does not matter for these —
- * Better Auth runs every registered plugin's `hooks.before` entries whose
- * `matcher` returns true for the current request, regardless of which
- * plugin ultimately owns the endpoint being called — but this must still
- * be registered *somewhere* in `plugins` for any of it to run at all.
+ * Every hook this compatibility layer needs, bundled as a single plugin so
+ * `apps/web/lib/auth.ts` only has to add one entry to its `plugins` array.
+ * Order within `plugins` does not matter for these — Better Auth runs every
+ * registered plugin's `hooks.before`/`hooks.after` entries whose `matcher`
+ * returns true for the current request, regardless of which plugin
+ * ultimately owns the endpoint being called — but this must still be
+ * registered *somewhere* in `plugins` for any of it to run at all.
  *
  * See README.md in this directory for the full compatibility profile and
  * the regression suite that must be re-run on any Better Auth version
@@ -126,5 +147,6 @@ export const mcpOAuthSecurityPlugin: BetterAuthPlugin = {
       consentEndpointBeforeHook,
       registerEndpointBeforeHook,
     ],
+    after: [tokenEndpointAfterHook],
   },
 };

@@ -21,6 +21,20 @@ type OAuthConsentPageProps = {
   searchParams: Promise<{ consent_code?: string | string[] }>;
 };
 
+// Plain-language line for each scope actually granted. `offline_access` is
+// the one a Founder is most likely to misread as something sinister, so it is
+// described by what it does for them — stay connected — rather than by what
+// it technically is (a refresh token). Anything unmapped falls back to the
+// raw scope string, which is ugly on purpose: an unrecognised scope reaching
+// this screen means the /mcp/authorize hook has been changed without this
+// list, and it should be visible rather than silently prettied over.
+const SCOPE_DESCRIPTIONS: Record<string, string> = {
+  "mcp:connect":
+    "Access your AI Catalyst workspace on your behalf, through the Model Context Protocol.",
+  offline_access:
+    "Stay connected between sessions, so you don't have to reconnect every hour.",
+};
+
 function InvalidConsentRequest() {
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center">
@@ -74,11 +88,7 @@ export default async function OAuthConsentPage({
           </p>
           <ul className="mt-3 space-y-2 text-sm">
             {pending.scopes.map((scope) => (
-              <li key={scope}>
-                {scope === "mcp:connect"
-                  ? "Access your AI Catalyst workspace on your behalf, through the Model Context Protocol."
-                  : scope}
-              </li>
+              <li key={scope}>{SCOPE_DESCRIPTIONS[scope] ?? scope}</li>
             ))}
           </ul>
         </div>

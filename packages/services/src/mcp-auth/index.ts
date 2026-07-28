@@ -13,6 +13,34 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 
 const MCP_CONNECT_SCOPE = "mcp:connect";
 
+// Requested and granted alongside mcp:connect on every authorization — it is
+// what makes Better Auth's `mcp()` plugin both return a `refresh_token` at
+// token time and accept one back later (its refresh branch checks
+// `token.scopes` for this exact string). Without it the connection dies with
+// the one-hour access token and the Founder has to reconnect in Claude.
+const MCP_OFFLINE_ACCESS_SCOPE = "offline_access";
+
+/**
+ * The exact scope set every MCP authorization is normalized to, in the order
+ * it is stored in `mcp_oauth_access_tokens.scopes` and echoed back in the
+ * token response's `scope`. `apps/web/lib/mcp-oauth-compat/hooks.ts` forces
+ * `/mcp/authorize` to this set regardless of what the client asked for, so
+ * every consumer here can treat it as the only legitimate shape.
+ */
+export const GRANTED_MCP_SCOPES: readonly string[] = [
+  MCP_CONNECT_SCOPE,
+  MCP_OFFLINE_ACCESS_SCOPE,
+];
+
+function isExactlyGrantedScopeSet(scopes: readonly string[]): boolean {
+  const unique = new Set(scopes);
+  return (
+    unique.size === scopes.length &&
+    unique.size === GRANTED_MCP_SCOPES.length &&
+    GRANTED_MCP_SCOPES.every((scope) => unique.has(scope))
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Schemas/patterns — deliberately inlined here rather than in a sibling
 // ./schemas.ts file: apps/web's Next.js build (Turbopack, bundling this
@@ -70,6 +98,10 @@ export type McpCodeVerification = z.infer<typeof mcpCodeVerificationSchema>;
 // `plugins/mcp/index.mjs`) — letters only, no digits. Anchoring this at the
 // Resource Server's verification boundary rejects an obviously-malformed
 // token before it ever reaches a database query.
+//
+// Refresh tokens come out of the same generator with the alphabets in the
+// opposite argument order (`"A-Z", "a-z"` in the authorization_code branch),
+// which produces the identical character set — hence one pattern for both.
 const MCP_BEARER_TOKEN_PATTERN = /^[A-Za-z]{32}$/;
 
 // `generateRandomString(32, "a-z", "A-Z", "0-9")` (the authorization code in
@@ -307,7 +339,14 @@ export async function getPendingMcpConsentRequest(
     throw pendingConsentNotFound();
   }
 
-  if (value.scope.length !== 1 || value.scope[0] !== MCP_CONNECT_SCOPE) {
+  // Must be exactly the granted set — not "contains mcp:connect". The
+  // /mcp/authorize before-hook rewrites every request's scope to
+  // GRANTED_MCP_SCOPES before Better Auth writes this verification row, so
+  // anything else means the row did not come through that hook and must not
+  // be rendered as a consent request. Order-insensitive: the check is about
+  // which scopes are being granted, not how the plugin happened to serialize
+  // them.
+  if (!isExactlyGrantedScopeSet(value.scope)) {
     throw pendingConsentNotFound();
   }
 
@@ -387,11 +426,9 @@ function rejectCode(
  * handler afterward; this function's only job is to reject bad requests
  * *before* that point.
  *
- * Callers must have already rejected any `grant_type` other than
- * `authorization_code` (including missing/`refresh_token`) themselves,
- * with `unsupported_grant_type`, before calling this — V1 does not support
- * the refresh grant (see the /mcp/authorize before-hook that strips
- * `offline_access`).
+ * Callers must have already dispatched on `grant_type` themselves before
+ * calling this: `refresh_token` goes to `checkRefreshTokenIsRedeemable`
+ * below, and anything else is rejected with `unsupported_grant_type`.
  */
 export async function checkAuthorizationCodeIsRedeemable(params: {
   code: unknown;
@@ -504,6 +541,177 @@ export async function checkAuthorizationCodeIsRedeemable(params: {
 }
 
 // ---------------------------------------------------------------------------
+// checkRefreshTokenIsRedeemable — read-only pre-flight for the /mcp/token
+// before-hook's `refresh_token` grant.
+// ---------------------------------------------------------------------------
+
+interface RefreshTokenLookupRow {
+  refresh_token_expires_at: Date;
+  scopes: string;
+  client_id: string;
+  user_id: string | null;
+}
+
+/**
+ * Read-only pre-flight check for `POST /mcp/token`'s `refresh_token` grant.
+ *
+ * Unlike the authorization_code case, this exists for two narrower reasons —
+ * Better Auth's own refresh branch (`plugins/mcp/index.mjs`, verified against
+ * the compiled 1.6.25 source) is non-destructive, so there is no code to burn:
+ *
+ * 1. **It never re-checks the user.** The branch copies `token.userId` from
+ *    the old row straight onto the new one, so a Founder whose account has
+ *    since been deleted, or who has been reset to `pending`, would keep
+ *    minting fresh hour-long tokens for as long as their refresh token lives.
+ *    `verifyMcpBearerToken` would still reject each one at call time, but the
+ *    grant itself has no business succeeding — this closes that here, using
+ *    the same `getAuthorizableUserById` gate the authorization_code path uses.
+ * 2. **Error shape.** The branch throws `APIError`s whose `error` codes are
+ *    close to, but not exactly, what this profile returns everywhere else.
+ *    Rejecting here keeps `/mcp/token` speaking one consistent OAuth dialect.
+ *
+ * Missing-row is deliberately `invalid_grant` rather than anything more
+ * specific: because rotation deletes the previous row
+ * (`rotateOutMcpRefreshToken`), a replayed or stolen refresh token lands in
+ * exactly this branch. That makes this check the profile's refresh-token
+ * reuse detection, and it must not distinguish "never existed" from "already
+ * rotated away" — a client cannot be allowed to probe which is which.
+ */
+export async function checkRefreshTokenIsRedeemable(params: {
+  refreshToken: unknown;
+  clientId: unknown;
+}): Promise<AuthorizationCodeCheckResult> {
+  const { refreshToken, clientId } = params;
+
+  if (
+    typeof refreshToken !== "string" ||
+    !MCP_BEARER_TOKEN_PATTERN.test(refreshToken)
+  ) {
+    return rejectCode("invalid_grant", "Invalid refresh token.");
+  }
+
+  if (typeof clientId !== "string" || clientId.length === 0) {
+    return rejectCode("invalid_client", "client_id is required.");
+  }
+
+  const result = await pool.query<RefreshTokenLookupRow>(
+    `select refresh_token_expires_at, scopes, client_id, user_id
+     from mcp_oauth_access_tokens
+     where refresh_token = $1`,
+    [refreshToken],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    return rejectCode("invalid_grant", "Invalid refresh token.");
+  }
+
+  if (row.refresh_token_expires_at.getTime() <= Date.now()) {
+    return rejectCode("invalid_grant", "Refresh token has expired.");
+  }
+
+  // Refresh tokens are bound to the client they were issued to. Better Auth
+  // checks this too, but only after its own lookup — doing it here keeps the
+  // rejection in this profile's error vocabulary.
+  if (row.client_id !== clientId) {
+    return rejectCode(
+      "invalid_client",
+      "client_id does not match the refresh token.",
+    );
+  }
+
+  const client = await getOAuthClientByClientId(clientId);
+  if (!isValidPublicOAuthClientRecord(client)) {
+    return rejectCode(
+      "invalid_client",
+      "Unknown, disabled, or non-public OAuth client.",
+    );
+  }
+
+  const scopes = row.scopes.split(" ").filter((scope) => scope.length > 0);
+  if (!scopes.includes(MCP_OFFLINE_ACCESS_SCOPE)) {
+    return rejectCode(
+      "invalid_grant",
+      "This token was not issued for the offline_access scope.",
+    );
+  }
+
+  if (!row.user_id || !(await getAuthorizableUserById(row.user_id))) {
+    return rejectCode(
+      "invalid_grant",
+      "The account for this refresh token is no longer usable.",
+    );
+  }
+
+  return { ok: true };
+}
+
+/**
+ * Completes refresh-token rotation after Better Auth has inserted the
+ * replacement row. The plugin never removes the presented row itself, so
+ * without this every previous refresh token would stay redeemable for its
+ * full lifetime and every refresh would leave another row behind.
+ *
+ * Deletes every token row for the same `user_id` + `client_id` *except* the
+ * newly issued one. That removes the presented refresh token and any sibling
+ * rows a race might have left behind (the before-hook's
+ * `tryClaimRefreshToken` is what stops a parallel redeem from minting in the
+ * first place; this family delete is the belt to that claim's braces).
+ *
+ * Called from the `/mcp/token` after-hook only once a successful token
+ * response has been confirmed — never before, or a failed refresh would cost
+ * the Founder a working connection.
+ *
+ * The old row's **access token dies with it**, which is the intended
+ * behaviour: rotation is revocation (OAuth 2.1 §4.14). An old access token
+ * already in flight when the client refreshes gets a 401; the client simply
+ * retries with the token it just received.
+ *
+ * Returns how many rows were removed — zero is possible (a concurrent revoke
+ * or sweep got there first) and is not an error.
+ */
+export async function rotateOutMcpRefreshToken(params: {
+  presentedRefreshToken: string;
+  newRefreshToken: string;
+}): Promise<number> {
+  const { presentedRefreshToken, newRefreshToken } = params;
+  if (
+    typeof presentedRefreshToken !== "string" ||
+    presentedRefreshToken.length === 0 ||
+    typeof newRefreshToken !== "string" ||
+    newRefreshToken.length === 0
+  ) {
+    return 0;
+  }
+
+  // Prefer family delete keyed off the new row. If that row is somehow
+  // missing (should not happen after a successful token response), fall
+  // back to deleting just the presented refresh token so rotation still
+  // completes for the common path.
+  const family = await pool.query(
+    `with new_row as (
+       select user_id, client_id
+       from mcp_oauth_access_tokens
+       where refresh_token = $1
+     )
+     delete from mcp_oauth_access_tokens t
+     using new_row n
+     where t.user_id is not distinct from n.user_id
+       and t.client_id = n.client_id
+       and t.refresh_token <> $1`,
+    [newRefreshToken],
+  );
+  if ((family.rowCount ?? 0) > 0) {
+    return family.rowCount ?? 0;
+  }
+
+  const fallback = await pool.query(
+    `delete from mcp_oauth_access_tokens where refresh_token = $1`,
+    [presentedRefreshToken],
+  );
+  return fallback.rowCount ?? 0;
+}
+
+// ---------------------------------------------------------------------------
 // Atomic consent-accept claim — closes a concurrency gap in Better Auth's
 // oAuthConsent handler (Accept path is not transactional end-to-end).
 // ---------------------------------------------------------------------------
@@ -533,6 +741,44 @@ export async function tryClaimConsentCode(
      values ($1, now() + interval '1 second' * $2)
      on conflict (consent_code_hash) do nothing`,
     [hashConsentCode(consentCode), CONSENT_CLAIM_TTL_SECONDS],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+function hashRefreshToken(refreshToken: string): string {
+  return createHash("sha256").update(refreshToken, "utf8").digest("hex");
+}
+
+// Short-lived: long enough to cover a single /mcp/token round-trip (and a
+// slow DB), short enough that a claimed-but-failed refresh can be retried
+// without forcing the Founder through a full reconnect. Matches the consent
+// claim TTL on purpose — same failure mode, same recovery window.
+const REFRESH_CLAIM_TTL_SECONDS = 60;
+
+/**
+ * Attempts to atomically claim a refresh token so at most one concurrent
+ * `/mcp/token` refresh grant for it can proceed to Better Auth's real
+ * handler. The plugin's refresh branch is non-destructive (it inserts a new
+ * row without removing the presented one), so without this claim two parallel
+ * refreshes can both pass the read-only pre-flight and mint two live chains
+ * before the after-hook's rotation runs.
+ *
+ * Returns `true` iff this call won the claim. A second concurrent call for
+ * the same token returns `false` and must fail closed as `invalid_grant` —
+ * same vocabulary as a replayed/rotated token, so a client cannot probe
+ * which is which. Expired claim rows are swept by `oauth:cleanup`.
+ */
+export async function tryClaimRefreshToken(
+  refreshToken: string,
+): Promise<boolean> {
+  if (typeof refreshToken !== "string" || refreshToken.length === 0) {
+    return false;
+  }
+  const result = await pool.query(
+    `insert into mcp_oauth_refresh_claims (refresh_token_hash, expires_at)
+     values ($1, now() + interval '1 second' * $2)
+     on conflict (refresh_token_hash) do nothing`,
+    [hashRefreshToken(refreshToken), REFRESH_CLAIM_TTL_SECONDS],
   );
   return (result.rowCount ?? 0) > 0;
 }
@@ -647,16 +893,26 @@ export async function getAuthorizableUserById(
  * yesterday and has since quit Claude still has a perfectly valid token.
  */
 export interface McpConnectionStatus {
-  // True while at least one unexpired access token exists for this user
-  // against an enabled public client — the same condition
-  // verifyMcpBearerToken enforces per-request, minus the scope check
-  // (a wrongly-scoped client still counts as authorised for display; it
-  // fails loudly at tool-call time instead).
+  // True while at least one live token row exists for this user against an
+  // enabled public client. "Live" means the *connection* is still usable,
+  // not that the current access token is: an expired access token whose
+  // refresh token is still valid is a perfectly healthy connection — the
+  // client refreshes it silently on its next call. Gating this on the access
+  // token alone would put every Founder into the "Your connection expired"
+  // state one hour after connecting, which is the exact thing refresh tokens
+  // exist to prevent.
+  //
+  // The scope check verifyMcpBearerToken enforces per-request is deliberately
+  // not applied here (a wrongly-scoped token still counts as authorised for
+  // display; it fails loudly at tool-call time instead).
   authorised: boolean;
   clientName: string | null;
-  // Latest valid token's issue time; null when not authorised.
+  // Latest live token's issue time; null when not authorised.
   authorisedAt: string | null;
-  // Latest valid token's expiry; null when not authorised.
+  // When the connection itself stops working — the refresh token's expiry,
+  // not the hourly access token's. This is the date a Founder would actually
+  // have to reconnect on, which is what the Connection page shows. Null when
+  // not authorised.
   expiresAt: string | null;
   // True once the user has ever completed an Accept on the consent screen,
   // even after every token has expired or been swept — distinguishes
@@ -672,7 +928,7 @@ export interface McpConnectionStatus {
 interface ConnectionTokenRow {
   client_name: string;
   created_at: Date;
-  access_token_expires_at: Date;
+  refresh_token_expires_at: Date;
 }
 
 /**
@@ -686,12 +942,17 @@ export async function getMcpConnectionStatus(
 ): Promise<McpConnectionStatus> {
   assertRole(actor, ["founder"]);
 
+  // A row counts while *either* half of it is still good: an unexpired
+  // access token, or an unexpired refresh token that can mint a new one.
+  // The `or` is what keeps a Founder out of the "expired, reconnect" state
+  // in the 29 days between their access token lapsing and their refresh
+  // token running out.
   const tokenResult = await pool.query<ConnectionTokenRow>(
-    `select a.name as client_name, t.created_at, t.access_token_expires_at
+    `select a.name as client_name, t.created_at, t.refresh_token_expires_at
      from mcp_oauth_access_tokens t
      join mcp_oauth_applications a on a.client_id = t.client_id
      where t.user_id = $1
-       and t.access_token_expires_at > now()
+       and (t.access_token_expires_at > now() or t.refresh_token_expires_at > now())
        and not a.disabled
        and a.type = 'public'
        and (a.client_secret is null or a.client_secret = '')
@@ -728,7 +989,7 @@ export async function getMcpConnectionStatus(
     authorised: token !== null,
     clientName: token?.client_name ?? null,
     authorisedAt: token?.created_at.toISOString() ?? null,
-    expiresAt: token?.access_token_expires_at.toISOString() ?? null,
+    expiresAt: token?.refresh_token_expires_at.toISOString() ?? null,
     hasEverAuthorised: consentResult.rows[0]?.exists ?? false,
     lastActivityAt:
       activityResult.rows[0]?.last_activity_at?.toISOString() ?? null,
@@ -790,7 +1051,7 @@ export async function revokeMcpConnectionForUser(
       await client.query(
         `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
          values ($1, $2, $3, false)`,
-        [clientId, actor.userId, MCP_CONNECT_SCOPE],
+        [clientId, actor.userId, GRANTED_MCP_SCOPES.join(" ")],
       );
     }
 
@@ -812,13 +1073,20 @@ export async function revokeMcpConnectionForUser(
  * That is also why this returns nothing — RFC 7009 §2.2 requires the
  * endpoint to answer 200 whether or not the token existed, so a caller
  * cannot use it to probe which tokens are real.
+ *
+ * Matches on either column because RFC 7009 §2.1 lets the client submit an
+ * access token *or* a refresh token, and both live on the same row here.
+ * Deleting that row revokes the pair together — which is what a client
+ * disconnecting actually means, and stops a revoked access token from being
+ * silently replaced by its own refresh token minutes later.
  */
 export async function revokeMcpAccessToken(token: string): Promise<void> {
   if (typeof token !== "string" || token.trim().length === 0) {
     return;
   }
   await pool.query(
-    `delete from mcp_oauth_access_tokens where access_token = $1`,
+    `delete from mcp_oauth_access_tokens
+     where access_token = $1 or refresh_token = $1`,
     [token],
   );
 }
@@ -844,6 +1112,7 @@ const ORPHAN_APPLICATION_GRACE_PERIOD_HOURS = 24;
 export interface McpOAuthCleanupResult {
   expiredAccessTokensDeleted: number;
   expiredConsentClaimsDeleted: number;
+  expiredRefreshClaimsDeleted: number;
   orphanedApplicationsDeleted: number;
 }
 
@@ -854,21 +1123,26 @@ export interface McpOAuthCleanupResult {
  * live request paths in this file and apps/web/lib/mcp-oauth-compat.
  */
 export async function cleanupExpiredMcpOAuthState(): Promise<McpOAuthCleanupResult> {
-  // 1. mcp_oauth_access_tokens: swept on access_token_expires_at alone.
-  // refresh_token_expires_at is deliberately not part of this condition —
-  // every issued refresh_token is already permanently unredeemable in V1
-  // (the /mcp/authorize before-hook always strips offline_access before
-  // Better Auth's authorize() ever runs), so its expiry carries no real
-  // meaning here.
+  // 1. mcp_oauth_access_tokens: a row is only dead once *both* halves are.
+  // The access_token_expires_at condition on its own would delete a live
+  // connection every hour — the refresh token on that row is redeemable for
+  // 30 days and is the whole reason a Founder does not have to reconnect.
+  // Rotation (rotateOutMcpRefreshToken) is what actually keeps this table
+  // small; this sweep only collects rows nothing can use again.
   const accessTokens = await pool.query(
-    `delete from mcp_oauth_access_tokens where access_token_expires_at < now()`,
+    `delete from mcp_oauth_access_tokens
+     where access_token_expires_at < now()
+       and refresh_token_expires_at < now()`,
   );
 
-  // 2. mcp_oauth_consent_claims: the unique constraint's whole purpose ends
-  // the moment the claim's short TTL (tryClaimConsentCode's
-  // CONSENT_CLAIM_TTL_SECONDS) has passed.
+  // 2. mcp_oauth_consent_claims / mcp_oauth_refresh_claims: each unique
+  // constraint's whole purpose ends the moment its short TTL
+  // (tryClaimConsentCode / tryClaimRefreshToken) has passed.
   const consentClaims = await pool.query(
     `delete from mcp_oauth_consent_claims where expires_at < now()`,
+  );
+  const refreshClaims = await pool.query(
+    `delete from mcp_oauth_refresh_claims where expires_at < now()`,
   );
 
   // 3. mcp_oauth_applications: only a client with zero rows in
@@ -889,6 +1163,7 @@ export async function cleanupExpiredMcpOAuthState(): Promise<McpOAuthCleanupResu
   return {
     expiredAccessTokensDeleted: accessTokens.rowCount ?? 0,
     expiredConsentClaimsDeleted: consentClaims.rowCount ?? 0,
+    expiredRefreshClaimsDeleted: refreshClaims.rowCount ?? 0,
     orphanedApplicationsDeleted: orphanedApplications.rowCount ?? 0,
   };
 }

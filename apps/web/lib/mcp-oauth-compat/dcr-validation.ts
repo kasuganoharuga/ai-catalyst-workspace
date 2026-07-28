@@ -117,11 +117,11 @@ function isStringArrayEqualTo(
 
 /**
  * Claude (and other MCP hosts) register with
- * `grant_types: ["authorization_code", "refresh_token"]` even when the
- * authorization server only issues authorization_code grants. Accept that
- * shape so DCR succeeds; the /mcp/token before-hook still rejects any
- * non-authorization_code grant at token time (V1 does not hand out
- * redeemable refresh tokens).
+ * `grant_types: ["authorization_code", "refresh_token"]`, and both are grants
+ * this server really implements — `authorization_code` to establish the
+ * connection, `refresh_token` to keep it alive without the Founder
+ * reconnecting. Every other grant type the underlying handler would accept
+ * (implicit, password, client_credentials, JWT/SAML bearer) is refused.
  */
 function isAllowedGrantTypes(value: unknown): boolean {
   if (!Array.isArray(value) || value.length === 0) {
@@ -161,13 +161,13 @@ function isAllowedGrantTypes(value: unknown): boolean {
  *   must be `"none"` (public) — anything else is rejected outright rather
  *   than silently accepted and then unusable.
  * - `grant_types`/`response_types` accept far more than
- *   `authorization_code`/`code` (implicit, password, client_credentials,
- *   JWT/SAML bearer, `token`) — none of those are implemented by the
- *   token endpoint this profile relies on, so a client registered with
- *   them would simply fail confusingly later. Rejected here instead.
- *   `refresh_token` is allowed *alongside* `authorization_code` only
- *   because Claude's DCR payload always includes it; V1 still never
- *   redeems a refresh_token grant (see token-validation.ts).
+ *   `authorization_code`/`refresh_token`/`code` (implicit, password,
+ *   client_credentials, JWT/SAML bearer, `token`) — none of those are
+ *   implemented by the token endpoint this profile relies on, so a client
+ *   registered with them would simply fail confusingly later. Rejected here
+ *   instead. `refresh_token` is allowed only *alongside*
+ *   `authorization_code`, never on its own: there is no way to hold a
+ *   refresh token without first completing an authorization.
  * - `client_name` is optional in the handler's own zod schema but
  *   `name: body.client_name` is written straight into a `not null` column
  *   — required here explicitly instead of surfacing as a database error.

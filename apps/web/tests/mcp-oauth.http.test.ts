@@ -34,6 +34,7 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
   let pendingConsentCode = "";
   let redeemableCode = "";
   let issuedAccessToken = "";
+  let issuedRefreshToken = "";
 
   afterAll(async () => {
     if (clientId) {
@@ -50,6 +51,7 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
       );
     }
     await pool.query("delete from mcp_oauth_consent_claims");
+    await pool.query("delete from mcp_oauth_refresh_claims");
     await pool.query("delete from users where email in ($1, $2)", [
       email,
       otherEmail,
@@ -186,6 +188,15 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     );
     expect(badScopeResponse.status).toBe(400);
     expect((await badScopeResponse.json()).error).toBe("invalid_scope");
+
+    // offline_access is the one addition to the allowed set — a client that
+    // asks for it explicitly (as Claude does) must not be turned away.
+    const offlineAccessResponse = await GET(
+      new Request(buildAuthorizeUrl({ scope: "mcp:connect offline_access" }), {
+        headers: { cookie: sessionCookie },
+      }),
+    );
+    expect(offlineAccessResponse.status).toBe(302);
   });
 
   it("forces the consent screen and returns a pending consent_code", async () => {
@@ -278,13 +289,17 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     expect((await response.json()).error).toBe("invalid_request");
   });
 
-  it("rejects a non-authorization_code grant at POST /mcp/token without burning the code", async () => {
+  it("rejects an unimplemented grant at POST /mcp/token without burning the code", async () => {
+    // client_credentials is one of the grants better-auth's own DCR handler
+    // would happily register but this token endpoint never implements. The
+    // code is deliberately included in the body: the point of the test is
+    // that a valid code survives a request rejected on grant_type alone.
     const response = await POST(
       new Request(`${BASE_URL}/api/auth/mcp/token`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          grant_type: "refresh_token",
+          grant_type: "client_credentials",
           code: redeemableCode,
           redirect_uri: REDIRECT_URI,
           client_id: clientId,
@@ -296,7 +311,23 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     expect((await response.json()).error).toBe("unsupported_grant_type");
   });
 
-  it("redeems the authorization code for an access token scoped to mcp:connect only", async () => {
+  it("rejects a refresh_token grant carrying an unknown refresh token", async () => {
+    const response = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/token`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "refresh_token",
+          refresh_token: "a".repeat(32),
+          client_id: clientId,
+        }),
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe("invalid_grant");
+  });
+
+  it("redeems the authorization code for an access token and a refresh token", async () => {
     const response = await POST(
       new Request(`${BASE_URL}/api/auth/mcp/token`, {
         method: "POST",
@@ -313,10 +344,14 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.access_token).toBeTruthy();
-    expect(body.scope).toBe("mcp:connect");
-    expect(body.refresh_token).toBeUndefined();
+    // offline_access is granted whether or not the client asked for it (the
+    // authorize URL above only ever requests mcp:connect) — that is what makes
+    // the plugin return a refresh_token here at all.
+    expect(body.scope).toBe("mcp:connect offline_access");
+    expect(body.refresh_token).toBeTruthy();
     expect(body.id_token).toBeUndefined();
     issuedAccessToken = body.access_token;
+    issuedRefreshToken = body.refresh_token;
 
     // The same code must not be redeemable a second time � it was deleted
     // by the real handler's consumeVerificationValue, so the before-hook's
@@ -344,8 +379,135 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     expect(actor.userId).toBe(userId);
     expect(actor.role).toBe("founder");
     expect(actor.source).toBe("mcp");
-    expect(actor.scopes).toEqual(["mcp:connect"]);
+    expect(actor.scopes).toEqual(["mcp:connect", "offline_access"]);
     expect(actor.clientId).toBe(clientId);
+  });
+
+  it("rejects a refresh_token grant presenting another client's client_id", async () => {
+    const response = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/token`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "refresh_token",
+          refresh_token: issuedRefreshToken,
+          client_id: `not-${clientId}`,
+        }),
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe("invalid_client");
+
+    // Rejected before the handler ran, so the refresh token is untouched and
+    // still redeemable by its real owner in the next test.
+    const stillThere = await pool.query(
+      "select 1 from mcp_oauth_access_tokens where refresh_token = $1",
+      [issuedRefreshToken],
+    );
+    expect(stillThere.rowCount).toBe(1);
+  });
+
+  it("exchanges the refresh token for a new pair over form-urlencoded, rotating the old row away", async () => {
+    // Deliberately form-urlencoded rather than JSON: real OAuth clients post
+    // this endpoint that way, which means both hooks see a FormData body and
+    // have to go through normalizeOAuthTokenBody to read grant_type at all.
+    const response = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/token`, {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "refresh_token",
+          refresh_token: issuedRefreshToken,
+          client_id: clientId,
+        }).toString(),
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    expect(body.access_token).toBeTruthy();
+    expect(body.refresh_token).toBeTruthy();
+    expect(body.access_token).not.toBe(issuedAccessToken);
+    expect(body.refresh_token).not.toBe(issuedRefreshToken);
+    expect(body.scope).toBe("mcp:connect offline_access");
+
+    // The new access token identifies the same founder — a refresh must not
+    // quietly change who the connection belongs to.
+    const actor = await verifyMcpBearerToken(body.access_token);
+    expect(actor.userId).toBe(userId);
+    expect(actor.role).toBe("founder");
+
+    // Rotation is revocation: the old row is gone, so the access token that
+    // came with it stops working immediately rather than lingering for the
+    // rest of its hour.
+    await expect(verifyMcpBearerToken(issuedAccessToken)).rejects.toThrow();
+    const oldRow = await pool.query(
+      "select 1 from mcp_oauth_access_tokens where refresh_token = $1",
+      [issuedRefreshToken],
+    );
+    expect(oldRow.rowCount).toBe(0);
+
+    // Exactly one row for this user afterwards — refreshing must not
+    // accumulate a row per refresh, which is what the plugin does unaided.
+    const liveRows = await pool.query(
+      "select count(*)::int as count from mcp_oauth_access_tokens where user_id = $1",
+      [userId],
+    );
+    expect(liveRows.rows[0].count).toBe(1);
+
+    const previousRefreshToken = issuedRefreshToken;
+    issuedAccessToken = body.access_token;
+    issuedRefreshToken = body.refresh_token;
+
+    // Replaying the rotated-out refresh token finds no row: this is the
+    // profile's reuse detection, and it must not report anything more
+    // specific than "invalid_grant".
+    const replayResponse = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/token`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "refresh_token",
+          refresh_token: previousRefreshToken,
+          client_id: clientId,
+        }),
+      }),
+    );
+    expect(replayResponse.status).toBe(401);
+    expect((await replayResponse.json()).error).toBe("invalid_grant");
+  });
+
+  it("refuses to refresh once the founder is no longer authorizable", async () => {
+    await pool.query("update users set role = 'pending' where id = $1", [
+      userId,
+    ]);
+    try {
+      const response = await POST(
+        new Request(`${BASE_URL}/api/auth/mcp/token`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            grant_type: "refresh_token",
+            refresh_token: issuedRefreshToken,
+            client_id: clientId,
+          }),
+        }),
+      );
+      expect(response.status).toBe(401);
+      expect((await response.json()).error).toBe("invalid_grant");
+
+      // Rejected, so nothing was rotated — the row survives for the founder
+      // to use again once their account is usable.
+      const stillThere = await pool.query(
+        "select 1 from mcp_oauth_access_tokens where refresh_token = $1",
+        [issuedRefreshToken],
+      );
+      expect(stillThere.rowCount).toBe(1);
+    } finally {
+      await pool.query("update users set role = 'founder' where id = $1", [
+        userId,
+      ]);
+    }
   });
 });
 
@@ -369,8 +531,11 @@ describe("GET /.well-known/oauth-authorization-server", () => {
     // so revocation is served from this app's own route.
     expect(body.revocation_endpoint).toBe(`${body.issuer}/api/mcp/revoke`);
     expect(body.revocation_endpoint_auth_methods_supported).toEqual(["none"]);
-    expect(body.scopes_supported).toEqual(["mcp:connect"]);
-    expect(body.grant_types_supported).toEqual(["authorization_code"]);
+    expect(body.scopes_supported).toEqual(["mcp:connect", "offline_access"]);
+    expect(body.grant_types_supported).toEqual([
+      "authorization_code",
+      "refresh_token",
+    ]);
     expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);
     expect(body.code_challenge_methods_supported).toEqual(["S256"]);
     expect(body.userinfo_endpoint).toBeUndefined();

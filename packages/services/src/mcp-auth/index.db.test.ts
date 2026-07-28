@@ -7,6 +7,7 @@ import { createWebActorContext } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError } from "../errors.js";
 import {
   checkAuthorizationCodeIsRedeemable,
+  checkRefreshTokenIsRedeemable,
   cleanupExpiredMcpOAuthState,
   getAuthorizableUserById,
   getMcpConnectionStatus,
@@ -15,7 +16,9 @@ import {
   isValidPublicOAuthClientRecord,
   revokeMcpAccessToken,
   revokeMcpConnectionForUser,
+  rotateOutMcpRefreshToken,
   tryClaimConsentCode,
+  tryClaimRefreshToken,
   verifyMcpBearerToken,
 } from "./index.js";
 
@@ -30,6 +33,7 @@ describe("mcp-auth service — database integration", () => {
   const createdClientIds: string[] = [];
   const createdVerificationIdentifiers: string[] = [];
   const createdConsentClaimHashes: string[] = [];
+  const createdRefreshClaimHashes: string[] = [];
 
   const ALPHA = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const ALPHANUMERIC = `${ALPHA}0123456789`;
@@ -90,16 +94,26 @@ describe("mcp-auth service — database integration", () => {
     return clientId;
   }
 
+  // `expired` expires only the access token — which on its own is a normal,
+  // healthy state now that the refresh token can mint a new one. Use
+  // `refreshExpired` as well to model a connection that is genuinely over.
   async function createAccessToken(
     clientId: string,
     userId: string | null,
-    options: { expired?: boolean; scopes?: string } = {},
+    options: {
+      expired?: boolean;
+      refreshExpired?: boolean;
+      scopes?: string;
+    } = {},
   ): Promise<string> {
     const accessToken = newAccessToken();
     const refreshToken = newAccessToken();
     const expiresAt = options.expired
       ? new Date(Date.now() - 60_000)
       : new Date(Date.now() + 3_600_000);
+    const refreshExpiresAt = options.refreshExpired
+      ? new Date(Date.now() - 60_000)
+      : new Date(Date.now() + 30 * 24 * 3_600_000);
 
     await pool.query(
       `insert into mcp_oauth_access_tokens
@@ -109,13 +123,22 @@ describe("mcp-auth service — database integration", () => {
         accessToken,
         refreshToken,
         expiresAt,
-        new Date(Date.now() + 7 * 24 * 3_600_000),
+        refreshExpiresAt,
         clientId,
         userId,
-        options.scopes ?? "mcp:connect",
+        options.scopes ?? "mcp:connect offline_access",
       ],
     );
     return accessToken;
+  }
+
+  // The refresh-token half of the same row, for tests that need to redeem it.
+  async function getRefreshTokenFor(accessToken: string): Promise<string> {
+    const result = await pool.query<{ refresh_token: string }>(
+      "select refresh_token from mcp_oauth_access_tokens where access_token = $1",
+      [accessToken],
+    );
+    return result.rows[0].refresh_token;
   }
 
   async function createVerification(
@@ -199,6 +222,12 @@ describe("mcp-auth service — database integration", () => {
         [createdConsentClaimHashes],
       );
     }
+    if (createdRefreshClaimHashes.length > 0) {
+      await pool.query(
+        "delete from mcp_oauth_refresh_claims where refresh_token_hash = any($1::text[])",
+        [createdRefreshClaimHashes],
+      );
+    }
     await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
@@ -217,7 +246,7 @@ describe("mcp-auth service — database integration", () => {
         role: "founder",
         source: "mcp",
         clientId,
-        scopes: ["mcp:connect"],
+        scopes: ["mcp:connect", "offline_access"],
       });
     });
 
@@ -312,7 +341,7 @@ describe("mcp-auth service — database integration", () => {
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: true,
@@ -324,7 +353,7 @@ describe("mcp-auth service — database integration", () => {
         consentCode,
         clientId,
         redirectHost: "claude.ai",
-        scopes: ["mcp:connect"],
+        scopes: ["mcp:connect", "offline_access"],
       });
     });
 
@@ -335,7 +364,7 @@ describe("mcp-auth service — database integration", () => {
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: true,
@@ -355,7 +384,7 @@ describe("mcp-auth service — database integration", () => {
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -373,7 +402,7 @@ describe("mcp-auth service — database integration", () => {
         {
           clientId,
           redirectURI: "https://claude.ai/callback",
-          scope: ["mcp:connect"],
+          scope: ["mcp:connect", "offline_access"],
           userId,
           authTime: Date.now(),
           requireConsent: true,
@@ -394,7 +423,7 @@ describe("mcp-auth service — database integration", () => {
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: true,
@@ -405,13 +434,34 @@ describe("mcp-auth service — database integration", () => {
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
-    it("throws NOT_FOUND when the scope is not exactly mcp:connect", async () => {
+    it("throws NOT_FOUND when the scope carries anything beyond the granted set", async () => {
       const userId = await createUser("consent-bad-scope", "founder");
       const clientId = await createClient("consent-bad-scope");
       const consentCode = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect", "openid"],
+        scope: ["mcp:connect", "offline_access", "openid"],
+        userId,
+        authTime: Date.now(),
+        requireConsent: true,
+      });
+
+      await expect(
+        getPendingMcpConsentRequest(consentCode, userId),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("throws NOT_FOUND when the scope is missing offline_access", async () => {
+      // A verification row carrying only mcp:connect did not come through the
+      // /mcp/authorize before-hook, which rewrites every request to the full
+      // granted set. Rendering a consent screen for it would consent the
+      // founder to a connection that dies in an hour.
+      const userId = await createUser("consent-partial-scope", "founder");
+      const clientId = await createClient("consent-partial-scope");
+      const consentCode = await createVerification({
+        clientId,
+        redirectURI: "https://claude.ai/callback",
+        scope: ["mcp:connect"],
         userId,
         authTime: Date.now(),
         requireConsent: true,
@@ -439,7 +489,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -464,7 +514,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -510,7 +560,7 @@ describe("mcp-auth service — database integration", () => {
         {
           clientId,
           redirectURI: "https://claude.ai/callback",
-          scope: ["mcp:connect"],
+          scope: ["mcp:connect", "offline_access"],
           userId,
           authTime: Date.now(),
           requireConsent: false,
@@ -536,7 +586,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: true,
@@ -561,7 +611,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -595,7 +645,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -621,7 +671,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -645,7 +695,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -669,7 +719,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -706,7 +756,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -730,7 +780,7 @@ describe("mcp-auth service — database integration", () => {
       const code = await createVerification({
         clientId,
         redirectURI: "https://claude.ai/callback",
-        scope: ["mcp:connect"],
+        scope: ["mcp:connect", "offline_access"],
         userId,
         authTime: Date.now(),
         requireConsent: false,
@@ -745,6 +795,267 @@ describe("mcp-auth service — database integration", () => {
         codeVerifier,
       });
       expect(result).toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+  });
+
+  describe("checkRefreshTokenIsRedeemable", () => {
+    it("accepts a live refresh token presented by its own client", async () => {
+      const userId = await createUser("refresh-ok", "founder");
+      const clientId = await createClient("refresh-ok");
+      const accessToken = await createAccessToken(clientId, userId);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toEqual({ ok: true });
+    });
+
+    it("accepts a refresh token whose access token has already expired", async () => {
+      // The normal case, not an edge case: a client refreshes precisely
+      // because its access token ran out.
+      const userId = await createUser("refresh-after-expiry", "founder");
+      const clientId = await createClient("refresh-after-expiry");
+      const accessToken = await createAccessToken(clientId, userId, {
+        expired: true,
+      });
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toEqual({ ok: true });
+    });
+
+    it("rejects a malformed refresh token without querying the database", async () => {
+      await expect(
+        checkRefreshTokenIsRedeemable({
+          refreshToken: "not-a-token",
+          clientId: "anything",
+        }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
+    it("rejects a missing client_id", async () => {
+      await expect(
+        checkRefreshTokenIsRedeemable({
+          refreshToken: newAccessToken(),
+          clientId: undefined,
+        }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_client" });
+    });
+
+    // The reuse-detection case: rotation deletes the redeemed row, so a
+    // replayed token is indistinguishable from one that never existed — and
+    // must stay that way.
+    it("rejects an unknown refresh token as invalid_grant", async () => {
+      await expect(
+        checkRefreshTokenIsRedeemable({
+          refreshToken: newAccessToken(),
+          clientId: await createClient("refresh-unknown"),
+        }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
+    it("rejects an expired refresh token", async () => {
+      const userId = await createUser("refresh-expired", "founder");
+      const clientId = await createClient("refresh-expired");
+      const accessToken = await createAccessToken(clientId, userId, {
+        expired: true,
+        refreshExpired: true,
+      });
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
+    it("rejects a refresh token presented by a different client", async () => {
+      const userId = await createUser("refresh-wrong-client", "founder");
+      const clientId = await createClient("refresh-wrong-client");
+      const otherClientId = await createClient("refresh-wrong-client-other");
+      const accessToken = await createAccessToken(clientId, userId);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({
+          refreshToken,
+          clientId: otherClientId,
+        }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_client" });
+    });
+
+    it("rejects a refresh token whose client has been disabled", async () => {
+      const userId = await createUser("refresh-disabled", "founder");
+      const clientId = await createClient("refresh-disabled");
+      const accessToken = await createAccessToken(clientId, userId);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await pool.query(
+        "update mcp_oauth_applications set disabled = true where client_id = $1",
+        [clientId],
+      );
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_client" });
+    });
+
+    it("rejects a token that was never granted offline_access", async () => {
+      // Rows written before offline_access was granted — Better Auth's own
+      // refresh branch refuses these too, but this returns the profile's
+      // error shape rather than the plugin's.
+      const userId = await createUser("refresh-no-offline", "founder");
+      const clientId = await createClient("refresh-no-offline");
+      const accessToken = await createAccessToken(clientId, userId, {
+        scopes: "mcp:connect",
+      });
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
+    // The gap Better Auth's own refresh branch leaves open: it copies the
+    // user id across without ever re-checking the account.
+    it("rejects a refresh token belonging to a founder reverted to pending", async () => {
+      const userId = await createUser("refresh-pending", "pending");
+      const clientId = await createClient("refresh-pending");
+      const accessToken = await createAccessToken(clientId, userId);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
+    it("rejects a refresh token whose user row is gone", async () => {
+      const clientId = await createClient("refresh-no-user");
+      const accessToken = await createAccessToken(clientId, null);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+  });
+
+  describe("rotateOutMcpRefreshToken", () => {
+    it("removes every sibling row for the user+client, keeping only the new pair", async () => {
+      const userId = await createUser("rotate", "founder");
+      const clientId = await createClient("rotate");
+      const accessToken = await createAccessToken(clientId, userId);
+      const presentedRefresh = await getRefreshTokenFor(accessToken);
+      const newAccess = await createAccessToken(clientId, userId);
+      const newRefresh = await getRefreshTokenFor(newAccess);
+
+      await expect(
+        rotateOutMcpRefreshToken({
+          presentedRefreshToken: presentedRefresh,
+          newRefreshToken: newRefresh,
+        }),
+      ).resolves.toBe(1);
+
+      // Rotation is revocation: the old pair stops working at once rather
+      // than lingering for the rest of the access token's hour.
+      await expect(verifyMcpBearerToken(accessToken)).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+      await expect(
+        checkRefreshTokenIsRedeemable({
+          refreshToken: presentedRefresh,
+          clientId,
+        }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+      await expect(verifyMcpBearerToken(newAccess)).resolves.toMatchObject({
+        userId,
+      });
+    });
+
+    it("clears a race sibling for the same user+client while keeping the winner", async () => {
+      const userId = await createUser("rotate-family", "founder");
+      const clientId = await createClient("rotate-family");
+      const presented = await createAccessToken(clientId, userId);
+      const raceSibling = await createAccessToken(clientId, userId);
+      const winner = await createAccessToken(clientId, userId);
+
+      await rotateOutMcpRefreshToken({
+        presentedRefreshToken: await getRefreshTokenFor(presented),
+        newRefreshToken: await getRefreshTokenFor(winner),
+      });
+
+      await expect(verifyMcpBearerToken(winner)).resolves.toMatchObject({
+        userId,
+      });
+      await expect(verifyMcpBearerToken(presented)).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+      await expect(verifyMcpBearerToken(raceSibling)).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+    });
+
+    it("leaves a different client's rows untouched", async () => {
+      const userId = await createUser("rotate-isolation", "founder");
+      const clientId = await createClient("rotate-isolation");
+      const otherClientId = await createClient("rotate-isolation-other");
+      const mine = await createAccessToken(clientId, userId);
+      const replacement = await createAccessToken(clientId, userId);
+      const untouched = await createAccessToken(otherClientId, userId);
+
+      await rotateOutMcpRefreshToken({
+        presentedRefreshToken: await getRefreshTokenFor(mine),
+        newRefreshToken: await getRefreshTokenFor(replacement),
+      });
+
+      await expect(verifyMcpBearerToken(untouched)).resolves.toMatchObject({
+        userId,
+      });
+    });
+
+    // A concurrent revoke or sweep can get there first; the after-hook must
+    // not treat that as a failure.
+    it("reports zero for an unknown or blank token", async () => {
+      await expect(
+        rotateOutMcpRefreshToken({
+          presentedRefreshToken: newAccessToken(),
+          newRefreshToken: newAccessToken(),
+        }),
+      ).resolves.toBe(0);
+      await expect(
+        rotateOutMcpRefreshToken({
+          presentedRefreshToken: "",
+          newRefreshToken: "",
+        }),
+      ).resolves.toBe(0);
+    });
+  });
+
+  describe("tryClaimRefreshToken", () => {
+    function hashRefreshTokenForCleanup(refreshToken: string): string {
+      return createHash("sha256").update(refreshToken, "utf8").digest("hex");
+    }
+
+    it("only lets the first of two concurrent claims for the same token succeed", async () => {
+      const refreshToken = newAccessToken();
+      createdRefreshClaimHashes.push(hashRefreshTokenForCleanup(refreshToken));
+
+      const [first, second] = await Promise.all([
+        tryClaimRefreshToken(refreshToken),
+        tryClaimRefreshToken(refreshToken),
+      ]);
+
+      expect([first, second].filter(Boolean)).toHaveLength(1);
+    });
+
+    it("lets different tokens claim independently", async () => {
+      const tokenA = newAccessToken();
+      const tokenB = newAccessToken();
+      createdRefreshClaimHashes.push(hashRefreshTokenForCleanup(tokenA));
+      createdRefreshClaimHashes.push(hashRefreshTokenForCleanup(tokenB));
+
+      await expect(tryClaimRefreshToken(tokenA)).resolves.toBe(true);
+      await expect(tryClaimRefreshToken(tokenB)).resolves.toBe(true);
     });
   });
 
@@ -948,10 +1259,34 @@ describe("mcp-auth service — database integration", () => {
       expect(status.lastActivityAt).toBeNull();
     });
 
-    it("keeps reporting activity after the token has expired", async () => {
+    // The single most important case for the refresh-token change: an hour
+    // after connecting, every founder's access token is expired. If that made
+    // them "not authorised", the Connection page would tell them to reconnect
+    // in Claude every hour — the exact bug refresh tokens exist to fix.
+    it("stays authorised when only the access token has expired", async () => {
+      const userId = await createUser("conn-access-expired", "founder");
+      const clientId = await createClient("conn-access-expired");
+      await createAccessToken(clientId, userId, { expired: true });
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+      expect(status.authorised).toBe(true);
+      expect(status.clientName).toBe("Test Client conn-access-expired");
+      // expiresAt reports when the connection itself ends — the refresh
+      // token's expiry, weeks out, not the access token's, already past.
+      expect(new Date(status.expiresAt as string).getTime()).toBeGreaterThan(
+        Date.now(),
+      );
+    });
+
+    it("keeps reporting activity after the connection has fully expired", async () => {
       const userId = await createUser("conn-expired-activity", "founder");
       const clientId = await createClient("conn-expired-activity");
-      await createAccessToken(clientId, userId, { expired: true });
+      await createAccessToken(clientId, userId, {
+        expired: true,
+        refreshExpired: true,
+      });
       await insertAuditLog(userId, { minutesAgo: 30 });
 
       const status = await getMcpConnectionStatus(
@@ -961,13 +1296,16 @@ describe("mcp-auth service — database integration", () => {
       expect(status.lastActivityAt).not.toBeNull();
     });
 
-    it("reports previously-authorised once every token has expired", async () => {
+    it("reports previously-authorised once every token has fully expired", async () => {
       const userId = await createUser("conn-expired", "founder");
       const clientId = await createClient("conn-expired");
-      await createAccessToken(clientId, userId, { expired: true });
+      await createAccessToken(clientId, userId, {
+        expired: true,
+        refreshExpired: true,
+      });
       await pool.query(
         `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
-         values ($1, $2, 'mcp:connect', true)`,
+         values ($1, $2, 'mcp:connect offline_access', true)`,
         [clientId, userId],
       );
 
@@ -1106,6 +1444,26 @@ describe("mcp-auth service — database integration", () => {
       );
     });
 
+    // RFC 7009 §2.1 lets the client submit either token type. Revoking by
+    // refresh token has to kill the access token on the same row too —
+    // otherwise a disconnect would leave the connection able to refresh
+    // itself back to life.
+    it("revokes the whole pair when given the refresh token", async () => {
+      const userId = await createUser("revoke-refresh", "founder");
+      const clientId = await createClient("revoke-refresh-client");
+      const accessToken = await createAccessToken(clientId, userId);
+      const refreshToken = await getRefreshTokenFor(accessToken);
+
+      await revokeMcpAccessToken(refreshToken);
+
+      await expect(verifyMcpBearerToken(accessToken)).rejects.toBeInstanceOf(
+        ServiceError,
+      );
+      await expect(
+        checkRefreshTokenIsRedeemable({ refreshToken, clientId }),
+      ).resolves.toMatchObject({ ok: false, error: "invalid_grant" });
+    });
+
     // RFC 7009 §2.2: an unknown token is a success, so the endpoint can't
     // be used to probe which tokens exist.
     it("treats an unknown or blank token as a no-op", async () => {
@@ -1121,14 +1479,27 @@ describe("mcp-auth service — database integration", () => {
   // fixtures, so it must only ever run once every other test's assertions
   // against its own fixtures have already completed.
   describe("cleanupExpiredMcpOAuthState", () => {
-    it("deletes expired access tokens, expired consent claims, and orphaned (never-consented, past the grace period) applications", async () => {
+    it("deletes expired access tokens, expired consent/refresh claims, and orphaned (never-consented, past the grace period) applications", async () => {
       const userId = await createUser("cleanup", "founder");
 
       const expiredTokenClientId = await createClient("cleanup-expired-token");
-      await createAccessToken(expiredTokenClientId, userId, { expired: true });
+      await createAccessToken(expiredTokenClientId, userId, {
+        expired: true,
+        refreshExpired: true,
+      });
 
       const liveTokenClientId = await createClient("cleanup-live-token");
       const liveToken = await createAccessToken(liveTokenClientId, userId);
+
+      // The row this sweep must not touch: its access token lapsed an hour
+      // in, but its refresh token has weeks left. Deleting it would end a
+      // live connection and force the Founder to reconnect in Claude.
+      const refreshableClientId = await createClient("cleanup-refreshable");
+      const refreshableToken = await createAccessToken(
+        refreshableClientId,
+        userId,
+        { expired: true },
+      );
 
       const expiredClaimHash = hashConsentCodeForCleanup(newConsentCode());
       await pool.query(
@@ -1145,6 +1516,26 @@ describe("mcp-auth service — database integration", () => {
         [liveClaimHash],
       );
       createdConsentClaimHashes.push(liveClaimHash);
+
+      const expiredRefreshClaimHash = createHash("sha256")
+        .update(newAccessToken(), "utf8")
+        .digest("hex");
+      await pool.query(
+        `insert into mcp_oauth_refresh_claims (refresh_token_hash, expires_at)
+         values ($1, now() - interval '1 minute')`,
+        [expiredRefreshClaimHash],
+      );
+      createdRefreshClaimHashes.push(expiredRefreshClaimHash);
+
+      const liveRefreshClaimHash = createHash("sha256")
+        .update(newAccessToken(), "utf8")
+        .digest("hex");
+      await pool.query(
+        `insert into mcp_oauth_refresh_claims (refresh_token_hash, expires_at)
+         values ($1, now() + interval '1 minute')`,
+        [liveRefreshClaimHash],
+      );
+      createdRefreshClaimHashes.push(liveRefreshClaimHash);
 
       // Orphaned: no mcp_oauth_consents row, backdated past the grace period.
       const orphanedClientId = await createClient("cleanup-orphaned");
@@ -1170,19 +1561,27 @@ describe("mcp-auth service — database integration", () => {
 
       expect(result.expiredAccessTokensDeleted).toBeGreaterThanOrEqual(1);
       expect(result.expiredConsentClaimsDeleted).toBeGreaterThanOrEqual(1);
+      expect(result.expiredRefreshClaimsDeleted).toBeGreaterThanOrEqual(1);
       expect(result.orphanedApplicationsDeleted).toBeGreaterThanOrEqual(1);
 
       const remainingTokens = await pool.query(
-        `select access_token from mcp_oauth_access_tokens where access_token = $1`,
-        [liveToken],
+        `select access_token from mcp_oauth_access_tokens
+         where access_token = any($1::text[])`,
+        [[liveToken, refreshableToken]],
       );
-      expect(remainingTokens.rowCount).toBe(1);
+      expect(remainingTokens.rowCount).toBe(2);
 
       const remainingClaims = await pool.query(
         `select 1 from mcp_oauth_consent_claims where consent_code_hash = $1`,
         [liveClaimHash],
       );
       expect(remainingClaims.rowCount).toBe(1);
+
+      const remainingRefreshClaims = await pool.query(
+        `select 1 from mcp_oauth_refresh_claims where refresh_token_hash = $1`,
+        [liveRefreshClaimHash],
+      );
+      expect(remainingRefreshClaims.rowCount).toBe(1);
 
       const remainingApplications = await pool.query<{ client_id: string }>(
         `select client_id from mcp_oauth_applications where client_id = any($1::text[])`,

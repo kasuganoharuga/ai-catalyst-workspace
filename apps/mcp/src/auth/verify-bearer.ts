@@ -86,9 +86,9 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
         }
 
         if (error instanceof ServiceError && error.code === "FORBIDDEN") {
-          // V1's /mcp/authorize before-hook (apps/web/lib/mcp-oauth-compat)
+          // The /mcp/authorize before-hook (apps/web/lib/mcp-oauth-compat)
           // always force-normalizes the granted scope to exactly
-          // "mcp:connect", so the missing-scope branch of
+          // "mcp:connect offline_access", so the missing-scope branch of
           // verifyMcpBearerToken is only reachable via direct database
           // tampering — but its error message is still distinct and
           // checked here so a real client would still get an accurate
