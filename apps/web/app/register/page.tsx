@@ -46,13 +46,17 @@ export default function RegisterPage() {
           Create an account
         </p>
         <h1 className="mt-5 text-4xl font-semibold tracking-tight">Register</h1>
+        {/* Was "see the `pending` state after signing up" — `pending` is the
+            role value in the users table, and "state" is our word for it.
+            Someone creating an account has no way to know what either means,
+            or that it is a page they can go and look at. */}
         <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          Registration is open for everyone right now. Founder and Mentor access
-          is still invitation-only — see the{" "}
+          Anyone can create an account. Reaching a workspace still needs an
+          invitation, so after you sign up you&apos;ll{" "}
           <Link href="/pending" className="underline hover:text-foreground">
-            pending
+            wait here
           </Link>{" "}
-          state after signing up.
+          until yours is accepted.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-5">

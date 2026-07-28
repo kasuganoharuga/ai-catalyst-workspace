@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { startModuleAttemptAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
 
-import { errorCopy, toastCopy } from "../lib/copy";
+import { errorCopy, retryCopy, toastCopy } from "../lib/copy";
 
 /**
  * Opens (or resumes) a writable Attempt for a Module. Used after
@@ -17,8 +17,8 @@ import { errorCopy, toastCopy } from "../lib/copy";
  */
 export function StartModuleAttemptButton({
   programRunModuleId,
-  label = "Start another pass",
-  pendingLabel = "Opening…",
+  label = retryCopy.cta,
+  pendingLabel = retryCopy.pending,
   className,
   size = "lg",
   variant = "default",

@@ -96,11 +96,11 @@ export function needsModuleRetry(
  * The one label shown for a Module's current state. The active Attempt's
  * status refines the coarse Run-module status where the difference matters
  * to a Founder: "in progress" reads very differently from "waiting on your
- * mentor" or "needs another pass".
+ * mentor" or "needs another go".
  *
  * When activeAttemptId is cleared after validation_failed, pass the
  * display Attempt's status as the third argument so the badge still reads
- * "Needs another pass" instead of a bare "In progress".
+ * "Needs another go" instead of a bare "In progress".
  */
 export function deriveModuleDisplayStatus(
   runStatus: RunModuleStatus,
@@ -113,10 +113,10 @@ export function deriveModuleDisplayStatus(
       return { label: "Ready for review", tone: "ink" };
     }
     if (attemptStatus === "validation_failed") {
-      return { label: "Needs another pass", tone: "warning" };
+      return { label: "Needs another go", tone: "warning" };
     }
     if (attemptStatus === "rejected" || attemptStatus === "cancelled") {
-      return { label: "Needs another pass", tone: "warning" };
+      return { label: "Needs another go", tone: "warning" };
     }
     if (attemptStatus === "submitted") {
       return { label: "Checking your work", tone: "soft" };

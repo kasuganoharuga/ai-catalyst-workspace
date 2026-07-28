@@ -68,7 +68,7 @@ export function ModuleStatusCard({
           effectiveAttemptStatus === "rejected" ||
           effectiveAttemptStatus === "cancelled"
         )
-          return "Needs another pass — open the module to retry";
+          return "Needs another go — open the module to run it again";
         return "In progress — pick it up in Claude anytime";
       case "completed":
         return runModule.completedAt

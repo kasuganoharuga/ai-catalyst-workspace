@@ -17,7 +17,7 @@ import { appPageTitle } from "@/lib/page-metadata";
 import { ConnectionSetup } from "./components/connection-setup";
 import { DisconnectButton } from "./components/disconnect-button";
 
-export const metadata = appPageTitle("MCP connection");
+export const metadata = appPageTitle("Claude connection");
 
 export default async function ConnectionPage() {
   const actor = await getCurrentFounderActor();
@@ -31,13 +31,13 @@ export default async function ConnectionPage() {
   return (
     <PageShell className="max-w-6xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {connectionCopy.kicker}
+        {isAuthorised ? connectionCopy.kickerConnected : connectionCopy.kicker}
       </p>
       <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {connectionCopy.title}
+        {isAuthorised ? connectionCopy.titleConnected : connectionCopy.title}
       </h1>
       <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-        {connectionCopy.intro}
+        {isAuthorised ? connectionCopy.introConnected : connectionCopy.intro}
       </p>
 
       {/* ── Authorised: the address gives way to what we actually know ──
@@ -61,7 +61,7 @@ export default async function ConnectionPage() {
               status={
                 state === "active"
                   ? { label: "Active", tone: "lime" }
-                  : { label: "Authorised", tone: "outline" }
+                  : { label: "Connected", tone: "outline" }
               }
             />
           </div>

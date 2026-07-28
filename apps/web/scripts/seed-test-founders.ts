@@ -228,14 +228,36 @@ Not applicable.
  * browser-side call, and re-hashing by hand would put this script back in
  * the business of guessing Better Auth's hash format. The timestamp is
  * the whole signal, so moving the timestamp is a faithful fixture.
+ *
+ * `accounts` carries a `BEFORE UPDATE` trigger (`accounts_set_updated_at`)
+ * that unconditionally overwrites `updated_at` with the real `now()`,
+ * clobbering any explicit value a plain UPDATE tries to set. Sign-up and
+ * this call happen back-to-back in the same script run, so the real "now"
+ * the trigger substitutes lands under hasChangedInvitationPassword's
+ * one-second slack almost every time — silently defeating this fixture for
+ * every persona that uses it. `session_replication_role = replica`
+ * suppresses triggers for the rest of this transaction only (`set local`
+ * reverts automatically at commit/rollback), so the explicit future
+ * timestamp actually lands.
  */
 async function fakeChangedPassword(deps: Deps, userId: string): Promise<void> {
-  await deps.pool.query(
-    `update accounts
-     set updated_at = now() + interval '5 minutes'
-     where user_id = $1 and provider_id = 'credential'`,
-    [userId],
-  );
+  const client = await deps.pool.connect();
+  try {
+    await client.query("begin");
+    await client.query("set local session_replication_role = replica");
+    await client.query(
+      `update accounts
+       set updated_at = now() + interval '5 minutes'
+       where user_id = $1 and provider_id = 'credential'`,
+      [userId],
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 interface SeedSpec {
@@ -274,6 +296,16 @@ const SPECS: SeedSpec[] = [
     profileName: { firstName: "Ada", lastName: "Lovelace" },
     connected: false,
     passwordChanged: false,
+    run: "none",
+  },
+  {
+    label: "secured",
+    displayName: "Secured Founder",
+    shows:
+      "Name filled and password changed, still not connected: profile prompt and password prompt both gone, only Connect Claude remains.",
+    profileName: { firstName: "Katherine", lastName: "Johnson" },
+    connected: false,
+    passwordChanged: true,
     run: "none",
   },
   {
@@ -388,16 +420,21 @@ async function fakeMcpConnection(deps: Deps, userId: string): Promise<void> {
      on conflict (client_id) do nothing`,
     [CLIENT_ID],
   );
-  // One hour, matching auth.ts's accessTokenExpiresIn. This used to be 30
-  // days, which quietly made the fixtures unable to reproduce the bug they
-  // were most useful for: a token that outlives the founder's intent is
-  // exactly what "I disconnected but the site still says connected" is
-  // about, and a month-long token hides how long that window really is.
+  // One hour / 30 days, matching auth.ts's accessTokenExpiresIn and
+  // refreshTokenExpiresIn. The access token used to be seeded at 30 days,
+  // which quietly made the fixtures unable to reproduce the bug they were
+  // most useful for: a token that outlives the founder's intent is exactly
+  // what "I disconnected but the site still says connected" is about, and a
+  // month-long access token hides how long that window really is.
+  //
+  // `offline_access` has to be in `scopes` or the seeded connection cannot
+  // exercise the refresh grant at all — Better Auth's refresh branch reads
+  // this column to decide whether the refresh token is redeemable.
   await deps.pool.query(
     `insert into mcp_oauth_access_tokens
        (access_token, refresh_token, access_token_expires_at,
         refresh_token_expires_at, client_id, user_id, scopes)
-     values ($1, $2, now() + interval '1 hour', now() + interval '7 days', $3, $4, 'mcp:connect')`,
+     values ($1, $2, now() + interval '1 hour', now() + interval '30 days', $3, $4, 'mcp:connect offline_access')`,
     [
       `seed-access-${randomUUID()}`,
       `seed-refresh-${randomUUID()}`,
@@ -407,7 +444,7 @@ async function fakeMcpConnection(deps: Deps, userId: string): Promise<void> {
   );
   await deps.pool.query(
     `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
-     values ($1, $2, 'mcp:connect', true)`,
+     values ($1, $2, 'mcp:connect offline_access', true)`,
     [CLIENT_ID, userId],
   );
 }

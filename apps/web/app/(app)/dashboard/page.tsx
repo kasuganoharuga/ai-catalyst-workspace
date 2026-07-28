@@ -48,7 +48,7 @@ function connectionStatContent(
           : "Claude connected",
       };
     case "never_used":
-      return { value: "Connected", label: "Authorised — not used yet" };
+      return { value: "Connected", label: "Not used yet" };
     case "expired":
       return {
         value: "Expired",
@@ -56,7 +56,7 @@ function connectionStatContent(
           <>
             Reconnect in{" "}
             <Link href="/connection" className="underline">
-              MCP connection
+              Claude connection
             </Link>
           </>
         ),
@@ -68,7 +68,7 @@ function connectionStatContent(
           <>
             Set up in{" "}
             <Link href="/connection" className="underline">
-              MCP connection
+              Claude connection
             </Link>
           </>
         ),

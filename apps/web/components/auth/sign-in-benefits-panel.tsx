@@ -25,7 +25,7 @@ export function SignInBenefitsPanel() {
         </h2>
 
         <p className="mt-5 text-[13.5px] leading-6 text-surface-inverse-foreground/60">
-          A guided programme that takes a raw idea apart and rebuilds it into a
+          A guided program that takes a raw idea apart and rebuilds it into a
           business case — one hard question at a time.
         </p>
 

@@ -86,7 +86,7 @@ const SHOTS: Shot[] = [
     account: "new",
     path: "/dashboard",
     looksAt:
-      'First visit: "Welcome <name>" with no sub-line, First card = Set up your profile, Start now + Skip for now.',
+      'First visit: "Welcome <name>" with no sub-line, First card = Set up your profile, Start now + Skip for now. Below it the password prompt, which states the situation and the action without spelling out the threat model.',
   },
   {
     name: "03-profile",
@@ -101,11 +101,25 @@ const SHOTS: Shot[] = [
     looksAt: "Name filled: card moves to Next = Connect Claude.",
   },
   {
+    name: "04b-module1-locked",
+    account: "named",
+    path: "/modules/module-01-pressure-test",
+    looksAt:
+      'Not connected yet: module marked OPEN in the catalog, but the detail page gates it behind a "Connect Claude to start this module" card above the brief.',
+  },
+  {
+    name: "04c-dashboard-password-changed",
+    account: "secured",
+    path: "/dashboard",
+    looksAt:
+      "Name filled and password already changed, still not connected: both prompt cards gone, only the Connect Claude banner remains.",
+  },
+  {
     name: "05-connection",
     account: "named",
     path: "/connection",
     looksAt:
-      "Six steps with the address inside step 4, Optional tag on step 6, troubleshooting block with the lime rule, waiting watcher.",
+      "Five steps with the address inside step 3, Optional tag on step 5, troubleshooting block with the lime rule, waiting watcher. Intro leads with what it costs and what happens next, not how the connection works.",
   },
   {
     name: "05b-connection-troubleshooting",
@@ -132,13 +146,20 @@ const SHOTS: Shot[] = [
     account: "verdict",
     path: "/connection",
     looksAt:
-      "The authorised view: status rows, then Disconnect with copy saying the connector stays in Claude.",
+      'The connected view: header reads "Your account / Claude connection" rather than telling someone already connected to connect, status rows read Connected to / Stays connected until / Claude last used it, then Disconnect with copy saying the connector stays in Claude. "Stays connected until" is the refresh token\'s expiry, ~30 days out, not the hourly access token.',
   },
   {
     name: "07-dashboard-connected",
     account: "connected",
     path: "/dashboard",
     looksAt: "Connected, no run: Next = Open your program.",
+  },
+  {
+    name: "07b-dashboard-module1-open",
+    account: "module1",
+    path: "/dashboard",
+    looksAt:
+      'Returning-visitor greeting ("Welcome back, Barbara"), Next = Start Module 1 / Open Module 1.',
   },
   {
     name: "08-modules-list",
@@ -198,6 +219,13 @@ const SHOTS: Shot[] = [
       "Below the fold: your decision, the confirm button, and the revise hint.",
     prepare: openModuleStep("Confirm and unlock"),
     scrollTo: "Not happy with it",
+  },
+  {
+    name: "13c-dashboard-module1-complete",
+    account: "verdict",
+    path: "/dashboard",
+    looksAt:
+      'Returning-visitor greeting ("Welcome back, Radia"), Next = Module 1 is complete / View artefacts.',
   },
   {
     name: "14-artefacts",

@@ -74,14 +74,17 @@ export function CreateInvitationForm() {
       {issuedToken ? (
         <div className="mt-6 rounded-xl border border-accent bg-accent p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            One-time token — copy it now
+            One-time code — copy it now
           </p>
           <p className="mt-2 break-all font-mono text-sm text-foreground">
             {issuedToken}
           </p>
+          {/* "Code", not "token", so this matches the field the founder is
+              asked to paste it into on /pending. Admin-only screen, but it
+              is one half of a handoff whose other half they read. */}
           <p className="mt-2 text-xs text-muted-foreground">
-            This token is shown once and cannot be retrieved again. Share it
-            with the invited Founder manually.
+            This code is shown once and cannot be retrieved again. Share it with
+            the invited founder manually.
           </p>
         </div>
       ) : null}

@@ -62,8 +62,14 @@ export default async function ModuleDetailPage({
             </div>
           </div>
           <aside className="space-y-6">
-            <Panel title="Founder inputs" items={toolkitModule.founderInputs} />
-            <Panel title="Expected outputs" items={toolkitModule.outputs} />
+            {/* Was "Founder inputs" / "Expected outputs" — a spec sheet's
+                headings on a page a founder reads to decide whether the
+                module is worth their afternoon. */}
+            <Panel title="What you bring" items={toolkitModule.founderInputs} />
+            <Panel
+              title="What you walk away with"
+              items={toolkitModule.outputs}
+            />
             <Link
               href={`/downloads/${toolkitModule.id}`}
               className="block rounded-full bg-primary px-6 py-3 text-center text-sm font-semibold text-primary-foreground transition hover:brightness-95"

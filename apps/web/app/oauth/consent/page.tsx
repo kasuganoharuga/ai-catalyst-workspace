@@ -21,16 +21,30 @@ type OAuthConsentPageProps = {
   searchParams: Promise<{ consent_code?: string | string[] }>;
 };
 
-// Plain-language line for each scope actually granted. `offline_access` is
-// the one a Founder is most likely to misread as something sinister, so it is
-// described by what it does for them — stay connected — rather than by what
-// it technically is (a refresh token). Anything unmapped falls back to the
-// raw scope string, which is ugly on purpose: an unrecognised scope reaching
-// this screen means the /mcp/authorize hook has been changed without this
-// list, and it should be visible rather than silently prettied over.
+// Plain-language line for each scope actually granted. Both complete the
+// heading above the list — "This will allow {client} to …" — so each one is a
+// verb phrase, not a sentence about the protocol.
+//
+// `mcp:connect` used to read "Access your AI Catalyst workspace on your
+// behalf, through the Model Context Protocol", which asked a Founder to
+// weigh a grant described in the vocabulary of the grant itself: "on your
+// behalf" is authorization-server phrasing, and the protocol's name tells
+// them nothing about what Claude will actually do. It now names the three
+// concrete capabilities, worded to match `privacyBody` in
+// app/(app)/lib/copy.ts so the consent screen and the connection page
+// describe the same access the same way.
+//
+// `offline_access` is the one most likely to be misread as something
+// sinister, so it is described by what it does for them — stay connected —
+// rather than by what it technically is (a refresh token).
+//
+// Anything unmapped falls back to the raw scope string, which is ugly on
+// purpose: an unrecognised scope reaching this screen means the
+// /mcp/authorize hook has been changed without this list, and it should be
+// visible rather than silently prettied over.
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   "mcp:connect":
-    "Access your AI Catalyst workspace on your behalf, through the Model Context Protocol.",
+    "Read your module questions, save your answers, and store the documents you produce.",
   offline_access:
     "Stay connected between sessions, so you don't have to reconnect every hour.",
 };

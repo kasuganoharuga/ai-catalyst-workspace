@@ -28,6 +28,10 @@ export const loadAppShellUser = cache(async (): Promise<AppShellUser> => {
   return {
     displayName: resolveDisplayName(profile, session.user.name),
     email: session.user.email,
-    ventureSubtitle: venture?.name ?? "No active venture",
+    // "Venture" is the database's word for it. Founders have ideas — the
+    // whole Workspace page is written that way (see workspaceCopy), and
+    // this sits under their name on every single screen, so it was the most
+    // visible place the internal noun was still showing.
+    ventureSubtitle: venture?.name ?? "No idea selected",
   };
 });

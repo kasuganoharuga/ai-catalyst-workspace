@@ -8,7 +8,7 @@
       "number": "00",
       "slug": "setup",
       "title": "Workspace Setup",
-      "objective": "Help founders prepare the context, files, and assumptions needed to use the toolkit effectively.",
+      "objective": "Prepare the context, files, and assumptions the rest of the toolkit builds on.",
       "founderInputs": [
         "Founder background",
         "Company or idea summary",
@@ -29,7 +29,7 @@
       "number": "01",
       "slug": "pressure-test",
       "title": "Pressure-Test Your Idea",
-      "objective": "Help founders critically assess whether an idea is worth pursuing before over-investing in it.",
+      "objective": "Work out whether an idea is worth pursuing, before over-investing in it.",
       "founderInputs": [
         "Business idea",
         "Target customer",

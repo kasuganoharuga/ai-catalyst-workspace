@@ -87,7 +87,11 @@ export function ConsentForm({ consentCode, clientName }: ConsentFormProps) {
           {pendingAction === "deny" ? "Denying..." : "Deny"}
         </button>
       </div>
-      <p className="sr-only">Authorize {clientName}</p>
+      {/* Screen-reader users read this, so it follows the same Australian
+          spelling as the rest of the app (see app/(app)/lib/copy.ts). The
+          `authorization_*` OAuth wire values keep the spec's spelling; this
+          is copy, not a protocol identifier. */}
+      <p className="sr-only">Authorise {clientName}</p>
     </div>
   );
 }

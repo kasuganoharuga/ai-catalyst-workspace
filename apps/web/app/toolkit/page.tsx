@@ -16,9 +16,13 @@ export default async function ToolkitPage() {
           <h1 className="mt-5 text-5xl font-semibold tracking-tight">
             Move from raw idea to validation-ready plan.
           </h1>
+          {/* Was "each module has clear inputs, expected outputs, and a
+              downloadable Skill package" — the same spec vocabulary the
+              module panels used to carry. Says what a reader gets instead. */}
           <p className="mt-6 text-lg leading-8 text-muted-foreground">
-            A public preview of the founder workflow — each module has clear
-            inputs, expected outputs, and a downloadable Skill package.
+            A public preview of the founder workflow. Every module tells you
+            what to bring, what you walk away with, and ships as a Skill you can
+            download.
           </p>
         </div>
         <div className="mt-12 grid gap-6 md:grid-cols-2">

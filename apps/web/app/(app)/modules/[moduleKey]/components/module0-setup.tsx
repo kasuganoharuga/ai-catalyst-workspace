@@ -192,14 +192,14 @@ function CheckStep({
   return (
     <>
       <StepHeading
-        title="Let Claude run the check"
-        body="Open Claude, send the line below, and let it confirm it can reach your workspace — then write and save your Setup Summary."
+        title="Hand it over to Claude"
+        body="Send the line below. Claude confirms it can reach your workspace, then writes and saves your Setup Summary."
       />
 
       {!connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
-          Claude still needs a one-time connector to this workspace before the
-          check can save anything.{" "}
+          Claude isn&apos;t connected to this workspace yet, so nothing can be
+          saved.{" "}
           <Link
             href="/connection"
             className="font-medium text-foreground underline-offset-2 hover:underline"
@@ -236,11 +236,11 @@ function CheckStep({
           />
           <CheckLine
             ok={awaitingConfirmation || isCompleted}
-            label="Passed its checks"
+            label="Nothing missing from it"
             detail={
               awaitingConfirmation || isCompleted
-                ? "Ready for you to look over."
-                : "Runs automatically once the document is saved."
+                ? "Read it over whenever you're ready."
+                : "Happens by itself once the document is saved."
             }
           />
         </dl>
@@ -302,7 +302,7 @@ function ConfirmStep({
       <StepHeading
         title={
           isCompleted
-            ? "Done — and the programme is open"
+            ? "Done — and the program is open"
             : awaitingConfirmation
               ? "Check the file, then unlock the next module"
               : "No file detected yet"
@@ -363,13 +363,13 @@ function ConfirmStep({
           />
           <CheckLine
             ok={checksPassed}
-            label="Passed its checks"
+            label="Nothing missing from it"
             detail={
               checksPassed
-                ? "Ready for you to look over."
+                ? "Read it over whenever you're ready."
                 : documentSaved
-                  ? "Still running."
-                  : "Runs once the file is saved."
+                  ? "Checking now."
+                  : "Happens by itself once the file is saved."
             }
           />
         </dl>

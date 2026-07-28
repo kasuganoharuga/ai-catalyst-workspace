@@ -2,14 +2,21 @@
 // Module 1 — the surfaces a new founder meets before anything else.
 //
 // Centralised so tone can be reviewed in one sitting instead of being
-// reverse-engineered from twenty components. Artefacts, workspace and
-// profile copy are deliberately still inline; they are not on the
-// first-run path and folding them in now would bury the change.
+// reverse-engineered from twenty components. Artefacts, workspace, module
+// gates and profile copy have since moved in here too; what is still inline
+// is per-component labels that only make sense next to the control they
+// belong to.
 //
 // House style, applied throughout:
 //   - One idea per sentence. Full stop, not a dash.
 //   - No metaphors. Say what happens, not what it feels like.
 //   - Start an instruction with its verb.
+//   - Never name an internal concept the founder cannot see or act on.
+//     "Your run", "an attempt", "the workspace check", "authorised client",
+//     "passed its checks" and "the toolkit" all shipped at some point and
+//     all had to be rewritten: each named a table, a protocol term or the
+//     product itself where the founder needed an outcome. Say what they
+//     get, not what the system does to get it.
 //   - Australian English throughout: "program" (not programme),
 //     "artefact", "authorise"/"organise" (-ise, not -ize), "-our" endings.
 //     Note the two that look inconsistent but aren't: Australian English
@@ -42,8 +49,24 @@ export interface ManualStep {
 export const connectionCopy = {
   kicker: "Setup",
   title: "Connect Claude",
+  // Once connected this stops being a setup page and becomes the place you
+  // come to check on or end the connection. Leaving the header as
+  // "Setup / Connect Claude" told a founder to do the thing they had
+  // already done.
+  kickerConnected: "Your account",
+  titleConnected: "Claude connection",
+  // Three sentences explaining the mechanism before ever saying what it
+  // costs or what comes next. A founder on this page has already decided to
+  // connect — what they want to know is how long it takes and what happens
+  // after, so that is what this says now.
+  //
+  // Two versions, because this page has two audiences. Telling someone who
+  // is already connected to "connect Claude once" reads as though the thing
+  // they just finished did not take.
   intro:
-    "You work through each module by talking to Claude. Connecting lets Claude read the module questions and save your answers back here. You only do this once.",
+    "Connect Claude once. It takes about two minutes, and your first module opens as soon as you're done.",
+  introConnected:
+    "Claude is connected to this workspace. Everything below is here if you want to check on it or end access.",
 
   addressHeading: "Your workspace address",
   // Never name the environment variable. A founder can't act on it, and a
@@ -106,8 +129,11 @@ export const connectionCopy = {
   settingsFallbackLink: "Open connectors in your browser",
 
   claudeHelpSummary: "Rather have Claude walk you through it?",
+  // Sets the expectation without dwelling on the limitation. The version
+  // before this spent its middle clause explaining what Claude cannot do,
+  // which is our problem to know and not the founder's to read about.
   claudeHelpBody:
-    "This opens Claude with the steps already written. You still do the clicking — Claude can't reach its own settings — but it can sort you out if a screen doesn't look like it should.",
+    "This opens Claude with the steps already written. You still do the clicking, but Claude can help if a screen doesn't look like it should.",
 
   // Every one of these is a wall a founder actually hit. The first two are
   // plan restrictions, which is why no rewording of the steps above would
@@ -152,29 +178,37 @@ export const connectionCopy = {
   // vague about that would leave someone thinking they were done.
   disconnectTitle: "Disconnect Claude",
   disconnectBody:
-    "Revokes Claude's access to this workspace. The connector stays in your Claude settings, and reconnecting means approving access again.",
+    "Ends Claude's access to this workspace. The connector stays in your Claude settings, and reconnecting means approving access again.",
   disconnectCta: "Disconnect",
   disconnectPending: "Disconnecting…",
   disconnectDone: "Claude no longer has access to this workspace.",
 
+  // These labels used to read like an OAuth console — "Authorised client",
+  // "Authorisation valid until", "Claude called your workspace". Every one
+  // of them named a protocol concept rather than the thing a founder came
+  // to this panel to find out: is it connected, until when, and has it done
+  // anything.
   statusHeading: "Connection status",
-  statusClient: "Authorised client",
-  statusValidUntil: "Authorisation valid until",
-  statusLastActivity: "Last activity from Claude",
-  statusNeverUsed: "Never used yet",
+  statusClient: "Connected to",
+  // Stays honest about what the date means. The connection renews itself
+  // every time Claude uses it, so this is the date it would lapse if the
+  // founder never touched it again — not a countdown they need to watch.
+  statusValidUntil: "Stays connected until",
+  statusLastActivity: "Claude last used it",
+  statusNeverUsed: "Not yet",
   statusActiveNote:
-    "Claude called your workspace in the last few minutes, so the connection is working.",
+    "Claude used your workspace in the last few minutes, so everything is working.",
   statusNeverUsedNote:
-    "Claude is authorised but hasn't called your workspace yet. Your first module will be the first thing that does.",
+    "Claude has access but hasn't used it yet. Your first module will be the first thing that does.",
   statusIdleNote:
-    "Nothing recent to go on. Claude may simply be closed. Ask it to do anything in your workspace, then refresh.",
+    "Claude hasn't used your workspace recently, which usually just means it's closed. Ask it to do something here, then refresh.",
 
   privacyLabel: "What this connection does:",
   // Was "you can disconnect from Claude's settings at any time" — which
   // named the one place that has no effect here. Removing the connector in
   // Claude is client-side; ending access is done on this page.
   privacyBody:
-    "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Every call is logged, and you can end access from this page at any time.",
+    "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Everything Claude does here is recorded, and you can end access from this page at any time.",
 } as const;
 
 // ── Opening Claude ──────────────────────────────────────────────────────
@@ -220,9 +254,13 @@ export const dashboardCopy = {
   // account most likely to still be on an emailed password was the one
   // that never heard about it again. No skip: unlike a name, this has a
   // real end state and disappears by itself once the password changes.
-  passwordPromptTitle: "You're still on your invitation password",
-  passwordPromptBody:
-    "It was sent to you by email, so treat it as known to anyone who has seen that inbox.",
+  //
+  // Says what to do, not what could go wrong. The body used to spell out
+  // the threat model ("treat it as known to anyone who has seen that
+  // inbox"), which lectures a founder about a risk they did not create and
+  // still leaves them to work out the action for themselves.
+  passwordPromptTitle: "You're still using your invitation password",
+  passwordPromptBody: "For security, replace it with one of your own.",
   passwordPromptCta: "Change it",
 
   actionConnectTitle: "Connect Claude",
@@ -231,8 +269,10 @@ export const dashboardCopy = {
   actionConnectCta: "Connect Claude",
 
   actionOpenRunTitle: "Open your program",
-  actionOpenRunBody:
-    "This sets up your run and takes you to your first module.",
+  // "Sets up your run" was the `program_runs` table talking. A founder has
+  // never heard the word "run" and cannot tell whether it is something they
+  // are supposed to have done already.
+  actionOpenRunBody: "Takes you straight to your first module.",
   actionOpenRunCta: "Open program",
 
   actionModule1Title: "Start Module 1",
@@ -296,7 +336,7 @@ export const module1Copy = {
   // previous module" when what they actually need is to connect Claude
   // sends them looking for a module that isn't the problem.
   workBodyLocked:
-    "A preview of how this module works. Actions open once you finish the module before it.",
+    "A preview of how this module works. You can start it once you finish the module before it.",
   workBodyNotStarted:
     "A preview of how this module works. The steps go live once Claude is connected.",
   workLockedNote:
@@ -318,18 +358,23 @@ export const module1Copy = {
   progressDecisionPending: "Comes after the verdict.",
   progressVerdict: "Verdict saved to your workspace",
   progressVerdictPending: "Nothing saved yet.",
-  progressChecks: "Passed its checks",
-  progressChecksDone: "Ready for you to look over.",
-  progressChecksPending: "Runs automatically once the verdict is saved.",
+  // "Passed its checks" described our validation step. A founder does not
+  // know what the checks are, cannot run them, and cannot fail them — what
+  // they need to know is whether the document is complete enough to sign.
+  progressChecks: "Nothing missing from it",
+  progressChecksDone: "Read it over whenever you're ready.",
+  progressChecksPending: "Happens by itself once your verdict is saved.",
 
   confirmTitle: "Read it over, then confirm",
   confirmBody:
-    "Your verdict is saved and passed its checks. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
+    "Your verdict is saved and nothing is missing from it. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
   confirmNoFileTitle: "No file yet",
   confirmNoFileBody:
-    "We haven't found a verdict in your workspace yet. Once Claude saves it and it passes its checks, you sign it off here.",
+    "We haven't found a verdict in your workspace yet. Once Claude saves it, you sign it off here.",
+  // Was "Starting an attempt and saving a verdict open once this module
+  // does" — `module_attempts` leaking into a sentence a founder reads.
   confirmNoFileLocked:
-    "You can look ahead here. Starting an attempt and saving a verdict open once this module does.",
+    "You can look ahead here. You'll be able to start this module and save a verdict once the one before it is done.",
   confirmNoFileNotStarted:
     "You can look ahead here. Sign-off appears once Claude has saved your verdict.",
   confirmUnavailable: "Sign-off opens along with this module.",
@@ -387,6 +432,24 @@ export function module1ConfirmCta(decision: FounderDecision): string {
   return "Confirm and open the next module";
 }
 
+// ── Running a module again ──────────────────────────────────────────────
+
+// Shown when a module still reads as in progress but Claude has no open
+// attempt to write into (typically after a failed validation). Centralised
+// because the same button label was declared in three separate components.
+//
+// None of this says "attempt" or "pass" any more. Both are `module_attempts`
+// showing through: a founder has no way to see an attempt, did not know one
+// was open, and cannot tell what closing one means. What they can act on is
+// that Claude has stopped being able to save, and that starting the module
+// again fixes it without losing anything.
+export const retryCopy = {
+  title: "Ready to go again",
+  body: "Claude can't save anything more to this module until you start it again. Everything you've answered so far is kept.",
+  cta: "Run it again",
+  pending: "Opening…",
+} as const;
+
 // ── Module gates ────────────────────────────────────────────────────────
 
 // What a founder sees on a module page before that module can be worked
@@ -400,18 +463,20 @@ export const moduleGateCopy = {
   // step not done yet.
   needsConnectionTitle: "Connect Claude to start this module",
   needsConnectionBody:
-    "You work through this module by talking to Claude, so it needs access to your workspace first. It takes about two minutes and you only do it once.",
+    "Connect Claude once. It takes about two minutes, and this module opens as soon as you're done.",
   needsConnectionCta: "Connect Claude",
 
   // Connected, but no Run exists yet. Here the button genuinely works.
   needsRunTitle: "Open this module",
-  needsRunBody:
-    "This sets up your workspace for the program and opens the module.",
+  needsRunBody: "Opens the module and gets your workspace ready for it.",
   needsRunCta: "Open module",
 
+  // Was "One check has to run against your workspace" — the founder is not
+  // running anything, has no idea what the check is, and cannot influence
+  // whether it passes. All they need is that it is quick and one-off.
   setupPendingTitle: "Finish setting up your workspace",
   setupPendingBody:
-    "One check has to run against your workspace before this module opens. It takes a few seconds and you only do it once.",
+    "One last setup step before this module opens. It takes a few seconds and you only do it once.",
   setupPendingCta: "Finish setup",
 
   lockedLead: "Locked for now.",
@@ -422,16 +487,27 @@ export const moduleGateCopy = {
 
 // ── Modules and artefacts ───────────────────────────────────────────────
 
-// Both of these pages are lists. A founder arrives already knowing what
-// they came for, so the header's job is to label the page, not to explain
-// the product to someone who has already bought it.
+// Both of these pages are lists a founder comes back to repeatedly, so the
+// header names the outcome as a plain fact rather than promising it. Two
+// wrong versions to steer between: "Every module, in order" described the
+// shelf the modules sit on and told a returning founder nothing, while
+// "Come out with an idea you can defend" was a launch-page slogan sitting
+// on a utility page — fine once, tiresome by the fiftieth visit, and it
+// restated what the cards directly below already showed.
+//
+// "From raw idea to a business case" is deliberately the same framing the
+// sign-in panel ("takes a raw idea apart and rebuilds it into a business
+// case") and /toolkit ("Move from raw idea to validation-ready plan")
+// already use, so all three describe the program the same way.
 export const modulesCopy = {
   kicker: "The program",
-  title: "Every module, in order",
-  // Was two sentences ending "already on the table for the next" — a
-  // metaphor doing the work a plain verb does better.
+  title: "From raw idea to a business case",
+  // "They open in order" earned its place back after being cut for reading
+  // as mechanics: the list below is mostly COMING SOON badges, and without
+  // this a founder can read a locked module as broken or paywalled rather
+  // than simply not reached yet.
   intro:
-    "Work through each one in Claude. They open in order, and each builds on the one before.",
+    "Each module tests one part of your idea with Claude and leaves a document in your workspace. They open in order.",
   allModules: "All modules",
   openCount: (open: number, total: number) => `${open} of ${total} open`,
 } as const;
@@ -439,9 +515,11 @@ export const modulesCopy = {
 export const artefactsCopy = {
   kicker: "Your workspace",
   title: "Everything your modules produce",
-  // Was "They live here — versioned, checked, and ready whenever you come
-  // back": a three-adjective list where two of the three were the point.
-  intro: "Every document Claude saves is kept here, versioned and checked.",
+  // "Versioned and checked" is what we do to the file, not what the founder
+  // gets from it. What they get is that nothing is lost and every earlier
+  // draft is still there.
+  intro:
+    "Every document Claude saves is kept here, including each earlier version.",
   byModule: "By module",
   savedCount: (saved: number, total: number) => `${saved} of ${total} saved`,
   empty: "Nothing here yet. Module 1 saves your first document.",
@@ -502,7 +580,7 @@ export const errorCopy = {
   ventureUnavailable:
     "Your program workspace isn't available. Open the dashboard, or ask your program lead.",
   setupFailed:
-    "Claude is connected, but the workspace check didn't pass. Try again in a moment, and tell your program lead if it keeps happening.",
+    "Claude is connected, but setting up your workspace didn't finish. Try again in a moment, and tell your program lead if it keeps happening.",
   copyFailed: "Couldn't copy. Select the text and copy it manually.",
 } as const;
 
@@ -528,9 +606,12 @@ export const toastCopy = {
 // it disappears the moment the name is saved.
 export const profilePromptCopy = {
   title: "Add your name",
-  // The password is mentioned here rather than nagged about separately:
-  // Better Auth gives us no way to tell whether the invitation password
-  // has been replaced, so a dedicated prompt could never turn itself off.
-  body: "The toolkit uses it to address you. While you're there you can also replace your invitation password.",
+  // No longer mentions the password. That clause dates from before
+  // `hasChangedInvitationPassword` existed, when a dedicated prompt could
+  // never have turned itself off — there is one now (PasswordPrompt), and
+  // two nudges about the same task on the same screen is one too many.
+  // "The toolkit uses it" also named the product to its own user; what the
+  // founder cares about is that they stop being addressed by their email.
+  body: "So we can address you by name instead of your email address.",
   cta: "Go to profile",
 } as const;

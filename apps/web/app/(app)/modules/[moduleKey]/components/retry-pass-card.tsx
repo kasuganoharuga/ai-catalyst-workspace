@@ -1,4 +1,5 @@
 import { StartModuleAttemptButton } from "../../../components/start-module-attempt-button";
+import { retryCopy } from "../../../lib/copy";
 import { moduleAccentStyle } from "../../../lib/module-display";
 
 /**
@@ -17,17 +18,15 @@ export function RetryPassCard({
     <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
       <div className="border-b border-border bg-muted/40 px-6 py-4">
         <h2 className="text-base font-semibold text-foreground">
-          Ready for another pass
+          {retryCopy.title}
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Your last attempt is closed, so nothing new can be saved until you
-          open a fresh one. Your earlier answers are kept.
+          {retryCopy.body}
         </p>
       </div>
       <div className="px-6 py-5">
         <StartModuleAttemptButton
           programRunModuleId={programRunModuleId}
-          label="Start another pass"
           className="text-white hover:brightness-110"
           style={moduleAccentStyle(moduleIndex)}
         />

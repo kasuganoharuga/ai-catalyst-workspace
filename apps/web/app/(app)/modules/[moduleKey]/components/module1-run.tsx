@@ -574,7 +574,6 @@ function ConfirmStep({
           {canUseActions && needsRetry && programRunModuleId ? (
             <StartModuleAttemptButton
               programRunModuleId={programRunModuleId}
-              label="Start another pass"
               size="default"
               className="shrink-0 text-white hover:brightness-110"
               style={accent}

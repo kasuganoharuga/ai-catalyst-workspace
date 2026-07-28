@@ -29,12 +29,12 @@ export function AcceptInvitationForm() {
   return (
     <div className="mt-10 rounded-2xl border border-border bg-card p-6">
       <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        Have a Founder invitation?
+        Have an invitation?
       </p>
       <form onSubmit={handleSubmit} className="mt-4 space-y-4">
         <label className="block">
           <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Invitation token
+            Invitation code
           </span>
           <input
             type="text"
