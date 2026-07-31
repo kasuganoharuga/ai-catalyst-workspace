@@ -44,7 +44,16 @@ export interface ManualStep {
   showAddress?: boolean;
   /** Tagged in the UI so it reads as a nicety, not a missed requirement. */
   optional?: boolean;
+  /**
+   * Schematic beside this step (not a Claude screenshot — their UI moves;
+   * a stale photo is worse than a rough diagram).
+   */
+  illustration?: StepIllustrationKey;
 }
+
+/** Keys into STEP_ILLUSTRATIONS in connection/components/step-illustrations. */
+export type StepIllustrationKey =
+  "connectors" | "add-connector" | "paste-address" | "approve" | "allow-tools";
 
 export const connectionCopy = {
   kicker: "Setup",
@@ -104,24 +113,30 @@ export const connectionCopy = {
       title: "Open your connectors in Claude",
       body: "They live under Customize.",
       linkLabel: "Open connectors in the Claude app",
+      illustration: "connectors",
     },
     {
       title: "Add a custom connector",
       body: "Use the Add button on that page and choose the custom option.",
+      illustration: "add-connector",
     },
     {
       title: "Name it and paste this address",
-      body: 'Call it anything — "AI Catalyst" works.',
+      // Advanced OAuth fields look required; the server registers the client.
+      body: 'Call it anything — "AI Catalyst" works. Leave the two advanced fields empty.',
       showAddress: true,
+      illustration: "paste-address",
     },
     {
       title: "Approve access",
       body: "Claude shows a link that opens your browser. Sign in there and approve.",
+      illustration: "approve",
     },
     {
       title: "Allow the tools",
       body: "Saves Claude asking permission every time it writes to your workspace.",
       optional: true,
+      illustration: "allow-tools",
     },
   ] as ManualStep[],
 
@@ -522,8 +537,12 @@ export const artefactsCopy = {
     "Every document Claude saves is kept here, including each earlier version.",
   byModule: "By module",
   savedCount: (saved: number, total: number) => `${saved} of ${total} saved`,
-  empty: "Nothing here yet. Module 1 saves your first document.",
-  emptyCta: "Go to modules",
+
+  // Empty state reuses the same layout: Start / Locked instead of Read / Download.
+  readCta: "Read document",
+  downloadCta: "Download",
+  startCta: "Start module",
+  lockedCta: "Locked",
   storageNote: "Files are stored in your workspace, not just in the chat.",
 } as const;
 

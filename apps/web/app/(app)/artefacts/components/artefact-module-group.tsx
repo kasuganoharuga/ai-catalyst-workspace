@@ -1,14 +1,7 @@
 import { moduleAccentStyle } from "../../lib/module-display";
+import type { ArtefactModuleGroupModel } from "../types";
+import { ArtefactDocumentRow } from "./artefact-card";
 
-import {
-  ArtefactDocumentRow,
-  type ArtefactModuleGroupModel,
-} from "./artefact-card";
-
-/**
- * Groups every document that belongs to one module. Multiple artefacts
- * stack as rows in a single panel so the module identity is shown once.
- */
 export function ArtefactModuleGroup({
   group,
 }: {

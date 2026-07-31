@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { Download, Lock } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -6,30 +6,9 @@ import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
+import { artefactsCopy } from "../../lib/copy";
 import { moduleAccentStyle } from "../../lib/module-display";
-
-export type ArtefactCardModel = {
-  moduleKey: string;
-  moduleTitle: string;
-  moduleSubtitle: string | null;
-  sequenceIndex: number;
-  artifactKey: string;
-  name: string;
-  requiredFilename: string | null;
-  isRequired: boolean;
-  versionNumber: number | null;
-  submissionStatus: string | null;
-  /** Last write time for "Saved …"; null when nothing is stored yet. */
-  savedAt: string | null;
-};
-
-export type ArtefactModuleGroupModel = {
-  moduleKey: string;
-  moduleTitle: string;
-  moduleSubtitle: string | null;
-  sequenceIndex: number;
-  artefacts: ArtefactCardModel[];
-};
+import type { ArtefactCardModel } from "../types";
 
 function statusFor(row: ArtefactCardModel) {
   if (row.versionNumber === null) {
@@ -44,7 +23,6 @@ function statusFor(row: ArtefactCardModel) {
   };
 }
 
-/** One document row inside a module group. */
 export function ArtefactDocumentRow({
   artefact,
   className,
@@ -88,14 +66,34 @@ export function ArtefactDocumentRow({
             className="text-white hover:brightness-110"
             style={moduleAccentStyle(artefact.sequenceIndex)}
           >
-            <Link href={readHref}>Read document</Link>
+            <Link href={readHref}>{artefactsCopy.readCta}</Link>
           </Button>
           <Button asChild size="default" variant="outline">
             <a href={downloadHref}>
               <Download aria-hidden="true" />
-              Download
+              {artefactsCopy.downloadCta}
             </a>
           </Button>
+        </div>
+      ) : artefact.startAction ? (
+        <div className="flex shrink-0 items-center">
+          {artefact.startAction.kind === "start" ? (
+            <Button
+              asChild
+              size="default"
+              className="text-white hover:brightness-110"
+              style={moduleAccentStyle(artefact.sequenceIndex)}
+            >
+              <Link href={artefact.startAction.href}>
+                {artefactsCopy.startCta}
+              </Link>
+            </Button>
+          ) : (
+            <Button size="default" variant="outline" disabled>
+              <Lock aria-hidden="true" />
+              {artefactsCopy.lockedCta}
+            </Button>
+          )}
         </div>
       ) : null}
     </div>
