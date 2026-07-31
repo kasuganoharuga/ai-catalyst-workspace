@@ -2,8 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import type { ModuleCatalogEntry, ModuleContext } from "@ai-catalyst/shared";
-
 import {
   type CarouselApi,
   Carousel,
@@ -12,17 +10,12 @@ import {
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
+import type { ModulesCarouselItem } from "../types";
 import { ModuleStatusCard } from "./module-status-card";
 
-export type ModulesCarouselItem = {
-  catalog: ModuleCatalogEntry;
-  context: ModuleContext | null;
-};
+export type { ModulesCarouselItem };
 
-/**
- * Picks the card the carousel should open on: the in-progress module if
- * any, otherwise the next available one, otherwise the first incomplete.
- */
+/** Prefer in-progress, else next available, else first incomplete. */
 export function focusModuleIndex(items: ModulesCarouselItem[]): number {
   const statuses = items.map((item) => item.context?.runModule.status ?? null);
 
@@ -43,10 +36,7 @@ export function focusModuleIndex(items: ModulesCarouselItem[]): number {
   return firstIncomplete >= 0 ? firstIncomplete : 0;
 }
 
-/**
- * shadcn/Embla carousel for dashboard module cards. Opens on the current
- * (in progress) module so it sits beside the next one.
- */
+/** Module cards carousel; opens on the current / next module. */
 export function ModulesCarousel({ items }: { items: ModulesCarouselItem[] }) {
   const focusIndex = focusModuleIndex(items);
   const [api, setApi] = useState<CarouselApi>();

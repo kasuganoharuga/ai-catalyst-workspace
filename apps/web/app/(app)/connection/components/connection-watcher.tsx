@@ -7,18 +7,7 @@ import { Button } from "@/components/ui/button";
 import { connectionCopy } from "../../lib/copy";
 import { useConnectionWatch } from "../hooks/use-connection-watch";
 
-/**
- * Tells the founder the page is watching, and gets out of the way when it
- * succeeds — replacing the "I've connected — check now" button.
- *
- * That button was a question the page could answer itself. The founder had
- * just come back from approving access in Claude; asking them to confirm
- * what we can look up is one more decision on the step that already had
- * too many.
- *
- * All the polling lives in useConnectionWatch. This file only decides what
- * the three states look like.
- */
+/** Poll UI for connection approval — polling lives in useConnectionWatch. */
 export function ConnectionWatcher() {
   const { state, retry } = useConnectionWatch();
 
@@ -55,8 +44,7 @@ export function ConnectionWatcher() {
             ? connectionCopy.connectedTitle
             : connectionCopy.waitingTitle}
         </p>
-        {/* aria-live so a founder using a screen reader hears the state
-            change without having to go looking for it. */}
+        {/* aria-live for screen-reader state changes */}
         <p
           aria-live="polite"
           className="mt-1 text-sm leading-6 text-muted-foreground"

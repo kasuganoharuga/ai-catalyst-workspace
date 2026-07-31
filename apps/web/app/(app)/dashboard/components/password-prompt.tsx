@@ -3,20 +3,7 @@ import Link from "next/link";
 
 import { dashboardCopy } from "../../lib/copy";
 
-/**
- * Shown until the founder replaces the password their invitation shipped
- * with.
- *
- * Deliberately independent of the profile card above it. This used to be
- * a sentence inside that card, which meant it disappeared the moment a
- * name was saved — the prompt ended when the unrelated task did, and an
- * account still on an emailed password never heard about it again.
- *
- * No dismiss control, because unlike the name prompt this resolves
- * itself: `hasChangedInvitationPassword` flips as soon as the password is
- * changed and the block stops rendering. Styled quietly all the same — it
- * is a standing recommendation, not an alarm.
- */
+/** Separate from profile card; hides once invitation password is changed — no skip. */
 export function PasswordPrompt() {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-lg border-l-2 border-brand-lime bg-muted/50 px-5 py-4">

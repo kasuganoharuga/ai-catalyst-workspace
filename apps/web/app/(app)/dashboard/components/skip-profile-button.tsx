@@ -7,17 +7,7 @@ import { skipProfilePromptAction } from "@/lib/actions/founder-actions";
 
 import { dashboardCopy } from "../../lib/copy";
 
-/**
- * The escape hatch that makes the profile step a suggestion rather than a
- * gate.
- *
- * Without it, "skippable" was only true in the sense that the sidebar
- * still worked — the card kept asking on every visit, which reads as
- * something you have to deal with. This remembers the answer.
- *
- * Styled as a quiet link beside the primary button: skipping should be
- * available, not encouraged.
- */
+/** Remembers skip so the profile card stops reappearing; styled as a quiet link. */
 export function SkipProfileButton() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();

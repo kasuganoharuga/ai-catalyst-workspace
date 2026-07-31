@@ -1,17 +1,13 @@
 import type { ReactNode } from "react";
 
-/**
- * The only dark surface on the dashboard, and it earns that weight by
- * carrying the single thing the founder should do next. Everything else
- * on the page reports state; this one asks for a decision.
- */
+/** Dark card for the single next action on the dashboard. */
 export function NextActionCard({
   kicker = "Next",
   title,
   body,
   children,
 }: {
-  /** "First" on a founder's opening step; "Next" from then on. */
+  /** "First" on the opening step; "Next" afterwards. */
   kicker?: string;
   title: string;
   body: string;

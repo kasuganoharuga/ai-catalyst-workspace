@@ -1,21 +1,13 @@
 import type { ModuleAttemptStatus, RunModuleStatus } from "@ai-catalyst/shared";
 
-// Presentation-only mapping from the Run/Attempt state machines to what a
-// Founder should read on screen. Pure and server-safe — no business rules
-// live here (those stay in packages/services); this only picks words and
-// colours for states the Services have already decided.
+// Presentation-only: maps run/attempt states to labels and colours (logic stays in services).
 
-// Content-stable module keys from the seeded program content
-// (packages/services/src/content-seed/content) — the two Modules the V1
-// status UI knows by name.
+// Content-stable module keys from content-seed — V1 status UI knows these two by name.
 export const MODULE_0_KEY = "module-00-setup";
 export const MODULE_1_KEY = "module-01-pressure-test";
 
-// Module 1's decision-stage question keys (content-seed module-1.ts) —
-// shown as "Your decision" rather than counted alongside the six core
-// questions, in both the checklist and the run panel's progress line.
-// Includes legacy v1 keys (initial_decision / final_decision) so older
-// program versions still render correctly in the UI.
+// Module 1 decision-stage keys — shown as "Your decision", not counted with the six questions.
+// Includes legacy v1 keys so older program versions still render.
 export const DECISION_QUESTION_KEYS = new Set([
   "founder_decision",
   "pivot_detail",
@@ -23,17 +15,10 @@ export const DECISION_QUESTION_KEYS = new Set([
   "final_decision",
 ]);
 
-// How many --module-accent-N custom properties globals.css defines.
-// Indices wrap, so the programme can grow past seven modules without a
-// code change — module 7 simply reuses module 0's hue.
+// How many --module-accent-N vars globals.css defines; indices wrap past seven modules.
 const MODULE_ACCENT_COUNT = 7;
 
-/**
- * Background for a module's number badge — the single element allowed to
- * carry a module's identity colour. Returned as an inline style rather
- * than a class because the index is dynamic and Tailwind can only see
- * class names it can read statically.
- */
+/** Inline style for a module number badge — dynamic index, not a static Tailwind class. */
 export function moduleAccentStyle(sequenceIndex: number): {
   backgroundColor: string;
 } {
@@ -43,9 +28,7 @@ export function moduleAccentStyle(sequenceIndex: number): {
   return { backgroundColor: `var(--module-accent-${index})` };
 }
 
-// Fill treatments, not hues — see components/status-badge.tsx for why.
-// "module" is the exception: it resolves to the module's own accent at
-// render time, which is why StatusBadge needs the module index for it.
+// Fill treatments, not hues — see status-badge.tsx. "module" resolves to the module accent at render time.
 export type StatusTone =
   "muted" | "outline" | "lime" | "soft" | "ink" | "module" | "warning";
 
@@ -70,11 +53,7 @@ const RETRYABLE_DISPLAY_STATUSES = new Set<ModuleAttemptStatus>([
   "cancelled",
 ]);
 
-/**
- * True when the Module is startable but has no active Attempt, and the
- * display Attempt is in a retryable terminal state — Claude cannot save
- * until the Founder opens a fresh Attempt.
- */
+/** Module is startable but has no active attempt in a retryable terminal state. */
 export function needsModuleRetry(
   runStatus: RunModuleStatus,
   activeAttemptStatus: ModuleAttemptStatus | null | undefined,
@@ -93,14 +72,8 @@ export function needsModuleRetry(
 }
 
 /**
- * The one label shown for a Module's current state. The active Attempt's
- * status refines the coarse Run-module status where the difference matters
- * to a Founder: "in progress" reads very differently from "waiting on your
- * mentor" or "needs another go".
- *
- * When activeAttemptId is cleared after validation_failed, pass the
- * display Attempt's status as the third argument so the badge still reads
- * "Needs another go" instead of a bare "In progress".
+ * Label for a module's current state. Active attempt status refines coarse run status
+ * where it matters. Pass display attempt status when active_attempt_id is cleared.
  */
 export function deriveModuleDisplayStatus(
   runStatus: RunModuleStatus,
@@ -125,35 +98,20 @@ export function deriveModuleDisplayStatus(
   return RUN_STATUS_DISPLAY[runStatus];
 }
 
-/**
- * Deep link that opens a fresh Claude chat with a starter message filled
- * in. The connector does the rest — no Skill download, no copy-pasted
- * instructions.
- */
+/** Opens a fresh Claude chat with a prefilled starter message. */
 export function claudeChatUrl(prompt: string): string {
   return `https://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
 /**
- * Desktop deep link that opens a Claude Chat Project home.
- *
- * Claude Desktop's `claude://` handler does not combine project + prompt:
- * `/project/{id}` ignores `q=`, and `/new?q=` ignores `project=`. Use
- * `claudeChatProjectWebUrl` when the Founder needs both (HTTPS `/new`
- * supports `project` + `q` together).
+ * Desktop deep link to a Claude Chat Project. Cannot combine project + prompt —
+ * use claudeChatProjectWebUrl when both are needed.
  */
 export function claudeChatProjectUrl(projectId: string): string {
   return `claude://claude.ai/project/${projectId}`;
 }
 
-/**
- * Browser URL into a Claude Chat Project.
- *
- * Default (no prompt): project home — preferred for "Open your project" so
- * the Founder lands in the saved project rather than a prefilled `/new` chat
- * that can feel like a separate thread. Optional `prompt` still builds
- * `/new?project=…&q=…` for callers that explicitly want a prefilled composer.
- */
+/** Browser URL into a Claude Chat Project. Optional prompt builds /new?project=…&q=…. */
 export function claudeChatProjectWebUrl(
   projectId: string,
   prompt?: string,
@@ -167,55 +125,25 @@ export function claudeChatProjectWebUrl(
 const UUID_PATTERN =
   /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
-/**
- * Pulls the project id out of whatever the Founder actually pasted.
- *
- * The service stores a bare UUID, but nobody copies a bare UUID — they
- * copy the address bar. Accepting the full URL (and a bare id, for
- * anyone who does trim it) means the honest action of "paste what I
- * copied" works, instead of being rejected for containing a prefix we
- * could have stripped ourselves. Returns null when there's no id in
- * there at all, so the caller can say so before a round trip.
- */
+/** Extract project id from a pasted URL or bare UUID. Returns null if none found. */
 export function extractClaudeProjectId(input: string): string | null {
   const match = input.trim().match(UUID_PATTERN);
   return match ? match[0].toLowerCase() : null;
 }
 
-/**
- * Claude's connector page, desktop first.
- *
- * `/customize/connectors`, not `/settings/connectors`: Claude moved
- * connectors out of Settings and into Customize, and the old path now
- * lands on a "these have moved" notice. The desktop deep link is
- * confirmed to open the client.
- *
- * Linking straight here is also what lets the steps beside it stop
- * describing a menu route. Naming each click (avatar, then Settings, then
- * Connectors) meant the instructions broke the moment Anthropic
- * rearranged their own UI — and broke silently, in a way that reads to a
- * founder like the feature is missing rather than moved.
- */
+// /customize/connectors — not /settings/connectors; no menu route in copy (UI moves break it).
 export const CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL =
   "claude://claude.ai/customize/connectors";
 
 export const CLAUDE_CONNECTOR_SETTINGS_URL =
   "https://claude.ai/customize/connectors";
 
-/**
- * Opens Claude Desktop on a new chat with a prefilled composer
- * (`claude://claude.ai/new?q=…` — see Anthropic's Desktop deep-link docs).
- */
+/** Opens Claude Desktop with a prefilled composer (claude://claude.ai/new?q=…). */
 export function claudeDesktopChatUrl(prompt: string): string {
   return `claude://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
-/**
- * Prefill text that asks Claude to walk the Founder through adding this
- * workspace as a custom remote MCP connector. The Founder still has to
- * approve the OAuth consent screen — Claude can open the UI and paste the
- * URL, but it cannot grant access on their behalf.
- */
+/** Prefill for Claude to walk through MCP connector setup — founder still approves OAuth. */
 export function mcpConnectPrompt(endpointUrl: string | null): string {
   const urlBlock = endpointUrl
     ? endpointUrl

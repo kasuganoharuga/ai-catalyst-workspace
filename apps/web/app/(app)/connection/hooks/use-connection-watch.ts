@@ -8,29 +8,16 @@ import { ensureActiveProgramDestinationAction } from "@/lib/actions/founder-acti
 import { errorCopy } from "../../lib/copy";
 import type { ConnectionWatchState } from "../types";
 
-// Long enough not to hammer the action while someone reads Claude's
-// screens, short enough that coming back to this tab feels immediate. The
-// visibility listener is what actually makes it feel instant — this
-// interval only matters for the founder who left the page open on a second
-// monitor.
+// Poll interval; visibility listener fires immediately when tab returns from Claude.
 const POLL_MS = 5_000;
 
-/**
- * Watches for the connector approval to land, then hands back the
- * destination so the page can move on.
- *
- * Polling pauses while the tab is hidden and fires immediately when it
- * becomes visible again, which is the exact moment a founder returns from
- * Claude in another tab. For the desktop app the tab often stays
- * "visible", so the interval covers that case.
- */
+/** Polls for connector approval, then navigates to the program destination. */
 export function useConnectionWatch() {
   const router = useRouter();
   const [state, setState] = useState<ConnectionWatchState>({
     phase: "waiting",
   });
-  // Refs rather than state: these must not restart the interval, and
-  // `inFlight` has to stop a slow response overlapping the next tick.
+  // Refs avoid restarting the interval; inFlight prevents overlapping ticks.
   const inFlight = useRef(false);
   const stopped = useRef(false);
 
@@ -49,7 +36,7 @@ export function useConnectionWatch() {
           router.refresh();
           return;
         case "not_connected":
-          // The expected answer for most ticks — keep waiting quietly.
+          // Expected for most ticks.
           return;
         case "setup_failed":
           stopped.current = true;
@@ -72,8 +59,7 @@ export function useConnectionWatch() {
           return;
       }
     } catch {
-      // A dropped request mid-poll is not worth reporting — the next tick
-      // covers it. Only a definite answer from the action stops the watch.
+      // Dropped requests retry on the next tick.
     } finally {
       inFlight.current = false;
     }

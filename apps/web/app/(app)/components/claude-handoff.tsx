@@ -6,24 +6,7 @@ import { claudeChatUrl, claudeDesktopChatUrl } from "../lib/module-display";
 import { claudeHandoffCopy } from "../lib/copy";
 import { CopyButton } from "./copy-button";
 
-/**
- * The single way this app hands a Founder over to Claude: the starter
- * message, a button that opens the desktop app with it already typed, and
- * a browser fallback.
- *
- * There used to be two shapes of this — one per module — that branched on
- * whether a Claude Project was linked. With a Project id saved, the button
- * switched to `claude://claude.ai/project/<id>`, and that URL form cannot
- * carry a prompt, so the Founder had to copy the line and paste it by hand.
- * The hand-off is now always a new chat with the prompt in it, and the
- * Copy button is a fallback rather than a required step.
- *
- * The fallback line is phrased as a symptom ("Nothing happened?") on
- * purpose. A `claude://` link on a machine without the desktop app does
- * nothing at all: no error, no new tab, no navigation. Offering "open in
- * browser" as a neutral alternative leaves the founder who just clicked
- * into silence with no idea that the silence is the failure mode.
- */
+/** Hand-off to Claude: prefilled desktop link + browser fallback (symptom phrasing if claude:// fails). */
 export function ClaudeHandoff({
   prompt,
   label,
@@ -61,10 +44,7 @@ export function ClaudeHandoff({
         </p>
       ) : (
         <div className="border-t border-border px-4 py-4">
-          {/* White text only when an accent colour is supplied. The module
-              accents are saturated hues that need it; the default variant
-              is bright lime, where its own dark `text-primary-foreground`
-              is the readable pairing and white is close to invisible. */}
+          {/* White text on module accent; default lime uses text-primary-foreground */}
           <Button
             asChild
             size="lg"
@@ -74,8 +54,7 @@ export function ClaudeHandoff({
             )}
             style={accent}
           >
-            {/* No target="_blank": a claude:// link must stay in this tab, or
-                a blocked handler leaves an orphaned blank tab behind. */}
+            {/* No target="_blank" — claude:// must stay in this tab */}
             <a href={claudeDesktopChatUrl(prompt)}>
               {label ?? claudeHandoffCopy.openCta}
               <ExternalLink aria-hidden="true" />
