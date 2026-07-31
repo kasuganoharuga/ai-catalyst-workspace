@@ -20,9 +20,6 @@ importers:
       '@ai-catalyst/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
-      '@ai-catalyst/db':
-        specifier: workspace:*
-        version: link:../../packages/db
       '@ai-catalyst/services':
         specifier: workspace:*
         version: link:../../packages/services
@@ -32,9 +29,6 @@ importers:
       express:
         specifier: ^5.2.1
         version: 5.2.1
-      pg:
-        specifier: ^8.16.3
-        version: 8.22.0
       zod:
         specifier: ^4.4.3
         version: 4.4.3
@@ -45,9 +39,6 @@ importers:
       '@types/node':
         specifier: ^20
         version: 20.19.43
-      '@types/pg':
-        specifier: ^8.15.6
-        version: 8.20.0
       '@types/supertest':
         specifier: ^7.2.1
         version: 7.2.1

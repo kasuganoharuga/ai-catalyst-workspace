@@ -334,9 +334,11 @@ function assembleModuleContext(
   const readResponseMap = displayAttempt
     ? (responsesByAttemptId.get(displayAttempt.id) ?? new Map())
     : new Map<string, ResponseLookupRow>();
-  const writeAttemptId = activeAttempt?.id ?? displayAttempt?.id ?? null;
-  const writeResponseMap = writeAttemptId
-    ? (responsesByAttemptId.get(writeAttemptId) ?? new Map())
+  // Write surface is activeAttempt only — never fall back to displayAttempt
+  // (often terminal after validation_failed; Retries start empty).
+  const writeResponseMap = activeAttempt
+    ? (responsesByAttemptId.get(activeAttempt.id) ??
+      new Map<string, ResponseLookupRow>())
     : new Map<string, ResponseLookupRow>();
 
   const questions: ModuleContextQuestion[] = questionRows.map((row) => {
@@ -352,9 +354,10 @@ function assembleModuleContext(
       answerText: response?.answer_text ?? null,
     };
   });
+  // First unanswered key on the write surface (caller must start_module_attempt first).
   const resumeQuestionKey =
-    questionRows.find((row) => !writeResponseMap.has(row.question_key))?.question_key ??
-    null;
+    questionRows.find((row) => !writeResponseMap.has(row.question_key))
+      ?.question_key ?? null;
 
   const artifactRows =
     artifactsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];

@@ -1,12 +1,35 @@
-import type { ModuleCatalogEntry, ModuleContext } from "@ai-catalyst/shared";
+import type {
+  ModuleCatalogEntry,
+  ModuleContext,
+  RunModuleStatus,
+} from "@ai-catalyst/shared";
 
-import type { ArtefactCardModel, ArtefactModuleGroupModel } from "../types";
+import type {
+  ArtefactCardModel,
+  ArtefactModuleGroupModel,
+  ArtefactStartAction,
+} from "../types";
 
 function isVisibleModule(
   entry: ModuleCatalogEntry | undefined,
   showSetupModule: boolean,
 ) {
   return showSetupModule || entry?.moduleType !== "setup";
+}
+
+/** Modules a Founder can open to produce an unsaved artefact. */
+function isStartableRunStatus(status: RunModuleStatus): boolean {
+  return status === "available" || status === "in_progress";
+}
+
+function startActionForUnsaved(
+  moduleKey: string,
+  status: RunModuleStatus,
+): ArtefactStartAction {
+  if (isStartableRunStatus(status)) {
+    return { kind: "start", href: `/modules/${moduleKey}` };
+  }
+  return { kind: "locked" };
 }
 
 /** Groups saved artefacts from the active run, hiding setup unless flagged. */
@@ -38,6 +61,8 @@ export function buildSavedArtefactGroups(
       const artefacts: ArtefactCardModel[] = context.artifacts.map(
         (artifact) => {
           const expected = expectedByKey.get(artifact.artifactKey);
+          const versionNumber =
+            artifact.latestSubmission?.versionNumber ?? null;
           return {
             moduleKey: context.runModule.moduleKey,
             moduleTitle: context.runModule.title,
@@ -48,9 +73,18 @@ export function buildSavedArtefactGroups(
             requiredFilename:
               artifact.requiredFilename ?? expected?.requiredFilename ?? null,
             isRequired: artifact.isRequired,
-            versionNumber: artifact.latestSubmission?.versionNumber ?? null,
+            versionNumber,
             submissionStatus: artifact.latestSubmission?.status ?? null,
             savedAt: artifact.latestSubmission?.updatedAt ?? null,
+            // Unsaved rows need a CTA — same Start/Locked affordance as the
+            // pre-run preview path; without this the card renders empty actions.
+            startAction:
+              versionNumber === null
+                ? startActionForUnsaved(
+                    context.runModule.moduleKey,
+                    context.runModule.status,
+                  )
+                : undefined,
           };
         },
       );

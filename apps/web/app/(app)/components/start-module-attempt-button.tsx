@@ -11,9 +11,8 @@ import { cn } from "@/lib/utils";
 import { errorCopy, retryCopy, toastCopy } from "../lib/copy";
 
 /**
- * Opens (or resumes) a writable Attempt for a Module. Used after
- * validation_failed clears active_attempt_id — without this, Claude cannot
- * save updates even though the module still reads as in progress.
+ * Opens or resumes a writable Attempt after validation_failed clears
+ * active_attempt_id. Claude can also call start_module_attempt via MCP.
  */
 export function StartModuleAttemptButton({
   programRunModuleId,

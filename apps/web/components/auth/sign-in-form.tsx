@@ -30,7 +30,13 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
       return;
     }
 
-    router.push(returnTo ?? "/dashboard");
+    // Full navigation: returnTo is often /api/auth/mcp/authorize (302 HTML).
+    if (returnTo) {
+      window.location.assign(returnTo);
+      return;
+    }
+
+    router.push("/dashboard");
   }
 
   return (

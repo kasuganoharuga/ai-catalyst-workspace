@@ -215,7 +215,11 @@ describe("recordMcpToolCall — database integration", () => {
     const row = await getAuditLogRow(requestId);
     expect(row).not.toBeNull();
     expect(row?.user_id).toBe(actor.userId);
-    expect(row?.provider).toBe("claude");
+    // This fixture's actor carries no provider, and "other" is the honest
+    // record of that. It used to assert "claude" because the column was
+    // hardcoded — which also meant every real ChatGPT call was logged as
+    // Claude. See auditProviderFor.
+    expect(row?.provider).toBe("other");
     expect(row?.tool_name).toBe("get_active_context");
     expect(row?.outcome).toBe("success");
     expect(row?.duration_ms).toBe(42);
@@ -252,6 +256,35 @@ describe("recordMcpToolCall — database integration", () => {
       scopes: ["mcp:read", "mcp:write"],
       traceId: "trace-123",
     });
+  });
+
+  it("records which AI client made the call, from the ActorContext", async () => {
+    // The reason provider stopped being hardcoded: with two connectable
+    // assistants, an audit log that says "claude" for every row cannot
+    // answer the one question it is there to answer.
+    const cases = [
+      { provider: "openai" as const, toolName: "list_modules" },
+      { provider: "claude" as const, toolName: "get_active_context" },
+      { provider: "other" as const, toolName: "list_ventures" },
+    ];
+
+    for (const { provider, toolName } of cases) {
+      const { actor: baseActor } = await createFounderWithWorkspaceAndVenture(
+        `provider-${provider}`,
+      );
+      const requestId = randomUUID();
+
+      await recordMcpToolCall({
+        requestId,
+        actor: { ...baseActor, provider },
+        toolName,
+        outcome: "success",
+        durationMs: 5,
+      });
+
+      const row = await getAuditLogRow(requestId);
+      expect(row?.provider).toBe(provider);
+    }
   });
 
   it("defaults clientId/scopes/traceId when absent from the ActorContext", async () => {

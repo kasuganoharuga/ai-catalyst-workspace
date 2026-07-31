@@ -401,6 +401,11 @@ describe("getModuleContext — database integration", () => {
     const beforeRetry = await getModuleContext(actor, { moduleKey: "context-module-a" });
     expect(beforeRetry.activeAttempt).toBeNull();
     expect(beforeRetry.displayAttempt?.id).toBe(failedAttempt.id);
+    // Same key as `afterRetry` asserts below, because the Retry that is
+    // about to be created starts empty. This used to report "final_decision"
+    // — the failed Attempt's next gap — which would have had Claude start
+    // the Retry and then save straight past first_question.
+    expect(beforeRetry.resumeQuestionKey).toBe("first_question");
     expect(
       beforeRetry.questions.find((q) => q.questionKey === "first_question")?.answerText,
     ).toBe("Kept after failure.");

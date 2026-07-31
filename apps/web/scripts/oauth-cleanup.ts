@@ -1,10 +1,14 @@
 // `pnpm --filter web run oauth:cleanup` — deletes expired/orphaned rows from
 // the `mcp_oauth_*` tables (see
 // infra/database/migrations/0004_mcp_oauth_provider_schema.sql,
-// 0007_mcp_oauth_refresh_claims.sql, and packages/services/src/mcp-auth's
-// `cleanupExpiredMcpOAuthState`). Safe to run repeatedly and on a schedule
-// (e.g. a periodic job once this is deployed) — nothing it deletes is still
-// reachable by any live request path.
+// 0007_mcp_oauth_refresh_claims.sql, 0008_mcp_oauth_grants.sql, and
+// packages/services/src/mcp-auth's `cleanupExpiredMcpOAuthState`). Safe to
+// run repeatedly and on a schedule (e.g. a periodic job once this is
+// deployed) — nothing it deletes is still reachable by any live request path.
+//
+// Purely housekeeping: connection expiry is enforced at refresh time in
+// checkRefreshTokenIsRedeemable, so a connection ends on schedule whether or
+// not this ever runs. This only bounds table growth.
 import { config } from "dotenv";
 import path from "node:path";
 
@@ -24,6 +28,7 @@ async function main(): Promise<void> {
       `Deleted ${result.expiredAccessTokensDeleted} expired access token(s), ` +
         `${result.expiredConsentClaimsDeleted} expired consent claim(s), ` +
         `${result.expiredRefreshClaimsDeleted} expired refresh claim(s), ` +
+        `${result.orphanedGrantsDeleted} orphaned grant(s), ` +
         `${result.orphanedApplicationsDeleted} orphaned DCR application(s).`,
     );
   } finally {

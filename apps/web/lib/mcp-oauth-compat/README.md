@@ -55,6 +55,47 @@ own endpoints, or as a second, schema-only plugin object.
   `ctx.context.returned` set to an `APIError`). A replayed refresh token then
   finds nothing and is rejected as `invalid_grant` — that missing-row case is
   this profile's refresh-token reuse detection.
+  The after-hook also owns the **grant** (`mcp_oauth_grants`, migration
+  `0008`): on `authorization_code` it calls `recordMcpGrantIssued`, and on
+  `refresh_token` it calls `clampMcpRefreshTokenExpiryToGrant` after
+  rotation. Both must stay in the after-hook — the row they key off does not
+  exist until the plugin's handler has inserted it, and the returned
+  `access_token`/`refresh_token` is the only handle on it.
+- **`/oauth/continue`** (`apps/web/app/oauth/continue/route.ts`) — not in
+  this directory, but part of the same profile: it is `mcp()`'s `loginPage`.
+  When a signed-out client hits `/mcp/authorize`, the plugin redirects there
+  with the entire original query string appended
+  (`plugins/mcp/authorize.mjs:39-41`), and that string is the only record of
+  what the client asked for. The route rebuilds it into a `returnTo` so it
+  survives sign-in. It must be a Route Handler, not a page, because it also
+  expires the `oidc_login_prompt` cookie — see the replay-hook note under
+  "Cross-layer contracts" below.
+
+## Connection lifetime
+
+A grant is not a session, and signing out of the website deliberately does
+not end one — that is standard OAuth, and both Claude and ChatGPT expect a
+connector to survive a browser sign-out. Sign-out is not offered as a way to
+disconnect, either; the routes below are the whole list. What ends a grant:
+
+- **Idle** — `MCP_GRANT_IDLE_TIMEOUT_MS` (14 days with no tool call).
+- **Absolute age** — `MCP_GRANT_ABSOLUTE_MAX_AGE_MS` (90 days), regardless
+  of use. Re-authorising the same client resets it.
+- **Explicit** — the Founder disconnecting on `/connection`, RFC 7009
+  `/api/mcp/revoke`, or a password change (the `account.update.after` hook
+  in `auth.ts`).
+- **Being replaced** — one connection at a time: `recordMcpGrantIssued`
+  evicts every other client when a new authorization completes.
+
+Both time limits are enforced **only** in `checkRefreshTokenIsRedeemable`,
+i.e. at read time on a refresh the client already makes hourly. There is no
+scheduler in this repo and these do not need one; `oauth:cleanup` only bounds
+table growth. `verifyMcpBearerToken` deliberately does not re-check them —
+see its doc comment for why.
+
+`refreshTokenExpiresIn` in `auth.ts` is **not** the connection lifetime. It
+slides on every rotation, so on its own it never expires.
+
 - **`consent-validation.ts`** — the `/oauth2/consent` before-hook. The real
   `oAuthConsent` handler never compares the logged-in session's user against
   the consent code's owner, and its Accept path
@@ -133,6 +174,32 @@ oauthConsent`) is not atomic. This hook enforces same-origin submission,
   purpose — see the migration file's own comment and
   `verifyMcpBearerToken`'s public-client check
   (`type = 'public' && client_secret is null/empty`) for why.
+- **The `oidc_login_prompt` replay hook.** `plugins/mcp/index.mjs:150-183`
+  registers an after-hook with `matcher() { return true }`: on any auth
+  response that sets a session cookie, if that signed cookie is present it
+  re-runs `authorizeMCPOAuth` directly — **bypassing the `/mcp/authorize`
+  before-hook in `hooks.ts`**, so every hardening rule there is skipped on
+  that path. `/oauth/continue` expires the cookie so this never fires and the
+  resume is ours, via a real request to `/api/auth/mcp/authorize` that does
+  run the before-hook. Two consequences to keep in mind: any check added to
+  that before-hook is only reliable because the replay is disabled, and if
+  `/oauth/continue` ever mis-builds its `returnTo` there is no longer a
+  fallback (hence `tests/oauth-continue.route.test.ts`).
+  Note also that the cookie is written _before_ `authorizeMCPOAuth` validates
+  anything, so leaving it live means a junk authorize URL visited while
+  signed out breaks the user's _next_ sign-in.
+- **`context.path` in the `account.update.after` hook** (`auth.ts`) is how
+  a password change is distinguished from any other account write, and it is
+  the most version-coupled thing in this profile. The hook logs and swallows
+  its own failures, so if a version bump changes that path the symptom is a
+  password change that quietly stops revoking MCP grants rather than an
+  error. Re-verify it on every bump, and see `password-section.tsx` for the
+  client-side belt-and-braces call.
+- **`ActorContext.provider`** is derived from the OAuth client's registered
+  redirect host (`mcpProviderForRedirectUris`), never from `client_name` —
+  DCR is unauthenticated, so the name is free text. It feeds
+  `mcp_tool_audit_logs.provider` and must never become an authorization
+  input, or the DCR body would turn into a privilege boundary.
 - `mcp_oauth_consent_claims` is not a Better Auth table; it exists solely to
   close the Accept-path concurrency gap described above and is swept by the
   `oauth:cleanup` CLI, not released early on a failed/rejected claim.
@@ -165,7 +232,10 @@ Everything above was confirmed by reading the compiled
 above (schema merging in `getAuthTables()`, the exact order of operations in
 `mcpOAuthToken`/`authorizeMCPOAuth`/`oAuthConsent`/`registerMcpClient`, the
 `refresh_token` branch's `offline_access` check and its failure to delete the
-row it rotates out of, and `runAfterHooks`' behavior on the error path)
+row it rotates out of, `runAfterHooks`' behavior on the error path, the
+`loginPage` redirect in `authorize.mjs` (does it still forward the whole
+query string?), the `oidc_login_prompt` replay hook and cookie name, and
+`databaseHooks.account.update.after`'s `context.path` values)
 before assuming this compatibility layer still applies unchanged, then
 re-run:
 
@@ -176,4 +246,15 @@ re-run:
   plus every hook's negative-path behavior, against a real database)
 - `pnpm --filter @ai-catalyst/services test:db -- src/mcp-auth/index.db.test.ts`
   (unit-level coverage of every branch in
-  `checkAuthorizationCodeIsRedeemable`/`getPendingMcpConsentRequest`)
+  `checkAuthorizationCodeIsRedeemable`/`getPendingMcpConsentRequest`, plus
+  the grant lifetime rules and the one-connection-at-a-time eviction)
+
+Two of these cannot be caught by any of the above, because they only fail
+across a real cross-origin redirect — walk them by hand after a bump:
+
+1. Connect from ChatGPT in a **fresh private window** (no session cookie).
+   It must land on sign-in, continue to consent by itself, and return to
+   ChatGPT connected. This is the path `/oauth/continue` exists for.
+2. Connect Claude while ChatGPT is connected. The consent screen must warn
+   that ChatGPT will be disconnected, and afterwards ChatGPT's connector must
+   actually fail.

@@ -43,6 +43,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       role = null;
     }
 
+    // Before returnTo: pending accounts cannot complete MCP authorize.
+    if (role === "pending") {
+      redirect(ROLE_DESTINATION.pending);
+    }
     if (safeTo) {
       redirect(safeTo);
     }

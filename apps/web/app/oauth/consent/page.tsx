@@ -1,75 +1,40 @@
-import { ShieldAlert } from "lucide-react";
+import { redirect } from "next/navigation";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
-import { getPendingMcpConsentRequest } from "@ai-catalyst/services/mcp-auth";
+import {
+  getMcpConnectionToBeReplaced,
+  getPendingMcpConsentRequest,
+} from "@ai-catalyst/services/mcp-auth";
 
 import { Logo } from "@/components/logo";
 import { requireAuthenticatedUser } from "@/lib/require-active-user";
 
-import { ConsentForm } from "./consent-form";
-
-type OAuthConsentPageProps = {
-  // Only `consent_code` is ever trusted — `client_id`/`scope` in the URL
-  // (sent by better-auth's own authorize() redirect for display purposes)
-  // are deliberately never read here. Every value actually shown below is
-  // re-fetched server-side from the verification/mcp_oauth_applications
-  // tables via `getPendingMcpConsentRequest`, keyed only by `consent_code` —
-  // a URL parameter is not something this page can trust a client to send
-  // honestly (a malicious link could set client_id/scope to whatever it
-  // wants to try to phish a user into accepting a different grant than
-  // what's actually pending).
-  searchParams: Promise<{ consent_code?: string | string[] }>;
-};
-
-// Plain-language line for each scope actually granted. Both complete the
-// heading above the list — "This will allow {client} to …" — so each one is a
-// verb phrase, not a sentence about the protocol.
-//
-// `mcp:connect` used to read "Access your AI Catalyst workspace on your
-// behalf, through the Model Context Protocol", which asked a Founder to
-// weigh a grant described in the vocabulary of the grant itself: "on your
-// behalf" is authorization-server phrasing, and the protocol's name tells
-// them nothing about what Claude will actually do. It now names the three
-// concrete capabilities, worded to match `privacyBody` in
-// app/(app)/lib/copy.ts so the consent screen and the connection page
-// describe the same access the same way.
-//
-// `offline_access` is the one most likely to be misread as something
-// sinister, so it is described by what it does for them — stay connected —
-// rather than by what it technically is (a refresh token).
-//
-// Anything unmapped falls back to the raw scope string, which is ugly on
-// purpose: an unrecognised scope reaching this screen means the
-// /mcp/authorize hook has been changed without this list, and it should be
-// visible rather than silently prettied over.
-const SCOPE_DESCRIPTIONS: Record<string, string> = {
-  "mcp:connect":
-    "Read your module questions, save your answers, and store the documents you produce.",
-  offline_access:
-    "Stay connected between sessions, so you don't have to reconnect every hour.",
-};
-
-function InvalidConsentRequest() {
-  return (
-    <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center">
-      <ShieldAlert aria-hidden="true" className="h-10 w-10 text-destructive" />
-      <h1 className="mt-6 text-2xl font-semibold tracking-tight">
-        This authorisation request is invalid or has expired.
-      </h1>
-      <p className="mt-3 text-sm text-muted-foreground">
-        Go back to the application you were connecting and try again.
-      </p>
-    </div>
-  );
-}
+import { ConsentForm } from "./components/consent-form";
+import { InvalidConsentRequest } from "./components/invalid-consent-request";
+import { ReplacementWarning } from "./components/replacement-warning";
+import { SCOPE_DESCRIPTIONS } from "./lib/scope-descriptions";
+import type { OAuthConsentPageProps } from "./types";
 
 export default async function OAuthConsentPage({
   searchParams,
 }: OAuthConsentPageProps) {
-  const session = await requireAuthenticatedUser();
+  // Preserve consent_code across sign-in via returnTo — a bare "/" redirect
+  // drops it and strands the connecting client.
   const { consent_code } = await searchParams;
   const consentCode =
     typeof consent_code === "string" ? consent_code : undefined;
+
+  const session = await requireAuthenticatedUser({
+    returnTo: consentCode
+      ? `/oauth/consent?consent_code=${encodeURIComponent(consentCode)}`
+      : undefined,
+  });
+
+  // Pending accounts cannot redeem grants — send them to /pending instead of
+  // a consent screen that would end in invalid_grant.
+  if (session.user.role === "pending") {
+    redirect("/pending");
+  }
 
   if (!consentCode) {
     return <InvalidConsentRequest />;
@@ -84,6 +49,11 @@ export default async function OAuthConsentPage({
     }
     throw error;
   }
+
+  const replacedClientName = await getMcpConnectionToBeReplaced(
+    session.user.id,
+    pending.clientId,
+  );
 
   return (
     <div className="flex min-h-screen items-center justify-center px-6 py-16">
@@ -106,6 +76,10 @@ export default async function OAuthConsentPage({
             ))}
           </ul>
         </div>
+
+        {replacedClientName ? (
+          <ReplacementWarning clientName={replacedClientName} />
+        ) : null}
 
         <p className="mt-4 text-xs text-muted-foreground">
           You&apos;ll be redirected back to{" "}

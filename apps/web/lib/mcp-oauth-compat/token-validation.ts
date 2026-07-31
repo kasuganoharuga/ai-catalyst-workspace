@@ -3,6 +3,8 @@ import { createAuthMiddleware } from "better-auth/api";
 import {
   checkAuthorizationCodeIsRedeemable,
   checkRefreshTokenIsRedeemable,
+  clampMcpRefreshTokenExpiryToGrant,
+  recordMcpGrantIssued,
   rotateOutMcpRefreshToken,
   tryClaimRefreshToken,
 } from "@ai-catalyst/services/mcp-auth";
@@ -127,7 +129,15 @@ export const tokenEndpointBeforeHook = {
 };
 
 /**
- * Completes refresh-token rotation, which better-auth@1.6.25's own refresh
+ * Everything that has to happen *after* `/mcp/token` has produced a real
+ * token pair, for both grants:
+ *
+ * - `authorization_code` — record the grant (`recordMcpGrantIssued`), which
+ *   starts its lifetime clock and evicts any other connected assistant.
+ * - `refresh_token` — finish rotation, then hold the new row's expiry under
+ *   the grant's absolute cap.
+ *
+ * Rotation is the part better-auth@1.6.25's own refresh
  * branch leaves half-done: it inserts a new `mcp_oauth_access_tokens` row and
  * returns the new pair, but never removes the row the presented refresh token
  * came from. Left alone that means every refresh token ever issued stays
@@ -149,9 +159,9 @@ export const tokenEndpointBeforeHook = {
  * is deleted — hence the `access_token` / `refresh_token` checks rather than
  * a truthiness test.
  */
-function getSuccessfulRefreshResponse(
+function getSuccessfulTokenResponse(
   returned: unknown,
-): { refreshToken: string } | null {
+): { accessToken: string; refreshToken: string } | null {
   if (
     typeof returned !== "object" ||
     returned === null ||
@@ -164,7 +174,7 @@ function getSuccessfulRefreshResponse(
   if (typeof accessToken !== "string" || typeof refreshToken !== "string") {
     return null;
   }
-  return { refreshToken };
+  return { accessToken, refreshToken };
 }
 
 export const tokenEndpointAfterHook = {
@@ -179,12 +189,34 @@ export const tokenEndpointAfterHook = {
       return;
     }
 
-    if (body.grant_type !== "refresh_token" || !body.refresh_token) {
+    const success = getSuccessfulTokenResponse(ctx.context.returned);
+    if (!success) {
       return;
     }
 
-    const success = getSuccessfulRefreshResponse(ctx.context.returned);
-    if (!success) {
+    // A brand-new connection. Recording the grant is what starts its
+    // lifetime clock and what evicts whichever assistant was connected
+    // before — one connection at a time is a product rule, enforced at the
+    // moment the replacement becomes real rather than when consent was
+    // given, so an abandoned consent screen costs the Founder nothing.
+    //
+    // Must run here rather than in the before-hook: the row this keys off
+    // does not exist until Better Auth's handler has inserted it, and the
+    // returned access_token is the only handle on it.
+    if (body.grant_type === "authorization_code") {
+      try {
+        await recordMcpGrantIssued({ accessToken: success.accessToken });
+      } catch (error) {
+        // Same reasoning as rotation below: the client already holds a
+        // working token pair, so failing the response now would strand a
+        // connection that exists. checkRefreshTokenIsRedeemable creates the
+        // missing grant row on the next refresh, which is at most an hour.
+        console.error("Failed to record issued MCP grant:", error);
+      }
+      return;
+    }
+
+    if (body.grant_type !== "refresh_token" || !body.refresh_token) {
       return;
     }
 
@@ -192,6 +224,14 @@ export const tokenEndpointAfterHook = {
       await rotateOutMcpRefreshToken({
         presentedRefreshToken: body.refresh_token,
         newRefreshToken: success.refreshToken,
+      });
+
+      // Better Auth mints a fresh `now() + refreshTokenExpiresIn` on every
+      // rotation, so without this the new row would claim another 30 days
+      // even past the grant's absolute cap — and the Connection page reads
+      // that column to tell the Founder when to reconnect by.
+      await clampMcpRefreshTokenExpiryToGrant({
+        refreshToken: success.refreshToken,
       });
     } catch (error) {
       // The Founder already holds a valid new token pair. Turning a

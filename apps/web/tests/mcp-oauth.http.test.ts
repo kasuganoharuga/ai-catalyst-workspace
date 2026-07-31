@@ -35,9 +35,13 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
   let redeemableCode = "";
   let issuedAccessToken = "";
   let issuedRefreshToken = "";
+  let grantedAt: Date | null = null;
 
   afterAll(async () => {
     if (clientId) {
+      await pool.query("delete from mcp_oauth_grants where client_id = $1", [
+        clientId,
+      ]);
       await pool.query(
         "delete from mcp_oauth_access_tokens where client_id = $1",
         [clientId],
@@ -82,6 +86,17 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     );
     const cookie = signInResponse.headers.get("set-cookie")!.split(";")[0];
     return { userId: signUpBody.user.id, cookie };
+  }
+
+  // Token columns are constrained to MCP_BEARER_TOKEN_PATTERN (32 letters)
+  // by the service layer, so a fixture token has to look like a real one or
+  // it is rejected on shape before any logic under test runs.
+  function randomLetters(): string {
+    const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    return Array.from(
+      randomBytes(32),
+      (byte) => alphabet[byte % alphabet.length],
+    ).join("");
   }
 
   function buildAuthorizeUrl(overrides: Record<string, string> = {}): string {
@@ -197,6 +212,32 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
       }),
     );
     expect(offlineAccessResponse.status).toBe(302);
+  });
+
+  it("hands an unauthenticated authorize request to /oauth/continue intact", async () => {
+    // The regression test for the bug that made ChatGPT connections hang.
+    // With no session cookie, Better Auth redirects to `loginPage` with the
+    // entire original query string appended (authorize.mjs:39-41). That used
+    // to be `/login`, which read only `returnTo`, found none, and sent the
+    // Founder to "/" — destroying the request. They signed in, landed on
+    // /dashboard, and the client waited on a callback that never came.
+    //
+    // ChatGPT authorises inside an isolated in-app browser with no session
+    // cookie, so it took this branch on essentially every attempt; Claude
+    // uses the system browser where the Founder is usually already signed
+    // in, which is why this looked ChatGPT-specific.
+    const response = await GET(new Request(buildAuthorizeUrl()));
+
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get("location")!, BASE_URL);
+    expect(location.pathname).toBe("/oauth/continue");
+
+    // Whatever else changes, these two have to survive: client_id is the
+    // only handle on which client is connecting, and code_challenge cannot
+    // be regenerated after the fact.
+    expect(location.searchParams.get("client_id")).toBe(clientId);
+    expect(location.searchParams.get("code_challenge")).toBe(codeChallenge);
+    expect(location.searchParams.get("redirect_uri")).toBe(REDIRECT_URI);
   });
 
   it("forces the consent screen and returns a pending consent_code", async () => {
@@ -372,6 +413,16 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     );
     expect(replayResponse.status).toBe(401);
     expect((await replayResponse.json()).error).toBe("invalid_grant");
+
+    // The exchange also has to have recorded a grant: it is what starts the
+    // connection's lifetime clock, and without it the Connection page reports
+    // the last rotation as the authorisation date.
+    const grant = await pool.query(
+      "select granted_at from mcp_oauth_grants where user_id = $1 and client_id = $2",
+      [userId, clientId],
+    );
+    expect(grant.rowCount).toBe(1);
+    grantedAt = grant.rows[0].granted_at;
   });
 
   it("verifies the issued token via packages/services' verifyMcpBearerToken (apps/mcp's Resource Server path)", async () => {
@@ -455,6 +506,19 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
     );
     expect(liveRows.rows[0].count).toBe(1);
 
+    // granted_at survives rotation untouched. If it did not, the 90-day cap
+    // would restart itself on every refresh and could never fire — which is
+    // exactly why the grant lives in its own table rather than on the token
+    // row that rotation replaces.
+    const grantAfterRotation = await pool.query(
+      "select granted_at from mcp_oauth_grants where user_id = $1 and client_id = $2",
+      [userId, clientId],
+    );
+    expect(grantAfterRotation.rowCount).toBe(1);
+    expect(grantAfterRotation.rows[0].granted_at.getTime()).toBe(
+      grantedAt!.getTime(),
+    );
+
     const previousRefreshToken = issuedRefreshToken;
     issuedAccessToken = body.access_token;
     issuedRefreshToken = body.refresh_token;
@@ -508,6 +572,101 @@ describe("MCP OAuth 2.1 �� HTTP route handler", () => {
         userId,
       ]);
     }
+  });
+
+  it("disconnects the AI assistant when the founder changes their password", async () => {
+    // The hook this covers keys off `context.path` inside Better Auth, which
+    // is the most version-coupled thing in this profile — and it fails
+    // silently by design (a revoke failure must not brick a password
+    // change). Without this test a version bump could quietly stop revoking
+    // and nothing would go red.
+    const before = await pool.query(
+      "select 1 from mcp_oauth_access_tokens where user_id = $1",
+      [userId],
+    );
+    expect(before.rowCount).toBe(1);
+
+    const response = await POST(
+      new Request(`${BASE_URL}/api/auth/change-password`, {
+        method: "POST",
+        headers: { "content-type": "application/json", cookie: sessionCookie },
+        body: JSON.stringify({
+          currentPassword: password,
+          newPassword: `${password}-rotated`,
+          revokeOtherSessions: true,
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+
+    // revokeOtherSessions only ever cleared `sessions`. The MCP grant is a
+    // separate credential, and someone changing their password because they
+    // believe it was compromised must not keep handing out live access to
+    // their workspace.
+    const tokens = await pool.query(
+      "select 1 from mcp_oauth_access_tokens where user_id = $1",
+      [userId],
+    );
+    expect(tokens.rowCount).toBe(0);
+
+    const grants = await pool.query(
+      "select 1 from mcp_oauth_grants where user_id = $1",
+      [userId],
+    );
+    expect(grants.rowCount).toBe(0);
+
+    await expect(verifyMcpBearerToken(issuedAccessToken)).rejects.toThrow();
+  });
+
+  it("refuses to refresh a connection past its absolute maximum age", async () => {
+    // Rebuilt directly rather than re-running the flow: the point under test
+    // is what the token endpoint does with an old grant, and the only way to
+    // have one is to write the date.
+    const staleAccessToken = randomLetters();
+    const staleRefreshToken = randomLetters();
+    await pool.query(
+      `insert into mcp_oauth_access_tokens
+         (access_token, refresh_token, access_token_expires_at,
+          refresh_token_expires_at, client_id, user_id, scopes)
+       values ($1, $2, now() + interval '1 hour', now() + interval '30 days',
+               $3, $4, 'mcp:connect offline_access')`,
+      [staleAccessToken, staleRefreshToken, clientId, userId],
+    );
+    await pool.query(
+      `insert into mcp_oauth_grants (user_id, client_id, granted_at)
+       values ($1, $2, now() - interval '91 days')
+       on conflict (user_id, client_id) do update set granted_at = excluded.granted_at`,
+      [userId, clientId],
+    );
+
+    const response = await POST(
+      new Request(`${BASE_URL}/api/auth/mcp/token`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          grant_type: "refresh_token",
+          refresh_token: staleRefreshToken,
+          client_id: clientId,
+        }),
+      }),
+    );
+    expect(response.status).toBe(401);
+    expect((await response.json()).error).toBe("invalid_grant");
+
+    // Retired, not merely refused. Leaving the rows would keep the
+    // Connection page claiming a live connection whose every refresh is
+    // being rejected, and would let the current access token keep working
+    // for the rest of its hour.
+    const tokens = await pool.query(
+      "select 1 from mcp_oauth_access_tokens where user_id = $1",
+      [userId],
+    );
+    expect(tokens.rowCount).toBe(0);
+    const grants = await pool.query(
+      "select 1 from mcp_oauth_grants where user_id = $1",
+      [userId],
+    );
+    expect(grants.rowCount).toBe(0);
   });
 });
 

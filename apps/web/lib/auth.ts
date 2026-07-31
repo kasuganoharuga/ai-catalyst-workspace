@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
 import { mcp } from "better-auth/plugins";
 import { pool } from "@ai-catalyst/db";
+import { revokeAllMcpConnectionsForUserId } from "@ai-catalyst/services/mcp-auth";
 
 import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
 import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
@@ -137,25 +138,45 @@ export const auth = betterAuth({
         },
       },
     },
+
+    account: {
+      update: {
+        // Password change/reset must revoke MCP grants (sessions alone are not enough).
+        after: async (account, context) => {
+          if (
+            context?.path !== "/change-password" &&
+            context?.path !== "/reset-password"
+          ) {
+            return;
+          }
+          if (account.providerId !== "credential" || !account.userId) {
+            return;
+          }
+
+          try {
+            await revokeAllMcpConnectionsForUserId(account.userId);
+          } catch (error) {
+            // Don't fail the password change; password-section also revokes.
+            console.error(
+              "Failed to revoke MCP connections after password change:",
+              error,
+            );
+          }
+        },
+      },
+    },
   },
 
   plugins: [
     // OAuth 2.1 Authorization Server for MCP. apps/mcp verifies Bearer tokens
     // issued here — see packages/services/src/mcp-auth.
     mcp({
-      loginPage: "/login",
+      // Route Handler: preserves authorize query across sign-in (see /oauth/continue).
+      loginPage: "/oauth/continue",
       oidcConfig: {
-        // Required by OIDCOptions's own type even though mcp() already
-        // hard-codes this same value onto `opts.loginPage` for us.
-        loginPage: "/login",
-        // The only *resource* scope this server issues or accepts. Every
-        // other scope in the plugin's own hardcoded "openid"/"profile"/
-        // "email"/"offline_access" baseline is rejected by the
-        // /mcp/authorize before-hook in mcp-oauth-compat/hooks.ts before it
-        // ever reaches this plugin's own scope check — with the single
-        // exception of `offline_access`, which that hook adds to every
-        // authorization itself. It is not listed here because the plugin
-        // prepends it unconditionally; see that hook for why it is granted.
+        // Required by OIDCOptions even though mcp() already sets opts.loginPage.
+        loginPage: "/oauth/continue",
+        // offline_access is added by the authorize before-hook, not listed here.
         scopes: ["mcp:connect"],
         defaultScope: "mcp:connect",
         requirePKCE: true,
@@ -163,16 +184,9 @@ export const auth = betterAuth({
         allowDynamicClientRegistration: true,
         consentPage: "/oauth/consent",
         codeExpiresIn: 600,
-        // Deliberately short, and deliberately *not* raised to extend how
-        // long a connection lasts: a Founder stays connected because their
-        // client silently refreshes, not because any one bearer token lives
-        // a long time. A leaked access token is only useful for an hour.
+        // Short-lived bearer; connection lifetime is idle/absolute in mcp-auth.
         accessTokenExpiresIn: 3600,
-        // 30 days, and sliding — every refresh issues a new token with a
-        // fresh 30 days (and revokes the old one, see
-        // mcp-oauth-compat/token-validation.ts). A Founder who uses Claude
-        // even once a month never reconnects; only 30 days of complete
-        // inactivity ends the connection.
+        // Sliding 30d ceiling; real limits are idle 14d / absolute 90d in mcp-auth.
         refreshTokenExpiresIn: 2_592_000,
       },
     }),

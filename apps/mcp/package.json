@@ -13,17 +13,14 @@
   },
   "dependencies": {
     "@ai-catalyst/contracts": "workspace:*",
-    "@ai-catalyst/db": "workspace:*",
     "@ai-catalyst/services": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
     "express": "^5.2.1",
-    "pg": "^8.16.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20",
-    "@types/pg": "^8.15.6",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.2.2",
     "tsx": "^4.20.6",

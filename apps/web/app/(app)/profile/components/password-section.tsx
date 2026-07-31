@@ -1,8 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { revokeMcpConnectionAction } from "@/lib/actions/founder-actions";
 import { authClient } from "@/lib/auth-client";
 
 // Better Auth's own floor for `emailAndPassword`. Mirrored here so the
@@ -10,6 +12,7 @@ import { authClient } from "@/lib/auth-client";
 const MIN_PASSWORD_LENGTH = 8;
 
 export function PasswordSection() {
+  const router = useRouter();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -58,6 +61,10 @@ export function PasswordSection() {
       );
       return;
     }
+
+    // Client belt-and-braces; authoritative revoke is account.update.after.
+    await revokeMcpConnectionAction();
+    router.refresh();
 
     setCurrentPassword("");
     setNewPassword("");
@@ -119,7 +126,8 @@ export function PasswordSection() {
           </Button>
           {status === "saved" ? (
             <span className="text-sm text-muted-foreground">
-              Password updated. Other devices have been signed out.
+              Password updated. Other devices have been signed out and your AI
+              assistant disconnected.
             </span>
           ) : null}
         </div>

@@ -28,6 +28,10 @@ export default async function PendingPage() {
           invitation-only. You&apos;ll be able to reach yours as soon as an
           invitation for this email is accepted.
         </p>
+        <p className="mt-4 text-lg leading-8 text-muted-foreground">
+          That includes connecting an AI assistant — Claude and ChatGPT can only
+          be connected once your account is active.
+        </p>
 
         <AcceptInvitationForm />
 

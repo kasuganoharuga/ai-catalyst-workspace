@@ -10,6 +10,18 @@ export type ActorRole = "pending" | "founder" | "mentor" | "admin";
 // calls from web ones (e.g. to require a scope) branch on this field.
 export type ActorSource = "web" | "mcp" | "system";
 
+// Which AI client is on the other end of an MCP request, matching
+// `mcp_tool_audit_logs.provider`. Derived from the OAuth client's registered
+// redirect host (mcpProviderForRedirectUris in packages/services/mcp-auth),
+// never from its self-declared name — Dynamic Client Registration is
+// unauthenticated, so `client_name` is free text anyone can choose, while
+// the redirect host is where authorization codes actually get delivered.
+//
+// "other" is not a failure: registration is open, so a client that is
+// neither Claude nor ChatGPT is a legitimate thing to record honestly
+// rather than force into one of the two known brands.
+export type McpProvider = "claude" | "openai" | "other";
+
 export interface ActorContext {
   userId: string;
   role: ActorRole;
@@ -26,6 +38,10 @@ export interface ActorContext {
   scopes?: string[];
   // The OAuth client_id that requested the token, when source is "mcp".
   clientId?: string;
+  // Which AI client that client_id belongs to, when source is "mcp". Audit
+  // metadata, never an authorization input — a client cannot gain or lose
+  // access by looking like Claude rather than ChatGPT.
+  provider?: McpProvider;
   // Correlates a single request across service-layer log lines; not an
   // authorization input.
   traceId?: string;
@@ -50,6 +66,7 @@ export function createMcpActorContext(params: {
   role: ActorRole;
   scopes: string[];
   clientId: string;
+  provider: McpProvider;
   traceId?: string;
 }): ActorContext {
   return {
@@ -58,6 +75,7 @@ export function createMcpActorContext(params: {
     source: "mcp",
     scopes: params.scopes,
     clientId: params.clientId,
+    provider: params.provider,
     traceId: params.traceId,
   };
 }

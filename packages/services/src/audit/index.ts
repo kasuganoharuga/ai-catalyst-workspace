@@ -7,10 +7,18 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 
 export type McpToolCallOutcome = "success" | "denied" | "validation_error" | "system_error";
 
-// V1 has one MCP AI client; mcp_tool_audit_logs.provider only accepts
-// 'claude' | 'openai'. Hardcoded the same way as other mcp → claude mappers
-// in this package.
-const MCP_AUDIT_PROVIDER = "claude";
+// Which AI client made the call, carried on the ActorContext that
+// verifyMcpBearerToken built (derived there from the OAuth client's
+// registered redirect host — see mcpProviderForRedirectUris).
+//
+// This was hardcoded to "claude" while V1 had one AI client, which meant
+// every ChatGPT tool call was recorded as Claude — the audit log could not
+// answer "which assistant did this" at all. "other" is the honest default
+// for a web/system actor or an unrecognised client, and is accepted by
+// mcp_tool_audit_logs_provider_check as of migration 0008.
+function auditProviderFor(actor: ActorContext): string {
+  return actor.provider ?? "other";
+}
 
 export interface RecordMcpToolCallInput {
   // A fresh id per call *attempt* (apps/mcp's audit wrapper generates one
@@ -82,7 +90,7 @@ export async function recordMcpToolCall(input: RecordMcpToolCallInput): Promise<
         input.programRunBranchId ?? null,
         input.programRunModuleId ?? null,
         input.moduleAttemptId ?? null,
-        MCP_AUDIT_PROVIDER,
+        auditProviderFor(input.actor),
         input.toolName,
         input.outcome,
         Math.max(0, Math.round(input.durationMs)),

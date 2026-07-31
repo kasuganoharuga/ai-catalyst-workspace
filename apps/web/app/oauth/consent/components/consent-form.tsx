@@ -2,24 +2,14 @@
 
 import { useState } from "react";
 
-type ConsentFormProps = {
-  consentCode: string;
-  clientName: string;
-};
+import type {
+  ConsentAction,
+  ConsentFormProps,
+  OAuthConsentResponse,
+} from "../types";
 
-type ConsentAction = "accept" | "deny" | null;
-
-interface OAuthConsentResponse {
-  redirectURI: string;
-}
-
-// Posts directly to Better Auth's own raw endpoint — every hardening rule
-// (same-origin, session-user match, atomic single-use claim) is already
-// enforced by the shared before-hook on this exact path
-// (apps/web/lib/mcp-oauth-compat/consent-validation.ts), so no separate
-// wrapper route is needed here. A same-origin browser `fetch` from this
-// page already sends the right `Origin`/`Sec-Fetch-Site` headers and the
-// session cookie without any extra plumbing.
+// Posts to Better Auth's raw consent endpoint; hardening lives in
+// mcp-oauth-compat/consent-validation.ts.
 const CONSENT_ENDPOINT = "/api/auth/oauth2/consent";
 
 export function ConsentForm({ consentCode, clientName }: ConsentFormProps) {
@@ -51,9 +41,7 @@ export function ConsentForm({ consentCode, clientName }: ConsentFormProps) {
         return;
       }
 
-      // A full browser navigation, not a client-side route change: the
-      // destination is the connecting client's own redirect_uri, an
-      // arbitrary (registered) external origin.
+      // Full navigation: redirect_uri is an external registered origin.
       window.location.href = body.redirectURI;
     } catch {
       setError("Network error — please try again.");
@@ -87,10 +75,7 @@ export function ConsentForm({ consentCode, clientName }: ConsentFormProps) {
           {pendingAction === "deny" ? "Denying..." : "Deny"}
         </button>
       </div>
-      {/* Screen-reader users read this, so it follows the same Australian
-          spelling as the rest of the app (see app/(app)/lib/copy.ts). The
-          `authorization_*` OAuth wire values keep the spec's spelling; this
-          is copy, not a protocol identifier. */}
+      {/* Australian English in UI copy; OAuth wire values keep US spelling. */}
       <p className="sr-only">Authorise {clientName}</p>
     </div>
   );

@@ -2,8 +2,6 @@
 
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,7 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
+import { useSignOut } from "@/lib/use-sign-out";
 import { cn } from "@/lib/utils";
 
 import { ACCOUNT_NAV_ITEMS } from "./nav-items";
@@ -54,18 +52,7 @@ export function UserMenu({
   align?: "start" | "end";
   side?: "top" | "bottom";
 }) {
-  const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  function handleSignOut() {
-    setIsSigningOut(true);
-    authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => router.push("/"),
-        onError: () => setIsSigningOut(false),
-      },
-    });
-  }
+  const { isSigningOut, signOut } = useSignOut();
 
   return (
     <DropdownMenu>
@@ -119,8 +106,9 @@ export function UserMenu({
             ))
           : null}
         {includeAccountLinks ? <DropdownMenuSeparator /> : null}
+        {/* Browser session only — MCP disconnect is a separate action. */}
         <DropdownMenuItem
-          onSelect={handleSignOut}
+          onSelect={() => void signOut()}
           disabled={isSigningOut}
           variant="destructive"
         >

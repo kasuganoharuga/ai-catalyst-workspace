@@ -6,6 +6,7 @@ import { pool } from "@ai-catalyst/db";
 import type {
   ActorContext,
   ActorRole,
+  McpProvider,
 } from "@ai-catalyst/contracts/actor-context";
 import { createMcpActorContext } from "@ai-catalyst/contracts/actor-context";
 
@@ -31,6 +32,119 @@ export const GRANTED_MCP_SCOPES: readonly string[] = [
   MCP_CONNECT_SCOPE,
   MCP_OFFLINE_ACCESS_SCOPE,
 ];
+
+// ---------------------------------------------------------------------------
+// Connection lifetime.
+//
+// Until these existed a grant never ended. `refreshTokenExpiresIn` is 30 days
+// but *sliding* — every rotation mints a fresh 30-day window — and both Claude
+// and ChatGPT refresh in the background roughly hourly, so an abandoned
+// connection stayed live indefinitely and the only way one ever ended was a
+// Founder explicitly disconnecting.
+//
+// Both are enforced in checkRefreshTokenIsRedeemable, i.e. read-time on a
+// request the client already makes every hour. There is no scheduler in this
+// repo and these deliberately do not need one.
+// ---------------------------------------------------------------------------
+
+/**
+ * No tool call in this long ends the connection.
+ *
+ * Measured from `granted_at`, not from the token row, so switching AI clients
+ * genuinely restarts it. Two weeks is chosen to sit well clear of a Founder
+ * taking a normal holiday mid-programme: the cost of being wrong is a
+ * reconnect, but a reconnect at the wrong moment reads as the product being
+ * broken.
+ */
+export const MCP_GRANT_IDLE_TIMEOUT_MS = 14 * 24 * 60 * 60 * 1000;
+
+/**
+ * Total age at which a grant ends regardless of how actively it is used.
+ *
+ * This is the one that also catches a *stolen* refresh token being kept warm
+ * by regular use, which the idle rule alone cannot. It costs an active
+ * Founder one reconnect a quarter, which is why the connection page names it
+ * explicitly — an unexplained disconnect at 90 days would be reported as a bug.
+ */
+export const MCP_GRANT_ABSOLUTE_MAX_AGE_MS = 90 * 24 * 60 * 60 * 1000;
+
+// ---------------------------------------------------------------------------
+// Provider identification.
+//
+// Matched on the client's registered redirect host, never on `client_name`:
+// Dynamic Client Registration is unauthenticated (RFC 7591), so the name is
+// free text any caller can set to "claudeai", while the redirect host is
+// where authorization codes are actually delivered and is checked against
+// the registration on every authorize.
+//
+// This is audit metadata only. Nothing in this file grants or denies access
+// based on it, and it must stay that way — otherwise the DCR body would
+// become a privilege boundary.
+// ---------------------------------------------------------------------------
+
+const PROVIDER_HOST_SUFFIXES: ReadonlyArray<
+  readonly [McpProvider, readonly string[]]
+> = [
+  ["claude", ["claude.ai", "claude.com", "anthropic.com"]],
+  ["openai", ["chatgpt.com", "openai.com"]],
+];
+
+function providerForHost(host: string): McpProvider | null {
+  const normalized = host.toLowerCase();
+  for (const [provider, suffixes] of PROVIDER_HOST_SUFFIXES) {
+    for (const suffix of suffixes) {
+      // Suffix match on a dot boundary so "notclaude.ai" cannot pass as
+      // "claude.ai" — the whole point of preferring the host over the name
+      // is that the host is the harder thing to spoof.
+      if (normalized === suffix || normalized.endsWith(`.${suffix}`)) {
+        return provider;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Best-effort identification of which AI client a registered OAuth client is.
+ *
+ * Returns "other" for anything unrecognised, including a client that
+ * registered several redirect URIs pointing at different vendors — an
+ * ambiguous registration is not evidence for either one.
+ */
+export function mcpProviderForRedirectUris(
+  redirectUris: readonly string[],
+): McpProvider {
+  const matched = new Set<McpProvider>();
+
+  for (const uri of redirectUris) {
+    let host: string;
+    try {
+      host = new URL(uri).hostname;
+    } catch {
+      continue;
+    }
+    const provider = providerForHost(host);
+    if (provider) {
+      matched.add(provider);
+    }
+  }
+
+  return matched.size === 1 ? [...matched][0]! : "other";
+}
+
+/**
+ * Splits the comma-joined `mcp_oauth_applications.redirect_urls` column.
+ * Better Auth stores the list that way rather than as an array.
+ */
+function parseRedirectUrls(value: string | null | undefined): string[] {
+  if (typeof value !== "string") {
+    return [];
+  }
+  return value
+    .split(",")
+    .map((uri) => uri.trim())
+    .filter((uri) => uri.length > 0);
+}
 
 function isExactlyGrantedScopeSet(scopes: readonly string[]): boolean {
   const unique = new Set(scopes);
@@ -128,6 +242,7 @@ interface AccessTokenLookupRow {
   client_disabled: boolean;
   client_type: string;
   client_secret: string | null;
+  client_redirect_urls: string | null;
   user_id: string | null;
   user_role: string | null;
   user_deleted_at: Date | null;
@@ -159,6 +274,14 @@ function isValidPublicClient(row: AccessTokenLookupRow): boolean {
  * authorized for MCP (a `pending` account, or a token missing the
  * `mcp:connect` scope) — mapped to HTTP 403, with an `insufficient_scope`
  * challenge for the latter case.
+ *
+ * **Deliberately does not check connection lifetime.** The idle and absolute
+ * limits live in `checkRefreshTokenIsRedeemable` alone. Retiring a grant
+ * deletes its token rows outright, so the exposure after a limit trips is
+ * bounded by the client's next refresh — under an hour for both Claude and
+ * ChatGPT, the same bound the 3600s access token already imposes. Adding a
+ * grants join and an audit-log aggregate to the hottest query in the system
+ * would buy nothing for that. This omission is a decision, not an oversight.
  */
 export async function verifyMcpBearerToken(
   rawToken: unknown,
@@ -178,6 +301,7 @@ export async function verifyMcpBearerToken(
        app.disabled as client_disabled,
        app.type as client_type,
        app.client_secret,
+       app.redirect_urls as client_redirect_urls,
        u.id as user_id,
        u.role as user_role,
        u.deleted_at as user_deleted_at
@@ -235,6 +359,12 @@ export async function verifyMcpBearerToken(
     role: row.user_role,
     scopes,
     clientId: row.client_id,
+    // Read off the row already fetched above — no extra query on what is
+    // the hottest path in the system. Audit metadata only; every
+    // authorization decision above this line has already been made.
+    provider: mcpProviderForRedirectUris(
+      parseRedirectUrls(row.client_redirect_urls),
+    ),
   });
 }
 
@@ -550,6 +680,10 @@ interface RefreshTokenLookupRow {
   scopes: string;
   client_id: string;
   user_id: string | null;
+  // The *current* row's creation time — i.e. the last rotation, not when the
+  // Founder authorised. Only used as the seed for a missing grant row; every
+  // lifetime rule reads mcp_oauth_grants.granted_at instead.
+  created_at: Date;
 }
 
 /**
@@ -576,6 +710,15 @@ interface RefreshTokenLookupRow {
  * exactly this branch. That makes this check the profile's refresh-token
  * reuse detection, and it must not distinguish "never existed" from "already
  * rotated away" — a client cannot be allowed to probe which is which.
+ *
+ * **Not purely read-only, despite the name.** It is also where both
+ * connection lifetime limits are enforced (MCP_GRANT_IDLE_TIMEOUT_MS and
+ * MCP_GRANT_ABSOLUTE_MAX_AGE_MS), and tripping either one writes: the grant
+ * is retired before the rejection is returned. That write is the point —
+ * without it the Founder's connection page would keep showing a live
+ * connection whose every refresh is being refused, and apps/mcp would keep
+ * honouring the current access token for up to another hour. It also
+ * lazily creates a missing grant row rather than failing closed; see inline.
  */
 export async function checkRefreshTokenIsRedeemable(params: {
   refreshToken: unknown;
@@ -595,7 +738,7 @@ export async function checkRefreshTokenIsRedeemable(params: {
   }
 
   const result = await pool.query<RefreshTokenLookupRow>(
-    `select refresh_token_expires_at, scopes, client_id, user_id
+    `select refresh_token_expires_at, scopes, client_id, user_id, created_at
      from mcp_oauth_access_tokens
      where refresh_token = $1`,
     [refreshToken],
@@ -639,6 +782,51 @@ export async function checkRefreshTokenIsRedeemable(params: {
     return rejectCode(
       "invalid_grant",
       "The account for this refresh token is no longer usable.",
+    );
+  }
+
+  // --- Connection lifetime ------------------------------------------------
+  // The only place either limit is enforced. Both are checked here rather
+  // than in verifyMcpBearerToken by design: see that function's note.
+  const limits = await loadGrantLimits(row.user_id, row.client_id);
+
+  if (!limits) {
+    // Fail open, and create the missing row. The only way to get here is a
+    // token minted between 0008 being applied and this code deploying —
+    // rejecting would disconnect real Founders over a deploy-ordering
+    // artefact, and a grant seeded from the current row's created_at is at
+    // worst generous by one refresh interval.
+    await pool.query(
+      `insert into mcp_oauth_grants (user_id, client_id, granted_at)
+       values ($1, $2, $3)
+       on conflict (user_id, client_id) do nothing`,
+      [row.user_id, row.client_id, row.created_at],
+    );
+    return { ok: true };
+  }
+
+  const now = Date.now();
+  const grantedAt = limits.granted_at.getTime();
+
+  if (now - grantedAt > MCP_GRANT_ABSOLUTE_MAX_AGE_MS) {
+    // Retire before rejecting, so the connection page and apps/mcp agree
+    // with this answer immediately rather than an hour later when the
+    // current access token happens to lapse.
+    await retireMcpGrant(row.user_id, row.client_id);
+    return rejectCode(
+      "invalid_grant",
+      "This connection has reached its maximum age and must be re-authorised.",
+    );
+  }
+
+  // No tool call yet is not idleness — it is a connection that was made and
+  // has not been used, which the grant's own age is already measuring.
+  const lastActiveAt = limits.last_used_at?.getTime() ?? grantedAt;
+  if (now - lastActiveAt > MCP_GRANT_IDLE_TIMEOUT_MS) {
+    await retireMcpGrant(row.user_id, row.client_id);
+    return rejectCode(
+      "invalid_grant",
+      "This connection has been idle too long and must be re-authorised.",
     );
   }
 
@@ -709,6 +897,210 @@ export async function rotateOutMcpRefreshToken(params: {
     [presentedRefreshToken],
   );
   return fallback.rowCount ?? 0;
+}
+
+// ---------------------------------------------------------------------------
+// Grants — the durable identity of "a connection".
+//
+// mcp_oauth_access_tokens cannot play this role: rotation replaces the row
+// on every refresh, so its `created_at` is the last refresh (minutes ago for
+// any active Founder), not when the Founder authorised. mcp_oauth_grants
+// carries `granted_at` across rotation, which is what both lifetime rules
+// and the connection page's "connected since" actually need.
+//
+// See infra/database/migrations/0008_mcp_oauth_grants.sql for why this is a
+// table rather than a column, and for the alternatives that were rejected.
+// ---------------------------------------------------------------------------
+
+/**
+ * Records a newly authorised connection, and enforces the one-connection-at-a-
+ * time rule by evicting every other client this Founder had.
+ *
+ * Called from the `/mcp/token` after-hook once an `authorization_code`
+ * exchange has demonstrably succeeded — never on the refresh path, which
+ * must leave `granted_at` alone or the 90-day cap would reset itself hourly
+ * and never fire.
+ *
+ * The eviction is here, rather than at `/mcp/authorize`, so that a Founder
+ * who starts connecting ChatGPT and then abandons the consent screen still
+ * has their working Claude connection. Nothing is torn down until the new
+ * connection is real.
+ *
+ * Idempotent and silent when the token is unknown: this runs in an after-hook
+ * whose failure must never turn a token response the client already holds
+ * into an error.
+ */
+export async function recordMcpGrantIssued(params: {
+  accessToken: string;
+}): Promise<void> {
+  const { accessToken } = params;
+  if (typeof accessToken !== "string" || accessToken.length === 0) {
+    return;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const owner = await client.query<{ user_id: string; client_id: string }>(
+      `select user_id, client_id
+       from mcp_oauth_access_tokens
+       where access_token = $1
+       for update`,
+      [accessToken],
+    );
+    const row = owner.rows[0];
+    if (!row?.user_id) {
+      await client.query("rollback");
+      return;
+    }
+
+    // One connection at a time. Deleting the token rows is what actually
+    // disconnects the previous client — apps/mcp resolves every request
+    // against this table, so the eviction takes effect on its very next
+    // call rather than whenever its access token happens to expire.
+    const evicted = await client.query<{ client_id: string }>(
+      `delete from mcp_oauth_access_tokens
+       where user_id = $1 and client_id <> $2
+       returning client_id`,
+      [row.user_id, row.client_id],
+    );
+
+    // Same withdrawal record a user-initiated disconnect writes. The
+    // Founder did choose this, just indirectly — they authorised a
+    // replacement, and the consent screen told them it would happen.
+    const evictedClientIds = [
+      ...new Set(evicted.rows.map((evictedRow) => evictedRow.client_id)),
+    ];
+    for (const evictedClientId of evictedClientIds) {
+      await client.query(
+        `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
+         values ($1, $2, $3, false)`,
+        [evictedClientId, row.user_id, GRANTED_MCP_SCOPES.join(" ")],
+      );
+    }
+
+    await client.query(
+      `delete from mcp_oauth_grants where user_id = $1 and client_id <> $2`,
+      [row.user_id, row.client_id],
+    );
+
+    // Re-authorising the *same* client restarts its clock, which is the
+    // intended escape hatch from the 90-day cap: reconnect and you get
+    // another 90 days.
+    await client.query(
+      `insert into mcp_oauth_grants (user_id, client_id, granted_at)
+       values ($1, $2, now())
+       on conflict (user_id, client_id) do update set granted_at = now()`,
+      [row.user_id, row.client_id],
+    );
+
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Holds the row's refresh expiry under the grant's absolute cap.
+ *
+ * Better Auth mints `now() + refreshTokenExpiresIn` on every rotation, so
+ * without this the row would keep claiming a further 30 days past the cap.
+ * That matters twice over: the connection page reads this column to tell the
+ * Founder when they must reconnect by, and having the cap expressed in the
+ * data means a refresh cannot outlive it even if the check in
+ * checkRefreshTokenIsRedeemable is somehow bypassed.
+ *
+ * `least` only ever shortens — a grant well inside its cap is untouched.
+ */
+export async function clampMcpRefreshTokenExpiryToGrant(params: {
+  refreshToken: string;
+}): Promise<void> {
+  const { refreshToken } = params;
+  if (typeof refreshToken !== "string" || refreshToken.length === 0) {
+    return;
+  }
+
+  await pool.query(
+    `update mcp_oauth_access_tokens t
+        set refresh_token_expires_at = least(
+              t.refresh_token_expires_at,
+              g.granted_at + ($2::bigint * interval '1 millisecond')
+            )
+       from mcp_oauth_grants g
+      where g.user_id = t.user_id
+        and g.client_id = t.client_id
+        and t.refresh_token = $1`,
+    [refreshToken, MCP_GRANT_ABSOLUTE_MAX_AGE_MS],
+  );
+}
+
+/**
+ * Ends a connection that has hit a lifetime limit.
+ *
+ * Deliberately writes no `mcp_oauth_consents` withdrawal row, unlike
+ * `revokeMcpConnectionForUser`: that table records a *decision*, and expiry
+ * is not one. Leaving it alone also keeps `hasEverAuthorised` true, so the
+ * connection page says "reconnect" rather than walking the Founder through
+ * first-time setup they have already done.
+ */
+async function retireMcpGrant(userId: string, clientId: string): Promise<void> {
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    await client.query(
+      `delete from mcp_oauth_access_tokens where user_id = $1 and client_id = $2`,
+      [userId, clientId],
+    );
+    await client.query(
+      `delete from mcp_oauth_grants where user_id = $1 and client_id = $2`,
+      [userId, clientId],
+    );
+    await client.query("commit");
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+interface GrantLimitRow {
+  granted_at: Date;
+  last_used_at: Date | null;
+}
+
+/**
+ * Loads `granted_at` plus the most recent tool call made *since* it.
+ *
+ * The `created_at >= granted_at` window is what makes the idle rule correct
+ * without needing per-client activity tracking: because only one connection
+ * exists at a time, any audit row after the grant belongs to this grant, and
+ * activity from a previously-connected client cannot keep the new one alive.
+ * It also stays on the existing idx_mcp_tool_audit_logs_user_time index.
+ *
+ * Returns null when no grant row exists — see the caller for why that is
+ * treated as "create one" rather than "reject".
+ */
+async function loadGrantLimits(
+  userId: string,
+  clientId: string,
+): Promise<GrantLimitRow | null> {
+  const result = await pool.query<GrantLimitRow>(
+    `select
+       g.granted_at,
+       (select max(a.created_at)
+          from mcp_tool_audit_logs a
+         where a.user_id = g.user_id
+           and a.created_at >= g.granted_at) as last_used_at
+     from mcp_oauth_grants g
+     where g.user_id = $1 and g.client_id = $2`,
+    [userId, clientId],
+  );
+  return result.rows[0] ?? null;
 }
 
 // ---------------------------------------------------------------------------
@@ -907,12 +1299,24 @@ export interface McpConnectionStatus {
   // display; it fails loudly at tool-call time instead).
   authorised: boolean;
   clientName: string | null;
-  // Latest live token's issue time; null when not authorised.
+  // The OAuth client_id behind `clientName`. Only a Founder's own, and not
+  // a secret (the client itself sends it on every authorize), but it is the
+  // one handle that identifies a connection when the display name is
+  // ambiguous — two DCR registrations may both call themselves "claudeai".
+  clientId: string | null;
+  // When the Founder actually authorised, from mcp_oauth_grants.granted_at.
+  //
+  // Not the token row's created_at, which this used to return: rotation
+  // replaces that row hourly, so the page reported every active Founder as
+  // having connected within the last hour. Null when not authorised.
   authorisedAt: string | null;
-  // When the connection itself stops working — the refresh token's expiry,
-  // not the hourly access token's. This is the date a Founder would actually
-  // have to reconnect on, which is what the Connection page shows. Null when
-  // not authorised.
+  // The date the Founder must reconnect by — the earliest of the refresh
+  // token's own expiry, the grant's absolute cap, and the idle deadline.
+  //
+  // All three, not just the refresh expiry, because the soonest one is what
+  // the Founder will actually experience; showing a date later than the one
+  // that ends the connection is worse than showing nothing. Null when not
+  // authorised.
   expiresAt: string | null;
   // True once the user has ever completed an Accept on the consent screen,
   // even after every token has expired or been swept — distinguishes
@@ -927,7 +1331,9 @@ export interface McpConnectionStatus {
 
 interface ConnectionTokenRow {
   client_name: string;
+  client_id: string;
   created_at: Date;
+  granted_at: Date | null;
   refresh_token_expires_at: Date;
 }
 
@@ -947,10 +1353,22 @@ export async function getMcpConnectionStatus(
   // The `or` is what keeps a Founder out of the "expired, reconnect" state
   // in the 29 days between their access token lapsing and their refresh
   // token running out.
+  //
+  // `limit 1` is correct rather than lossy because only one connection can
+  // exist at a time — recordMcpGrantIssued evicts every other client when a
+  // new authorization completes. Before that rule existed this query hid a
+  // still-live Claude connection behind a newer ChatGPT one. If the
+  // single-connection rule is ever relaxed, this has to become a list.
   const tokenResult = await pool.query<ConnectionTokenRow>(
-    `select a.name as client_name, t.created_at, t.refresh_token_expires_at
+    `select a.name as client_name,
+            t.client_id,
+            t.created_at,
+            g.granted_at,
+            t.refresh_token_expires_at
      from mcp_oauth_access_tokens t
      join mcp_oauth_applications a on a.client_id = t.client_id
+     left join mcp_oauth_grants g
+       on g.user_id = t.user_id and g.client_id = t.client_id
      where t.user_id = $1
        and (t.access_token_expires_at > now() or t.refresh_token_expires_at > now())
        and not a.disabled
@@ -985,15 +1403,96 @@ export async function getMcpConnectionStatus(
     [actor.userId],
   );
 
+  const lastActivityAt = activityResult.rows[0]?.last_activity_at ?? null;
+
+  // Fall back to the token row only for a grant that predates 0008 and has
+  // not refreshed since; checkRefreshTokenIsRedeemable backfills it on the
+  // next refresh, after which the real authorisation time takes over.
+  const grantedAt = token ? (token.granted_at ?? token.created_at) : null;
+
+  const deadline =
+    token && grantedAt
+      ? connectionDeadline(
+          token.refresh_token_expires_at,
+          grantedAt,
+          lastActivityAt,
+        )
+      : null;
+
+  // A grant is only retired when its client next tries to refresh, and an
+  // idle connection is by definition one that is not refreshing — so the
+  // rows can outlive the deadline by weeks. Reporting the deadline without
+  // applying it here showed "Connected — stays connected until" with a date
+  // in the past. The limit has passed, so the honest answer is that the
+  // connection is over; `hasEverAuthorised` still puts the Founder in the
+  // "reconnect" state rather than first-time setup.
+  const live = deadline !== null && deadline.getTime() > Date.now();
+
   return {
-    authorised: token !== null,
-    clientName: token?.client_name ?? null,
-    authorisedAt: token?.created_at.toISOString() ?? null,
-    expiresAt: token?.refresh_token_expires_at.toISOString() ?? null,
+    authorised: live,
+    clientName: live ? (token?.client_name ?? null) : null,
+    clientId: live ? (token?.client_id ?? null) : null,
+    authorisedAt: live ? (grantedAt?.toISOString() ?? null) : null,
+    expiresAt: live ? (deadline?.toISOString() ?? null) : null,
     hasEverAuthorised: consentResult.rows[0]?.exists ?? false,
-    lastActivityAt:
-      activityResult.rows[0]?.last_activity_at?.toISOString() ?? null,
+    lastActivityAt: lastActivityAt?.toISOString() ?? null,
   };
+}
+
+/**
+ * The name of the assistant that approving this authorization would
+ * disconnect, or null when there is nothing to displace.
+ *
+ * One connection at a time is enforced in `recordMcpGrantIssued`, silently
+ * and after the fact — so this exists purely so the consent screen can say
+ * so *before* the Founder clicks Allow. Losing a working Claude connection
+ * because you tried ChatGPT is fine if you chose it, and a bug report if you
+ * did not.
+ *
+ * Takes a raw user id rather than an ActorContext: the consent screen runs
+ * for a signed-in user whose role has not been narrowed to founder yet.
+ */
+export async function getMcpConnectionToBeReplaced(
+  userId: string,
+  incomingClientId: string,
+): Promise<string | null> {
+  const result = await pool.query<{ client_name: string }>(
+    `select a.name as client_name
+     from mcp_oauth_access_tokens t
+     join mcp_oauth_applications a on a.client_id = t.client_id
+     where t.user_id = $1
+       and t.client_id <> $2
+       and (t.access_token_expires_at > now() or t.refresh_token_expires_at > now())
+       and not a.disabled
+       and a.type = 'public'
+       and (a.client_secret is null or a.client_secret = '')
+     order by t.created_at desc
+     limit 1`,
+    [userId, incomingClientId],
+  );
+  return result.rows[0]?.client_name ?? null;
+}
+
+/**
+ * The soonest of the three things that can end a connection.
+ *
+ * The idle deadline counts from the last tool call, or from `granted_at`
+ * when there has never been one — matching how the idle rule is actually
+ * evaluated in checkRefreshTokenIsRedeemable, so the date shown to the
+ * Founder is the date they will really be cut off on.
+ */
+function connectionDeadline(
+  refreshTokenExpiresAt: Date,
+  grantedAt: Date,
+  lastActivityAt: Date | null,
+): Date {
+  const idleDeadline =
+    (lastActivityAt ?? grantedAt).getTime() + MCP_GRANT_IDLE_TIMEOUT_MS;
+  const absoluteDeadline = grantedAt.getTime() + MCP_GRANT_ABSOLUTE_MAX_AGE_MS;
+
+  return new Date(
+    Math.min(refreshTokenExpiresAt.getTime(), idleDeadline, absoluteDeadline),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -1030,7 +1529,21 @@ export async function revokeMcpConnectionForUser(
   actor: ActorContext,
 ): Promise<McpRevocationResult> {
   assertRole(actor, ["founder"]);
+  return revokeAllMcpConnectionsForUserId(actor.userId);
+}
 
+/**
+ * The same revocation without the role gate, for callers acting on the
+ * account rather than on behalf of the signed-in Founder — today the
+ * password-change hook in apps/web/lib/auth.ts, which runs inside Better
+ * Auth and has a user id but no ActorContext.
+ *
+ * Not exported for general use: anything reachable from a request should go
+ * through `revokeMcpConnectionForUser` so the founder-role check applies.
+ */
+export async function revokeAllMcpConnectionsForUserId(
+  userId: string,
+): Promise<McpRevocationResult> {
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -1039,7 +1552,7 @@ export async function revokeMcpConnectionForUser(
       `delete from mcp_oauth_access_tokens
        where user_id = $1
        returning client_id`,
-      [actor.userId],
+      [userId],
     );
 
     // One withdrawal row per client the Founder had a live token for.
@@ -1051,9 +1564,16 @@ export async function revokeMcpConnectionForUser(
       await client.query(
         `insert into mcp_oauth_consents (client_id, user_id, scopes, consent_given)
          values ($1, $2, $3, false)`,
-        [clientId, actor.userId, GRANTED_MCP_SCOPES.join(" ")],
+        [clientId, userId, GRANTED_MCP_SCOPES.join(" ")],
       );
     }
+
+    // The grant goes with the tokens: leaving it would let a later
+    // reconnection inherit the old `granted_at` and its already-part-spent
+    // 90-day cap, when the Founder plainly meant to start over.
+    await client.query(`delete from mcp_oauth_grants where user_id = $1`, [
+      userId,
+    ]);
 
     await client.query("commit");
     return { accessTokensRevoked: deleted.rowCount ?? 0 };
@@ -1113,6 +1633,7 @@ export interface McpOAuthCleanupResult {
   expiredAccessTokensDeleted: number;
   expiredConsentClaimsDeleted: number;
   expiredRefreshClaimsDeleted: number;
+  orphanedGrantsDeleted: number;
   orphanedApplicationsDeleted: number;
 }
 
@@ -1145,7 +1666,20 @@ export async function cleanupExpiredMcpOAuthState(): Promise<McpOAuthCleanupResu
     `delete from mcp_oauth_refresh_claims where expires_at < now()`,
   );
 
-  // 3. mcp_oauth_applications: only a client with zero rows in
+  // 3. mcp_oauth_grants: a grant whose token rows are all gone can never be
+  // used again — every read of it is reached through a token. Safe to run
+  // right after the sweep above and never mid-rotation, because rotation
+  // inserts the replacement row before the after-hook deletes the old
+  // family, so a live grant is never momentarily left with zero tokens.
+  const orphanedGrants = await pool.query(
+    `delete from mcp_oauth_grants g
+      where not exists (
+        select 1 from mcp_oauth_access_tokens t
+         where t.user_id = g.user_id and t.client_id = g.client_id
+      )`,
+  );
+
+  // 4. mcp_oauth_applications: only a client with zero rows in
   // mcp_oauth_consents is a candidate — one real Accept is enough to keep a
   // client alive indefinitely (its access tokens expiring is not by itself
   // a reason to force it through DCR again), matching the migration
@@ -1164,6 +1698,7 @@ export async function cleanupExpiredMcpOAuthState(): Promise<McpOAuthCleanupResu
     expiredAccessTokensDeleted: accessTokens.rowCount ?? 0,
     expiredConsentClaimsDeleted: consentClaims.rowCount ?? 0,
     expiredRefreshClaimsDeleted: refreshClaims.rowCount ?? 0,
+    orphanedGrantsDeleted: orphanedGrants.rowCount ?? 0,
     orphanedApplicationsDeleted: orphanedApplications.rowCount ?? 0,
   };
 }

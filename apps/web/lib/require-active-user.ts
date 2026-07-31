@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
+import { safeReturnTo } from "./safe-return-to";
 
 /**
  * Registration is temporarily public (see auth.ts) with no invitation
@@ -11,11 +12,15 @@ import { auth } from "./auth";
  * page. Remove/relax once invitation acceptance is implemented.
  */
 
-export async function requireAuthenticatedUser() {
+/** @param options.returnTo Same-origin path after sign-in (e.g. consent_code URL). */
+export async function requireAuthenticatedUser(options?: {
+  returnTo?: string;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
-    redirect("/");
+    const safeTo = safeReturnTo(options?.returnTo);
+    redirect(safeTo ? `/?returnTo=${encodeURIComponent(safeTo)}` : "/");
   }
 
   return session;

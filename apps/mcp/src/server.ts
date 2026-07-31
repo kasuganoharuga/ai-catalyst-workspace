@@ -64,13 +64,25 @@ async function handleStatelessMcpRequest(req: Request, res: Response): Promise<v
     enableJsonResponse: true,
   });
 
+  // Register before handleRequest: with enableJsonResponse the response often
+  // finishes during that await, so a listener attached afterwards never fires.
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    void transport.close();
+    void mcp.close();
+  };
+  res.on("close", cleanup);
+
   try {
     await mcp.connect(transport);
     await transport.handleRequest(req, res, req.body);
-    res.on("close", () => {
-      void transport.close();
-      void mcp.close();
-    });
+    // Belt-and-braces if `close` already fired before the listener attached
+    // (should not happen now) or the runtime omits the event after end.
+    if (res.writableEnded) {
+      cleanup();
+    }
   } catch (error) {
     console.error("Error handling MCP request:", error);
     if (!res.headersSent) {
@@ -80,8 +92,7 @@ async function handleStatelessMcpRequest(req: Request, res: Response): Promise<v
         id: null,
       });
     }
-    void transport.close();
-    void mcp.close();
+    cleanup();
   }
 }
 
