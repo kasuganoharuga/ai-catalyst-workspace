@@ -161,6 +161,22 @@ export const CHATGPT_SETTINGS_DESKTOP_URL = "codex://settings";
  */
 export const CHATGPT_APP_URL = "codex://";
 
+/**
+ * Opens the desktop app with a prefilled composer — confirmed against
+ * OpenAI's own command reference and cross-checked against a reverse
+ * engineering of the app bundle (both describe `prompt=` on `codex://new`
+ * as populating the chat box without sending it, the same "ready to send,
+ * not sent" contract `claudeDesktopChatUrl` relies on). `codex://settings`
+ * above is the same scheme family and is already known to work, which is
+ * the strongest signal available that this one does too.
+ *
+ * No browser fallback, same reasoning as CHATGPT_APP_URL: nothing at
+ * chatgpt.com can reach this workspace's MCP connector.
+ */
+export function chatgptDesktopChatUrl(prompt: string): string {
+  return `codex://new?prompt=${encodeURIComponent(prompt)}`;
+}
+
 export function startModulePrompt(moduleTitle: string): string {
   return `Let's work on "${moduleTitle}" from my AI Catalyst Founder Toolkit. Please pick up wherever I left off.`;
 }

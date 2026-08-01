@@ -345,12 +345,16 @@ export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
       "ChatGPT can read module questions, save your answers, and store the documents you produce. We cannot see your ChatGPT conversations. Everything ChatGPT does here is recorded, and you can end access from this page at any time.",
 
     handoff: {
-      openCta: "Open ChatGPT",
-      retryCta: "Open ChatGPT",
-      // The connector lives in the desktop app, so the message has to be
-      // pasted into a chat there. No browser fallback: a chat at
-      // chatgpt.com cannot reach this workspace at all.
-      hint: "Copy the message, then paste it into a new chat in the desktop app.",
+      openCta: "Continue in ChatGPT",
+      retryCta: "Retry in ChatGPT",
+      // No fallback line: unlike Claude, there is no browser URL to offer
+      // underneath — a chat at chatgpt.com has no route to this
+      // workspace's MCP connector, desktop app installed or not.
+      //
+      // Work mode called out on purpose: it's the surface the MCP
+      // connector actually runs in, and a founder landing in an ordinary
+      // chat has no obvious reason to switch before sending the message.
+      hint: "Opens the ChatGPT desktop app with your message ready to send. We recommend using Work mode.",
     },
   },
 };

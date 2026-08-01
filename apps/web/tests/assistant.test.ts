@@ -70,6 +70,18 @@ describe("assistant links", () => {
     expect(claude.webChatUrl).not.toBeNull();
   });
 
+  // codex://new?prompt= is the same scheme family as the settings link
+  // above, confirmed against OpenAI's own command reference — see
+  // chatgptDesktopChatUrl's doc comment in module-display.ts. ChatGPT
+  // still gets no browser fallback: chatgpt.com has no route to this
+  // workspace's MCP connector regardless of a prefilled prompt.
+  it("gives ChatGPT a prefilled desktop composer but no browser fallback", () => {
+    const chatgpt = resolveAssistant("openai");
+    expect(chatgpt.desktopChatUrl).not.toBeNull();
+    expect(chatgpt.desktopChatUrl?.("hello")).toBe("codex://new?prompt=hello");
+    expect(chatgpt.webChatUrl).toBeNull();
+  });
+
   // The hand-off picks its shape from these two being null, so a
   // half-filled record would render a button that silently does nothing.
   it("pairs the chat builders with the shape they imply", () => {

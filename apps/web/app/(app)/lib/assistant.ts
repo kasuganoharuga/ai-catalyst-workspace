@@ -7,6 +7,7 @@ import {
   CHATGPT_SETTINGS_DESKTOP_URL,
   CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL,
   CLAUDE_CONNECTOR_SETTINGS_URL,
+  chatgptDesktopChatUrl,
   claudeChatUrl,
   claudeDesktopChatUrl,
 } from "./module-display";
@@ -16,10 +17,12 @@ import {
 // module-display.ts; this only composes them, so a call site imports one
 // thing instead of branching on the provider itself.
 //
-// The two assistants are not symmetrical and this type says so rather than
-// papering over it: Claude's settings have a browser URL and a prefilled
-// desktop composer, ChatGPT's have neither. Fields are nullable so a call
-// site has to decide what to do when one is missing.
+// The two assistants are not fully symmetrical and this type says so
+// rather than papering over it: Claude's settings have a browser URL,
+// ChatGPT's don't. Both now have a prefilled desktop composer. Fields stay
+// nullable so a call site still has to decide what to do when one really
+// is missing, rather than assuming both assistants always match Claude's
+// shape.
 
 export interface Assistant {
   provider: PreferredAiProvider;
@@ -61,12 +64,13 @@ const ASSISTANTS: Record<PreferredAiProvider, Assistant> = {
     name: assistantCopy.openai.name,
     copy: assistantCopy.openai,
     settingsDesktopUrl: CHATGPT_SETTINGS_DESKTOP_URL,
-    // No browser route to Plugins → MCPs, and no verified scheme for a
-    // prefilled chat. Both nulls are what put the hand-off into its
-    // copy-first shape; fill either one in and it becomes symmetrical with
-    // Claude without touching a component.
+    // No browser route to Plugins → MCPs — that part of the asymmetry
+    // with Claude is real and stays. The hand-off itself is no longer
+    // copy-first: chatgptDesktopChatUrl's doc comment has the sourcing for
+    // why `codex://new?prompt=` is trusted the same way
+    // CHATGPT_SETTINGS_DESKTOP_URL already was.
     settingsWebUrl: null,
-    desktopChatUrl: null,
+    desktopChatUrl: chatgptDesktopChatUrl,
     webChatUrl: null,
     openAppUrl: CHATGPT_APP_URL,
   },

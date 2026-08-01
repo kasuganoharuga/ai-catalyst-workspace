@@ -11,17 +11,20 @@ import { CopyButton } from "./copy-button";
 /**
  * Hand-off to the founder's chosen assistant.
  *
- * Two shapes, because the assistants are not equally reachable:
+ * Two shapes, chosen by whether `assistant.desktopChatUrl` is set rather
+ * than by a provider check here:
  *
- * - **Deep link** (Claude): the button opens a chat with the message
- *   already in it, with a browser link underneath for when the desktop
- *   app isn't installed and the custom scheme silently no-ops.
- * - **Copy first** (ChatGPT): there is no verified scheme that carries a
- *   prompt, and a browser chat has no route to this workspace, so copying
- *   is the primary action and opening the app is secondary.
- *
- * Which shape is used follows from the assistant's data, not from a
- * provider check here.
+ * - **Deep link** (both assistants currently): the button opens a chat
+ *   with the message already in it. Claude additionally gets a browser
+ *   link underneath, for when the desktop app isn't installed and the
+ *   custom scheme silently no-ops — ChatGPT has none, because a chat at
+ *   chatgpt.com has no route to this workspace's MCP connector regardless
+ *   of whether the desktop app exists.
+ * - **Copy first** (unused today, kept working): if an assistant's
+ *   `desktopChatUrl` were ever null again — no verified scheme for a
+ *   prefilled chat — copying becomes the primary action and opening the
+ *   bare app secondary. This is what a wrong or since-changed URL scheme
+ *   degrades to, not a dead branch.
  */
 export function AssistantHandoff({
   provider,
