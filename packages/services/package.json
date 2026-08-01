@@ -39,6 +39,7 @@
     "./workspace/active-context": "./src/workspace/active-context.ts",
     "./venture": "./src/venture/index.ts",
     "./profile": "./src/profile/index.ts",
+    "./profile/internal/preferred-ai-provider": "./src/profile/internal/preferred-ai-provider.ts",
     "./company-profile": "./src/company-profile/index.ts",
     "./content-seed": "./src/content-seed/index.ts",
     "./content-seed/content/program": "./src/content-seed/content/program.ts",

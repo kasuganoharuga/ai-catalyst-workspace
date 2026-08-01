@@ -1,19 +1,17 @@
 import { ExternalLink } from "lucide-react";
 
 import { CopyButton } from "../../components/copy-button";
+import type { Assistant } from "../../lib/assistant";
 import type { ManualStep } from "../../lib/copy";
-import { connectionCopy } from "../../lib/copy";
-import {
-  CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL,
-  CLAUDE_CONNECTOR_SETTINGS_URL,
-} from "../../lib/module-display";
 import { STEP_ILLUSTRATIONS } from "./step-illustrations";
 
 export function ConnectionSetupStep({
+  assistant,
   step,
   index,
   endpointUrl,
 }: {
+  assistant: Assistant;
   step: ManualStep;
   index: number;
   endpointUrl: string;
@@ -21,6 +19,8 @@ export function ConnectionSetupStep({
   const Illustration = step.illustration
     ? STEP_ILLUSTRATIONS[step.illustration]
     : null;
+  const { settingsWebUrl } = assistant;
+  const { settingsFallbackPrefix, settingsFallbackLink } = assistant.copy;
 
   return (
     <li className="flex gap-4 border-b border-border py-5 last:border-b-0">
@@ -41,27 +41,32 @@ export function ConnectionSetupStep({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {step.body}
           </p>
-          {/* Desktop deep link first; browser fallback if claude:// no-ops. */}
+          {/* Desktop deep link first. The browser fallback only exists for
+              assistants whose settings are reachable in a browser at all —
+              ChatGPT's are not, so offering one would send a founder
+              somewhere the connection cannot be made. */}
           {step.linkLabel ? (
             <div className="mt-1.5">
               <a
-                href={CLAUDE_CONNECTOR_SETTINGS_DESKTOP_URL}
+                href={assistant.settingsDesktopUrl}
                 className="inline-flex items-center gap-1 text-sm font-medium text-foreground underline underline-offset-4"
               >
                 {step.linkLabel}
                 <ExternalLink aria-hidden="true" className="h-3.5 w-3.5" />
               </a>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                {connectionCopy.settingsFallbackPrefix}{" "}
-                <a
-                  href={CLAUDE_CONNECTOR_SETTINGS_URL}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-medium text-foreground underline underline-offset-2"
-                >
-                  {connectionCopy.settingsFallbackLink}
-                </a>
-              </p>
+              {settingsWebUrl && settingsFallbackLink ? (
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  {settingsFallbackPrefix}{" "}
+                  <a
+                    href={settingsWebUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium text-foreground underline underline-offset-2"
+                  >
+                    {settingsFallbackLink}
+                  </a>
+                </p>
+              ) : null}
             </div>
           ) : null}
           {step.showAddress ? (

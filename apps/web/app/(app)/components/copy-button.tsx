@@ -14,11 +14,20 @@ export function CopyButton({
   label = "Copy",
   copiedLabel = "Copied!",
   className,
+  // Small outline is the right treatment beside a field or a code block,
+  // which is most of the uses. The hand-off card promotes copying to its
+  // primary action, so it needs the full button vocabulary.
+  variant = "outline",
+  size = "sm",
+  style,
 }: {
   value: string;
   label?: string;
   copiedLabel?: string;
   className?: string;
+  variant?: React.ComponentProps<typeof Button>["variant"];
+  size?: React.ComponentProps<typeof Button>["size"];
+  style?: React.CSSProperties;
 }) {
   const [copied, setCopied] = useState(false);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -47,8 +56,9 @@ export function CopyButton({
   return (
     <Button
       type="button"
-      variant="outline"
-      size="sm"
+      variant={variant}
+      size={size}
+      style={style}
       onClick={handleCopy}
       className={className}
     >

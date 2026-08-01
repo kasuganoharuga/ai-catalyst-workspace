@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 
 import { formatDateTime } from "@/lib/format";
@@ -8,21 +9,56 @@ import {
   getMcpConnectionStatus,
   getMcpEndpointUrl,
 } from "@/lib/mcp-connection";
+import { getMyProfile } from "@/lib/user-profile";
 
+import { AssistantMark } from "../components/assistant-mark";
 import { PageShell } from "../components/page-shell";
 import { RecheckButton } from "../components/recheck-button";
 import { StatusBadge } from "../components/status-badge";
+import { resolveAssistant } from "../lib/assistant";
 import { connectionCopy } from "../lib/copy";
 import { appPageTitle } from "@/lib/page-metadata";
 import { ConnectionSetup } from "./components/connection-setup";
 import { DisconnectButton } from "./components/disconnect-button";
 
-export const metadata = appPageTitle("Claude connection");
+// Static, so it cannot follow the chosen assistant without a second
+// profile read through generateMetadata. Neutral is the better answer
+// anyway, and it matches the sidebar label.
+export const metadata = appPageTitle("AI connection");
 
 export default async function ConnectionPage() {
   const actor = await getCurrentFounderActor();
-  const connection = await getMcpConnectionStatus(actor);
+  const [connection, profile] = await Promise.all([
+    getMcpConnectionStatus(actor),
+    getMyProfile(actor),
+  ]);
 
+  // Two assistants on this page, and conflating them is what makes it lie.
+  //
+  // `assistant` is what the founder set the website up for. It drives the
+  // walkthrough, because those are the instructions they asked for.
+  //
+  // `connected` is what is actually holding a grant right now, identified
+  // by the client's redirect host rather than its self-chosen name. It
+  // drives everything in the status card, because a card that reports on a
+  // live Claude connection must not offer to "Disconnect ChatGPT".
+  //
+  // They are kept in step from both directions — switching here revokes
+  // the old connection, and completing an authorisation writes the
+  // preference (recordMcpGrantIssued) — so a disagreement now means
+  // something went wrong: a revoke that failed after the preference was
+  // saved, or a client whose redirect host we cannot place, in which case
+  // the preference is the best guess available.
+  const assistant = resolveAssistant(profile.preferredAiProvider);
+  const connectedProvider =
+    connection.provider === "claude" || connection.provider === "openai"
+      ? connection.provider
+      : null;
+  const connected = connectedProvider
+    ? resolveAssistant(connectedProvider)
+    : assistant;
+  const mismatched =
+    connectedProvider !== null && connectedProvider !== assistant.provider;
   const endpointUrl = getMcpEndpointUrl();
   const state = deriveMcpConnectionState(connection);
   const isAuthorised = connection.authorised;
@@ -34,10 +70,30 @@ export default async function ConnectionPage() {
         {isAuthorised ? connectionCopy.kickerConnected : connectionCopy.kicker}
       </p>
       <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {isAuthorised ? connectionCopy.titleConnected : connectionCopy.title}
+        {isAuthorised ? connected.copy.titleConnected : assistant.copy.title}
       </h1>
       <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-        {isAuthorised ? connectionCopy.introConnected : connectionCopy.intro}
+        {isAuthorised ? connected.copy.introConnected : assistant.copy.intro}
+      </p>
+
+      {/* Read-only here. The instructions below are the consequence of the
+          choice, so naming it on this page is worth the line — but the
+          control itself belongs with the rest of the account. */}
+      <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+        {connectionCopy.assistantLabel}:
+        <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+          <AssistantMark
+            provider={assistant.provider}
+            className="h-3.5 w-3.5 shrink-0"
+          />
+          {assistant.name}
+        </span>
+        <Link
+          href="/profile"
+          className="underline underline-offset-4 hover:text-foreground"
+        >
+          {connectionCopy.assistantChangeLink}
+        </Link>
       </p>
 
       {/* ── Authorised: the address gives way to what we actually know ──
@@ -75,7 +131,7 @@ export default async function ConnectionPage() {
                 : "—"}
             </CheckRow>
             <CheckRow
-              label={connectionCopy.statusLastActivity}
+              label={connected.copy.statusLastActivity}
               ok={state === "active"}
             >
               {connection.lastActivityAt
@@ -84,18 +140,34 @@ export default async function ConnectionPage() {
             </CheckRow>
           </dl>
 
+          {/* Preference and connection can legitimately disagree: switching
+              assistant does not revoke anything, so a founder mid-switch is
+              connected with one and reading instructions for the other. Say
+              so, rather than showing a page that quietly contradicts its own
+              status row. */}
+          {mismatched ? (
+            <div className="border-t border-border bg-muted/30 px-6 py-4">
+              <p className="text-xs leading-5 text-muted-foreground">
+                {connectionCopy.assistantMismatch(
+                  connected.name,
+                  assistant.name,
+                )}
+              </p>
+            </div>
+          ) : null}
+
           <div className="border-t border-border bg-muted/30 px-6 py-4">
             {state === "active" ? (
               <p className="text-xs leading-5 text-muted-foreground">
-                {connectionCopy.statusActiveNote}
+                {connected.copy.statusActiveNote}
               </p>
             ) : (
               <div className="flex flex-wrap items-center gap-3">
                 <RecheckButton label="Refresh" size="sm" />
                 <p className="min-w-0 flex-1 text-xs leading-5 text-muted-foreground">
                   {state === "never_used"
-                    ? connectionCopy.statusNeverUsedNote
-                    : connectionCopy.statusIdleNote}
+                    ? connected.copy.statusNeverUsedNote
+                    : connected.copy.statusIdleNote}
                 </p>
               </div>
             )}
@@ -107,13 +179,13 @@ export default async function ConnectionPage() {
           <div className="flex flex-wrap items-start justify-between gap-4 border-t border-border px-6 py-5">
             <div className="min-w-0 max-w-lg">
               <p className="text-sm font-semibold text-foreground">
-                {connectionCopy.disconnectTitle}
+                {connected.copy.disconnectTitle}
               </p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                {connectionCopy.disconnectBody}
+                {connected.copy.disconnectBody}
               </p>
             </div>
-            <DisconnectButton />
+            <DisconnectButton provider={connected.provider} />
           </div>
         </section>
       ) : (
@@ -125,7 +197,7 @@ export default async function ConnectionPage() {
                 {connectionCopy.expiredTitle}
               </h2>
               <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                {connectionCopy.expiredBody}
+                {assistant.copy.expiredBody}
               </p>
             </section>
           ) : null}
@@ -141,7 +213,7 @@ export default async function ConnectionPage() {
               environment variable: a founder cannot act on one, and a
               missing deployment setting is not their problem. */}
           {endpointUrl ? (
-            <ConnectionSetup endpointUrl={endpointUrl} />
+            <ConnectionSetup assistant={assistant} endpointUrl={endpointUrl} />
           ) : (
             <section className="mt-10 rounded-xl border border-destructive/30 bg-destructive/5 p-6">
               <h2 className="text-sm font-semibold text-foreground">
@@ -159,7 +231,7 @@ export default async function ConnectionPage() {
         <span className="font-medium text-foreground">
           {connectionCopy.privacyLabel}
         </span>{" "}
-        {connectionCopy.privacyBody}
+        {isAuthorised ? connected.copy.privacyBody : assistant.copy.privacyBody}
       </p>
     </PageShell>
   );

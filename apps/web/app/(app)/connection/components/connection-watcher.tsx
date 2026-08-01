@@ -2,14 +2,28 @@
 
 import { Loader2 } from "lucide-react";
 
+import type { PreferredAiProvider } from "@ai-catalyst/shared";
+
 import { Button } from "@/components/ui/button";
 
+import { resolveAssistant } from "../../lib/assistant";
 import { connectionCopy } from "../../lib/copy";
 import { useConnectionWatch } from "../hooks/use-connection-watch";
 
-/** Poll UI for connection approval — polling lives in useConnectionWatch. */
-export function ConnectionWatcher() {
+/**
+ * Poll UI for connection approval — polling lives in useConnectionWatch.
+ *
+ * The hook itself is provider-agnostic: it only asks whether anything has
+ * authorised yet, so it needs no changes to notice a return from either
+ * assistant. Only the wording here knows which one is expected.
+ */
+export function ConnectionWatcher({
+  provider,
+}: {
+  provider: PreferredAiProvider | null;
+}) {
   const { state, retry } = useConnectionWatch();
+  const { copy } = resolveAssistant(provider);
 
   if (state.phase === "failed") {
     return (
@@ -40,18 +54,14 @@ export function ConnectionWatcher() {
       />
       <div className="min-w-0">
         <p className="text-sm font-medium text-foreground">
-          {advancing
-            ? connectionCopy.connectedTitle
-            : connectionCopy.waitingTitle}
+          {advancing ? copy.connectedTitle : copy.waitingTitle}
         </p>
         {/* aria-live for screen-reader state changes */}
         <p
           aria-live="polite"
           className="mt-1 text-sm leading-6 text-muted-foreground"
         >
-          {advancing
-            ? connectionCopy.connectedBody
-            : connectionCopy.waitingBody}
+          {advancing ? copy.connectedBody : copy.waitingBody}
         </p>
       </div>
     </div>

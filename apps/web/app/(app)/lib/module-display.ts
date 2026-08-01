@@ -143,29 +143,23 @@ export function claudeDesktopChatUrl(prompt: string): string {
   return `claude://claude.ai/new?q=${encodeURIComponent(prompt)}`;
 }
 
-/** Prefill for Claude to walk through MCP connector setup — founder still approves OAuth. */
-export function mcpConnectPrompt(endpointUrl: string | null): string {
-  const urlBlock = endpointUrl
-    ? endpointUrl
-    : "(copy the workspace address from my AI Catalyst connection page)";
-  return [
-    "Please talk me through connecting my AI Catalyst Founder Toolkit to Claude as a custom remote MCP connector. I'll do the clicking — you can't reach these settings yourself.",
-    "",
-    "The steps are:",
-    "1. Open my connectors — they're under Customize, at claude.ai/customize/connectors",
-    "2. Add a custom connector",
-    '3. Name it "AI Catalyst" and paste this as the URL:',
-    urlBlock,
-    "4. Open the link Claude shows, then sign in and approve in the browser",
-    "5. Set the tools to always allow",
-    "",
-    "Take them one at a time and wait for me. If a screen doesn't match what you described, help me work out what I'm looking at — this page has moved before, so trust what I can see over the exact wording above.",
-    "",
-    "Two things that stop people here, so check them with me if I get stuck: custom connectors need a paid Claude plan and don't appear on Free, and on a Team or Enterprise plan only the workspace owner can add one.",
-    "",
-    "Don't tell me the connector is connected — you have no way to see that. The AI Catalyst website detects it and moves me on by itself.",
-  ].join("\n");
-}
+// ── ChatGPT ─────────────────────────────────────────────────────────────
+
+/**
+ * As far as this deep link goes. The scheme opens the settings window but
+ * cannot address the Plugins page or the MCPs tab inside it, so the manual
+ * steps carry the founder from there.
+ */
+export const CHATGPT_SETTINGS_DESKTOP_URL = "codex://settings";
+
+/**
+ * Opens the desktop app, nothing more. There is deliberately no browser
+ * equivalent anywhere in the ChatGPT flow: the MCP server is registered in
+ * the desktop app, so a chat at chatgpt.com cannot reach this workspace and
+ * sending a founder there would produce an assistant that denies the
+ * workspace exists.
+ */
+export const CHATGPT_APP_URL = "codex://";
 
 export function startModulePrompt(moduleTitle: string): string {
   return `Let's work on "${moduleTitle}" from my AI Catalyst Founder Toolkit. Please pick up wherever I left off.`;

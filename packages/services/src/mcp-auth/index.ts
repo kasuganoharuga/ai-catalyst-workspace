@@ -11,6 +11,7 @@ import type {
 import { createMcpActorContext } from "@ai-catalyst/contracts/actor-context";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import { upsertPreferredAiProvider } from "@ai-catalyst/services/profile/internal/preferred-ai-provider";
 
 const MCP_CONNECT_SCOPE = "mcp:connect";
 
@@ -942,11 +943,16 @@ export async function recordMcpGrantIssued(params: {
   try {
     await client.query("begin");
 
-    const owner = await client.query<{ user_id: string; client_id: string }>(
-      `select user_id, client_id
-       from mcp_oauth_access_tokens
-       where access_token = $1
-       for update`,
+    const owner = await client.query<{
+      user_id: string;
+      client_id: string;
+      redirect_urls: string | null;
+    }>(
+      `select t.user_id, t.client_id, a.redirect_urls
+       from mcp_oauth_access_tokens t
+       join mcp_oauth_applications a on a.client_id = t.client_id
+       where t.access_token = $1
+       for update of t`,
       [accessToken],
     );
     const row = owner.rows[0];
@@ -994,6 +1000,38 @@ export async function recordMcpGrantIssued(params: {
        on conflict (user_id, client_id) do update set granted_at = now()`,
       [row.user_id, row.client_id],
     );
+
+    // The website's stored preference follows what is actually connected.
+    //
+    // Only one assistant can hold a grant at a time, so the moment this
+    // one is issued the other is gone — and a preference still pointing at
+    // the evicted product would leave the Founder reading set-up steps and
+    // pressing hand-off buttons for something with no access to their
+    // workspace. Connecting *is* the choice; the dialog and the profile
+    // switcher are just the other ways of making it.
+    //
+    // Written from the client's registered redirect host rather than the
+    // name it gave itself at registration: DCR is unauthenticated, so the
+    // name is whatever the client typed. `other` writes nothing — an
+    // unrecognised client is not evidence for either product, and a wrong
+    // guess here would silently rewrite the Founder's set-up instructions.
+    const connectedProvider = mcpProviderForRedirectUris(
+      parseRedirectUrls(row.redirect_urls),
+    );
+    if (connectedProvider !== "other") {
+      // The write itself — upsert, skip-if-unchanged — is
+      // upsertPreferredAiProvider in profile/internal, the same function
+      // setPreferredAiProvider (packages/services/src/profile) calls for a
+      // Founder-driven change. Writing SQL here again was how the two
+      // paths' semantics drifted apart before (this one skipped the
+      // insert on the assumption a row always already exists by the time
+      // an authorisation completes — true today, but a second place that
+      // invariant had to be remembered). Passing `client` rather than the
+      // module-level `pool` is what lets this write commit or roll back
+      // together with the grant eviction and re-issue above, instead of
+      // running as a second, independent transaction.
+      await upsertPreferredAiProvider(client, row.user_id, connectedProvider);
+    }
 
     await client.query("commit");
   } catch (error) {
@@ -1327,6 +1365,16 @@ export interface McpConnectionStatus {
   // state from "authorised and working" — the authorise redirect can
   // complete without a single tool call ever following it.
   lastActivityAt: string | null;
+  // Which vendor is actually connected, derived from the client's
+  // registered redirect hosts rather than the display name it chose for
+  // itself — DCR is unauthenticated, so `clientName` is whatever the
+  // client typed. Null when not authorised.
+  //
+  // The website's own record of which assistant a Founder set up lives in
+  // `user_profiles.preferred_ai_provider` and is a separate thing: this is
+  // what is connected, that is what they intend to use, and the two can
+  // legitimately disagree while they switch.
+  provider: McpProvider | null;
 }
 
 interface ConnectionTokenRow {
@@ -1335,6 +1383,7 @@ interface ConnectionTokenRow {
   created_at: Date;
   granted_at: Date | null;
   refresh_token_expires_at: Date;
+  redirect_urls: string | null;
 }
 
 /**
@@ -1361,6 +1410,7 @@ export async function getMcpConnectionStatus(
   // single-connection rule is ever relaxed, this has to become a list.
   const tokenResult = await pool.query<ConnectionTokenRow>(
     `select a.name as client_name,
+            a.redirect_urls,
             t.client_id,
             t.created_at,
             g.granted_at,
@@ -1436,6 +1486,10 @@ export async function getMcpConnectionStatus(
     expiresAt: live ? (deadline?.toISOString() ?? null) : null,
     hasEverAuthorised: consentResult.rows[0]?.exists ?? false,
     lastActivityAt: lastActivityAt?.toISOString() ?? null,
+    provider:
+      live && token
+        ? mcpProviderForRedirectUris(parseRedirectUrls(token.redirect_urls))
+        : null,
   };
 }
 

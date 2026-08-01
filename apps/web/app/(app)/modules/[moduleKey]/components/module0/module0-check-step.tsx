@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 
-import { ClaudeHandoff } from "../../../../components/claude-handoff";
-import { claudeHandoffCopy } from "../../../../lib/copy";
+import { AssistantHandoff } from "../../../../components/assistant-handoff";
+import { resolveAssistant } from "../../../../lib/assistant";
+import { module0Copy } from "../../../../lib/copy";
 import type { Module0SetupProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
 import { StepHeading } from "../shared/step-heading";
 
 export function Module0CheckStep({
   connected,
+  provider,
   startPrompt,
   artifactName,
   artifactVersion,
@@ -19,59 +21,58 @@ export function Module0CheckStep({
   accent,
 }: Module0SetupProps & { accent: ModuleAccent }) {
   const documentSaved = artifactVersion !== null;
+  const assistant = resolveAssistant(provider);
 
   return (
     <>
       <StepHeading
-        title="Hand it over to Claude"
-        body="Send the line below. Claude confirms it can reach your workspace, then writes and saves your Setup Summary."
+        title={module0Copy.checkTitle(assistant.name)}
+        body={module0Copy.checkBody(assistant.name)}
       />
 
       {!connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
-          Claude isn&apos;t connected to this workspace yet, so nothing can be
-          saved.{" "}
+          {module0Copy.notConnected}{" "}
           <Link
             href="/connection"
             className="font-medium text-foreground underline-offset-2 hover:underline"
           >
-            Set up the connection
+            {module0Copy.notConnectedLink}
           </Link>
-          , then come back here.
+          {module0Copy.notConnectedSuffix}
         </div>
       ) : null}
 
       <div className="mt-6">
-        <ClaudeHandoff
+        <AssistantHandoff
+          provider={provider}
           prompt={startPrompt}
-          label={
-            needsRetry ? claudeHandoffCopy.retryCta : claudeHandoffCopy.openCta
-          }
+          retry={needsRetry}
           accent={accent}
         />
       </div>
 
       <div className="mt-8">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Progress
+          {module0Copy.progressHeading}
         </p>
         <dl className="mt-3 text-sm">
           <CheckLine
             ok={documentSaved}
-            label="Setup Summary saved to your workspace"
+            label={module0Copy.progressSaved}
             detail={
               documentSaved
                 ? `${artifactName ?? "Document"} · version ${artifactVersion}`
-                : "Nothing saved yet — this page updates when Claude saves."
+                : module0Copy.progressSavedPending
             }
           />
           <CheckLine
             ok={awaitingConfirmation || isCompleted}
-            label="Nothing missing from it"
+            label={module0Copy.progressChecks}
             detail={
               awaitingConfirmation || isCompleted
-                ? "Read it over whenever you're ready."
-                : "Happens by itself once the document is saved."
+                ? module0Copy.progressChecksDone
+                : module0Copy.progressChecksPending
             }
           />
         </dl>

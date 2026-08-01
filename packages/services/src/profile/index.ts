@@ -1,8 +1,12 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import type { UserProfile, PreferredAiProvider } from "@ai-catalyst/shared";
+import type { UserProfile } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import {
+  isPreferredAiProvider,
+  upsertPreferredAiProvider,
+} from "@ai-catalyst/services/profile/internal/preferred-ai-provider";
 
 // Owns everything to do with `user_profiles`. The table is deliberately
 // separate from Better Auth's `users`: `users.name`/`users.email` are
@@ -30,10 +34,6 @@ interface UserProfileRow {
   locale: string;
   created_at: Date;
   updated_at: Date;
-}
-
-function isPreferredAiProvider(value: unknown): value is PreferredAiProvider {
-  return value === "claude" || value === "openai";
 }
 
 function mapUserProfileRow(row: UserProfileRow): UserProfile {
@@ -313,6 +313,69 @@ export async function updateMyProfile(
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       "Profile upsert returned no row.",
+    );
+  }
+  return mapUserProfileRow(row);
+}
+
+// ---------------------------------------------------------------------
+// setPreferredAiProvider
+// ---------------------------------------------------------------------
+
+/**
+ * Records which AI assistant this user set the website up for.
+ *
+ * Deliberately its own writer rather than another entry in
+ * `EDITABLE_FIELDS`. Three reasons, in increasing order of importance:
+ * `normalizeField` is built around trim/length/URL/email checks on
+ * nullable free text and an enum needs a different branch in three
+ * separate lookup tables; `null` means "clear this" everywhere on that
+ * path, but a chosen provider must never become unset again (the
+ * first-run dialog keys off it being null, so clearing it would re-open
+ * the dialog); and `ProfileForm` submits a whole object built from its
+ * own `FormState`, so a field reachable through `updateMyProfile` would
+ * be wiped by an ordinary profile save that never mentioned it.
+ *
+ * `UpdateUserProfileInput` therefore continues to exclude it, as its
+ * comment in packages/shared already documents.
+ *
+ * The write itself is `upsertPreferredAiProvider` (profile/internal) —
+ * this function's job is entirely the Founder-facing half: checking the
+ * actor is allowed to do this and that `provider` is a value the column
+ * can hold, then reading back the profile the caller needs returned. The
+ * same write is also reachable from mcp-auth's recordMcpGrantIssued, when
+ * connecting an assistant is how the choice got made rather than this
+ * action — it calls the shared helper directly rather than going through
+ * an ActorContext-shaped entry point it doesn't have one for.
+ */
+export async function setPreferredAiProvider(
+  actor: ActorContext,
+  provider: unknown,
+): Promise<UserProfile> {
+  assertRole(actor, ["founder", "mentor", "admin"]);
+
+  if (!isPreferredAiProvider(provider)) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "preferredAiProvider must be 'claude' or 'openai'.",
+    );
+  }
+
+  await upsertPreferredAiProvider(pool, actor.userId, provider);
+
+  // upsertPreferredAiProvider doesn't return the row (its other caller,
+  // recordMcpGrantIssued, never wants one), so this function reads back
+  // the full profile itself, the same shape getMyProfile builds.
+  const result = await pool.query<UserProfileRow>(
+    `select ${USER_PROFILE_COLUMNS} from user_profiles where user_id = $1`,
+    [actor.userId],
+  );
+
+  const row = result.rows[0];
+  if (!row) {
+    throw new ServiceError(
+      "INTERNAL_INVARIANT_ERROR",
+      "Preferred AI provider upsert returned no row.",
     );
   }
   return mapUserProfileRow(row);

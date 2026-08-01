@@ -13,13 +13,13 @@ export function connectionStatContent(
 ): ConnectionStatContent {
   switch (state) {
     case "active":
-      return { value: "Active", label: "Claude connected" };
+      return { value: "Active", label: "AI assistant connected" };
     case "idle":
       return {
         value: "Connected",
         label: lastActivityAt
           ? `Last used ${formatRelativeTime(lastActivityAt)}`
-          : "Claude connected",
+          : "AI assistant connected",
       };
     case "never_used":
       return { value: "Connected", label: "Not used yet" };
@@ -30,7 +30,7 @@ export function connectionStatContent(
           <>
             Reconnect in{" "}
             <Link href="/connection" className="underline">
-              Claude connection
+              AI connection
             </Link>
           </>
         ),
@@ -42,7 +42,7 @@ export function connectionStatContent(
           <>
             Set up in{" "}
             <Link href="/connection" className="underline">
-              Claude connection
+              AI connection
             </Link>
           </>
         ),

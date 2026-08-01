@@ -3,9 +3,11 @@ import {
   getCurrentFounderActor,
   getCurrentFounderSession,
 } from "@/lib/current-founder-actor";
+import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
 
 import { PageShell } from "../components/page-shell";
+import { AssistantSection } from "./components/assistant-section";
 import { PasswordSection } from "./components/password-section";
 import { ProfileForm } from "./components/profile-form";
 
@@ -17,7 +19,10 @@ export default async function ProfilePage() {
     getCurrentFounderSession(),
   ]);
 
-  const profile = await getMyProfile(actor);
+  const [profile, connection] = await Promise.all([
+    getMyProfile(actor),
+    getMcpConnectionStatus(actor),
+  ]);
   const displayName = resolveDisplayName(profile, session.user.name);
 
   return (
@@ -33,6 +38,14 @@ export default async function ProfilePage() {
       </h1>
 
       <ProfileForm profile={profile} />
+
+      {/* Above the password section: this is a preference a founder may
+          come here to change, while the password is something they arrive
+          at knowing they need. */}
+      <AssistantSection
+        current={profile.preferredAiProvider}
+        connectedProvider={connection.provider}
+      />
 
       <PasswordSection />
     </PageShell>

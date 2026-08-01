@@ -4,15 +4,26 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
+import type { PreferredAiProvider } from "@ai-catalyst/shared";
+
 import { Button } from "@/components/ui/button";
 import { revokeMcpConnectionAction } from "@/lib/actions/founder-actions";
 
+import { resolveAssistant } from "../../lib/assistant";
 import { connectionCopy, errorCopy, toastCopy } from "../../lib/copy";
 
-/** Ends server-side access — disconnecting in Claude alone does not. Outline, not destructive. */
-export function DisconnectButton() {
+/**
+ * Ends server-side access — removing the connector in the assistant alone
+ * does not. Outline, not destructive.
+ */
+export function DisconnectButton({
+  provider,
+}: {
+  provider: PreferredAiProvider | null;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const { copy } = resolveAssistant(provider);
 
   return (
     <Button
@@ -29,7 +40,7 @@ export function DisconnectButton() {
             });
             return;
           }
-          toast.success(connectionCopy.disconnectDone);
+          toast.success(copy.disconnectDone);
           router.refresh();
         })
       }

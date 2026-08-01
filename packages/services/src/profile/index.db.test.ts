@@ -8,6 +8,7 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import {
   getMyProfile,
   hasChangedInvitationPassword,
+  setPreferredAiProvider,
   updateMyProfile,
 } from "./index.js";
 
@@ -287,6 +288,76 @@ describe("profile service — database integration", () => {
       const actor = await createUser("pending-write", "pending");
       await expect(
         updateMyProfile(actor, { firstName: "Nope" }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
+
+  describe("setPreferredAiProvider", () => {
+    it("creates the row on first save", async () => {
+      const actor = await createUser("provider-first-save");
+
+      const saved = await setPreferredAiProvider(actor, "openai");
+
+      expect(saved.preferredAiProvider).toBe("openai");
+      await expect(getMyProfile(actor)).resolves.toMatchObject({
+        preferredAiProvider: "openai",
+      });
+    });
+
+    it("replaces an earlier choice", async () => {
+      const actor = await createUser("provider-switch");
+      await setPreferredAiProvider(actor, "claude");
+
+      const switched = await setPreferredAiProvider(actor, "openai");
+
+      expect(switched.preferredAiProvider).toBe("openai");
+    });
+
+    // The whole reason this isn't an EDITABLE_FIELDS entry: a founder
+    // switching assistant must not lose the details they already saved,
+    // and an ordinary profile save must not clear the provider.
+    it("leaves the rest of the profile alone", async () => {
+      const actor = await createUser("provider-preserves");
+      await updateMyProfile(actor, { firstName: "Ada", jobTitle: "CTO" });
+
+      const saved = await setPreferredAiProvider(actor, "claude");
+
+      expect(saved).toMatchObject({
+        firstName: "Ada",
+        jobTitle: "CTO",
+        preferredAiProvider: "claude",
+      });
+    });
+
+    it("survives an ordinary profile save", async () => {
+      const actor = await createUser("provider-survives");
+      await setPreferredAiProvider(actor, "openai");
+
+      const updated = await updateMyProfile(actor, { firstName: "Grace" });
+
+      expect(updated.preferredAiProvider).toBe("openai");
+    });
+
+    it("rejects a provider the check constraint doesn't know", async () => {
+      const actor = await createUser("provider-unknown");
+      await expect(
+        setPreferredAiProvider(actor, "gemini"),
+      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+    });
+
+    // Null would re-open the first-run dialog, so it is rejected rather
+    // than treated as "clear this field" the way updateMyProfile does.
+    it("rejects null", async () => {
+      const actor = await createUser("provider-null");
+      await expect(setPreferredAiProvider(actor, null)).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("rejects a pending account", async () => {
+      const actor = await createUser("provider-pending", "pending");
+      await expect(
+        setPreferredAiProvider(actor, "claude"),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });

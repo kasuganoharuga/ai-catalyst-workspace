@@ -2,8 +2,8 @@ import type { ArtifactValidation } from "@ai-catalyst/shared";
 
 /**
  * When the latest check didn't pass (design frames H5b/H6e): the real
- * failure reasons from the Validator, phrased as things to fix in Claude
- * rather than a wall of red.
+ * failure reasons from the Validator, phrased as things to fix in the
+ * assistant rather than a wall of red.
  */
 export function ValidationIssuesCard({
   validation,
@@ -19,8 +19,8 @@ export function ValidationIssuesCard({
           A few gaps to close
         </h2>
         <p className="mt-1 text-sm leading-6 text-muted-foreground">
-          Ask Claude to work through the points below and save an updated
-          version. This page picks it up from there.
+          Ask your AI assistant to work through the points below and save an
+          updated version. This page picks it up from there.
         </p>
       </div>
       <ul className="space-y-3 px-6 py-5">

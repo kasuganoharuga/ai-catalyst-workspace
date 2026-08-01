@@ -10,8 +10,8 @@ import { Module0CheckStep } from "./module0-check-step";
 import { Module0ConfirmStep } from "./module0-confirm-step";
 
 /**
- * Module 0 — Claude-first: Continue in Claude, then website Confirm.
- * Project linking is optional elsewhere; not part of this path.
+ * Module 0 — assistant first: hand over the message, then Confirm on the
+ * website. Project linking is optional elsewhere; not part of this path.
  */
 export function Module0Setup(props: Module0SetupProps) {
   const {
@@ -29,7 +29,7 @@ export function Module0Setup(props: Module0SetupProps) {
 
   const steps = [
     {
-      label: "Continue in Claude",
+      label: "Hand it over",
       done: awaitingConfirmation || isCompleted,
     },
     { label: "Confirm and unlock", done: isCompleted },

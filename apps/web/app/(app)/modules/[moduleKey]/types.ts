@@ -1,6 +1,9 @@
 import type { ReactNode } from "react";
 
-import type { ModuleContextQuestion } from "@ai-catalyst/shared";
+import type {
+  ModuleContextQuestion,
+  PreferredAiProvider,
+} from "@ai-catalyst/shared";
 
 export type ExpectedArtifact = {
   artifactKey: string;
@@ -13,7 +16,7 @@ export type ExpectedArtifact = {
  * Why this module is being shown read-only.
  *
  * "locked" — an earlier module has to be finished first.
- * "not-started" — no Run exists yet, usually because Claude isn't
+ * "not-started" — no Run exists yet, usually because no assistant is
  *   connected. The founder can read everything; nothing can be saved.
  */
 export type ModulePreviewReason = "locked" | "not-started" | null;
@@ -24,6 +27,8 @@ export type ModuleAccent = { backgroundColor: string };
 export type Module0SetupProps = {
   moduleKey: string;
   moduleIndex: number;
+  /** Which assistant the hand-off opens. Null until the founder chooses. */
+  provider: PreferredAiProvider | null;
   programRunModuleId: string | null;
   claudeProjectId: string | null;
   connected: boolean;
@@ -43,6 +48,8 @@ export type Module0SetupProps = {
 export type Module1RunProps = {
   moduleKey: string;
   moduleIndex: number;
+  /** Which assistant the hand-off opens. Null until the founder chooses. */
+  provider: PreferredAiProvider | null;
   programRunModuleId: string | null;
   ventureId: string | null;
   claudeProjectId: string | null;
@@ -61,9 +68,10 @@ export type Module1RunProps = {
   /** `null` means the module is live and workable; otherwise preview-only. */
   preview: ModulePreviewReason;
   /**
-   * The saved document, already rendered on the server. Null until Claude
-   * has saved something — passed in rather than fetched here so this stays
-   * a client component without pulling react-markdown into its bundle.
+   * The saved document, already rendered on the server. Null until the
+   * assistant has saved something — passed in rather than fetched here so
+   * this stays a client component without pulling react-markdown into its
+   * bundle.
    */
   documentPreview: ReactNode;
   startPrompt: string;

@@ -22,6 +22,7 @@ import path from "node:path";
 import { config as loadEnv } from "dotenv";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import type { PreferredAiProvider } from "@ai-catalyst/shared";
 
 // Must run before importing anything that reads process.env at module load
 // time (lib/auth.ts's BETTER_AUTH_SECRET, @ai-catalyst/db's DATABASE_URL) —
@@ -42,6 +43,7 @@ type Deps = {
   getOrCreateProgramRun: typeof import("@ai-catalyst/services/workflow").getOrCreateProgramRun;
   autoCompleteSetupModule: typeof import("@ai-catalyst/services/module/auto-setup").autoCompleteSetupModule;
   updateMyProfile: typeof import("@ai-catalyst/services/profile").updateMyProfile;
+  setPreferredAiProvider: typeof import("@ai-catalyst/services/profile").setPreferredAiProvider;
   setActiveVenture: typeof import("@ai-catalyst/services/workspace/active-context").setActiveVenture;
   startOrResumeAttempt: typeof import("@ai-catalyst/services/attempt").startOrResumeAttempt;
   saveFounderResponse: typeof import("@ai-catalyst/services/attempt").saveFounderResponse;
@@ -77,6 +79,7 @@ async function loadDeps(): Promise<Deps> {
     getOrCreateProgramRun: workflow.getOrCreateProgramRun,
     autoCompleteSetupModule: autoSetup.autoCompleteSetupModule,
     updateMyProfile: profile.updateMyProfile,
+    setPreferredAiProvider: profile.setPreferredAiProvider,
     setActiveVenture: activeContext.setActiveVenture,
     startOrResumeAttempt: attempt.startOrResumeAttempt,
     saveFounderResponse: attempt.saveFounderResponse,
@@ -274,38 +277,69 @@ interface SeedSpec {
    * independently or the prompt can't be seen to behave.
    */
   passwordChanged: boolean;
+  /**
+   * Which assistant this founder set the website up for. `null` means they
+   * never answered, which is what makes the first-run dialog appear — every
+   * other fixture sets it so the screens underneath can be reached at all.
+   */
+  provider: PreferredAiProvider | null;
   run: "none" | "setup-open" | "module-1" | "verdict-saved";
 }
 
 const SPECS: SeedSpec[] = [
   {
-    label: "new",
-    displayName: "New Founder",
+    label: "firstrun",
+    displayName: "First Run Founder",
     shows:
-      "First visit. No name, not connected: greeting reads Welcome (not Welcome back), profile prompt showing, next action is Connect Claude.",
+      "Never answered the assistant question: the first-run dialog opens over every page, all three steps, and cannot be dismissed until an assistant is chosen.",
     profileName: null,
     connected: false,
     passwordChanged: false,
+    provider: null,
+    run: "none",
+  },
+  {
+    label: "new",
+    displayName: "New Founder",
+    shows:
+      "First visit past the dialog. No name, not connected: greeting reads Welcome (not Welcome back), profile prompt showing, next action is to connect an assistant.",
+    profileName: null,
+    connected: false,
+    passwordChanged: false,
+    provider: "claude",
+    run: "none",
+  },
+  {
+    label: "chatgpt",
+    displayName: "ChatGPT Founder",
+    shows:
+      "Same state as `new` but set up for ChatGPT: the connection page shows the desktop-app steps, and the module hand-off is copy-first with no browser fallback.",
+    profileName: { firstName: "Joan", lastName: "Clarke" },
+    connected: false,
+    passwordChanged: true,
+    provider: "openai",
     run: "none",
   },
   {
     label: "named",
     displayName: "Named Founder",
     shows:
-      "Name filled, still not connected: profile prompt gone, next action still Connect Claude.",
+      "Name filled, still not connected: profile prompt gone, connect action still showing.",
     profileName: { firstName: "Ada", lastName: "Lovelace" },
     connected: false,
     passwordChanged: false,
+    provider: "claude",
     run: "none",
   },
   {
     label: "secured",
     displayName: "Secured Founder",
     shows:
-      "Name filled and password changed, still not connected: profile prompt and password prompt both gone, only Connect Claude remains.",
+      "Name filled and password changed, still not connected: profile prompt and password prompt both gone, only the connect action remains.",
     profileName: { firstName: "Katherine", lastName: "Johnson" },
     connected: false,
     passwordChanged: true,
+    provider: "claude",
     run: "none",
   },
   {
@@ -316,6 +350,7 @@ const SPECS: SeedSpec[] = [
     profileName: { firstName: "Grace", lastName: "Hopper" },
     connected: true,
     passwordChanged: true,
+    provider: "claude",
     run: "none",
   },
   {
@@ -326,6 +361,7 @@ const SPECS: SeedSpec[] = [
     profileName: { firstName: "Karen", lastName: "Sparck Jones" },
     connected: true,
     passwordChanged: true,
+    provider: "claude",
     run: "setup-open",
   },
   {
@@ -336,6 +372,7 @@ const SPECS: SeedSpec[] = [
     profileName: { firstName: "Barbara", lastName: "Liskov" },
     connected: true,
     passwordChanged: true,
+    provider: "claude",
     run: "module-1",
   },
   {
@@ -346,6 +383,7 @@ const SPECS: SeedSpec[] = [
     profileName: { firstName: "Radia", lastName: "Perlman" },
     connected: true,
     passwordChanged: true,
+    provider: "claude",
     run: "verdict-saved",
   },
 ];
@@ -416,7 +454,12 @@ async function fakeMcpConnection(deps: Deps, userId: string): Promise<void> {
   await deps.pool.query(
     `insert into mcp_oauth_applications
        (name, client_id, client_secret, redirect_urls, type, disabled)
-     values ('Claude (seeded test client)', $1, '', 'http://localhost/callback', 'public', false)
+     -- A real claude.ai callback rather than a localhost placeholder: the
+     -- connection page identifies the connected vendor from this host (see
+     -- mcpProviderForRedirectUris), so a fixture that redirects to
+     -- localhost reads as "some unrecognised client" and hides the
+     -- preference-vs-connection states this seed exists to show.
+     values ('Claude (seeded test client)', $1, '', 'https://claude.ai/api/mcp/auth_callback', 'public', false)
      on conflict (client_id) do nothing`,
     [CLIENT_ID],
   );
@@ -460,6 +503,12 @@ async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
 
   if (spec.profileName) {
     await deps.updateMyProfile(actor, spec.profileName);
+  }
+  // Before anything else that matters: with this unset the first-run
+  // dialog covers every page, so a fixture meant to show the dashboard
+  // would only ever show the dialog.
+  if (spec.provider) {
+    await deps.setPreferredAiProvider(actor, spec.provider);
   }
   if (spec.connected) {
     await fakeMcpConnection(deps, userId);

@@ -4,6 +4,7 @@ import type { ModuleCatalogEntry } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
+import { getMyProfile } from "@/lib/user-profile";
 
 import { ContinueProgrammeButton } from "../../../components/continue-programme-button";
 import { MarkdownDocument } from "../../../components/markdown-document";
@@ -30,7 +31,13 @@ export async function ModuleDetailBody({
   entry,
 }: ModuleDetailBodyProps) {
   const actor = await getCurrentFounderActor();
-  const detail = await loadModuleDetail(actor, moduleKey, entry);
+  // getMyProfile is cache()-wrapped and the app shell has already loaded
+  // it for this request, so this is a map lookup rather than a query.
+  const [detail, profile] = await Promise.all([
+    loadModuleDetail(actor, moduleKey, entry),
+    getMyProfile(actor),
+  ]);
+  const provider = profile.preferredAiProvider;
   const {
     isLive,
     context,
@@ -179,6 +186,7 @@ export async function ModuleDetailBody({
             <Module0Setup
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
+              provider={provider}
               programRunModuleId={runModule.id}
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
@@ -207,6 +215,7 @@ export async function ModuleDetailBody({
             <Module1Run
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
+              provider={provider}
               programRunModuleId={runModule.id}
               ventureId={venture?.id ?? null}
               claudeProjectId={venture?.claudeProjectId ?? null}
@@ -245,6 +254,7 @@ export async function ModuleDetailBody({
           <Module1Run
             moduleKey={entry.moduleKey}
             moduleIndex={entry.sequenceIndex}
+            provider={provider}
             programRunModuleId={null}
             ventureId={null}
             claudeProjectId={null}

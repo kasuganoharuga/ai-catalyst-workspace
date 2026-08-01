@@ -6,8 +6,8 @@ import { useState } from "react";
 
 import { cn } from "@/lib/utils";
 
-import { ClaudeHandoff } from "../../../../components/claude-handoff";
-import { claudeHandoffCopy, module1Copy } from "../../../../lib/copy";
+import { AssistantHandoff } from "../../../../components/assistant-handoff";
+import { module1Copy } from "../../../../lib/copy";
 import type { Module1RunProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
 import { StepHeading } from "../shared/step-heading";
@@ -15,6 +15,7 @@ import { StrongAnswerCard } from "../strong-answer-card";
 
 export function Module1WorkStep({
   connected,
+  provider,
   startPrompt,
   coreQuestions,
   decisionQuestions,
@@ -70,19 +71,19 @@ export function Module1WorkStep({
       ) : null}
 
       <div className="mt-6">
-        <ClaudeHandoff
+        <AssistantHandoff
+          provider={provider}
           prompt={startPrompt}
-          label={
-            needsRetry ? claudeHandoffCopy.retryCta : claudeHandoffCopy.openCta
-          }
+          retry={needsRetry}
           accent={accent}
           disabled={isPreview}
           disabledNote={previewNote}
         />
       </div>
 
-      {/* Milestones from what Claude actually saved. The six questions sit
-          as the first CheckLine — collapsed by default, expanded in place. */}
+      {/* Milestones from what the assistant actually saved. The six
+          questions sit as the first CheckLine — collapsed by default,
+          expanded in place. */}
       <dl className="mt-8 text-sm">
         {coreQuestions.length > 0 ? (
           <div className="border-t border-border/70 py-3 first:border-t-0">

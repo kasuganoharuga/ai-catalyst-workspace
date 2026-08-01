@@ -1,158 +1,369 @@
 // Founder-facing copy: onboarding, connection, modules, workspace, profile, errors.
 // Australian English: program, artefact, authorise (-ise). OAuth wire values stay as the spec spells them.
 // Module titles, subtitles, and question texts live in the DB (content-seed), not here.
+//
+// Naming an assistant: only two surfaces do it — the connection page (it is
+// a walkthrough of one specific product's settings) and the hand-off (it
+// opens one specific app). Those live in `assistantCopy`, keyed by provider.
+// Everything else in this file is neutral on purpose and says "AI" or "your
+// AI assistant"; copy.test.ts enforces that.
+
+import type { PreferredAiProvider } from "@ai-catalyst/shared";
 
 // ── Connection ──────────────────────────────────────────────────────────
 
 export interface ManualStep {
   title: string;
   body: string;
-  /** Only the first step links out to Claude's settings. */
+  /** Only the first step links out to the assistant's settings. */
   linkLabel?: string;
   /** Renders the workspace address (with copy button) in this step. */
   showAddress?: boolean;
   /** Tagged in the UI as optional, not a missed requirement. */
   optional?: boolean;
-  /** Schematic beside this step (not a Claude screenshot — their UI moves). */
+  /** Schematic beside this step (not a screenshot — these UIs move). */
   illustration?: StepIllustrationKey;
 }
 
-/** Keys into STEP_ILLUSTRATIONS in connection/components/step-illustrations. */
-export type StepIllustrationKey =
-  "connectors" | "add-connector" | "paste-address" | "approve" | "allow-tools";
+/**
+ * Keys into STEP_ILLUSTRATIONS in connection/components/step-illustrations.
+ * A tuple rather than a bare union so a node-environment test can check
+ * every step's illustration exists without importing the TSX registry.
+ */
+export const STEP_ILLUSTRATION_KEYS = [
+  "connectors",
+  "add-connector",
+  "paste-address",
+  "approve",
+  "allow-tools",
+  "chatgpt-settings",
+  "chatgpt-plugins",
+  "chatgpt-add-server",
+  "chatgpt-custom-mcp",
+  "chatgpt-approve",
+] as const;
 
+export type StepIllustrationKey = (typeof STEP_ILLUSTRATION_KEYS)[number];
+
+/** Connection-page copy that reads the same whichever assistant is chosen. */
 export const connectionCopy = {
   kicker: "Setup",
-  title: "Connect Claude",
   // Connected state: header must not still read as setup instructions.
   kickerConnected: "Your account",
-  titleConnected: "Claude connection",
-  // Two intros: disconnected vs already-connected audiences.
-  intro:
-    "Connect Claude once. It takes about two minutes, and your first module opens as soon as you're done.",
-  introConnected:
-    "Claude is connected to this workspace. Everything below is here if you want to check on it or end access.",
 
   addressHeading: "Your workspace address",
   // Never name the env var — a founder can't act on it.
   addressMissing:
     "This workspace isn't set up for connections yet. Contact your program lead.",
 
-  expiredTitle: "Your connection expired",
-  expiredBody:
-    "Your saved work is safe. Reconnect in Claude using the same address below.",
-
-  setupTitle: "Add the connector in Claude",
-  setupBody: "Five steps, once. You'll approve access at the end.",
-  setupPromptLabel: "Message to send",
-  setupOpenCta: "Open Claude",
-
-  // No menu route — Claude moved connectors; link goes straight to the page.
-  manualSteps: [
-    {
-      title: "Open your connectors in Claude",
-      body: "They live under Customize.",
-      linkLabel: "Open connectors in the Claude app",
-      illustration: "connectors",
-    },
-    {
-      title: "Add a custom connector",
-      body: "Use the Add button on that page and choose the custom option.",
-      illustration: "add-connector",
-    },
-    {
-      title: "Name it and paste this address",
-      // Advanced OAuth fields look required; server registers the client.
-      body: 'Call it anything — "AI Catalyst" works. Leave the two advanced fields empty.',
-      showAddress: true,
-      illustration: "paste-address",
-    },
-    {
-      title: "Approve access",
-      body: "Claude shows a link that opens your browser. Sign in there and approve.",
-      illustration: "approve",
-    },
-    {
-      title: "Allow the tools",
-      body: "Saves Claude asking permission every time it writes to your workspace.",
-      optional: true,
-      illustration: "allow-tools",
-    },
-  ] as ManualStep[],
-
-  settingsFallbackPrefix: "Nothing happened?",
-  settingsFallbackLink: "Open connectors in your browser",
-
-  claudeHelpSummary: "Rather have Claude walk you through it?",
-  claudeHelpBody:
-    "This opens Claude with the steps already written. You still do the clicking, but Claude can help if a screen doesn't look like it should.",
+  // Covers every way a founder who has connected before arrives here
+  // without a connection: the grant lapsed, they disconnected by hand, or
+  // they switched assistant (which signs the old one out). Saying
+  // "expired" was a guess, and after a deliberate switch it read as
+  // something having gone wrong.
+  expiredTitle: "You'll need to connect again",
 
   troubleshootingTitle: "If something doesn't look right",
-  troubleshooting: [
-    {
-      symptom: `There's no "Add custom connector" option`,
-      fix: "Custom connectors need a paid Claude plan. They don't appear on the Free plan.",
-    },
-    {
-      symptom: "You're on a Team or Enterprise plan",
-      fix: "Only the workspace owner can add a connector. Ask them to add it once, and it appears for everyone.",
-    },
-    // Claude moved connectors to Customize — link beats menu navigation.
-    {
-      symptom: "Claude's screens don't match these steps",
-      fix: "Claude moves this page from time to time — it currently sits under Customize. Use the link above rather than navigating by menu.",
-    },
-    {
-      symptom: "You approved access, but this page hasn't moved",
-      fix: "Come back to this tab and leave it open for a few seconds. It checks while you're looking at it.",
-    },
-  ],
-
-  waitingTitle: "Waiting for Claude",
-  waitingBody:
-    "Leave this page open. Your first module opens automatically once Claude is connected.",
-  connectedTitle: "Claude is connected",
-  connectedBody: "Opening your first module.",
   watchRetry: "Try again",
 
-  // Disconnect here ends server access; removing the connector in Claude does not.
-  disconnectTitle: "Disconnect Claude",
-  disconnectBody:
-    "Ends Claude's access to this workspace. The connector stays in your Claude settings, and reconnecting means approving access again.",
   disconnectCta: "Disconnect",
   disconnectPending: "Disconnecting…",
-  disconnectDone: "Claude no longer has access to this workspace.",
 
   statusHeading: "Connection status",
   statusClient: "Connected to",
-  // Lapse date if unused — connection renews when Claude uses it.
+  // Lapse date if unused — the connection renews each time it is used.
   statusValidUntil: "Stays connected until",
-  statusLastActivity: "Claude last used it",
   statusNeverUsed: "Not yet",
-  statusActiveNote:
-    "Claude used your workspace in the last few minutes, so everything is working.",
-  statusNeverUsedNote:
-    "Claude has access but hasn't used it yet. Your first module will be the first thing that does.",
-  statusIdleNote:
-    "Claude hasn't used your workspace recently, which usually just means it's closed. Ask it to do something here, then refresh.",
 
   privacyLabel: "What this connection does:",
-  // End access on this page — removing the connector in Claude has no effect here.
-  privacyBody:
-    "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Everything Claude does here is recorded, and you can end access from this page at any time.",
+
+  // Read-only on this page; the switch itself lives on the profile page,
+  // beside the rest of what a founder owns about their account.
+  assistantLabel: "Your AI assistant",
+  assistantChangeLink: "Change it in your profile",
+  // Connected with one assistant while set up for another. Not a state the
+  // product produces any more — switching disconnects, and connecting sets
+  // the preference — so this only appears if a disconnect failed part-way.
+  assistantMismatch: (connected: string, chosen: string) =>
+    `Connected with ${connected}, though your instructions are set to ${chosen}. Disconnect below, or switch back to ${connected} in your profile.`,
 } as const;
 
-// ── Opening Claude ──────────────────────────────────────────────────────
+// ── Per-assistant connection copy ───────────────────────────────────────
 
-export const claudeHandoffCopy = {
+export interface AssistantCopy {
+  /** The founder-facing product name. Never render the provider enum. */
+  name: string;
+  title: string;
+  titleConnected: string;
+  /** Two intros: disconnected vs already-connected audiences. */
+  intro: string;
+  introConnected: string;
+  expiredBody: string;
+
+  setupTitle: string;
+  setupBody: string;
+  manualSteps: ManualStep[];
+  /**
+   * Only present when the assistant's settings are also reachable in a
+   * browser. Absent means the step renders no fallback line at all.
+   */
+  settingsFallbackPrefix?: string;
+  settingsFallbackLink?: string;
+
+  troubleshooting: { symptom: string; fix: string }[];
+
+  waitingTitle: string;
+  waitingBody: string;
+  connectedTitle: string;
+  connectedBody: string;
+
+  disconnectTitle: string;
+  disconnectBody: string;
+  disconnectDone: string;
+
+  statusLastActivity: string;
+  statusActiveNote: string;
+  statusNeverUsedNote: string;
+  statusIdleNote: string;
+
+  privacyBody: string;
+
+  handoff: {
+    /** Deep-link shape: the primary button. Copy-first shape: the secondary link. */
+    openCta: string;
+    retryCta: string;
+    hint: string;
+    /** Deep-link shape only — the browser escape hatch. */
+    fallbackPrefix?: string;
+    fallbackLink?: string;
+  };
+}
+
+export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
+  claude: {
+    name: "Claude",
+    title: "Connect Claude",
+    titleConnected: "Claude connection",
+    intro:
+      "Connect Claude once. It takes about two minutes, and your first module opens as soon as you're done.",
+    introConnected:
+      "Claude is connected to this workspace. Everything below is here if you want to check on it or end access.",
+    expiredBody:
+      "Your saved work is safe. Set Claude up again with the address below.",
+
+    setupTitle: "Add the connector in Claude",
+    setupBody: "Five steps, once. You'll approve access at the end.",
+
+    // No menu route — Claude moved connectors; link goes straight to the page.
+    manualSteps: [
+      {
+        title: "Open your connectors in Claude",
+        body: "They live under Customize.",
+        linkLabel: "Open connectors in the Claude app",
+        illustration: "connectors",
+      },
+      {
+        title: "Add a custom connector",
+        body: "Use the Add button on that page and choose the custom option.",
+        illustration: "add-connector",
+      },
+      {
+        title: "Name it and paste this address",
+        // Advanced OAuth fields look required; server registers the client.
+        body: 'Call it anything — "AI Catalyst" works. Leave the two advanced fields empty.',
+        showAddress: true,
+        illustration: "paste-address",
+      },
+      {
+        title: "Approve access",
+        body: "Claude shows a link that opens your browser. Sign in there and approve.",
+        illustration: "approve",
+      },
+      {
+        title: "Allow the tools",
+        body: "Saves Claude asking permission every time it writes to your workspace.",
+        optional: true,
+        illustration: "allow-tools",
+      },
+    ],
+
+    settingsFallbackPrefix: "Nothing happened?",
+    settingsFallbackLink: "Open connectors in your browser",
+
+    troubleshooting: [
+      {
+        symptom: `There's no "Add custom connector" option`,
+        fix: "Custom connectors need a paid Claude plan. They don't appear on the Free plan.",
+      },
+      {
+        symptom: "You're on a Team or Enterprise plan",
+        fix: "Only the workspace owner can add a connector. Ask them to add it once, and it appears for everyone.",
+      },
+      // Claude moved connectors to Customize — link beats menu navigation.
+      {
+        symptom: "Claude's screens don't match these steps",
+        fix: "Claude moves this page from time to time — it currently sits under Customize. Use the link above rather than navigating by menu.",
+      },
+      {
+        symptom: "You approved access, but this page hasn't moved",
+        fix: "Come back to this tab and leave it open for a few seconds. It checks while you're looking at it.",
+      },
+    ],
+
+    waitingTitle: "Waiting for Claude",
+    waitingBody:
+      "Leave this page open. Your first module opens automatically once Claude is connected.",
+    connectedTitle: "Claude is connected",
+    connectedBody: "Opening your first module.",
+
+    // Disconnect here ends server access; removing the connector in Claude does not.
+    disconnectTitle: "Disconnect Claude",
+    disconnectBody:
+      "Ends Claude's access to this workspace. The connector stays in your Claude settings, and reconnecting means approving access again.",
+    disconnectDone: "Claude no longer has access to this workspace.",
+
+    statusLastActivity: "Claude last used it",
+    statusActiveNote:
+      "Claude used your workspace in the last few minutes, so everything is working.",
+    statusNeverUsedNote:
+      "Claude has access but hasn't used it yet. Your first module will be the first thing that does.",
+    statusIdleNote:
+      "Claude hasn't used your workspace recently, which usually just means it's closed. Ask it to do something here, then refresh.",
+
+    // End access on this page — removing the connector in Claude has no effect here.
+    privacyBody:
+      "Claude can read module questions, save your answers, and store the documents you produce. We cannot see your Claude conversations. Everything Claude does here is recorded, and you can end access from this page at any time.",
+
+    handoff: {
+      openCta: "Continue in Claude",
+      retryCta: "Retry in Claude",
+      // claude:// does nothing visible without the desktop app — phrase fallback as a symptom.
+      hint: "Opens the Claude desktop app with your message ready to send.",
+      fallbackPrefix: "Nothing happened?",
+      fallbackLink: "Open in your browser",
+    },
+  },
+
+  // "openai" is the value the check constraint stores; ChatGPT is the only
+  // name a founder ever sees.
+  openai: {
+    name: "ChatGPT",
+    title: "Connect ChatGPT",
+    titleConnected: "ChatGPT connection",
+    // Three minutes, not two: this route has more manual navigation than
+    // Claude's, because nothing deep-links past the settings window.
+    intro:
+      "Connect ChatGPT once. It takes about three minutes, and your first module opens as soon as you're done.",
+    introConnected:
+      "ChatGPT is connected to this workspace. Everything below is here if you want to check on it or end access.",
+    expiredBody:
+      "Your saved work is safe. Set ChatGPT up again with the address below.",
+
+    setupTitle: "Add the server in ChatGPT",
+    setupBody: "Five steps, once. You'll approve access at the end.",
+
+    manualSteps: [
+      {
+        title: "Open settings in the ChatGPT desktop app",
+        body: "The connection lives in the desktop app. It can't be set up at chatgpt.com.",
+        linkLabel: "Open ChatGPT settings",
+        illustration: "chatgpt-settings",
+      },
+      {
+        title: "Open Plugins, then the MCPs tab",
+        body: "Plugins sits under Integrations. Once it opens, switch to the MCPs tab.",
+        illustration: "chatgpt-plugins",
+      },
+      {
+        title: "Add a server",
+        body: "Choose Add server, then Connect to a custom MCP.",
+        illustration: "chatgpt-add-server",
+      },
+      {
+        title: "Name it, choose Streamable HTTP, and paste this address",
+        // STDIO is the default and hides the URL field, which reads as the
+        // form being broken rather than as the wrong type being selected.
+        body: 'Call it anything — "AI Catalyst" works. The type must be Streamable HTTP, not STDIO. Leave the token and header fields empty.',
+        showAddress: true,
+        illustration: "chatgpt-custom-mcp",
+      },
+      {
+        title: "Save, then approve access",
+        body: "ChatGPT opens your browser to finish. Sign in there with the email you use here, then approve.",
+        illustration: "chatgpt-approve",
+      },
+    ],
+
+    // No settingsFallback*: Plugins and MCPs exist only in the desktop app,
+    // so there is no browser URL to offer. The step renders no fallback.
+
+    troubleshooting: [
+      {
+        symptom: "Nothing happened when you opened settings",
+        fix: "The link only works when the ChatGPT desktop app is installed. Open the app yourself and go to Settings, then carry on from step 2.",
+      },
+      {
+        symptom: "There's no Plugins or MCPs anywhere",
+        fix: "You're in the browser. Plugins, and the MCPs tab inside it, only exist in the ChatGPT desktop app — chatgpt.com has neither.",
+      },
+      {
+        symptom: "It's asking for a command instead of an address",
+        fix: "The type is still set to STDIO, which is for servers running on your own machine. Switch it to Streamable HTTP and the address field appears.",
+      },
+      // ChatGPT approves in an isolated window with no session — see the
+      // comment in app/oauth/continue/route.ts. This is where founders stall.
+      {
+        symptom: "The approval page asks you to sign in",
+        fix: "ChatGPT opens approval in its own window, which doesn't share your browser session. Sign in with the same email you use here, then approve.",
+      },
+      {
+        symptom: "You approved access, but this page hasn't moved",
+        fix: "Come back to this tab and leave it open for a few seconds. It checks while you're looking at it.",
+      },
+    ],
+
+    waitingTitle: "Waiting for ChatGPT",
+    waitingBody:
+      "Leave this page open. Your first module opens automatically once ChatGPT is connected.",
+    connectedTitle: "ChatGPT is connected",
+    connectedBody: "Opening your first module.",
+
+    disconnectTitle: "Disconnect ChatGPT",
+    disconnectBody:
+      "Ends ChatGPT's access to this workspace. The server stays in your ChatGPT settings, and reconnecting means approving access again.",
+    disconnectDone: "ChatGPT no longer has access to this workspace.",
+
+    statusLastActivity: "ChatGPT last used it",
+    statusActiveNote:
+      "ChatGPT used your workspace in the last few minutes, so everything is working.",
+    statusNeverUsedNote:
+      "ChatGPT has access but hasn't used it yet. Your first module will be the first thing that does.",
+    statusIdleNote:
+      "ChatGPT hasn't used your workspace recently, which usually just means it's closed. Ask it to do something here, then refresh.",
+
+    privacyBody:
+      "ChatGPT can read module questions, save your answers, and store the documents you produce. We cannot see your ChatGPT conversations. Everything ChatGPT does here is recorded, and you can end access from this page at any time.",
+
+    handoff: {
+      openCta: "Open ChatGPT",
+      retryCta: "Open ChatGPT",
+      // The connector lives in the desktop app, so the message has to be
+      // pasted into a chat there. No browser fallback: a chat at
+      // chatgpt.com cannot reach this workspace at all.
+      hint: "Copy the message, then paste it into a new chat in the desktop app.",
+    },
+  },
+};
+
+// ── Handing over to the assistant ───────────────────────────────────────
+
+// Neutral half of the hand-off card. The provider-specific half is
+// `assistantCopy[provider].handoff`.
+export const handoffCopy = {
   promptLabel: "Send this",
   copyLabel: "Copy",
-  openCta: "Continue in Claude",
-  retryCta: "Retry in Claude",
-  // claude:// does nothing visible without the desktop app — phrase fallback as a symptom.
-  desktopHint: "Opens the Claude desktop app with your message ready to send.",
-  browserFallbackPrefix: "Nothing happened?",
-  browserFallbackLink: "Open in your browser",
+  copyCta: "Copy the message",
+  copyRetryCta: "Copy it again",
 } as const;
 
 // ── Dashboard ───────────────────────────────────────────────────────────
@@ -162,9 +373,10 @@ export const dashboardCopy = {
   greetingFirstVisit: (name: string) => `Welcome ${name}`,
   greetingReturning: (name: string) => `Welcome back, ${name}`,
 
-  subNeedsConnection: "Connect Claude once. That's the only setup step.",
+  subNeedsConnection:
+    "Connect your AI assistant once. That's the only setup step.",
   subNeedsRun: "Your program is ready to open.",
-  subInProgress: "Module 1 is open. Work through it with Claude.",
+  subInProgress: "Module 1 is open. Work through it with your AI assistant.",
   subDone: "Module 1 is done. Your verdict is saved.",
 
   actionFirstKicker: "First",
@@ -178,10 +390,10 @@ export const dashboardCopy = {
   passwordPromptBody: "For security, replace it with one of your own.",
   passwordPromptCta: "Change it",
 
-  actionConnectTitle: "Connect Claude",
+  actionConnectTitle: "Connect your AI assistant",
   actionConnectBody:
-    "One connection links Claude to this workspace. It takes about two minutes.",
-  actionConnectCta: "Connect Claude",
+    "One connection links your assistant to this workspace. It takes a couple of minutes.",
+  actionConnectCta: "Connect it",
 
   actionOpenRunTitle: "Open your program",
   actionOpenRunBody: "Takes you straight to your first module.",
@@ -189,7 +401,7 @@ export const dashboardCopy = {
 
   actionModule1Title: "Start Module 1",
   actionModule1Body:
-    "Claude asks six questions about your idea, then you decide: proceed, pivot or kill.",
+    "Six questions about your idea, then you decide: proceed, pivot or kill.",
   actionModule1Cta: "Open Module 1",
 
   actionDoneTitle: "Module 1 is complete",
@@ -202,6 +414,117 @@ export const dashboardCopy = {
   modulesViewAll: "View all",
 } as const;
 
+// ── First run ───────────────────────────────────────────────────────────
+
+// The dialog every founder sees once. Only the assistant step is required:
+// a password nobody can remember and a name nobody has typed are both
+// things the dashboard already nudges about, but which assistant to set up
+// decides what the rest of the product shows, so there is no sensible
+// default to skip to.
+export const onboardingCopy = {
+  progress: (step: number, total: number) => `Step ${step} of ${total}`,
+
+  // Placeholder pitch — deliberately short, and written to be replaced.
+  // One sentence, then the arc as a diagram: the paragraph this used to
+  // carry ("you work through it one module at a time…") is the sort of
+  // thing nobody reads on a screen standing between them and the product,
+  // and the three labels below say it faster.
+  welcomeTitle: "Welcome to AI Catalyst",
+  welcomeBody:
+    "Turn a rough idea into a brief you can put in front of an investor, a co-founder or a first customer.",
+  welcomeJourney: {
+    start: "Your idea",
+    middle: "Module by module",
+    end: "A brief",
+  },
+  welcomeSetupNote: "Three quick things first — about two minutes.",
+  welcomeCta: "Get started",
+
+  passwordTitle: "Pick your own password",
+  // No "enter your current password first": they typed it to get here.
+  passwordBody:
+    "You signed in with the password your invitation shipped with. Replace it with one only you know.",
+  passwordCta: "Save and continue",
+  passwordPending: "Saving…",
+
+  nameTitle: "What should we call you?",
+  nameBody:
+    "So we can address you by name instead of your email address. Nothing here is published.",
+  nameFirstLabel: "First name",
+  nameLastLabel: "Last name",
+  nameCta: "Save and continue",
+  namePending: "Saving…",
+
+  assistantTitle: "Which AI assistant will you use?",
+  assistantBody:
+    "It decides which set-up instructions you get and where your modules hand over. You can change it later in your profile.",
+  assistantCta: "Finish setup",
+  assistantPending: "Saving…",
+  // Said once above both cards rather than per card. Either way the
+  // connection is made in the assistant's desktop app, so a note on each
+  // one only invited a comparison there isn't one to make — and the
+  // version that mentioned a browser read as though Claude could be set up
+  // without installing anything, which is not the route these steps take.
+  assistantPlatformNote: "Either one is set up in its desktop app.",
+} as const;
+
+// ── Assistant preference (profile page) ─────────────────────────────────
+
+// Switching the preference and switching the connection are two different
+// things, and the second one is destructive. This section has to be honest
+// about that before the founder clicks, the same way the OAuth consent
+// screen's replacement warning is.
+export const assistantSectionCopy = {
+  heading: "AI assistant",
+  body: "Decides which set-up instructions you get and which app your modules hand over to.",
+  currentLabel: "Currently set to",
+  switchCta: (name: string) => `Switch to ${name}`,
+  switchPending: "Saving…",
+  switched: (name: string) => `Set up for ${name}.`,
+  // A safety net, not an expected state: both directions now keep the two
+  // in step. Reachable only if the disconnect failed after the preference
+  // was saved, so it says what to do rather than just describing.
+  mismatchNote: (connected: string, next: string) =>
+    `${connected} is still connected, though your instructions are set to ${next}. Disconnect it on the connection page, or switch back.`,
+  setupLink: "Set it up",
+
+  // Confirmation before switching. Switching signs the current assistant
+  // out, so this is the last point at which it can be called off.
+  confirmTitle: (next: string) => `Switch to ${next}?`,
+  confirmBodyConnected: (connected: string, next: string) =>
+    `${connected} will be signed out of this workspace. Your saved work stays where it is, but ${connected} loses access immediately and you'll set ${next} up from scratch.`,
+  confirmBodyDisconnected: (next: string) =>
+    `Your set-up instructions and every hand-off button switch to ${next}. Nothing is connected right now, so nothing is signed out.`,
+  confirmCta: (next: string) => `Switch to ${next}`,
+  confirmPending: "Switching…",
+  confirmCancel: "Cancel",
+} as const;
+
+// ── Module 0 (setup) ────────────────────────────────────────────────────
+
+// Hidden behind SHOW_SETUP_MODULE, but the strings live here rather than
+// inline in the component so the neutrality guard can see them. The two
+// functions take the assistant's name because this step is a hand-off —
+// one of the two places allowed to name it.
+export const module0Copy = {
+  checkTitle: (assistant: string) => `Hand it over to ${assistant}`,
+  checkBody: (assistant: string) =>
+    `Send the line below. ${assistant} confirms it can reach your workspace, then writes and saves your Setup Summary.`,
+
+  notConnected:
+    "No AI assistant is connected to this workspace yet, so nothing can be saved.",
+  notConnectedLink: "Set up the connection",
+  notConnectedSuffix: ", then come back here.",
+
+  progressHeading: "Progress",
+  progressSaved: "Setup Summary saved to your workspace",
+  progressSavedPending:
+    "Nothing saved yet — this page updates when it's saved.",
+  progressChecks: "Nothing missing from it",
+  progressChecksDone: "Read it over whenever you're ready.",
+  progressChecksPending: "Happens by itself once the document is saved.",
+} as const;
+
 // ── Module 1 ────────────────────────────────────────────────────────────
 
 export const module1Copy = {
@@ -211,7 +534,7 @@ export const module1Copy = {
 
   briefTitle: "What this module is for",
   briefBody:
-    "Claude plays a veteran investor and challenges your idea. You'll cover where it breaks, who you're really competing with, and what would have to be true for it to work. You finish with a decision you can defend: proceed, pivot or kill.",
+    "Your AI assistant plays a veteran investor and challenges your idea. You'll cover where it breaks, who you're really competing with, and what would have to be true for it to work. You finish with a decision you can defend: proceed, pivot or kill.",
 
   whyHeading: "Why it matters",
   whyBody:
@@ -231,7 +554,7 @@ export const module1Copy = {
     },
     {
       lead: "Expect pushback.",
-      body: "Claude will name the strongest case against your idea and challenge vague answers. That is intentional.",
+      body: "You'll be given the strongest case against your idea, and vague answers will be challenged. That is intentional.",
     },
     {
       lead: "This doesn't replace talking to customers.",
@@ -239,22 +562,22 @@ export const module1Copy = {
     },
   ],
 
-  workTitle: "Work through it in Claude",
+  workTitle: "Work through it in your AI assistant",
   workBody:
-    "Send the message below. Claude asks the questions one at a time. This page updates as it saves, so you can leave and come back.",
+    "Send the message below. The questions come one at a time. This page updates as answers are saved, so you can leave and come back.",
   // Locked vs not-started need different copy — connection and prior-module gates differ.
   workBodyLocked:
     "A preview of how this module works. You can start it once you finish the module before it.",
   workBodyNotStarted:
-    "A preview of how this module works. The steps go live once Claude is connected.",
+    "A preview of how this module works. The steps go live once your AI assistant is connected.",
   workLockedNote:
-    "Opening Claude and starting this module unlocks after you finish the previous one.",
+    "Starting this module unlocks after you finish the previous one.",
   workNotStartedNote:
-    "Connect Claude first. This message then opens a chat that starts the module.",
+    "Connect your AI assistant first. This message then opens a chat that starts the module.",
 
   notConnected:
-    "Claude isn't connected to this workspace yet, so nothing can be saved.",
-  notConnectedLink: "Connect Claude",
+    "No AI assistant is connected to this workspace yet, so nothing can be saved.",
+  notConnectedLink: "Connect one",
   notConnectedSuffix: ", then come back.",
 
   questionsLabel: "Six pressure-test questions",
@@ -275,15 +598,15 @@ export const module1Copy = {
     "Your verdict is saved and nothing is missing from it. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
   confirmNoFileTitle: "No file yet",
   confirmNoFileBody:
-    "We haven't found a verdict in your workspace yet. Once Claude saves it, you sign it off here.",
+    "We haven't found a verdict in your workspace yet. Once it's saved, you sign it off here.",
   confirmNoFileLocked:
     "You can look ahead here. You'll be able to start this module and save a verdict once the one before it is done.",
   confirmNoFileNotStarted:
-    "You can look ahead here. Sign-off appears once Claude has saved your verdict.",
+    "You can look ahead here. Sign-off appears once your verdict has been saved.",
   confirmUnavailable: "Sign-off opens along with this module.",
   confirmFinishFirst: "Finish the conversation in the previous step first.",
   reviseHint:
-    "Not happy with it? Ask Claude to revise. Nothing is locked in until you confirm.",
+    "Not happy with it? Ask for a revision. Nothing is locked in until you confirm.",
 
   documentHeading: "The document",
   documentCovers: "It should cover",
@@ -319,8 +642,8 @@ export function module1CompletedBody(
   }
   if (decision === "pivot") {
     return nextModuleTitle
-      ? `You chose pivot. ${nextModuleTitle} is open if you want to continue with the revised framing. You can also re-run this module with Claude first.`
-      : "You chose pivot. Re-run this module with Claude for a fresh pressure-test on the revised idea.";
+      ? `You chose pivot. ${nextModuleTitle} is open if you want to continue with the revised framing. You can also re-run this module first.`
+      : "You chose pivot. Re-run this module for a fresh pressure-test on the revised idea.";
   }
   return nextModuleTitle
     ? `You confirmed this, which opened ${nextModuleTitle}. Your verdict stays in your workspace.`
@@ -337,7 +660,7 @@ export function module1ConfirmCta(decision: FounderDecision): string {
 
 export const retryCopy = {
   title: "Ready to go again",
-  body: "Claude can't save anything more to this module until you start it again. Everything you've answered so far is kept.",
+  body: "Nothing more can be saved to this module until you start it again. Everything you've answered so far is kept.",
   cta: "Run it again",
   pending: "Opening…",
 } as const;
@@ -346,10 +669,10 @@ export const retryCopy = {
 
 export const moduleGateCopy = {
   // No connection: Continue would fail — send them to connect instead.
-  needsConnectionTitle: "Connect Claude to start this module",
+  needsConnectionTitle: "Connect your AI assistant to start this module",
   needsConnectionBody:
-    "Connect Claude once. It takes about two minutes, and this module opens as soon as you're done.",
-  needsConnectionCta: "Connect Claude",
+    "Connect it once. It takes a couple of minutes, and this module opens as soon as you're done.",
+  needsConnectionCta: "Connect it",
 
   needsRunTitle: "Open this module",
   needsRunBody: "Opens the module and gets your workspace ready for it.",
@@ -374,7 +697,7 @@ export const modulesCopy = {
   title: "From raw idea to a business case",
   // Locked modules look like paywalls without "open in order".
   intro:
-    "Each module tests one part of your idea with Claude and leaves a document in your workspace. They open in order.",
+    "Each module tests one part of your idea with your AI assistant and leaves a document in your workspace. They open in order.",
   allModules: "All modules",
   openCount: (open: number, total: number) => `${open} of ${total} open`,
 } as const;
@@ -383,7 +706,7 @@ export const artefactsCopy = {
   kicker: "Your workspace",
   title: "Everything your modules produce",
   intro:
-    "Every document Claude saves is kept here, including each earlier version.",
+    "Every document your modules save is kept here, including each earlier version.",
   byModule: "By module",
   savedCount: (saved: number, total: number) => `${saved} of ${total} saved`,
 
@@ -436,13 +759,13 @@ export function lifecycleStageLabel(stage: string): string {
 export const errorCopy = {
   generic: "That didn't work. Try again in a moment.",
   notConnected:
-    "Claude isn't connected yet. Finish approving access in Claude, then try again.",
+    "Your AI assistant isn't connected yet. Finish approving access there, then try again.",
   noActiveVenture:
     "We couldn't find your active program. Open the dashboard and try again, or ask your program lead.",
   ventureUnavailable:
     "Your program workspace isn't available. Open the dashboard, or ask your program lead.",
   setupFailed:
-    "Claude is connected, but setting up your workspace didn't finish. Try again in a moment, and tell your program lead if it keeps happening.",
+    "Your AI assistant is connected, but setting up your workspace didn't finish. Try again in a moment, and tell your program lead if it keeps happening.",
   copyFailed: "Couldn't copy. Select the text and copy it manually.",
 } as const;
 

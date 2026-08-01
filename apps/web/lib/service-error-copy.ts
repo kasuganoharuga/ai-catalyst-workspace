@@ -29,14 +29,14 @@ const FOUNDER_MESSAGE_BY_CODE: Partial<Record<ServiceErrorCode, string>> = {
   RUN_MODULE_NOT_AVAILABLE:
     "This module isn't open yet. Finish the one before it first.",
   MODULE_NOT_READY_FOR_CONFIRMATION:
-    "There's nothing to confirm here yet. This page updates once Claude saves your work and nothing is missing from it.",
+    "There's nothing to confirm here yet. This page updates once your work is saved and nothing is missing from it.",
 
   ATTEMPT_PENDING_REVIEW:
     "Your work is being checked. Refresh in a moment to see the result.",
   ATTEMPT_NOT_EDITABLE:
-    "Claude can't save anything more to this module until you start it again. Everything you've answered so far is kept.",
+    "Nothing more can be saved to this module until you start it again. Everything you've answered so far is kept.",
   ATTEMPT_NOT_SUBMITTABLE:
-    "This isn't ready to submit yet. Finish the conversation in Claude first.",
+    "This isn't ready to submit yet. Finish the conversation in your AI assistant first.",
   ATTEMPT_RETRY_SOURCE_INVALID:
     "There's nothing left to retry here. Confirm this module, or ask your program lead.",
   ATTEMPT_NOT_AWAITING_VALIDATION:
@@ -46,9 +46,9 @@ const FOUNDER_MESSAGE_BY_CODE: Partial<Record<ServiceErrorCode, string>> = {
     "This module isn't ready to check your work yet. Try again shortly, and tell your program lead if it keeps happening.",
 
   STORAGE_CONTENT_CONFLICT:
-    "That document has already been saved with different content. Ask Claude to save a new version.",
+    "That document has already been saved with different content. Ask your AI assistant to save a new version.",
   STORAGE_OBJECT_NOT_WRITABLE:
-    "We couldn't save that file. Ask Claude to try saving it again.",
+    "We couldn't save that file. Ask your AI assistant to try saving it again.",
   STORAGE_OBJECT_NOT_DELETABLE:
     "That file is already saved and can't be removed.",
 

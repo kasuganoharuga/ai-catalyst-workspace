@@ -58,8 +58,8 @@ export function ModuleStatusCard({
         return "Opens when the module before it is done";
       case "available":
         return isSetupModule
-          ? "About five minutes, all in Claude"
-          : "Open — start it in Claude whenever you're ready";
+          ? "About five minutes, all in your AI assistant"
+          : "Open — start it whenever you're ready";
       case "in_progress":
         if (effectiveAttemptStatus === "ready_for_review")
           return "Verdict saved — mentor review comes next";
@@ -69,7 +69,7 @@ export function ModuleStatusCard({
           effectiveAttemptStatus === "cancelled"
         )
           return "Needs another go — open the module to run it again";
-        return "In progress — pick it up in Claude anytime";
+        return "In progress — pick it up anytime";
       case "completed":
         return runModule.completedAt
           ? `Completed ${formatDate(runModule.completedAt)}`

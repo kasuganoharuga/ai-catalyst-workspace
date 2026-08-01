@@ -77,6 +77,7 @@ describe("mcp-auth service — database integration", () => {
       disabled?: boolean;
       type?: string;
       clientSecret?: string | null;
+      redirectUrls?: string;
     } = {},
   ): Promise<string> {
     const clientId = `${idPrefix}-client-${label}`;
@@ -88,7 +89,7 @@ describe("mcp-auth service — database integration", () => {
         `Test Client ${label}`,
         clientId,
         options.clientSecret ?? null,
-        "https://claude.ai/callback",
+        options.redirectUrls ?? "https://claude.ai/callback",
         options.type ?? "public",
         options.disabled ?? false,
       ],
@@ -1210,7 +1211,45 @@ describe("mcp-auth service — database integration", () => {
         expiresAt: null,
         hasEverAuthorised: false,
         lastActivityAt: null,
+        provider: null,
       });
+    });
+
+    // The connection page names the connected assistant from this, so that
+    // a founder who set the site up for one and is connected with the other
+    // is not shown a status card describing the wrong product.
+    it("identifies the connected vendor from the client's redirect host", async () => {
+      const userId = await createUser("conn-provider", "founder");
+      const clientId = await createClient("conn-provider", {
+        redirectUrls: "https://chatgpt.com/connector_platform_oauth_redirect",
+      });
+      await createAccessToken(clientId, userId);
+      await createGrant(userId, clientId);
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+
+      expect(status.authorised).toBe(true);
+      expect(status.provider).toBe("openai");
+    });
+
+    // A client that registered a redirect we don't recognise is not
+    // evidence for any vendor, and the UI must not guess from its
+    // self-chosen display name.
+    it("reports an unrecognised client as other rather than guessing", async () => {
+      const userId = await createUser("conn-provider-other", "founder");
+      const clientId = await createClient("conn-provider-other", {
+        redirectUrls: "https://example.test/callback",
+      });
+      await createAccessToken(clientId, userId);
+      await createGrant(userId, clientId);
+
+      const status = await getMcpConnectionStatus(
+        createWebActorContext({ userId, role: "founder" }),
+      );
+
+      expect(status.provider).toBe("other");
     });
 
     it("dates the connection from the grant, not the rotated token row", async () => {
@@ -1619,6 +1658,80 @@ describe("mcp-auth service — database integration", () => {
         [userId, claudeClientId],
       );
       expect(withdrawal.rowCount).toBe(1);
+    });
+
+    // Connecting is one of the three ways a founder chooses an assistant
+    // (the others being the first-run dialog and the profile switcher), so
+    // it has to leave the same record behind. Without this, a founder who
+    // connected ChatGPT directly would keep being shown Claude's set-up
+    // steps and Claude hand-off buttons for a Claude that no longer has
+    // any access — the eviction above saw to that.
+    it("points the website's stored preference at whatever just connected", async () => {
+      const userId = await createUser("grant-preference", "founder");
+      await pool.query(
+        `insert into user_profiles (user_id, preferred_ai_provider)
+         values ($1, 'claude')`,
+        [userId],
+      );
+      const clientId = await createClient("grant-preference", {
+        redirectUrls: "https://chatgpt.com/connector_platform_oauth_redirect",
+      });
+
+      await recordMcpGrantIssued({
+        accessToken: await createAccessToken(clientId, userId),
+      });
+
+      const profile = await pool.query<{ preferred_ai_provider: string }>(
+        `select preferred_ai_provider from user_profiles where user_id = $1`,
+        [userId],
+      );
+      expect(profile.rows[0]?.preferred_ai_provider).toBe("openai");
+    });
+
+    // A client we cannot place is not evidence for either product, and
+    // guessing would silently rewrite the founder's set-up instructions.
+    it("leaves the preference alone for an unrecognised client", async () => {
+      const userId = await createUser("grant-preference-other", "founder");
+      await pool.query(
+        `insert into user_profiles (user_id, preferred_ai_provider)
+         values ($1, 'claude')`,
+        [userId],
+      );
+      const clientId = await createClient("grant-preference-other", {
+        redirectUrls: "https://example.test/callback",
+      });
+
+      await recordMcpGrantIssued({
+        accessToken: await createAccessToken(clientId, userId),
+      });
+
+      const profile = await pool.query<{ preferred_ai_provider: string }>(
+        `select preferred_ai_provider from user_profiles where user_id = $1`,
+        [userId],
+      );
+      expect(profile.rows[0]?.preferred_ai_provider).toBe("claude");
+    });
+
+    // The write goes through upsertPreferredAiProvider (profile/internal),
+    // the same upsert setPreferredAiProvider uses for a Founder-driven
+    // change — so it creates the row here too, rather than assuming one
+    // already exists. In practice a Founder who reaches an authorisation
+    // has been through the first-run dialog and already has a row; this
+    // is the fallback holding regardless, rather than a second place that
+    // assumption has to keep being true.
+    it("creates a profile row for a founder who has none", async () => {
+      const userId = await createUser("grant-preference-norow", "founder");
+      const clientId = await createClient("grant-preference-norow");
+
+      await recordMcpGrantIssued({
+        accessToken: await createAccessToken(clientId, userId),
+      });
+
+      const profile = await pool.query<{ preferred_ai_provider: string }>(
+        `select preferred_ai_provider from user_profiles where user_id = $1`,
+        [userId],
+      );
+      expect(profile.rows[0]?.preferred_ai_provider).toBe("claude");
     });
 
     it("restarts the clock when the same client re-authorises", async () => {

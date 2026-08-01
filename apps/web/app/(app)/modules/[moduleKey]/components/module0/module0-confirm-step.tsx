@@ -58,8 +58,8 @@ export function Module0ConfirmStep({
             )
           ) : awaitingConfirmation ? (
             <>
-              Read what Claude saved, make sure it matches what this module
-              asked for, then confirm. That marks Module 0 done
+              Read what was saved, make sure it matches what this module asked
+              for, then confirm. That marks Module 0 done
               {nextModuleTitle ? (
                 <>
                   {" "}
@@ -72,7 +72,7 @@ export function Module0ConfirmStep({
               .
             </>
           ) : (
-            "We haven't found a Setup Summary in your workspace yet. Once Claude saves it and it passes its checks, this is where you sign it off. Nothing unlocks until you do."
+            "We haven't found a Setup Summary in your workspace yet. Once it's saved and passes its checks, this is where you sign it off. Nothing unlocks until you do."
           )
         }
       />
@@ -172,8 +172,8 @@ export function Module0ConfirmStep({
         </div>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
-          Finish the check in Claude first — this page updates when the file
-          lands.
+          Finish the check in your AI assistant first — this page updates when
+          the file lands.
         </p>
       )}
     </>

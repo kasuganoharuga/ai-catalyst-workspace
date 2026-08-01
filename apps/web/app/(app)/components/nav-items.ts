@@ -12,8 +12,11 @@ export const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
 export const ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
   { href: "/profile", label: "Your profile" },
   { href: "/company-profile", label: "Company profile" },
-  // Not "MCP connection". MCP is the protocol underneath, and naming it
+  // Not "MCP connection": MCP is the protocol underneath, and naming it
   // here asked a founder to recognise an acronym to find the page where
-  // they connect Claude.
-  { href: "/connection", label: "Claude connection" },
+  // they connect their assistant. Not the assistant's name either — this
+  // label is rendered on every screen from the app shell, which does not
+  // know which one they chose, and a label that flipped between products
+  // would move under them for no gain.
+  { href: "/connection", label: "AI connection" },
 ];

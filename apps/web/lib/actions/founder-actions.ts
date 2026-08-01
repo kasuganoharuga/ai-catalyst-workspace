@@ -7,7 +7,11 @@ import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { autoCompleteSetupModule } from "@ai-catalyst/services/module/auto-setup";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
 import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
-import { updateMyProfile } from "@ai-catalyst/services/profile";
+import {
+  hasChangedInvitationPassword,
+  setPreferredAiProvider,
+  updateMyProfile,
+} from "@ai-catalyst/services/profile";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
   getMcpConnectionStatus,
@@ -110,6 +114,104 @@ export async function updateProfileAction(
     const actor = await requireFounderActor();
     await updateMyProfile(actor, input);
     revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+// Better Auth's own floor for `emailAndPassword`, mirrored in
+// components/password-change-form.tsx so the founder is told before a
+// round trip rather than after one.
+const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Replaces the invitation password without asking for it again.
+ *
+ * The normal change-password path requires the current password, and for
+ * good reason: it stops a stolen session from locking the real owner out.
+ * This one takes the session as proof instead, which is a weaker check —
+ * so it is deliberately only reachable in the one window where the trade
+ * is favourable.
+ *
+ * That window is "the founder has never replaced the password their
+ * invitation shipped with". In it, the secret the current-password check
+ * would be verifying is one a program lead sent them over email, so it
+ * protects very little; and the founder typed it seconds ago to reach the
+ * first-run dialog, so asking again is friction with no security bought.
+ * `hasChangedInvitationPassword` is the gate, and it is the same signal
+ * that decides whether the dialog shows this step at all — once it flips,
+ * this action refuses and /profile's current-password form takes over.
+ *
+ * Sessions are deliberately left alone. Better Auth's change-password
+ * revokes the *other* ones; there is no equivalent here that doesn't also
+ * end the caller's own session, and a founder signed out halfway through
+ * an uncloseable dialog is a worse outcome than a stale session on an
+ * account that was minted minutes ago.
+ */
+export async function setInitialPasswordAction(
+  newPassword: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+
+    if (await hasChangedInvitationPassword(actor)) {
+      throw new ServiceError(
+        "FORBIDDEN",
+        "Initial password can only be set while the invitation password is still in use.",
+      );
+    }
+
+    if (
+      typeof newPassword !== "string" ||
+      newPassword.length < MIN_PASSWORD_LENGTH
+    ) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        `newPassword must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+      );
+    }
+
+    // Same two calls Better Auth's own reset-password route makes, so the
+    // hash format is whatever this version expects rather than something
+    // guessed here (see dist/api/routes/password.mjs).
+    const authContext = await auth.$context;
+    await authContext.internalAdapter.updatePassword(
+      actor.userId,
+      await authContext.password.hash(newPassword),
+    );
+
+    // The account.update hook in lib/auth.ts only fires for the
+    // /change-password and /reset-password routes, and this is neither, so
+    // the revoke it would have done is done here. A founder at this step
+    // has nothing connected yet, which makes this a no-op in practice —
+    // but it keeps "the password changed" and "the grants are gone" from
+    // ever coming apart.
+    await revokeMcpConnectionForUser(actor);
+
+    revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Records which AI assistant the founder set the website up for.
+ *
+ * Deliberately does not redirect: `redirect()` works by throwing, and the
+ * `catch` below would swallow it (see the comment in app/page.tsx). The
+ * caller navigates or closes the dialog once this returns `{ ok: true }`,
+ * the same way DisconnectButton and ProfileForm do.
+ */
+export async function setPreferredAiProviderAction(
+  provider: unknown,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await setPreferredAiProvider(actor, provider);
+    revalidateFounderAppShell();
+    revalidatePath("/connection");
     return { ok: true };
   } catch (error) {
     return toActionResult(error);
