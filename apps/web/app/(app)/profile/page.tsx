@@ -8,7 +8,6 @@ import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
 
 import { PageShell } from "../components/page-shell";
 import { AssistantSection } from "./components/assistant-section";
-import { PasswordSection } from "./components/password-section";
 import { ProfileForm } from "./components/profile-form";
 
 export const metadata = appPageTitle("Your profile");
@@ -39,15 +38,10 @@ export default async function ProfilePage() {
 
       <ProfileForm profile={profile} />
 
-      {/* Above the password section: this is a preference a founder may
-          come here to change, while the password is something they arrive
-          at knowing they need. */}
       <AssistantSection
         current={profile.preferredAiProvider}
         connectedProvider={connection.provider}
       />
-
-      <PasswordSection />
     </PageShell>
   );
 }

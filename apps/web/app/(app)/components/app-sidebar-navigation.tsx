@@ -12,7 +12,7 @@ export function AppSidebarNavigation({
     return (
       <nav className="flex min-w-0 flex-row gap-1 overflow-x-auto">
         {PRIMARY_NAV_ITEMS.map((item) => (
-          <NavLink key={item.href} item={item} />
+          <NavLink key={item.href} item={item} compact />
         ))}
       </nav>
     );

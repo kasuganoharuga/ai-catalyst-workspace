@@ -116,7 +116,14 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="mt-12 grid grid-cols-3 divide-x divide-border border-y border-border">
+      {/* Stacked below sm: three equal 1fr columns left "Connected" — the
+          connection stat's value can be a whole word, not just a short
+          number like the other two — with no room to sit on one line at
+          phone widths (see connection-stat.tsx for the full set of
+          strings). A vertical list at that size gives every stat the
+          page's full width instead of a third of it, which is the actual
+          fix; the row layout returns once there's width to spare. */}
+      <div className="mt-12 grid grid-cols-1 divide-y divide-border border-y border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <Stat
           value={`${view.unlockedCount}`}
           suffix={`/${view.visibleCatalogCount}`}
@@ -159,8 +166,11 @@ function Stat({
   children: ReactNode;
 }) {
   return (
-    <div className="px-5 py-6 first:pl-0 last:pr-0">
-      <p className="font-serif text-[2rem] font-medium leading-none tabular-nums tracking-[-0.02em]">
+    <div className="min-w-0 px-5 py-6 sm:first:pl-0 sm:last:pr-0">
+      {/* break-words: a defensive backstop, not the fix — see the grid's
+          comment above. Harmless for the short numeric values, which
+          never come close to needing it. */}
+      <p className="font-serif text-[2rem] font-medium leading-none tabular-nums tracking-[-0.02em] break-words">
         {value}
         {suffix ? (
           <span className="text-lg text-muted-foreground">{suffix}</span>

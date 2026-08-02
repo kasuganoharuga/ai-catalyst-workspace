@@ -88,7 +88,14 @@ export function ModuleStatusCard({
       )}
     >
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
+        {/* Stacked below sm, row from sm: up — the same breakpoint the
+            carousel itself uses to widen the card (basis-[85%] to
+            basis-1/2 in modules-carousel.tsx). At the 85% mobile width a
+            long title plus a wide status pill ("Ready for review") don't
+            both fit beside each other regardless of how much the title
+            wraps; the badge is shrink-0 on purpose, so it was the one
+            spilling past the card's edge instead. */}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex items-center gap-3">
             {/* Identity, not status: the badge always wears the module's
                 own colour so it stays recognisable in every state, and

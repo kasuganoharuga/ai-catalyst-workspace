@@ -92,7 +92,15 @@ const SHOTS: Shot[] = [
     name: "03-profile",
     account: "new",
     path: "/profile",
-    looksAt: "No subtitle, no About you field, password section below.",
+    looksAt:
+      "No subtitle, no About you field. AI assistant section below the form; password now lives on its own Account security page.",
+  },
+  {
+    name: "03b-account-security",
+    account: "new",
+    path: "/account-security",
+    looksAt:
+      "Split out of Your profile. Kicker + heading match the sidebar label, then the same password form and inert reset-by-email note that used to sit at the bottom of the profile page.",
   },
   {
     name: "04-dashboard-after-profile",

@@ -3,6 +3,7 @@
 import {
   Building2,
   FileText,
+  KeyRound,
   LayoutDashboard,
   Layers,
   Plug,
@@ -21,6 +22,9 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   "/modules": Layers,
   "/artefacts": FileText,
   "/profile": UserRound,
+  // Same icon the dashboard's invitation-password nudge already uses
+  // (password-prompt.tsx) — one glyph for "password" everywhere it shows up.
+  "/account-security": KeyRound,
   "/company-profile": Building2,
   "/connection": Plug,
 };
@@ -28,9 +32,20 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
 export function NavLink({
   item,
   withIcon = false,
+  compact = false,
 }: {
   item: NavItemConfig;
   withIcon?: boolean;
+  /**
+   * The mobile top bar's tighter sizing. Three full labels at the
+   * vertical sidebar's padding and text size need more width than the
+   * bar has once the logo and account menu take their share (measured:
+   * 269px of links in 243px of room at 375px wide), clipping the last
+   * tab against the account menu with no visual sign there was more.
+   * Smaller padding and text close that gap with room to spare, rather
+   * than landing exactly on the boundary at today's three label lengths.
+   */
+  compact?: boolean;
 }) {
   const isActive = useActiveNavItem(item.href);
   const Icon = ICON_BY_HREF[item.href];
@@ -40,7 +55,8 @@ export function NavLink({
       href={item.href}
       aria-current={isActive ? "page" : undefined}
       className={cn(
-        "flex shrink-0 items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition",
+        "flex shrink-0 items-center gap-2.5 rounded-md font-medium transition",
+        compact ? "px-2 py-1.5 text-xs" : "px-3 py-2 text-sm",
         isActive
           ? "bg-secondary text-secondary-foreground"
           : "text-muted-foreground hover:bg-muted hover:text-foreground",

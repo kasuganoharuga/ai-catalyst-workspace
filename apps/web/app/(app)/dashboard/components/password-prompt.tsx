@@ -17,7 +17,7 @@ export function PasswordPrompt() {
         </p>
       </div>
       <Link
-        href="/profile"
+        href="/account-security"
         className="shrink-0 text-sm font-semibold text-foreground underline underline-offset-4"
       >
         {dashboardCopy.passwordPromptCta}

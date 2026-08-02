@@ -11,6 +11,7 @@ export const PRIMARY_NAV_ITEMS: NavItemConfig[] = [
 
 export const ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
   { href: "/profile", label: "Your profile" },
+  { href: "/account-security", label: "Account security" },
   { href: "/company-profile", label: "Company profile" },
   // Not "MCP connection": MCP is the protocol underneath, and naming it
   // here asked a founder to recognise an acronym to find the page where

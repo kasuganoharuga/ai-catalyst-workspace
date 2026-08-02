@@ -4,13 +4,13 @@ import { PasswordChangeForm } from "../../components/password-change-form";
 
 export function PasswordSection() {
   return (
-    <section className="mt-14">
+    <section className="mt-8 max-w-2xl">
       <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Password
       </h2>
 
       <PasswordChangeForm
-        className="mt-3 max-w-2xl border-t border-border pt-6"
+        className="mt-3 border-t border-border pt-6"
         successNote="Password updated. Other devices have been signed out and your AI assistant disconnected."
       />
 
