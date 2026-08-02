@@ -1,0 +1,42 @@
+name: Diagnose AWS OIDC
+
+# One-shot helper when Deploy to AWS fails at Configure AWS credentials
+# with AssumeRoleWithWebIdentity. Prints the minted OIDC claims and tries
+# the same role assume the deploy workflow uses — no ECR/ECS side effects.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  diagnose:
+    name: Inspect OIDC + assume deploy role
+    runs-on: ubuntu-latest
+    env:
+      AWS_ACCOUNT_ID: "765332581489"
+      AWS_REGION: ap-southeast-2
+      AWS_ROLE_ARN: arn:aws:iam::765332581489:role/ai-catalyst-github-actions-deploy
+    steps:
+      - name: Inspect GitHub OIDC token claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOKEN="$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r .value)"
+          PAYLOAD="$(printf '%s' "${TOKEN}" | cut -d. -f2 | tr '_-' '/+')"
+          pad=$(( (4 - ${#PAYLOAD} % 4) % 4 ))
+          PAYLOAD="${PAYLOAD}$(printf '=%.0s' $(seq 1 ${pad}))"
+          echo "${PAYLOAD}" | base64 -d 2>/dev/null | jq '{sub, aud, iss, repository, repository_id, repository_owner, repository_owner_id, ref}'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          audience: sts.amazonaws.com
+
+      - name: Confirm caller identity
+        run: aws sts get-caller-identity
