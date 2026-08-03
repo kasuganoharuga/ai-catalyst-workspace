@@ -63,27 +63,11 @@ jobs:
               ;;
           esac
 
-      # Surface the exact OIDC `sub`/`aud` GitHub minted before assume —
-      # when IAM rejects AssumeRoleWithWebIdentity the Actions error is
-      # opaque, and CloudTrail + this log are how you see which claim the
-      # trust policy failed to match (classic slug vs immutable @id form).
-      - name: Inspect GitHub OIDC token claims
-        shell: bash
-        run: |
-          set -euo pipefail
-          TOKEN="$(curl -sS -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
-            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=sts.amazonaws.com" | jq -r .value)"
-          PAYLOAD="$(printf '%s' "${TOKEN}" | cut -d. -f2 | tr '_-' '/+')"
-          pad=$(( (4 - ${#PAYLOAD} % 4) % 4 ))
-          PAYLOAD="${PAYLOAD}$(printf '=%.0s' $(seq 1 ${pad}))"
-          echo "${PAYLOAD}" | base64 -d 2>/dev/null | jq '{sub, aud, iss, repository, repository_id, repository_owner, repository_owner_id, ref}'
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
-          audience: sts.amazonaws.com
 
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
