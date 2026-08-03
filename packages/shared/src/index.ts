@@ -63,3 +63,9 @@ export type {
   UpdateCompanyProfileInput,
   CompanyProfileStatus,
 } from "./company-profile.js";
+export type {
+  MentorFounderSummary,
+  MentorFounderDetail,
+  MentorArtefactSummary,
+  MentorArtefactDocument,
+} from "./mentor.js";

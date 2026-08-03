@@ -19,13 +19,13 @@ export function AppSidebar({ user }: AppSidebarProps) {
         <Logo />
       </Link>
 
-      <AppSidebarNavigation />
+      <AppSidebarNavigation role={user.role} />
 
       <div className="mt-auto border-t border-sidebar-border p-3">
         <UserMenu
           name={user.displayName}
           email={user.email}
-          subtitle={user.ventureSubtitle}
+          subtitle={user.subtitle}
           side="top"
           align="start"
         />

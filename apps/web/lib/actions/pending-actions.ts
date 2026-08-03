@@ -11,10 +11,10 @@ import { auth } from "@/lib/auth";
 
 // Where the newly-promoted account belongs. Kept in step with
 // ROLE_DESTINATION in app/page.tsx, which routes the same roles on sign-in
-// — Founders land on /dashboard; Mentors keep /toolkit until the supervision UI lands.
+// — both a Founder and a Mentor land on /dashboard, a role-aware page.
 const DESTINATION_BY_INVITE_ROLE = {
   founder: "/dashboard",
-  mentor: "/toolkit",
+  mentor: "/dashboard",
 } as const;
 
 export type AcceptInvitationActionResult =

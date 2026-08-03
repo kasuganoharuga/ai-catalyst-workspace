@@ -15,11 +15,14 @@ type HomePageProps = {
   searchParams: Promise<{ returnTo?: string | string[] }>;
 };
 
+// founder and mentor deliberately share a destination: /dashboard is a
+// role-aware page (app/(app)/dashboard/page.tsx) that renders different
+// content for each, inside the same shared app shell.
 const ROLE_DESTINATION: Record<ActorRole, string> = {
   founder: "/dashboard",
   admin: "/admin",
   pending: "/pending",
-  mentor: "/toolkit",
+  mentor: "/dashboard",
 };
 
 export default async function HomePage({ searchParams }: HomePageProps) {
@@ -32,7 +35,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   if (session) {
     // Better Auth's session type widens `role` to `string`, so this cannot
     // be a plain `as ActorRole` cast — an unrecognized value must be
-    // treated as unauthenticated, not silently redirected to /toolkit.
+    // treated as unauthenticated, not silently redirected to some
+    // ROLE_DESTINATION entry that happens to match a substring.
     // (actorContextFromSession throws rather than returning a nullable, so
     // it's called outside the redirect() calls below: redirect() works by
     // throwing internally, and wrapping it in this try would swallow that.)

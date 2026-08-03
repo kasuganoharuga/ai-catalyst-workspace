@@ -1,7 +1,6 @@
 import { cache } from "react";
 
 import {
-  getModuleMarkdown,
   getSkillFile,
   getToolkitManifest as getToolkitManifestUncached,
   getToolkitModule as getToolkitModuleUncached,
@@ -12,8 +11,12 @@ import {
 // request-scoped cache() to the pure content reads (per-request
 // deduplication only, not persistent caching) and otherwise delegates
 // entirely — no business logic lives here.
+//
+// Backs /downloads (getSkillFile, getToolkitModule, getToolkitModules) —
+// the public preview gallery that also read these (getModuleMarkdown, the
+// /toolkit route) was retired.
 export const getToolkitManifest = cache(getToolkitManifestUncached);
 export const getToolkitModules = cache(getToolkitModulesUncached);
 export const getToolkitModule = cache(getToolkitModuleUncached);
 
-export { getModuleMarkdown, getSkillFile };
+export { getSkillFile };

@@ -93,10 +93,6 @@ async function main() {
     );
   }
 
-  assertTraced(path.join("app", "toolkit", "[module]", "page.js.nft.json"), [
-    "packages/toolkit-content/manifest.json",
-    `packages/toolkit-content/modules/${KNOWN_MODULE_ID}.md`,
-  ]);
   assertTraced(path.join("app", "downloads", "[module]", "route.js.nft.json"), [
     "packages/toolkit-content/manifest.json",
     `packages/toolkit-content/skills/${KNOWN_MODULE_ID}/SKILL.md`,
@@ -125,11 +121,10 @@ async function main() {
   const baseUrl = `http://127.0.0.1:${PORT}`;
 
   try {
-    await waitForServer(`${baseUrl}/toolkit`, 15_000, () => serverOutput);
+    await waitForServer(`${baseUrl}/downloads`, 15_000, () => serverOutput);
 
     const checks = [
-      { path: "/toolkit", expected: 200 },
-      { path: `/toolkit/${KNOWN_MODULE_ID}`, expected: 200 },
+      { path: "/downloads", expected: 200 },
       { path: `/downloads/${KNOWN_MODULE_ID}`, expected: 200 },
     ];
 

@@ -6,6 +6,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Layers,
+  Mail,
   Plug,
   UserRound,
   type LucideIcon,
@@ -21,6 +22,8 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
   "/modules": Layers,
   "/artefacts": FileText,
+  // Mentor-only nav item — see nav-items.ts's MENTOR_PRIMARY_NAV_ITEMS.
+  "/invitations": Mail,
   "/profile": UserRound,
   // Same icon the dashboard's invitation-password nudge already uses
   // (password-prompt.tsx) — one glyph for "password" everywhere it shows up.

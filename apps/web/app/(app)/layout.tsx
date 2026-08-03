@@ -6,6 +6,7 @@ import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 import { Logo } from "@/components/logo";
 import { Toaster } from "@/components/ui/toaster";
 import { loadAppShellUser } from "@/lib/app-shell";
+import { getCurrentAppActor } from "@/lib/current-app-actor";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 
 import { AppSidebar } from "./components/app-sidebar";
@@ -20,21 +21,27 @@ export const metadata: Metadata = {
   },
 };
 
-// Every route under this group is Founder-only. This redirect is a
-// route-level convenience, not the security boundary — every
+// Shared shell for Founder and Mentor accounts — same sidebar chrome, one
+// URL for each nav item (both roles' first item is /dashboard; see
+// nav-items.ts), the actual content behind it decided by each page's own
+// role branch (app/(app)/dashboard/page.tsx is the main example). This
+// redirect is a route-level convenience, not the security boundary — every
 // packages/services call re-asserts the actor's role on its own regardless
-// of what this layout already checked.
+// of what this layout already checked, and every individual page here that
+// must stay Founder- or Mentor-exclusive (Modules, Artefacts, Founders,
+// Invitations, …) calls its own narrower guard besides.
 export default async function AppLayout({ children }: { children: ReactNode }) {
-  const shellUser = await loadAppShellUser();
+  const actor = await getCurrentAppActor();
+  const role = actor.role === "mentor" ? "mentor" : "founder";
+  const shellUser = await loadAppShellUser(role);
 
-  // Every route in this group needs the first-run dialog, and none of the
-  // OAuth routes do — they sit outside this layout, which is what keeps a
-  // founder from being interrupted halfway through approving a connection.
-  //
-  // The extra query only runs for accounts that still owe us a choice; a
-  // founder who has chosen never pays for it. `loadAppShellUser` already
-  // loaded the profile, so the other two signals are free.
-  const needsOnboarding = shellUser.preferredAiProvider === null;
+  // The first-run onboarding dialog (assistant choice, invitation password,
+  // name) is a Founder-only concept — Mentors don't get one at all. A
+  // Mentor's shellUser.preferredAiProvider is always null (see
+  // app-shell.ts's loadMentorShellUser), so gating on that alone would also
+  // be true for every Mentor; the role check is what actually excludes them.
+  const needsOnboarding =
+    role === "founder" && shellUser.preferredAiProvider === null;
   const needsPassword = needsOnboarding
     ? !(await hasChangedInvitationPassword(await getCurrentFounderActor()))
     : false;
@@ -53,13 +60,13 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
          scrolls horizontally via overflow-x-auto) giving way first. */}
       <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-border px-4 py-2.5 lg:hidden">
         <Logo variant="compact" className="min-w-8 shrink-0" />
-        <AppSidebarNavigation orientation="horizontal" />
+        <AppSidebarNavigation role={role} orientation="horizontal" />
         <div className="justify-self-end">
           <UserMenu
             name={shellUser.displayName}
             email={shellUser.email}
             showDetails={false}
-            includeAccountLinks
+            includeAccountLinks={role === "founder"}
             side="bottom"
             align="end"
           />

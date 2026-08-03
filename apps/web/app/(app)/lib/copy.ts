@@ -424,7 +424,7 @@ export const dashboardCopy = {
 // a password nobody can remember and a name nobody has typed are both
 // things the dashboard already nudges about, but which assistant to set up
 // decides what the rest of the product shows, so there is no sensible
-// default to skip to.
+// default to skip to. Mentors never see this dialog at all.
 export const onboardingCopy = {
   progress: (step: number, total: number) => `Step ${step} of ${total}`,
 
@@ -435,11 +435,11 @@ export const onboardingCopy = {
   // and the three labels below say it faster.
   welcomeTitle: "Welcome to AI Catalyst",
   welcomeBody:
-    "Turn a rough idea into a brief you can put in front of an investor, a co-founder or a first customer.",
+    "Turn a hunch into a blueprint you can put in front of an investor, a co-founder or a first customer.",
   welcomeJourney: {
-    start: "Your idea",
+    start: "A hunch",
     middle: "Module by module",
-    end: "A brief",
+    end: "A blueprint",
   },
   welcomeSetupNote: "Three quick things first — about two minutes.",
   welcomeCta: "Get started",
@@ -790,4 +790,72 @@ export const profilePromptCopy = {
   title: "Add your name",
   body: "So we can address you by name instead of your email address.",
   cta: "Go to profile",
+} as const;
+
+// ── Mentor ──────────────────────────────────────────────────────────────
+//
+// Strings for the Mentor half of the shared (app) shell: /dashboard's
+// mentor branch, a Founder's progress detail, their artefact document, and
+// Mentor invitations. Grouped separately from the Founder-facing copy
+// above rather than interleaved with it, since the two personas never
+// share a screen.
+
+export const mentorOverviewCopy = {
+  kicker: "Mentor",
+  title: "Your founders",
+  intro:
+    "Track how each founder is progressing and read what they've saved — sign-off stays with them, not you.",
+  statFounders: "Founders",
+  statStarted: "Started",
+  statCompleted: "Modules completed",
+  sectionHeading: "Your founders",
+  startedCount: (started: number, total: number) =>
+    `${started} of ${total} started`,
+  inviteCta: "Invite a founder",
+  emptyTitle: "No founders yet",
+  emptyBody: "Founders appear here as soon as they accept your invitation.",
+  notStarted: "Not started",
+} as const;
+
+export const mentorFounderDetailCopy = {
+  kicker: "Founder",
+  backLink: "My founders",
+  notStartedTitle: "Hasn't started yet",
+  notStartedBody:
+    "This founder has accepted their invitation but hasn't opened the programme yet.",
+  statModules: "Modules completed",
+  statArtefacts: "Artefacts saved",
+  statLastActivity: "Last activity",
+  never: "None yet",
+  modulesHeading: "Modules",
+  noArtefacts: "No deliverables saved yet.",
+  readCta: "Read",
+} as const;
+
+export const mentorArtefactDocumentCopy = {
+  kicker: "Deliverable",
+  backLink: "Back to progress",
+  savedLine: (version: number, savedAt: string) =>
+    `Version ${version} · saved ${savedAt}`,
+  readOnlyNote:
+    "Read-only: the founder still signs their own module off. Review and comment tools arrive in a later phase.",
+} as const;
+
+export const mentorInvitationsCopy = {
+  kicker: "Mentor",
+  title: "Invite founders",
+  intro:
+    "Share the one-time code with the founder yourself — there is no email delivery yet. When they accept, their workspace is created and comes under your support automatically.",
+  backLink: "My founders",
+  formEmailLabel: "Founder email",
+  formMessageLabel: "Personal message (optional)",
+  formSubmitIdle: "Invite founder",
+  formSubmitPending: "Sending invitation…",
+  tokenHeading: "One-time code — copy it now",
+  tokenNote:
+    "This code is shown once and cannot be retrieved again. Send it to the founder yourself.",
+  sectionHeading: "Sent invitations",
+  emptyBody: "You haven't invited anyone yet.",
+  revokeCta: "Revoke",
+  revokePending: "Revoking…",
 } as const;

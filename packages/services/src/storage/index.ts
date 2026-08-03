@@ -316,11 +316,17 @@ export async function getStorageObject(
   return mapStorageObjectRow(row);
 }
 
-// Read-only gate: founders, admins, and system sources. Kept separate from
-// assertFounderOrSystemActor so write paths stay founder/system-only;
-// admin is allowed here for cross-workspace validation reads.
+// Read-only gate: founders, mentors, admins, and system sources. Kept
+// separate from assertFounderOrSystemActor so write paths stay
+// founder/system-only — a Mentor reads a Founder's deliverables and never
+// authors one. Admin is allowed here for cross-workspace validation reads.
 function assertGeneratedContentReader(actor: ActorContext): void {
-  if (actor.role === "founder" || actor.role === "admin" || actor.source === "system") {
+  if (
+    actor.role === "founder" ||
+    actor.role === "mentor" ||
+    actor.role === "admin" ||
+    actor.source === "system"
+  ) {
     return;
   }
   throw new ServiceError(
@@ -330,9 +336,9 @@ function assertGeneratedContentReader(actor: ActorContext): void {
 }
 
 /**
- * Reads verified generated-text content as UTF-8. Founders are
- * workspace-scoped; system/admin actors may read any workspace (used by
- * official validation).
+ * Reads verified generated-text content as UTF-8. Founders are scoped to
+ * their own Workspace and Mentors to the Workspaces they cover; system/admin
+ * actors may read any workspace (used by official validation).
  */
 export async function getGeneratedTextContent(
   actor: ActorContext,
@@ -349,6 +355,22 @@ export async function getGeneratedTextContent(
   if (actor.role === "founder") {
     const workspace = await resolveFounderWorkspace(actor, pool);
     if (row.workspace_id !== workspace.id) {
+      throw new ServiceError("NOT_FOUND", "Storage object not found.");
+    }
+  }
+
+  // Enforced here rather than trusted from the caller: this is the single
+  // choke point through which artefact bytes leave storage, so the scope
+  // check belongs where the read happens, not only in the Mentor service
+  // that happens to call it today. NOT_FOUND, not FORBIDDEN — a Mentor must
+  // not be able to confirm that another Mentor's Founder has saved a given
+  // object.
+  if (actor.role === "mentor") {
+    const mentored = await pool.query(
+      `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+      [row.workspace_id, actor.userId],
+    );
+    if (mentored.rowCount === 0) {
       throw new ServiceError("NOT_FOUND", "Storage object not found.");
     }
   }

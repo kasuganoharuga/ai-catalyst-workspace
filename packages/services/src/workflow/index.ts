@@ -3,8 +3,6 @@ import type { PoolClient } from "pg";
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
-  ModuleCompletionMode,
-  ModuleType,
   ProgramRun,
   ProgramRunStatus,
   RunModuleSummary,
@@ -18,6 +16,12 @@ import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace"
 import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { mapBranchCreatedVia } from "@ai-catalyst/services/internal/branch";
 import { resolvePublishedProgramVersionId } from "@ai-catalyst/services/internal/program-version";
+import {
+  RUN_MODULE_SUMMARY_COLUMNS,
+  listRunModulesForBranch,
+  mapRunModuleSummaryRow,
+  type RunModuleSummaryRow,
+} from "@ai-catalyst/services/internal/run-module";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 // Imports the Program's content constant directly rather than the whole
 // content-seed module, same reasoning as module/catalog.ts.
@@ -367,57 +371,6 @@ async function resolveCurrentVentureRun(actor: ActorContext): Promise<CurrentVen
   };
 }
 
-// Joins module_definitions for module_type/completion_mode — those are
-// content-level fields with no equivalent snapshot column on
-// program_run_modules itself (only module_key/title_snapshot are
-// snapshotted there).
-const RUN_MODULE_SUMMARY_COLUMNS = `
-  m.id, m.workspace_id, m.program_run_id, m.program_run_branch_id, m.module_definition_id,
-  m.module_key, m.title_snapshot, m.sequence_index, m.status,
-  m.active_attempt_id, m.accepted_attempt_id, m.unlocked_at, m.started_at, m.completed_at,
-  d.module_type, d.completion_mode
-`;
-
-interface RunModuleSummaryRow {
-  id: string;
-  workspace_id: string;
-  program_run_id: string;
-  program_run_branch_id: string;
-  module_definition_id: string;
-  module_key: string;
-  title_snapshot: string;
-  sequence_index: number;
-  status: RunModuleSummary["status"];
-  active_attempt_id: string | null;
-  accepted_attempt_id: string | null;
-  unlocked_at: Date | null;
-  started_at: Date | null;
-  completed_at: Date | null;
-  module_type: ModuleType;
-  completion_mode: ModuleCompletionMode;
-}
-
-function mapRunModuleSummaryRow(row: RunModuleSummaryRow): RunModuleSummary {
-  return {
-    id: row.id,
-    workspaceId: row.workspace_id,
-    programRunId: row.program_run_id,
-    programRunBranchId: row.program_run_branch_id,
-    moduleDefinitionId: row.module_definition_id,
-    moduleKey: row.module_key,
-    title: row.title_snapshot,
-    sequenceIndex: row.sequence_index,
-    moduleType: row.module_type,
-    completionMode: row.completion_mode,
-    status: row.status,
-    activeAttemptId: row.active_attempt_id,
-    acceptedAttemptId: row.accepted_attempt_id,
-    unlockedAt: row.unlocked_at?.toISOString() ?? null,
-    startedAt: row.started_at?.toISOString() ?? null,
-    completedAt: row.completed_at?.toISOString() ?? null,
-  };
-}
-
 export interface ListRunModulesResult {
   // All three null only when the Founder has no active Venture yet, or
   // that Venture has no non-archived Program Run yet — list_modules (MCP)
@@ -442,20 +395,11 @@ export async function listRunModules(actor: ActorContext): Promise<ListRunModule
     return { workspaceId: null, ventureId: null, runId: null, modules: [] };
   }
 
-  const result = await pool.query<RunModuleSummaryRow>(
-    `select ${RUN_MODULE_SUMMARY_COLUMNS}
-     from program_run_modules m
-     join module_definitions d on d.id = m.module_definition_id
-     where m.program_run_branch_id = $1
-     order by m.sequence_index`,
-    [currentRun.activeBranchId],
-  );
-
   return {
     workspaceId: currentRun.workspaceId,
     ventureId: currentRun.ventureId,
     runId: currentRun.runId,
-    modules: result.rows.map(mapRunModuleSummaryRow),
+    modules: await listRunModulesForBranch(currentRun.activeBranchId),
   };
 }
 

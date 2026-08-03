@@ -20,16 +20,24 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: workspaceRoot,
   // Next's static analysis of packages/services/module's fs.readFile calls
   // isn't guaranteed to resolve manifest-driven paths, so the Toolkit
-  // content consumed by these two dynamic routes is included explicitly.
+  // content this dynamic route consumes is included explicitly.
   outputFileTracingIncludes: {
-    "/toolkit/\\[module\\]": [
-      "../../packages/toolkit-content/manifest.json",
-      "../../packages/toolkit-content/modules/**/*",
-    ],
     "/downloads/\\[module\\]": [
       "../../packages/toolkit-content/manifest.json",
       "../../packages/toolkit-content/skills/**/*",
     ],
+  },
+  // Mentors used to land on /toolkit; that route is gone. Send bookmarks
+  // and old ROLE_DESTINATION targets to the role-aware dashboard.
+  async redirects() {
+    return [
+      { source: "/toolkit", destination: "/dashboard", permanent: true },
+      {
+        source: "/toolkit/:path*",
+        destination: "/dashboard",
+        permanent: true,
+      },
+    ];
   },
   turbopack: {
     root: workspaceRoot,
