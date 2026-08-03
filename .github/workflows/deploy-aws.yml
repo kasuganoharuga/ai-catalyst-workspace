@@ -211,11 +211,26 @@ jobs:
               --tasks "${task_arn}" \
               --output json)"
 
+            # Prefer an explicit success check. An empty/null exitCode (no
+            # "mcp" container, or ECS never recorded one) must not be treated
+            # the same as a non-zero failure — both fail the deploy, but with
+            # different diagnostics so CloudWatch/task dumps are actionable.
             local exit_code
-            exit_code="$(echo "${task_desc}" | jq -r '.tasks[0].containers[] | select(.name == "mcp") | .exitCode // empty')"
+            exit_code="$(echo "${task_desc}" | jq -r '
+              .tasks[0].containers[]
+              | select(.name == "mcp")
+              | .exitCode
+              | if . == null then empty else tostring end
+            ')"
+
+            if [ -z "${exit_code}" ]; then
+              echo "${label} task: could not read mcp container exit code." >&2
+              echo "${task_desc}" | jq '.tasks[0].containers // .tasks[0]' >&2
+              exit 1
+            fi
 
             if [ "${exit_code}" != "0" ]; then
-              echo "${label} task failed with exit code ${exit_code:-missing}." >&2
+              echo "${label} task failed with exit code ${exit_code}." >&2
               echo "${task_desc}" | jq '.tasks[0].containers[] | select(.name == "mcp")' >&2
               exit 1
             fi
