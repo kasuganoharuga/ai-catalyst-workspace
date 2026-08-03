@@ -367,6 +367,23 @@ describe("mcp-auth service — database integration", () => {
         code: "FORBIDDEN",
       });
     });
+
+    // Every tool behind this transport is Founder-scoped, so a Mentor or
+    // Admin token is turned away at the boundary rather than collecting a
+    // FORBIDDEN from each individual tool call. Mentors supervise through
+    // apps/web; Admins do no project work.
+    it.each(["mentor", "admin"] as const)(
+      "rejects with FORBIDDEN for a %s token",
+      async (role) => {
+        const userId = await createUser(`mcp-role-${role}`, role);
+        const clientId = await createClient(`mcp-role-${role}`);
+        const token = await createAccessToken(clientId, userId);
+
+        await expect(verifyMcpBearerToken(token)).rejects.toMatchObject({
+          code: "FORBIDDEN",
+        });
+      },
+    );
   });
 
   describe("getPendingMcpConsentRequest", () => {
@@ -1162,7 +1179,7 @@ describe("mcp-auth service — database integration", () => {
   });
 
   describe("getAuthorizableUserById", () => {
-    it("returns the user for an active, non-pending account", async () => {
+    it("returns the user for an active Founder account", async () => {
       const userId = await createUser("authorizable", "founder");
       await expect(getAuthorizableUserById(userId)).resolves.toEqual({
         userId,
@@ -1174,6 +1191,17 @@ describe("mcp-auth service — database integration", () => {
       const userId = await createUser("authorizable-pending", "pending");
       await expect(getAuthorizableUserById(userId)).resolves.toBeNull();
     });
+
+    // The issuing half of the same rule verifyMcpBearerToken enforces on
+    // presentation. Closing only the presenting gate would still let a
+    // Mentor complete a code exchange and hold a live, useless token.
+    it.each(["mentor", "admin"] as const)(
+      "returns null for a %s account",
+      async (role) => {
+        const userId = await createUser(`authorizable-${role}`, role);
+        await expect(getAuthorizableUserById(userId)).resolves.toBeNull();
+      },
+    );
 
     it("returns null for a deleted account", async () => {
       const userId = await createUser("authorizable-deleted", "founder", {

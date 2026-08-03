@@ -1,7 +1,11 @@
 export type { ToolkitArtefact, ArtefactFormat } from "./artefact.js";
 export type { ToolkitModule, ModuleStatus } from "./module.js";
 export type { ToolkitManifest } from "./toolkit.js";
-export type { Invitation, InvitationStatus } from "./invitation.js";
+export type {
+  Invitation,
+  InvitationListItem,
+  InvitationStatus,
+} from "./invitation.js";
 export type { WorkspaceSummary, WorkspaceStatus } from "./workspace.js";
 export type {
   Venture,

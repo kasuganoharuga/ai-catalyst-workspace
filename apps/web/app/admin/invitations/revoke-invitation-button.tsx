@@ -3,12 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
-import { revokeInvitationAction } from "@/lib/actions/admin-actions";
+import {
+  revokeInvitationAction,
+  revokeMentorInvitationAction,
+} from "@/lib/actions/admin-actions";
 
 export function RevokeInvitationButton({
   invitationId,
+  inviteRole,
 }: {
   invitationId: string;
+  inviteRole: "founder" | "mentor";
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +22,12 @@ export function RevokeInvitationButton({
   function handleRevoke() {
     setError(null);
     startTransition(async () => {
-      const result = await revokeInvitationAction(invitationId);
+      const revoke =
+        inviteRole === "mentor"
+          ? revokeMentorInvitationAction
+          : revokeInvitationAction;
+
+      const result = await revoke(invitationId);
       if (!result.ok) {
         setError(result.message);
         return;

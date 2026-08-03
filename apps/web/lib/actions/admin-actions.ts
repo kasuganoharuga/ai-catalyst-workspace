@@ -5,7 +5,9 @@ import { headers } from "next/headers";
 
 import {
   createFounderInvitation,
+  createMentorInvitation,
   revokeFounderInvitation,
+  revokeMentorInvitation,
 } from "@ai-catalyst/services/invitation";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
@@ -60,6 +62,42 @@ export async function revokeInvitationAction(
   try {
     const actor = await requireAdminActor();
     await revokeFounderInvitation(actor, invitationId);
+    revalidatePath("/admin/invitations");
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Invites a Mentor to the platform. Admin-only, and platform-level: the new
+ * Mentor covers nobody until Founders they invite start accepting, so there
+ * is no Workspace to choose here.
+ */
+export async function createMentorInvitationAction(input: {
+  email: string;
+  personalMessage?: string;
+}): Promise<CreateInvitationResult> {
+  try {
+    const actor = await requireAdminActor();
+    const { rawToken } = await createMentorInvitation(actor, input);
+    revalidatePath("/admin/invitations");
+    return { ok: true, rawToken };
+  } catch (error) {
+    if (error instanceof ServiceError) {
+      return { ok: false, message: error.message };
+    }
+    console.error("Unhandled server action error:", error);
+    return { ok: false, message: "Something went wrong." };
+  }
+}
+
+export async function revokeMentorInvitationAction(
+  invitationId: string,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireAdminActor();
+    await revokeMentorInvitation(actor, invitationId);
     revalidatePath("/admin/invitations");
     return { ok: true };
   } catch (error) {

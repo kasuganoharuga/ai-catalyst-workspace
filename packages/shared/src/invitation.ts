@@ -19,3 +19,20 @@ export interface Invitation {
   createdAt: string;
   updatedAt: string;
 }
+
+/**
+ * A listed Invitation, carrying who sent it.
+ *
+ * Only the list reads resolve this — create/revoke/accept return a plain
+ * `Invitation`, since their caller already knows who they are. It matters on
+ * an Admin's screen because a Founder Invitation's sender is what decides
+ * which Mentor ends up supporting them, and `invitedByUserId` alone is a UUID
+ * nobody can read.
+ *
+ * Null for an invitation whose sender's account has since been closed.
+ */
+export interface InvitationListItem extends Invitation {
+  invitedByName: string | null;
+  invitedByEmail: string | null;
+  invitedByRole: "pending" | "founder" | "mentor" | "admin" | null;
+}

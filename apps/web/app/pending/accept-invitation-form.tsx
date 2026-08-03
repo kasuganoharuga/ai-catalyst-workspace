@@ -21,7 +21,9 @@ export function AcceptInvitationForm() {
         return;
       }
 
-      router.replace("/dashboard");
+      // Destination comes from the server: the token decides whether this
+      // account just became a Founder or a Mentor.
+      router.replace(result.redirectTo);
       router.refresh();
     });
   }

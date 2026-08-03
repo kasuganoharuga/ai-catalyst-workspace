@@ -232,6 +232,25 @@ function isKnownActorRole(value: unknown): value is ActorRole {
   );
 }
 
+// MCP is an allowlist of one role, not a denylist of `pending`.
+//
+// Every tool apps/mcp exposes is a Founder tool: each one funnels into a
+// service that opens with `assertRole(actor, ["founder"])` (getActiveContext,
+// listModuleContextsForActiveRun, getModuleContext, and everything reached
+// through resolveFounderWorkspace). So the transport is the only place where
+// "which roles may speak MCP at all" is expressible, and stating it here
+// means a Mentor is turned away once at the boundary instead of collecting a
+// FORBIDDEN from every individual tool call.
+//
+// The denylist shape was safe only by coincidence — it held because all of
+// today's tools happen to be Founder-scoped. A future tool that forgot its
+// own assertRole would have been silently reachable by any Mentor or Admin
+// holding a token. Neither role has a reason to hold one: Mentors supervise
+// through apps/web, and Admins do no project work at all.
+function canUseMcp(role: ActorRole): boolean {
+  return role === "founder";
+}
+
 // ---------------------------------------------------------------------------
 // verifyMcpBearerToken — apps/mcp's Resource Server verification path.
 // ---------------------------------------------------------------------------
@@ -272,9 +291,9 @@ function isValidPublicClient(row: AccessTokenLookupRow): boolean {
  * disabled or non-public OAuth client, deleted/missing user) — the caller
  * maps this to HTTP 401 with a `WWW-Authenticate` challenge. Throws
  * `ServiceError("FORBIDDEN", ...)` when the subject is valid but not
- * authorized for MCP (a `pending` account, or a token missing the
- * `mcp:connect` scope) — mapped to HTTP 403, with an `insufficient_scope`
- * challenge for the latter case.
+ * authorized for MCP (a non-Founder account — see `canUseMcp` — or a token
+ * missing the `mcp:connect` scope) — mapped to HTTP 403, with an
+ * `insufficient_scope` challenge for the latter case.
  *
  * **Deliberately does not check connection lifetime.** The idle and absolute
  * limits live in `checkRefreshTokenIsRedeemable` alone. Retiring a grant
@@ -344,6 +363,16 @@ export async function verifyMcpBearerToken(
     throw new ServiceError(
       "FORBIDDEN",
       "This account has not completed invitation acceptance yet.",
+    );
+  }
+
+  // Kept separate from the `pending` branch above so each role hears the
+  // truth: a pending user is mid-onboarding and will become eligible, while
+  // a Mentor or Admin never will.
+  if (!canUseMcp(row.user_role)) {
+    throw new ServiceError(
+      "FORBIDDEN",
+      "Connecting an AI assistant is available to Founder accounts only.",
     );
   }
 
@@ -1278,9 +1307,15 @@ interface UserAuthorizationRow {
   deleted_at: Date | null;
 }
 
-// Returns null uniformly for "doesn't exist", "deleted", and "still
-// pending" — the /mcp/token before-hook only needs to know whether a token
-// may be issued for this user, not which of those three it is.
+// Returns null uniformly for "doesn't exist", "deleted", and "not a role
+// that may speak MCP" — the /mcp/token before-hook only needs to know
+// whether a token may be issued for this user, not which of those it is.
+//
+// This is the issuing gate and `verifyMcpBearerToken` is the presenting
+// gate; both consult `canUseMcp` because closing only one leaves the other
+// open. Without this, a Mentor could still complete an authorization code
+// exchange and hold a live token that every tool then rejects one call at
+// a time.
 export async function getAuthorizableUserById(
   userId: string,
 ): Promise<AuthorizableUser | null> {
@@ -1293,7 +1328,7 @@ export async function getAuthorizableUserById(
     !row ||
     row.deleted_at !== null ||
     !isKnownActorRole(row.role) ||
-    row.role === "pending"
+    !canUseMcp(row.role)
   ) {
     return null;
   }

@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
-import { acceptFounderInvitation } from "@ai-catalyst/services/invitation";
+import { acceptInvitation } from "@ai-catalyst/services/invitation";
 
 import { auth } from "@/lib/auth";
 import { actorContextFromSession } from "@/lib/actor-context";
@@ -46,17 +46,19 @@ export async function POST(request: NextRequest) {
         ? (body as { token: unknown }).token
         : undefined;
 
-    const { invitation, workspace, venture } = await acceptFounderInvitation(
-      actor,
-      token,
-    );
+    const accepted = await acceptInvitation(actor, token);
 
-    // Never cache this response and never log the request body — it may
-    // carry the raw invitation token.
-    return NextResponse.json(
-      { invitation, workspace, venture },
-      { status: 200, headers: { "Cache-Control": "no-store" } },
-    );
+    // `workspace`/`venture` appear only for a Founder acceptance — a new
+    // Mentor owns neither yet. The change is additive for existing callers:
+    // every key a Founder acceptance returned before Mentor invitations
+    // existed is still there, plus `inviteRole` so a client can discriminate
+    // the two shapes without inferring it from which keys are absent.
+    return NextResponse.json(accepted, {
+      status: 200,
+      // Never cache this response and never log the request body — it may
+      // carry the raw invitation token.
+      headers: { "Cache-Control": "no-store" },
+    });
   } catch (error) {
     return serviceErrorResponse(error);
   }

@@ -3,13 +3,22 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { acceptFounderInvitation } from "@ai-catalyst/services/invitation";
+import { acceptInvitation } from "@ai-catalyst/services/invitation";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 
-import type { ActionResult } from "./founder-actions";
+// Where the newly-promoted account belongs. Kept in step with
+// ROLE_DESTINATION in app/page.tsx, which routes the same roles on sign-in
+// — Founders land on /dashboard; Mentors keep /toolkit until the supervision UI lands.
+const DESTINATION_BY_INVITE_ROLE = {
+  founder: "/dashboard",
+  mentor: "/toolkit",
+} as const;
+
+export type AcceptInvitationActionResult =
+  { ok: true; redirectTo: string } | { ok: false; message: string };
 
 async function requirePendingActor() {
   const session = await auth.api.getSession({ headers: await headers() });
@@ -23,7 +32,10 @@ async function requirePendingActor() {
   return actor;
 }
 
-function toActionResult(error: unknown): ActionResult {
+// Narrower than ActionResult on purpose: this only ever maps a thrown error,
+// so the success variant is not one of its outcomes and callers should not
+// have to re-narrow it.
+function toActionResult(error: unknown): { ok: false; message: string } {
   if (error instanceof ServiceError) {
     return { ok: false, message: error.message };
   }
@@ -31,15 +43,20 @@ function toActionResult(error: unknown): ActionResult {
   return { ok: false, message: "Something went wrong." };
 }
 
+// The token alone determines whether this account becomes a Founder or a
+// Mentor — the form has no way to know which, and asking would let anyone
+// holding a stolen token discover what it was for.
 export async function acceptInvitationAction(
   token: string,
-): Promise<ActionResult> {
+): Promise<AcceptInvitationActionResult> {
   try {
     const actor = await requirePendingActor();
-    await acceptFounderInvitation(actor, token);
+    const { inviteRole } = await acceptInvitation(actor, token);
+    const redirectTo = DESTINATION_BY_INVITE_ROLE[inviteRole];
+
     revalidatePath("/pending");
-    revalidatePath("/dashboard", "layout");
-    return { ok: true };
+    revalidatePath(redirectTo, "layout");
+    return { ok: true, redirectTo };
   } catch (error) {
     return toActionResult(error);
   }
