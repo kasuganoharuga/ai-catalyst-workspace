@@ -1,5 +1,8 @@
 // External, camelCase DTO returned by packages/services/src/invitation and
-// consumed by apps/web and apps/mcp. Deliberately excludes `token_hash` —
+// consumed by apps/web. (Not apps/mcp: invitations are accepted on the
+// website, and a `pending` account cannot hold an MCP token at all — see
+// the founder-only allowlist in packages/services/src/mcp-auth.)
+// Deliberately excludes `token_hash` —
 // the raw token is only ever returned once, at creation time, alongside this
 // type (see CreateFounderInvitationResult in packages/services), never as a
 // field on Invitation itself.

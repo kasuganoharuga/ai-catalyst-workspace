@@ -66,7 +66,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             name={shellUser.displayName}
             email={shellUser.email}
             showDetails={false}
-            includeAccountLinks={role === "founder"}
+            includeAccountLinks
+            role={role}
             side="bottom"
             align="end"
           />

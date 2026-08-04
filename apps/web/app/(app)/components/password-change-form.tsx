@@ -104,8 +104,16 @@ export function PasswordChangeForm({
         return;
       }
 
-      // Client belt-and-braces; authoritative revoke is account.update.after.
-      await revokeMcpConnectionAction();
+      // Client belt-and-braces; authoritative revoke is account.update.after
+      // (role-agnostic, so it already covers a Mentor). This one is
+      // Founder-only at the service layer — a Mentor never holds an MCP
+      // token to revoke — so it's expected to throw for them and is safe
+      // to ignore rather than surface.
+      try {
+        await revokeMcpConnectionAction();
+      } catch {
+        // best-effort only, see comment above
+      }
     } else {
       const result = await setInitialPasswordAction(newPassword);
       if (!result.ok) {

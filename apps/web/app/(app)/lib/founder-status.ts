@@ -28,7 +28,10 @@ export function deriveFounderStatus(
     return { label: "Just started", tone: "outline" };
   }
   if (completed >= totalModules) {
-    return { label: "All modules done", tone: "ink" };
+    // "Complete", not "All modules done": the list renders this in a column
+    // headed STATUS with the module count sitting right beside it, so the
+    // longer phrase only made the column wide enough to squeeze the name.
+    return { label: "Complete", tone: "ink" };
   }
   return { label: "In progress", tone: "lime" };
 }

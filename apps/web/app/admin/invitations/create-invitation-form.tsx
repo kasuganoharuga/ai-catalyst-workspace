@@ -15,7 +15,6 @@ export function CreateInvitationForm({
 }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [personalMessage, setPersonalMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
@@ -29,11 +28,7 @@ export function CreateInvitationForm({
           ? createMentorInvitationAction
           : createInvitationAction;
 
-      const result = await create({
-        email,
-        personalMessage:
-          personalMessage.trim() === "" ? undefined : personalMessage,
-      });
+      const result = await create({ email });
 
       if (!result.ok) {
         setError(result.message);
@@ -42,7 +37,6 @@ export function CreateInvitationForm({
 
       setIssuedToken(result.rawToken);
       setEmail("");
-      setPersonalMessage("");
       router.refresh();
     });
   }
@@ -58,14 +52,6 @@ export function CreateInvitationForm({
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
-          />
-        </Field>
-        <Field label="Personal message (optional)">
-          <textarea
-            value={personalMessage}
-            onChange={(event) => setPersonalMessage(event.target.value)}
-            rows={2}
             className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </Field>

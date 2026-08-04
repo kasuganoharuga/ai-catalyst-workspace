@@ -15,7 +15,7 @@ import {
 import { useSignOut } from "@/lib/use-sign-out";
 import { cn } from "@/lib/utils";
 
-import { ACCOUNT_NAV_ITEMS } from "./nav-items";
+import { accountNavItems } from "./nav-items";
 import { NavMenuIcon } from "./nav-link";
 
 function initials(name: string): string {
@@ -34,6 +34,8 @@ function initials(name: string): string {
  * has no room for the account pages so it carries them here, while the
  * sidebar already lists them a few pixels above and would just be
  * repeating itself — there, this is a sign-out menu and nothing else.
+ * `role` decides which account pages that is — see nav-items.ts — and is
+ * only read when `includeAccountLinks` is true.
  */
 export function UserMenu({
   name,
@@ -41,6 +43,7 @@ export function UserMenu({
   subtitle,
   showDetails = true,
   includeAccountLinks = false,
+  role,
   align = "start",
   side = "top",
 }: {
@@ -49,10 +52,12 @@ export function UserMenu({
   subtitle?: string | null;
   showDetails?: boolean;
   includeAccountLinks?: boolean;
+  role?: "founder" | "mentor";
   align?: "start" | "end";
   side?: "top" | "bottom";
 }) {
   const { isSigningOut, signOut } = useSignOut();
+  const items = includeAccountLinks && role ? accountNavItems(role) : [];
 
   return (
     <DropdownMenu>
@@ -95,8 +100,8 @@ export function UserMenu({
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {includeAccountLinks
-          ? ACCOUNT_NAV_ITEMS.map((item) => (
+        {items.length > 0
+          ? items.map((item) => (
               <DropdownMenuItem key={item.href} asChild>
                 <Link href={item.href}>
                   <NavMenuIcon href={item.href} />
@@ -105,7 +110,7 @@ export function UserMenu({
               </DropdownMenuItem>
             ))
           : null}
-        {includeAccountLinks ? <DropdownMenuSeparator /> : null}
+        {items.length > 0 ? <DropdownMenuSeparator /> : null}
         {/* Browser session only — MCP disconnect is a separate action. */}
         <DropdownMenuItem
           onSelect={() => void signOut()}

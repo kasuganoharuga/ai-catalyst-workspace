@@ -805,16 +805,22 @@ export const mentorOverviewCopy = {
   title: "Your founders",
   intro:
     "Track how each founder is progressing and read what they've saved — sign-off stays with them, not you.",
-  statFounders: "Founders",
-  statStarted: "Started",
-  statCompleted: "Modules completed",
-  sectionHeading: "Your founders",
-  startedCount: (started: number, total: number) =>
-    `${started} of ${total} started`,
+  summaryLine: (founders: number, started: number, completed: number) =>
+    `${founders} founder${founders === 1 ? "" : "s"} · ${started} started · ${completed} module${completed === 1 ? "" : "s"} completed`,
   inviteCta: "Invite a founder",
   emptyTitle: "No founders yet",
   emptyBody: "Founders appear here as soon as they accept your invitation.",
-  notStarted: "Not started",
+  searchLabel: "Search founders",
+  searchPlaceholder: "Search by name, email or workspace",
+  noMatchesTitle: "No founders match that search",
+  noMatchesBody: "Try a different name, email, or workspace.",
+  // Column headers for the list. Without them a row reads "0 / 1 · 3 Aug"
+  // and a Mentor has to guess whether the date is when they joined, when
+  // they last did something, or when something is due.
+  columnFounder: "Founder",
+  columnProgress: "Progress",
+  columnActivity: "Last activity",
+  columnStatus: "Status",
 } as const;
 
 export const mentorFounderDetailCopy = {
@@ -848,7 +854,7 @@ export const mentorInvitationsCopy = {
     "Share the one-time code with the founder yourself — there is no email delivery yet. When they accept, their workspace is created and comes under your support automatically.",
   backLink: "My founders",
   formEmailLabel: "Founder email",
-  formMessageLabel: "Personal message (optional)",
+  formEmailPlaceholder: "founder@company.com",
   formSubmitIdle: "Invite founder",
   formSubmitPending: "Sending invitation…",
   tokenHeading: "One-time code — copy it now",
@@ -858,4 +864,10 @@ export const mentorInvitationsCopy = {
   emptyBody: "You haven't invited anyone yet.",
   revokeCta: "Revoke",
   revokePending: "Revoking…",
+  // Same column-header treatment as the founders list — the two Mentor
+  // pages are read one after the other and should scan the same way.
+  columnEmail: "Email",
+  columnSent: "Sent",
+  columnExpires: "Expires",
+  columnStatus: "Status",
 } as const;

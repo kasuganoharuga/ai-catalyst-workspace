@@ -26,8 +26,7 @@ export function primaryNavItems(role: "founder" | "mentor"): NavItemConfig[] {
     : FOUNDER_PRIMARY_NAV_ITEMS;
 }
 
-// Founder-only: a Mentor has none of these pages to reach.
-export const ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
+const FOUNDER_ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
   { href: "/profile", label: "Your profile" },
   { href: "/account-security", label: "Account security" },
   { href: "/company-profile", label: "Company profile" },
@@ -39,3 +38,17 @@ export const ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
   // would move under them for no gain.
   { href: "/connection", label: "AI connection" },
 ];
+
+// A Mentor has a profile and a password like anyone else, but no venture
+// (Company profile) and no MCP access (AI connection) — see
+// packages/services/src/mcp-auth's founder-only allowlist.
+const MENTOR_ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/profile", label: "Your profile" },
+  { href: "/account-security", label: "Account security" },
+];
+
+export function accountNavItems(role: "founder" | "mentor"): NavItemConfig[] {
+  return role === "mentor"
+    ? MENTOR_ACCOUNT_NAV_ITEMS
+    : FOUNDER_ACCOUNT_NAV_ITEMS;
+}

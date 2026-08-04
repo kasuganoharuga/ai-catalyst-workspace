@@ -10,7 +10,6 @@ import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import {
   hasChangedInvitationPassword,
   setPreferredAiProvider,
-  updateMyProfile,
 } from "@ai-catalyst/services/profile";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
@@ -101,19 +100,6 @@ export async function revokeMcpConnectionAction(): Promise<ActionResult> {
     await revokeMcpConnectionForUser(actor);
     revalidateFounderAppShell();
     revalidatePath("/connection");
-    return { ok: true };
-  } catch (error) {
-    return toActionResult(error);
-  }
-}
-
-export async function updateProfileAction(
-  input: unknown,
-): Promise<ActionResult> {
-  try {
-    const actor = await requireFounderActor();
-    await updateMyProfile(actor, input);
-    revalidateFounderAppShell();
     return { ok: true };
   } catch (error) {
     return toActionResult(error);

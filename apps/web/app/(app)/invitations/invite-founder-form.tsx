@@ -11,7 +11,6 @@ import { mentorInvitationsCopy } from "../lib/copy";
 export function InviteFounderForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [personalMessage, setPersonalMessage] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
@@ -20,11 +19,7 @@ export function InviteFounderForm() {
     event.preventDefault();
     setError(null);
     startTransition(async () => {
-      const result = await createFounderInvitationAction({
-        email,
-        personalMessage:
-          personalMessage.trim() === "" ? undefined : personalMessage,
-      });
+      const result = await createFounderInvitationAction({ email });
 
       if (!result.ok) {
         setError(result.message);
@@ -33,47 +28,49 @@ export function InviteFounderForm() {
 
       setIssuedToken(result.rawToken);
       setEmail("");
-      setPersonalMessage("");
       router.refresh();
     });
   }
 
+  // Deliberately not wrapped in a card. It used to be, and a bordered panel
+  // at max-w-xl sitting above a full-width list was the thing that made the
+  // page read as two unrelated halves — and a `bg-card` input inside a
+  // `bg-card` panel had no contrast against its own container. This is the
+  // same input-plus-button toolbar the founders list uses for its search.
   return (
-    <div className="rounded-xl border border-border bg-card p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label={mentorInvitationsCopy.formEmailLabel}>
+    <div>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center"
+      >
+        <label className="block w-full sm:max-w-sm">
+          <span className="sr-only">
+            {mentorInvitationsCopy.formEmailLabel}
+          </span>
           <input
             type="email"
             required
             value={email}
             onChange={(event) => setEmail(event.target.value)}
+            placeholder={mentorInvitationsCopy.formEmailPlaceholder}
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
-        </Field>
-        <Field label={mentorInvitationsCopy.formMessageLabel}>
-          <textarea
-            value={personalMessage}
-            onChange={(event) => setPersonalMessage(event.target.value)}
-            rows={2}
-            className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
-          />
-        </Field>
-
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-
-        <Button type="submit" disabled={isPending}>
+        </label>
+        <Button type="submit" disabled={isPending} className="shrink-0">
           {isPending
             ? mentorInvitationsCopy.formSubmitPending
             : mentorInvitationsCopy.formSubmitIdle}
         </Button>
       </form>
 
+      {error ? (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
       {issuedToken ? (
-        <div className="mt-6 rounded-lg border border-accent bg-accent p-4">
+        <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
             {mentorInvitationsCopy.tokenHeading}
           </p>
@@ -88,22 +85,5 @@ export function InviteFounderForm() {
         </div>
       ) : null}
     </div>
-  );
-}
-
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
   );
 }

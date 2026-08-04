@@ -4,12 +4,18 @@ import { auth } from "./auth";
 import { safeReturnTo } from "./safe-return-to";
 
 /**
- * Registration is temporarily public (see auth.ts) with no invitation
- * gating yet, so every new user starts and stays at role 'pending' until
- * invitation acceptance (packages/services/src/invitation) ships. These
- * helpers are the interim guard that keeps `/workspace` and `/admin`
- * unreachable in the meantime, without hard-coding that logic into every
- * page. Remove/relax once invitation acceptance is implemented.
+ * Route-level role guards for the app's page tree.
+ *
+ * Registration is public (see auth.ts) and every new account starts at role
+ * 'pending'. Accepting an invitation is what promotes it to 'founder' or
+ * 'mentor' — see packages/services/src/invitation — so 'pending' means
+ * "signed up, invitation not yet redeemed" and belongs on /pending, not in
+ * the app.
+ *
+ * None of these is the security boundary. They exist so a page renders the
+ * right thing for whoever landed on it instead of erroring; authorization
+ * itself is re-asserted by `assertRole` inside every packages/services call,
+ * which runs regardless of which guard (if any) let the request this far.
  */
 
 /** @param options.returnTo Same-origin path after sign-in (e.g. consent_code URL). */

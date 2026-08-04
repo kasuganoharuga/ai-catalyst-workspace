@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { updateProfileAction } from "@/lib/actions/founder-actions";
+import { updateProfileAction } from "@/lib/actions/account-actions";
 
 import { errorCopy, onboardingCopy } from "../../lib/copy";
 

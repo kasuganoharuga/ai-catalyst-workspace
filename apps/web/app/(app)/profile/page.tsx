@@ -1,8 +1,8 @@
 import { appPageTitle } from "@/lib/page-metadata";
 import {
-  getCurrentFounderActor,
-  getCurrentFounderSession,
-} from "@/lib/current-founder-actor";
+  getCurrentAppActor,
+  getCurrentAppSession,
+} from "@/lib/current-app-actor";
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
 
@@ -14,15 +14,19 @@ export const metadata = appPageTitle("Your profile");
 
 export default async function ProfilePage() {
   const [actor, session] = await Promise.all([
-    getCurrentFounderActor(),
-    getCurrentFounderSession(),
+    getCurrentAppActor(),
+    getCurrentAppSession(),
   ]);
 
-  const [profile, connection] = await Promise.all([
-    getMyProfile(actor),
-    getMcpConnectionStatus(actor),
-  ]);
+  const profile = await getMyProfile(actor);
   const displayName = resolveDisplayName(profile, session.user.name);
+
+  // The AI assistant choice is a Founder-only concept — a Mentor has no
+  // MCP access to connect (see packages/services/src/mcp-auth's
+  // founder-only allowlist), and getMcpConnectionStatus asserts founder at
+  // the service layer, so it isn't safe to call for anyone else.
+  const connection =
+    actor.role === "founder" ? await getMcpConnectionStatus(actor) : null;
 
   return (
     <PageShell className="max-w-6xl">
@@ -38,10 +42,12 @@ export default async function ProfilePage() {
 
       <ProfileForm profile={profile} />
 
-      <AssistantSection
-        current={profile.preferredAiProvider}
-        connectedProvider={connection.provider}
-      />
+      {connection ? (
+        <AssistantSection
+          current={profile.preferredAiProvider}
+          connectedProvider={connection.provider}
+        />
+      ) : null}
     </PageShell>
   );
 }

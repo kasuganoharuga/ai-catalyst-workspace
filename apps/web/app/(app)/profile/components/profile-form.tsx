@@ -6,7 +6,7 @@ import { useState, useTransition } from "react";
 import type { UserProfile } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
-import { updateProfileAction } from "@/lib/actions/founder-actions";
+import { updateProfileAction } from "@/lib/actions/account-actions";
 import { cn } from "@/lib/utils";
 
 // `bio` is deliberately absent: the field was removed from the form, and

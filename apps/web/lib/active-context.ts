@@ -4,5 +4,5 @@ import { getActiveContext as getActiveContextUncached } from "@ai-catalyst/servi
 
 // Thin Next.js shell over packages/services/workspace/active-context —
 // read path only; switching/clearing is a mutation and goes through the
-// PATCH /api/active-context route handler.
+// server actions in lib/actions/founder-actions.ts.
 export const getActiveContext = cache(getActiveContextUncached);

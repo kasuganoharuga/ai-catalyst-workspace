@@ -1,9 +1,8 @@
 import Link from "next/link";
 
-import { listFounderInvitations } from "@ai-catalyst/services/invitation";
-
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
-import { formatDateTime } from "@/lib/format";
+import { formatShortDate } from "@/lib/format";
+import { listFounderInvitations } from "@/lib/invitations";
 import { appPageTitle } from "@/lib/page-metadata";
 
 import { PageShell } from "../components/page-shell";
@@ -42,11 +41,11 @@ export default async function MentorInvitationsPage() {
         </p>
       </div>
 
-      <div className="mt-8 max-w-xl">
+      <div className="mt-8">
         <InviteFounderForm />
       </div>
 
-      <div className="mt-14 flex items-baseline justify-between gap-4 border-t border-border pt-4">
+      <div className="mt-14 flex items-baseline justify-between gap-4">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           {mentorInvitationsCopy.sectionHeading}
         </p>
@@ -55,36 +54,63 @@ export default async function MentorInvitationsPage() {
         </p>
       </div>
 
-      <div className="mt-5 flex flex-col gap-3">
-        {invitations.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            {mentorInvitationsCopy.emptyBody}
-          </p>
-        ) : (
-          invitations.map((invitation) => (
-            <div
-              key={invitation.id}
-              className="flex flex-col gap-3 rounded-xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="min-w-0">
-                <p className="truncate text-[15px] font-semibold tracking-tight text-foreground">
+      {invitations.length === 0 ? (
+        <p className="mt-5 text-sm text-muted-foreground">
+          {mentorInvitationsCopy.emptyBody}
+        </p>
+      ) : (
+        <div className="mt-5">
+          {/* Same column-header + border-b row treatment as the founders
+              list (dashboard/components/founder-list.tsx) — column widths
+              here and in the rows below have to stay in step. Headers are
+              hidden below sm, where the rows stack. */}
+          <div className="hidden items-center gap-6 border-b border-border pb-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground sm:flex">
+            <span className="min-w-0 flex-1">
+              {mentorInvitationsCopy.columnEmail}
+            </span>
+            <span className="w-24">{mentorInvitationsCopy.columnSent}</span>
+            <span className="w-24">{mentorInvitationsCopy.columnExpires}</span>
+            <span className="w-24 text-right">
+              {mentorInvitationsCopy.columnStatus}
+            </span>
+            <span className="w-24" aria-hidden="true" />
+          </div>
+
+          <div className="flex flex-col">
+            {invitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="flex flex-col gap-3 border-b border-border py-4 last:border-b-0 sm:flex-row sm:items-center sm:gap-6"
+              >
+                <p className="min-w-0 truncate text-[15px] font-semibold tracking-tight text-foreground sm:flex-1">
                   {invitation.email}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {formatDateTime(invitation.createdAt)} · expires{" "}
-                  {formatDateTime(invitation.expiresAt)}
-                </p>
+
+                {/* Collapses to one line on a narrow screen; at sm+ the
+                    wrapper becomes `display: contents` so each child lines
+                    up under its own header. */}
+                <div className="flex items-center gap-4 sm:contents">
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground sm:w-24">
+                    {formatShortDate(invitation.createdAt)}
+                  </span>
+                  <span className="font-mono text-xs tabular-nums text-muted-foreground sm:w-24">
+                    {formatShortDate(invitation.expiresAt)}
+                  </span>
+                  <div className="flex sm:w-24 sm:justify-end">
+                    <InvitationStatusPill status={invitation.status} />
+                  </div>
+                </div>
+
+                <div className="flex sm:w-24 sm:justify-end">
+                  {invitation.status === "pending" ? (
+                    <RevokeInvitationButton invitationId={invitation.id} />
+                  ) : null}
+                </div>
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <InvitationStatusPill status={invitation.status} />
-                {invitation.status === "pending" ? (
-                  <RevokeInvitationButton invitationId={invitation.id} />
-                ) : null}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+            ))}
+          </div>
+        </div>
+      )}
     </PageShell>
   );
 }

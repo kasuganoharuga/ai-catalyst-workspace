@@ -106,6 +106,15 @@ const FOUNDER_IDENTITY_COLUMNS = `
  * never started as "0 of 0 modules" instead of "not started". The second
  * lateral's `on run.active_branch_id is not null` is what keeps those columns
  * null in that case.
+ *
+ * `d.module_type <> 'setup'` excludes Module 0 ("Setup and Connection") from
+ * both counts: it is system-driven (`completion_mode = 'system'`, no Founder
+ * judgement involved) and hidden from the Founder's own catalog behind
+ * `SHOW_SETUP_MODULE` in apps/web/lib/feature-flags.ts. Counting it here
+ * would show a Mentor "1 of 2 done" for a Founder who has not actually
+ * started anything — a Mentor's view of progress should match what the
+ * Founder themselves sees. If that flag is ever flipped back on, this
+ * exclusion needs revisiting too.
  */
 export async function listMentorFounders(
   actor: ActorContext,
@@ -136,7 +145,9 @@ export async function listMentorFounders(
          count(*) filter (where m.status = 'completed') as completed_modules,
          max(m.completed_at) as last_completed_at
        from program_run_modules m
+       join module_definitions d on d.id = m.module_definition_id
        where m.program_run_branch_id = run.active_branch_id
+         and d.module_type <> 'setup'
      ) progress on run.active_branch_id is not null
      where w.mentor_user_id = $1
        and u.deleted_at is null
@@ -175,6 +186,10 @@ function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
 // ON keeps the highest version per artefact should more than one somehow
 // survive.
 //
+// `md.module_type <> 'setup'` excludes Module 0's Setup Summary — machine-
+// written storage config, not Founder work, hidden from the Founder's own
+// artefacts list for the same reason (see apps/web's artefacts/page.tsx).
+//
 // Scoped to the branch, so a Mentor never sees work from a Run the Founder
 // has since abandoned.
 const MENTOR_ARTEFACT_QUERY = `
@@ -186,11 +201,13 @@ const MENTOR_ARTEFACT_QUERY = `
     s.version_number,
     coalesce(s.submitted_at, s.updated_at) as saved_at
   from program_run_modules m
+  join module_definitions md on md.id = m.module_definition_id
   join module_attempts a on a.program_run_module_id = m.id
   join artifact_submissions s on s.module_attempt_id = a.id
   join artifact_definitions d on d.id = s.artifact_definition_id
   where m.program_run_branch_id = $1
     and s.status in ('draft', 'submitted')
+    and md.module_type <> 'setup'
   order by d.artifact_key, s.version_number desc
 `;
 
@@ -240,11 +257,15 @@ export async function getMentorFounderDetail(
     };
   }
 
-  const [modules, artefactResult] = await Promise.all([
+  const [allModules, artefactResult] = await Promise.all([
     listRunModulesForBranch(run.activeBranchId),
     pool.query<ArtefactSummaryRow>(MENTOR_ARTEFACT_QUERY, [run.activeBranchId]),
   ]);
 
+  // Same exclusion as listMentorFounders above: Module 0 is system-driven
+  // and hidden from the Founder's own catalog, so it is dropped here too —
+  // both from the counts and from the row list this page renders.
+  const modules = allModules.filter((module) => module.moduleType !== "setup");
   const completed = modules.filter((module) => module.status === "completed");
   const completedAts = completed
     .map((module) => module.completedAt)
