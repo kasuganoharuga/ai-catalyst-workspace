@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 
+import { validateConfigForValidator } from "../../artifact/internal/validators/rule-schema.js";
 import { diffFields, diffKeySets } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
 import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
@@ -308,6 +309,17 @@ async function reconcileArtifactDefinitions(
   }
 
   for (const artifact of artifacts) {
+    try {
+      validateConfigForValidator(artifact.validatorKey, artifact.validationConfig);
+    } catch (error) {
+      throw new ContentSeedError(
+        "INVALID_VALIDATION_CONFIG",
+        `artifact_definitions "${artifact.artifactKey}" has a validationConfig that does not match ` +
+          `the schema for validator_key "${artifact.validatorKey ?? "null"}": ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     const existing = await client.query<
       { id: string } & Record<(typeof ARTIFACT_FIELDS)[number], unknown>
     >(

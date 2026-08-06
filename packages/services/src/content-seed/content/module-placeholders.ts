@@ -10,13 +10,7 @@ const toolkitManifest = manifestJson as ToolkitManifest;
 // content for these modules must be published under a *new* Program
 // Version once each has its own workflow spec — this is an immutable
 // draft placeholder snapshot, not a draft that gets finished in place.
-const PLACEHOLDER_MANIFEST_IDS = new Set([
-  "module-02-hmw",
-  "module-03-icp",
-  "module-04-problem-statement",
-  "module-05-solution-options",
-  "module-06-validation-plan",
-]);
+const PLACEHOLDER_MANIFEST_IDS = new Set(["module-05-solution-options", "module-06-validation-plan"]);
 
 function describePlaceholder(founderInputs: string[], outputs: string[]): string {
   return `Founder inputs: ${founderInputs.join(", ")}. Outputs: ${outputs.join(", ")}.`;

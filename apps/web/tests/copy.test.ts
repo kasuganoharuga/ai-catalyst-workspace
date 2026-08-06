@@ -35,8 +35,11 @@ describe("module 1 completion copy", () => {
   // more honest answer feel they got it wrong.
   it("names the next module when there is one, for every decision", () => {
     for (const decision of DECISIONS) {
-      const body = module1CompletedBody(decision, "Module 2 · HMW");
-      expect(body, decision).toContain("Module 2 · HMW");
+      const body = module1CompletedBody(
+        decision,
+        "Module 2 · Ideal Customer Avatar",
+      );
+      expect(body, decision).toContain("Module 2 · Ideal Customer Avatar");
     }
   });
 

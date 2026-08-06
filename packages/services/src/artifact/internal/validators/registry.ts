@@ -3,12 +3,14 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 // Package subpath import for Turbopack resolution when apps/web bundles services.
 import { pressureTestVerdictV1 } from "@ai-catalyst/services/artifact/internal/validators/pressure-test-verdict-v1";
 import { pressureTestVerdictV2 } from "@ai-catalyst/services/artifact/internal/validators/pressure-test-verdict-v2";
+import { structuredMarkdownV1 } from "@ai-catalyst/services/artifact/internal/validators/structured-markdown-v1";
 
 import type { Validator } from "./types.js";
 
 const VALIDATORS: Record<string, Validator> = {
   [pressureTestVerdictV1.validatorKey]: pressureTestVerdictV1,
   [pressureTestVerdictV2.validatorKey]: pressureTestVerdictV2,
+  [structuredMarkdownV1.validatorKey]: structuredMarkdownV1,
 };
 
 /**

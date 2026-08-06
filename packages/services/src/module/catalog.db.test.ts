@@ -120,17 +120,23 @@ describe("listModuleCatalog", () => {
     expect(entries.map((entry) => entry.moduleKey)).toEqual([
       "module-00-setup",
       "module-01-pressure-test",
-      "module-02-hmw",
-      "module-03-icp",
-      "module-04-problem-statement",
+      "module-02-customer-avatar",
+      "module-03-problem-statement",
+      "module-04-evidence-of-unmet-need",
       "module-05-solution-options",
       "module-06-validation-plan",
     ]);
 
     expect(
       entries.filter((entry) => entry.catalogStatus === "live").map((entry) => entry.moduleKey),
-    ).toEqual(["module-00-setup", "module-01-pressure-test"]);
-    expect(entries.filter((entry) => entry.catalogStatus === "coming_soon")).toHaveLength(5);
+    ).toEqual([
+      "module-00-setup",
+      "module-01-pressure-test",
+      "module-02-customer-avatar",
+      "module-03-problem-statement",
+      "module-04-evidence-of-unmet-need",
+    ]);
+    expect(entries.filter((entry) => entry.catalogStatus === "coming_soon")).toHaveLength(2);
 
     const module0 = entries.find((entry) => entry.moduleKey === "module-00-setup")!;
     expect(module0.expectedArtifacts).toEqual([
@@ -167,7 +173,7 @@ describe("listModuleCatalog", () => {
       "Working Notes / Unresolved Assumptions",
     ]);
 
-    const placeholder = entries.find((entry) => entry.moduleKey === "module-02-hmw")!;
+    const placeholder = entries.find((entry) => entry.moduleKey === "module-05-solution-options")!;
     expect(placeholder.expectedArtifacts).toEqual([]);
   });
 

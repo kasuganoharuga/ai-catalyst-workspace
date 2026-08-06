@@ -11,7 +11,10 @@ export type ContentSeedErrorCode =
   | "CONTENT_GRAPH_MISMATCH"
   // A publish-step precondition (e.g. "all Prompt Versions are draft
   // before publishing") did not hold.
-  | "PUBLISH_PRECONDITION_FAILED";
+  | "PUBLISH_PRECONDITION_FAILED"
+  // An artifact's `validationConfig` does not parse against the schema for
+  // its `validatorKey` (see rule-schema.ts's `validateConfigForValidator`).
+  | "INVALID_VALIDATION_CONFIG";
 
 export class ContentSeedError extends Error {
   constructor(

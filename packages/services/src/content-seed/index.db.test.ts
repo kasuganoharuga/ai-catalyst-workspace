@@ -96,20 +96,20 @@ describe("seedToolkitContent", () => {
     expect(result.published).toBe(true);
     expect(result.programVersionStatus).toBe("published");
     expect(result.modulesReconciled).toBe(7);
-    expect(result.promptsReconciled).toBe(2);
+    expect(result.promptsReconciled).toBe(8);
 
     const modules = await fetchModuleRows(result.programVersionId);
     expect(modules.map((row) => row.module_key)).toEqual([
       "module-00-setup",
       "module-01-pressure-test",
-      "module-02-hmw",
-      "module-03-icp",
-      "module-04-problem-statement",
+      "module-02-customer-avatar",
+      "module-03-problem-statement",
+      "module-04-evidence-of-unmet-need",
       "module-05-solution-options",
       "module-06-validation-plan",
     ]);
-    expect(modules.filter((row) => row.status === "active")).toHaveLength(2);
-    expect(modules.filter((row) => row.status === "draft")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "draft")).toHaveLength(2);
 
     const module0 = modules.find((row) => row.module_key === "module-00-setup")!;
     const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
@@ -148,6 +148,174 @@ describe("seedToolkitContent", () => {
     expect(module1Bindings.rows.map((row) => row.purpose)).toEqual([
       "artifact_generator",
       "facilitator",
+    ]);
+  });
+
+  it("loads Module 2 (Ideal Customer Avatar) content with the right question and artifact contracts", async () => {
+    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const modules = await fetchModuleRows(result.programVersionId);
+    const module2 = modules.find((row) => row.module_key === "module-02-customer-avatar")!;
+
+    const questions = await pool.query<{
+      question_key: string;
+      response_type: string;
+      options: unknown;
+    }>(
+      "select question_key, response_type, options from module_questions where module_definition_id = $1 order by sequence_index",
+      [module2.id],
+    );
+    expect(questions.rows.map((row) => row.question_key)).toEqual([
+      "customer_picture",
+      "beachhead_segment",
+      "customer_where",
+      "customer_stage",
+      "commercial_moment",
+      "customer_situation",
+      "functional_needs",
+      "emotional_needs",
+      "tier1_signals",
+      "tier2_signals",
+      "disqualifiers",
+      "core_promise",
+      "validation_status",
+    ]);
+    const validationStatus = questions.rows.find((row) => row.question_key === "validation_status")!;
+    expect(validationStatus.response_type).toBe("single_choice");
+    expect(validationStatus.options).toEqual([
+      { value: "assumed", label: "Assumed" },
+      { value: "interviewed", label: "Interviewed" },
+      { value: "paying", label: "Paying" },
+    ]);
+
+    const artifacts = await pool.query<{
+      artifact_key: string;
+      required_filename: string;
+      validator_key: string | null;
+      renderer_key: string | null;
+    }>(
+      "select artifact_key, required_filename, validator_key, renderer_key from artifact_definitions where module_definition_id = $1",
+      [module2.id],
+    );
+    expect(artifacts.rows).toEqual([
+      {
+        artifact_key: "ideal_customer_avatar",
+        required_filename: "Ideal-Customer-Avatar.md",
+        validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
+    ]);
+  });
+
+  it("loads Module 3 (Problem Statement) content with the right question and artifact contracts", async () => {
+    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const modules = await fetchModuleRows(result.programVersionId);
+    const module3 = modules.find((row) => row.module_key === "module-03-problem-statement")!;
+
+    const questions = await pool.query<{
+      question_key: string;
+      response_type: string;
+      options: unknown;
+    }>(
+      "select question_key, response_type, options from module_questions where module_definition_id = $1 order by sequence_index",
+      [module3.id],
+    );
+    expect(questions.rows.map((row) => row.question_key)).toEqual([
+      "problem_draft",
+      "current_alternatives",
+      "five_whys_ladder",
+      "root_cause",
+      "problem_statement",
+      "pain_intensity",
+      "priority_evidence",
+      "validation_status",
+    ]);
+    const validationStatus = questions.rows.find((row) => row.question_key === "validation_status")!;
+    expect(validationStatus.response_type).toBe("single_choice");
+    expect(validationStatus.options).toEqual([
+      { value: "assumed", label: "Assumed" },
+      { value: "interviewed", label: "Interviewed" },
+      { value: "validated", label: "Validated" },
+    ]);
+
+    const artifacts = await pool.query<{
+      artifact_key: string;
+      required_filename: string;
+      validator_key: string | null;
+      renderer_key: string | null;
+    }>(
+      "select artifact_key, required_filename, validator_key, renderer_key from artifact_definitions where module_definition_id = $1 order by sequence_index",
+      [module3.id],
+    );
+    expect(artifacts.rows).toEqual([
+      {
+        artifact_key: "problem_statement",
+        required_filename: "Problem-Statement.md",
+        validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
+      {
+        artifact_key: "problem_interview_guide",
+        required_filename: "Problem-Interview-Guide.md",
+        validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
+    ]);
+  });
+
+  it("loads Module 4 (Evidence of Unmet Need) content with the right question and artifact contracts", async () => {
+    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const modules = await fetchModuleRows(result.programVersionId);
+    const module4 = modules.find((row) => row.module_key === "module-04-evidence-of-unmet-need")!;
+
+    const questions = await pool.query<{
+      question_key: string;
+      response_type: string;
+      options: unknown;
+    }>(
+      "select question_key, response_type, options from module_questions where module_definition_id = $1 order by sequence_index",
+      [module4.id],
+    );
+    expect(questions.rows.map((row) => row.question_key)).toEqual([
+      "evidence_additions",
+      "evidence_level",
+      "evidence_level_reasoning",
+      "observed_behaviour",
+      "strongest_counterargument",
+      "counterargument_defence",
+      "validation_constraints",
+    ]);
+    const evidenceLevel = questions.rows.find((row) => row.question_key === "evidence_level")!;
+    expect(evidenceLevel.response_type).toBe("single_choice");
+    expect(evidenceLevel.options).toEqual([
+      { value: "assumption", label: "Assumption" },
+      { value: "secondary_research", label: "Secondary research" },
+      { value: "primary_research", label: "Primary research" },
+      { value: "demand_signal", label: "Demand signal" },
+      { value: "paying", label: "Paying" },
+    ]);
+
+    const artifacts = await pool.query<{
+      artifact_key: string;
+      required_filename: string;
+      validator_key: string | null;
+      renderer_key: string | null;
+    }>(
+      "select artifact_key, required_filename, validator_key, renderer_key from artifact_definitions where module_definition_id = $1 order by sequence_index",
+      [module4.id],
+    );
+    expect(artifacts.rows).toEqual([
+      {
+        artifact_key: "evidence_of_unmet_need",
+        required_filename: "Evidence-Of-Unmet-Need.md",
+        validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
+      {
+        artifact_key: "validation_roadmap_30_day",
+        required_filename: "Validation-Roadmap-30-Day.md",
+        validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
     ]);
   });
 
@@ -345,12 +513,12 @@ describe("seedToolkitContent", () => {
     });
   });
 
-  it("keeps exactly 2 active Modules and 5 draft placeholders with no sequence_index conflicts", async () => {
+  it("keeps exactly 5 active Modules and 2 draft placeholders with no sequence_index conflicts", async () => {
     const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
     const modules = await fetchModuleRows(result.programVersionId);
 
-    expect(modules.filter((row) => row.status === "active")).toHaveLength(2);
-    expect(modules.filter((row) => row.status === "draft")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "draft")).toHaveLength(2);
 
     const sequenceIndexes = modules.map((row) => row.sequence_index);
     expect(new Set(sequenceIndexes).size).toBe(sequenceIndexes.length);

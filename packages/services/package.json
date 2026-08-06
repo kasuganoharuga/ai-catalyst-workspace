@@ -20,6 +20,8 @@
     "./artifact/internal/validators/registry": "./src/artifact/internal/validators/registry.ts",
     "./artifact/internal/validators/pressure-test-verdict-v1": "./src/artifact/internal/validators/pressure-test-verdict-v1.ts",
     "./artifact/internal/validators/pressure-test-verdict-v2": "./src/artifact/internal/validators/pressure-test-verdict-v2.ts",
+    "./artifact/internal/validators/structured-markdown-v1": "./src/artifact/internal/validators/structured-markdown-v1.ts",
+    "./artifact/internal/validators/rule-schema": "./src/artifact/internal/validators/rule-schema.ts",
     "./artifact/internal/created-via": "./src/artifact/internal/created-via.ts",
     "./artifact/internal/triggered-via": "./src/artifact/internal/triggered-via.ts",
     "./storage": "./src/storage/index.ts",
