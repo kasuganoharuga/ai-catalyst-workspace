@@ -13,6 +13,7 @@ function catalogArtifact(
     artifactKey,
     name: `${artifactKey} name`,
     requiredFilename: `${artifactKey}.md`,
+    isRequired: true,
     outline: [{ heading: "Venture", items: [] }],
     ...overrides,
   };
@@ -21,11 +22,12 @@ function catalogArtifact(
 function contextArtifact(
   artifactKey: string,
   latestSubmission: ModuleContextArtifactSummary["latestSubmission"] = null,
+  isRequired = true,
 ): ModuleContextArtifactSummary {
   return {
     artifactKey,
     name: `${artifactKey} real name`,
-    isRequired: true,
+    isRequired,
     requiredFilename: `${artifactKey}.md`,
     latestSubmission,
   };
@@ -43,6 +45,7 @@ describe("buildArtifactMetadata", () => {
         artifactKey: "problem_statement",
         name: "problem_statement name",
         requiredFilename: "problem_statement.md",
+        isRequired: true,
         outline: [{ heading: "Venture", items: [] }],
         versionNumber: null,
         savedAt: null,
@@ -51,6 +54,7 @@ describe("buildArtifactMetadata", () => {
         artifactKey: "problem_interview_guide",
         name: "problem_interview_guide name",
         requiredFilename: "problem_interview_guide.md",
+        isRequired: true,
         outline: [{ heading: "Venture", items: [] }],
         versionNumber: null,
         savedAt: null,
@@ -83,6 +87,7 @@ describe("buildArtifactMetadata", () => {
       artifactKey: "problem_statement",
       name: "problem_statement real name",
       requiredFilename: "problem_statement.md",
+      isRequired: true,
       outline: [{ heading: "Root Cause", items: [] }],
       versionNumber: 2,
       savedAt: "2026-08-06T03:00:00.000Z",
@@ -91,10 +96,27 @@ describe("buildArtifactMetadata", () => {
       artifactKey: "problem_interview_guide",
       name: "problem_interview_guide real name",
       requiredFilename: "problem_interview_guide.md",
+      isRequired: true,
       outline: [{ heading: "Pass Bar", items: [] }],
       versionNumber: null,
       savedAt: null,
     });
+  });
+
+  // Module 4's interview_notes is the only isRequired:false Artifact in the
+  // content set, and the confirm-step card reads this flag to say "sign-off
+  // doesn't wait on this one" rather than showing it as a missing document.
+  it("carries isRequired through from both the catalog and the run context", () => {
+    const fromCatalog = buildArtifactMetadata(null, [
+      catalogArtifact("interview_notes", { isRequired: false }),
+    ]);
+    expect(fromCatalog[0].isRequired).toBe(false);
+
+    const fromContext = buildArtifactMetadata(
+      [contextArtifact("interview_notes", null, false)],
+      [catalogArtifact("interview_notes", { isRequired: false })],
+    );
+    expect(fromContext[0].isRequired).toBe(false);
   });
 
   it("returns a single-entry array unchanged in shape for a one-Artifact Module (Module 1's own case)", () => {

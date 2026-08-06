@@ -9,6 +9,13 @@ export type ExpectedArtifact = {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
+  /**
+   * False for a supporting Artifact the Module accepts but never blocks
+   * completion on (Module 4's Interview Notes). Carried so an unsaved card
+   * can say which of the two it is instead of reading as a missing
+   * required document.
+   */
+  isRequired: boolean;
   outline: { heading: string; items: string[] }[];
 };
 
@@ -23,6 +30,7 @@ export type ModuleArtifactView = {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
+  isRequired: boolean;
   outline: { heading: string; items: string[] }[];
   versionNumber: number | null;
   savedAt: string | null;

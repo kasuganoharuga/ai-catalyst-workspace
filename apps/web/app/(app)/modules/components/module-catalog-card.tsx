@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
 import {
+  headlineArtifact,
   moduleAccentStyle,
   type ModuleDisplayStatus,
 } from "../../lib/module-display";
@@ -20,7 +21,7 @@ export function ModuleCatalogCard({
   runStatus?: ModuleDisplayStatus;
 }) {
   const isComingSoon = module.catalogStatus === "coming_soon";
-  const artifact = module.expectedArtifacts[0] ?? null;
+  const artifact = headlineArtifact(module.expectedArtifacts);
 
   return (
     <Link

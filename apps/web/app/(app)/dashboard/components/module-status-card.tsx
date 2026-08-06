@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "../../components/status-badge";
 import {
   deriveModuleDisplayStatus,
+  headlineArtifact,
   moduleAccentStyle,
 } from "../../lib/module-display";
 
@@ -43,8 +44,8 @@ export function ModuleStatusCard({
 
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
-  const primaryArtifact = context?.artifacts[0] ?? null;
-  const catalogArtifact = catalog.expectedArtifacts[0] ?? null;
+  const primaryArtifact = headlineArtifact(context?.artifacts ?? []);
+  const catalogArtifact = headlineArtifact(catalog.expectedArtifacts);
   const savedSubmission = primaryArtifact?.latestSubmission ?? null;
   const effectiveAttemptStatus = attemptStatus ?? displayAttemptStatus;
 

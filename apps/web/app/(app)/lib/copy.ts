@@ -605,6 +605,11 @@ export const moduleRunCopy = {
   documentDownload: "Download",
   documentDecisionLabel: "Your decision",
   documentNotSaved: "Not saved yet.",
+  // A supporting document the Module accepts but never blocks completion
+  // on (Module 4's interview notes). Without this, an unsaved optional
+  // document reads exactly like a missing required one.
+  documentNotSavedOptional:
+    "Not saved yet — sign-off doesn't wait on this one.",
   backToIdeas: "Back to your ideas",
   documentExpand: "Show the rest",
   documentCollapse: "Show less",
@@ -648,10 +653,21 @@ export interface ModuleBriefCopy {
    * start — the first row of the work step's progress list, so it reads as
    * part of the same sequence as the rows it gates. Only Module 4 has one:
    * its facilitator prompt refuses to open the evidence questions until the
-   * Module 3 interview notes are in the conversation, and the founder
-   * should learn that here rather than from the assistant.
+   * Module 3 interview notes have been saved to the workspace, and the
+   * founder should learn that here rather than from the assistant. The row
+   * is ticked by the saved Artifact, not by an answered Question — see
+   * `isWorkPrerequisiteMet`.
    */
   workPrerequisite?: { label: string; pending: string; done: string };
+  /**
+   * What the founder has to go and do off-platform before the next Module
+   * can work, shown on the confirm step once this one is signed off —
+   * which is the moment it becomes their job. Only Module 3 has one: it
+   * hands over five interviews to run, and Module 4 refuses to open its
+   * questions until the notes come back. Saying so only in Module 4's
+   * brief tells them after they have already started it.
+   */
+  completedNextStep?: { title: string; body: string };
   questionsLabel: string;
   /** Work-step CheckLine label/pending-detail for a Module with exactly one Artifact. */
   progressVerdict: string;
@@ -775,6 +791,10 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "You still have to run the five conversations yourself before the next module can grade what came back.",
       },
     ],
+    completedNextStep: {
+      title: "Next: run the five interviews",
+      body: "Nothing here runs them for you. Take your Problem Interview Guide to five matching customers, write each conversation up separately in their own words within 30 minutes, and keep the notes. The next module opens by grading what actually came back, and can't start without them — three or four is still worth bringing.",
+    },
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -814,15 +834,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     ],
     workPrerequisite: {
       label: "Interview notes",
-      pending: "Nothing uploaded yet.",
-      done: "In the chat and graded.",
+      pending: "Nothing handed over yet.",
+      done: "Saved to your workspace.",
     },
     questionsLabel: "Seven evidence questions",
     progressVerdict: "Evidence saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
     confirmTitle: "Confirm your evidence and validation documents",
     confirmBody:
-      "Your Evidence of Unmet Need and 30-Day Validation Roadmap are saved. Confirming marks this module done.",
+      "Your interview notes, Evidence of Unmet Need and 30-Day Validation Roadmap are all saved. Confirming marks this module done.",
     confirmNoFileTitle: "No files yet",
     confirmNoFileBody:
       "Your Module 4 documents haven't arrived yet. Return to your AI assistant and ask it to save Evidence of Unmet Need and 30-Day Validation Roadmap, then refresh this page.",

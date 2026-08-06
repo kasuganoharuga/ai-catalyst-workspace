@@ -11,6 +11,7 @@ import { resolveModuleCopy } from "../../../../lib/copy";
 import {
   buildQuestionDisplayGroups,
   isWorkPrerequisiteMet,
+  prerequisiteArtifactKey,
 } from "../../../../lib/module-display";
 import type { Module1RunProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
@@ -41,7 +42,14 @@ export function Module1WorkStep({
   const decisionAnswered = decisionQuestions.filter(
     (q) => q.responseStatus !== null,
   ).length;
-  const prerequisiteMet = isWorkPrerequisiteMet(moduleKey, coreQuestions);
+  const prerequisiteMet = isWorkPrerequisiteMet(moduleKey, artifacts);
+  // The prerequisite Artifact already has its own row above these — it is
+  // what the founder brings in, not what the Module produces, and listing
+  // it twice would read as two separate documents.
+  const prerequisiteKey = prerequisiteArtifactKey(moduleKey);
+  const outputArtifacts = artifacts.filter(
+    (artifact) => artifact.artifactKey !== prerequisiteKey,
+  );
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
   const previewBody =
@@ -194,23 +202,23 @@ export function Module1WorkStep({
             }
           />
         ) : null}
-        {/* One CheckLine per Artifact. A Module with exactly one (Module 0
-            and 1 today) keeps the original single-document copy; a Module
-            with more than one (Modules 3 and 4) names each document by
-            itself — Phase 2 gives every Module its own progress-row copy,
-            this is the structural loop that lets it. */}
-        {artifacts.length === 1 ? (
+        {/* One CheckLine per Artifact this Module produces. A Module with
+            exactly one (Module 0 and 1 today) keeps the original
+            single-document copy; a Module with more than one (Modules 3 and
+            4) names each document by itself — Phase 2 gives every Module its
+            own progress-row copy, this is the structural loop that lets it. */}
+        {outputArtifacts.length === 1 ? (
           <CheckLine
-            ok={artifacts[0].versionNumber !== null}
+            ok={outputArtifacts[0].versionNumber !== null}
             label={copy.progressVerdict}
             detail={
-              artifacts[0].versionNumber !== null
-                ? `${artifacts[0].name} · version ${artifacts[0].versionNumber}`
+              outputArtifacts[0].versionNumber !== null
+                ? `${outputArtifacts[0].name} · version ${outputArtifacts[0].versionNumber}`
                 : copy.progressVerdictPending
             }
           />
         ) : (
-          artifacts.map((artifact) => (
+          outputArtifacts.map((artifact) => (
             <CheckLine
               key={artifact.artifactKey}
               ok={artifact.versionNumber !== null}

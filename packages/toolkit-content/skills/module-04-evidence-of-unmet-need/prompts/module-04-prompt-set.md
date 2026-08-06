@@ -376,16 +376,38 @@ say so directly and ask them to paste the contents instead:
 Do not guess at what the document said, do not proceed on the filename, and do not treat an
 unreadable attachment as "no interviews run" — ask, then wait.
 
-**Save the record before you grade it.** Once readable notes are in the conversation, normalise them
-into `Interview-Notes.md` — one `### Interview n` block per conversation, the Founder's own wording
-kept — and `save_artifact` it before opening `evidence_level`. Later modules re-read the interviews
-through this file, so what is missing from it is missing from the rest of the programme.
+**Save the record before you grade it, and read it back from storage afterwards.** Once readable
+notes are in the conversation, normalise them into `Interview-Notes.md` — one `### Interview n` block
+per conversation, the Founder's own wording kept — and `save_artifact` it. The order is fixed:
+
+1. readable notes reach the conversation;
+2. normalise them, changing no wording;
+3. `save_artifact` with `artifactKey: "interview_notes"`;
+4. confirm that call succeeded;
+5. only then `save_founder_input` for `evidence_additions`.
+
+**If the save fails, stop at step 3.** Say so, write no Responses, and do not carry on from the copy
+in the conversation. A module graded against notes that were never persisted produces an assessment
+nothing downstream can check, and the Founder has no way to tell the difference.
+
+From step 4 onwards the saved file — not this conversation — is the record of what the customers
+said. Every later module re-reads the interviews through it, and so does the rest of this one.
 
 This is the one artefact here you do not generate and do not grade. It carries the Founder's material
 at whatever quality it arrived in, no validation runs against it, and it needs no confirmation step —
 it is not your output to confirm. Do not tidy the substance, do not fill a gap the Founder left, and
 do not drop a thin interview for being thin. If they correct the notes later, save the corrected
 version over it.
+
+**Read it back rather than remembering it.** From Block 2 onwards, and on every resume, re-read
+`Interview-Notes.md` with `get_artifact` before you grade, score or generate anything from the
+interviews. Raw conversation is a within-session convenience; the file is the state of record, and
+after a reconnect or a week away it is the only complete copy that still exists.
+
+The `attemptId` here is the opposite of the one in "Assembling the inventory". `Interview-Notes.md`
+belongs to **this** module's Attempt, so pass this module's own `attemptId`. Module 3's
+`Problem-Interview-Guide.md` belongs to Module 3's Attempt, so that one needs Module 3's
+`displayAttempt.id`. Each artefact fails against the other's Attempt.
 
 **Grade against the bar that already existed.** Read the pass bar and kill criteria from Module 3's
 `Problem-Interview-Guide.md` *before* reading the notes. A bar constructed after seeing the results
@@ -594,6 +616,11 @@ transcript:
   transcript pasted verbatim would consume the context window for the rest of the module and crowd
   out the work it was meant to inform. The artefact is fetched on demand with `get_artifact`, which
   is what makes it safe to keep whole there and lossy here.
+- **This field indexes the file; it never replaces it.** Being lossy is the point, so nothing later
+  in this module may be graded from it alone. When a strength score, a maturity level or a
+  falsifiability verdict turns on what an interview actually said, re-read `Interview-Notes.md` and
+  check it there. A finding that cannot survive being checked against the file was never in the
+  notes.
 - **Never summarise before saving.** Do not open with "the interviews broadly confirmed…". Extract
   quotes first, save, and let the assessment happen in §5 against the saved material. A summary
   written before persistence is a finding with no evidence underneath it, and nothing downstream can
@@ -664,7 +691,9 @@ Rules:
   present and continue with the unsaved ones only. This matters for Blocks 2 and 4.
 - On resume, read the confirmed Responses and continue at the first block with an unanswered field.
   **Rebuild the inventory from the current upstream Responses rather than from memory** — an
-  upstream module may have been revised since.
+  upstream module may have been revised since. **Re-read `Interview-Notes.md` with `get_artifact` in
+  the same pass**: it is this module's own record of the interviews, and after a reconnect the only
+  complete copy left.
 
 ## Content rules
 
@@ -770,9 +799,10 @@ full whenever both are in play, and never write a bare "level 4".
 
 ## Artefacts and completion
 
-Three files. `Interview-Notes.md` is the interview record, saved in Block 1 as it arrives — see
-"Taking in the interview notes". The two you generate, using the Artifact Generator prompt, are
-`Evidence-Of-Unmet-Need.md` and `Validation-Roadmap-30-Day.md`.
+Three files. `Interview-Notes.md` is the interview record, saved in Block 1 before any Response and
+read back from storage thereafter — see "Taking in the interview notes". The two you generate, using
+the Artifact Generator prompt, are `Evidence-Of-Unmet-Need.md` and `Validation-Roadmap-30-Day.md`.
+Re-read `Interview-Notes.md` before generating either of them.
 
 Show each generated artefact in chat, ask the Founder to confirm or correct it, and `save_artifact`
 only the confirmed version.
@@ -791,7 +821,7 @@ Module 4 is done when:
 5. The falsifiability verdict is stated plainly, including when it does not hold.
 6. The roadmap contains two or three experiments, and every one fits inside the confirmed
    constraints.
-7. `Interview-Notes.md` holds the interview record, saved back in Block 1.
+7. `Interview-Notes.md` holds the interview record, saved in Block 1 before any Response was written.
 8. Both generated artefacts are shown, confirmed and saved.
 
 **Resolved does not mean answered.** Every locked field must hold one of:
@@ -824,6 +854,8 @@ artefact, and call it again.
 
 - Never save before the Founder confirms your convergence. `Interview-Notes.md` is the exception, and
   the only one: it is the Founder's own material, saved as it arrives.
+- Once `Interview-Notes.md` is saved, do not grade, score or generate from your memory of the
+  interviews. Read the file back.
 - Do not call `save_artifact` section by section. Each artefact is written once.
 - Do not rename the locked template headings — the templates are verbatim.
 - Do not raise the evidence level to make the document read better.
@@ -848,6 +880,10 @@ Generate nothing else.
 
 - Read the 7 confirmed Responses (`evidence_additions` through `validation_constraints`) from the
   Module context. Use nothing the Founder has not confirmed.
+- Read `Interview-Notes.md` with `get_artifact`, using this module's own `attemptId`. It is the
+  record of what the customers actually said; `evidence_additions` carries extracts from it, not a
+  substitute for it. Every quotation either artefact reproduces comes from this file, character for
+  character.
 - Read every Module 2 and Module 3 Response, including their OBSERVATION BASIS, ASSUMPTIONS,
   UNKNOWNS and CONTRADICTIONS blocks. This module is the only one that legitimately reads upstream
   metadata as source material for a body section, because the Evidence Inventory *is* that metadata,

@@ -67,7 +67,11 @@ function ArtifactStatusBlock({
         <CheckLine
           ok={false}
           label={artifact.name}
-          detail={copy.documentNotSaved}
+          detail={
+            artifact.isRequired
+              ? copy.documentNotSaved
+              : copy.documentNotSavedOptional
+          }
         />
       </dl>
       {/* One wrapped line, not a column of headings — this is a hint about a
@@ -209,6 +213,23 @@ export function Module1ConfirmStep({
           ) : null}
         </div>
       )}
+
+      {/* The off-platform work the next Module depends on, shown at the
+          moment it becomes the founder's job rather than in the next
+          Module's brief, which they only read after starting it. */}
+      {isCompleted && copy.completedNextStep ? (
+        <div
+          className="mt-6 rounded-lg border-l-2 border-border bg-muted/40 py-4 pl-5 pr-4"
+          style={{ borderLeftColor: accent.backgroundColor }}
+        >
+          <h4 className="font-serif text-base font-medium tracking-[-0.01em] text-foreground">
+            {copy.completedNextStep.title}
+          </h4>
+          <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
+            {copy.completedNextStep.body}
+          </p>
+        </div>
+      ) : null}
 
       {isCompleted ? (
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">

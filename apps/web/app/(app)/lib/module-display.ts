@@ -119,6 +119,26 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
   },
 };
 
+/**
+ * The Artifact a Module is summarised by — what "Produces …" names on the
+ * catalog card and what the dashboard tracks as saved/not saved.
+ *
+ * Not `artifacts[0]`. A Module can hold a supporting Artifact it accepts
+ * but never blocks on (Module 4's Interview Notes, which is `isRequired:
+ * false` and — being the first thing that happens in that Module — sorts
+ * first), and an inbound record is not what a Module produces. The first
+ * *required* Artifact is, so ordering the Artifacts by when they happen no
+ * longer changes what the Module is called by. Falls back to the first of
+ * any kind so a Module with only optional Artifacts still summarises.
+ */
+export function headlineArtifact<T extends { isRequired: boolean }>(
+  artifacts: readonly T[],
+): T | null {
+  return (
+    artifacts.find((artifact) => artifact.isRequired) ?? artifacts[0] ?? null
+  );
+}
+
 /** One row in a Module's simplified work-step progress list — a short phrase, never the full question text. */
 export interface ModuleQuestionDisplayGroup {
   key: string;
@@ -136,27 +156,43 @@ function humanizeQuestionKey(questionKey: string): string {
 }
 
 /**
- * The Question whose saved Response is the only proof the platform has
- * that a Module's off-platform prerequisite was met. Module 4's
- * `evidence_additions` is where Module 3's interview notes enter the
- * system, so a Response against it means the notes reached the assistant.
+ * The Artifact whose saved version is the only proof the platform has that
+ * a Module's off-platform prerequisite was met. Module 4's facilitator
+ * saves `Interview-Notes.md` in Block 1, before any Response, and re-reads
+ * it from storage for every later block — so a saved version of that file
+ * means the interviews genuinely reached the platform.
+ *
+ * Not the `evidence_additions` Response, which this used to check: the
+ * facilitator explicitly accepts "Nothing to add" as a complete answer to
+ * that field, so it can be answered without any notes existing, and the
+ * row would go green on a Module that had not met its prerequisite at all.
  */
-const PREREQUISITE_QUESTION_KEY: Record<string, string> = {
-  [MODULE_4_KEY]: "evidence_additions",
+const PREREQUISITE_ARTIFACT_KEY: Record<string, string> = {
+  [MODULE_4_KEY]: "interview_notes",
 };
+
+/**
+ * Null for a Module with no off-platform prerequisite. Callers use it to
+ * keep the prerequisite Artifact out of the "documents this Module
+ * produces" list — it has its own row, and it is an inbound record rather
+ * than an output.
+ */
+export function prerequisiteArtifactKey(moduleKey: string): string | null {
+  return PREREQUISITE_ARTIFACT_KEY[moduleKey] ?? null;
+}
 
 /** False for a Module with no prerequisite — the row is copy-gated, not shown at all. */
 export function isWorkPrerequisiteMet(
   moduleKey: string,
-  questions: ModuleContextQuestion[],
+  artifacts: { artifactKey: string; versionNumber: number | null }[],
 ): boolean {
-  const questionKey = PREREQUISITE_QUESTION_KEY[moduleKey];
-  if (!questionKey) {
+  const artifactKey = prerequisiteArtifactKey(moduleKey);
+  if (!artifactKey) {
     return false;
   }
-  return questions.some(
-    (question) =>
-      question.questionKey === questionKey && question.responseStatus !== null,
+  return artifacts.some(
+    (artifact) =>
+      artifact.artifactKey === artifactKey && artifact.versionNumber !== null,
   );
 }
 

@@ -304,6 +304,17 @@ describe("seedToolkitContent", () => {
       [module4.id],
     );
     expect(artifacts.rows).toEqual([
+      // First, and the only one without a validator: the raw interview record
+      // is this Module's input, saved in Block 1 before any Response and
+      // accepted at whatever quality it arrives in. Sequence order describes
+      // when each artefact happens; what the Module is *summarised* by is the
+      // first required one (apps/web's headlineArtifact), not the first row.
+      {
+        artifact_key: "interview_notes",
+        required_filename: "Interview-Notes.md",
+        validator_key: null,
+        renderer_key: null,
+      },
       {
         artifact_key: "evidence_of_unmet_need",
         required_filename: "Evidence-Of-Unmet-Need.md",
@@ -314,14 +325,6 @@ describe("seedToolkitContent", () => {
         artifact_key: "validation_roadmap_30_day",
         required_filename: "Validation-Roadmap-30-Day.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
-      },
-      // Last, and the only one without a validator: the raw interview record is
-      // this Module's input, accepted at whatever quality it arrives in.
-      {
-        artifact_key: "interview_notes",
-        required_filename: "Interview-Notes.md",
-        validator_key: null,
         renderer_key: null,
       },
     ]);

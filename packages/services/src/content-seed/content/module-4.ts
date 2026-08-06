@@ -2,13 +2,13 @@ import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.j
 
 // Ported from skills/module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md
 // (§1 field ownership, §3 question rows, §5 artifact generator) and the
-// templates it names. Two graded outputs: Evidence-Of-Unmet-Need.md grades
-// what is actually known (including Module 3's interview notes, which arrive
-// here through `evidence_additions`); Validation-Roadmap-30-Day.md plans
-// the next 30 days. Interview-Notes.md is a third, ungraded artefact holding
-// the interview record itself — see INTERVIEW_NOTES_ARTIFACT. Upstream Module
-// 2/3 validation statuses are historical snapshots, never a ceiling on the
-// level this module may assign.
+// templates it names. Three artefacts, in the order they happen:
+// Interview-Notes.md is the ungraded record of Module 3's interviews, saved
+// first and re-read from storage as this module's source of truth for what
+// the customers said (see INTERVIEW_NOTES_ARTIFACT); Evidence-Of-Unmet-Need.md
+// then grades what is actually known; Validation-Roadmap-30-Day.md plans the
+// next 30 days. Upstream Module 2/3 validation statuses are historical
+// snapshots, never a ceiling on the level this module may assign.
 
 const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 
@@ -277,7 +277,7 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
 
 const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
   artifactKey: "evidence_of_unmet_need",
-  sequenceIndex: 1,
+  sequenceIndex: 2,
   name: "Evidence of Unmet Need",
   description:
     "Evidence inventory assembled from upstream modules plus Module 3's interview notes, evidence maturity level, behavioural evidence log, falsifiability test, and an internal Validation Status. Never capped by an earlier module's historical status.",
@@ -483,7 +483,7 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
 
 const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   artifactKey: "validation_roadmap_30_day",
-  sequenceIndex: 2,
+  sequenceIndex: 3,
   name: "30-Day Validation Roadmap",
   description:
     "Two or three experiments that fit the Founder's real time, budget and access constraints, each with a pre-set pass condition, fail condition and expected evidence signal strength. Start Here expands the first experiment; it never authors new criteria for it.",
@@ -627,26 +627,31 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   },
 };
 
-// The Founder's raw interview record, stored rather than left in the chat:
-// `evidence_additions` still carries what the notes *say* into the graded
-// document, but nothing durable held the notes themselves. Deliberately
-// unlike the two artefacts above:
+// The Founder's raw interview record, and Module 4's source of truth for
+// what the customers actually said. `evidence_additions` carries extracts
+// from it into the graded document, but it is deliberately lossy — the
+// facilitator saves this file in Block 1 before any Response is written,
+// then re-reads it with `get_artifact` for every later block, so a Module
+// resumed in a new chat a week later still has the complete record.
+// Deliberately unlike the two artefacts above:
 //  - `isRequired: false`, so it never blocks completeModuleAttempt — the
 //    "did you actually interview anyone" gate lives in the facilitator
-//    prompt, which grades thin notes rather than rejecting them;
+//    prompt, which grades thin notes rather than rejecting them. Optional
+//    to the completion check, not optional to the Module;
 //  - `validatorKey: null` (with the empty validationConfig that implies),
 //    because raw notes have no structure worth failing a Founder over. The
 //    template below is formatting guidance for the assistant, not a
 //    contract enforced on submission.
-// Last in sequence even though the facilitator saves it first, in Block 1:
-// several consumers read `expectedArtifacts[0]` as the Module's headline output
-// (apps/web's module catalog card renders it as "Produces …", and the dashboard
-// treats it as the primary artefact), and an ungraded inbound record is not what
-// this Module produces. Its position ahead of the outputs on the artefacts page
-// is presentation, ordered there rather than by sequence_index.
+// First in sequence, because it is the first thing that happens here. That
+// used to collide with several consumers reading `expectedArtifacts[0]` as
+// the Module's headline output (the module catalog card's "Produces …",
+// the dashboard's saved/not-saved tracking) — an ungraded inbound record
+// is not what this Module produces. Those now go through apps/web's
+// `headlineArtifact`, which picks the first *required* Artifact, so
+// sequence order is free to describe when things happen.
 const INTERVIEW_NOTES_ARTIFACT: ArtifactContent = {
   artifactKey: "interview_notes",
-  sequenceIndex: 3,
+  sequenceIndex: 1,
   name: "Interview Notes",
   description:
     "The Module 3 problem interviews as the Founder recorded them, normalised to Markdown and kept in the workspace. Raw input to the evidence assessment, accepted at whatever quality it arrives in.",
@@ -685,8 +690,8 @@ export const MODULE_4_CONTENT: ModuleContent = {
   isPublishable: true,
   questions: EVIDENCE_QUESTIONS,
   artifacts: [
+    INTERVIEW_NOTES_ARTIFACT,
     EVIDENCE_OF_UNMET_NEED_ARTIFACT,
     VALIDATION_ROADMAP_ARTIFACT,
-    INTERVIEW_NOTES_ARTIFACT,
   ],
 };
