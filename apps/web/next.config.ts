@@ -10,23 +10,16 @@ const nextConfig: NextConfig = {
     "@ai-catalyst/services",
     "@ai-catalyst/toolkit-content",
   ],
-  // Standalone output + explicit tracing is what actually gets verified by
-  // scripts/verify-standalone-build.mjs (see package.json's "test:standalone"
-  // script) — a successful `next build` alone does not prove that
-  // packages/toolkit-content's files are included in the deployable output.
+  // Verified by scripts/verify-standalone-build.mjs (package.json's
+  // "test:standalone"): a successful `next build` does not prove the
+  // standalone output actually boots and serves.
   output: "standalone",
-  // Trace from the monorepo root so files outside apps/web (e.g.
-  // packages/toolkit-content) are considered at all.
+  // Trace from the monorepo root so files outside apps/web — the workspace
+  // packages in transpilePackages — are considered at all.
   outputFileTracingRoot: workspaceRoot,
-  // Next's static analysis of packages/services/module's fs.readFile calls
-  // isn't guaranteed to resolve manifest-driven paths, so the Toolkit
-  // content this dynamic route consumes is included explicitly.
-  outputFileTracingIncludes: {
-    "/downloads/\\[module\\]": [
-      "../../packages/toolkit-content/manifest.json",
-      "../../packages/toolkit-content/skills/**/*",
-    ],
-  },
+  // No outputFileTracingIncludes: /downloads was the only route that read
+  // packages/toolkit-content off disk at request time, and it is retired.
+  // Toolkit content is now read at seed time only.
   // Mentors used to land on /toolkit; that route is gone. Send bookmarks
   // and old ROLE_DESTINATION targets to the role-aware dashboard.
   async redirects() {

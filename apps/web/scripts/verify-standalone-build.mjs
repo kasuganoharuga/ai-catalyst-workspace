@@ -1,31 +1,27 @@
 // Verifies that `next build`'s standalone output (apps/web/next.config.ts
-// sets `output: "standalone"`) actually packaged the Toolkit content that
-// packages/services/module reads at runtime — a passing `pnpm build` alone
-// does not prove that, since the full monorepo (including
-// packages/toolkit-content) is still on disk during a local build, so a
-// missing `outputFileTracingIncludes` entry would silently pass locally and
-// only fail once actually deployed (where only the traced output exists).
+// sets `output: "standalone"`) actually boots and serves. A passing
+// `pnpm build` does not prove that: the full monorepo is still on disk
+// during a local build, so a workspace package that failed to trace into
+// `.next/standalone` would pass locally and only fail once deployed, where
+// only the traced output exists.
 //
-// Two checks, both required:
+// The traced `server.js` is started in place and a real route is requested,
+// which catches both a missing traced dependency and a runtime bug a static
+// file-list check could not see.
 //
-// 1. Static: each route's `page.js.nft.json` / `route.js.nft.json` (Next's
-//    Node File Trace manifest — the literal list of files that get copied
-//    into `.next/standalone` for that route) must list
-//    `packages/toolkit-content`'s manifest plus the specific
-//    modules/*.md or skills/*/SKILL.md files it needs. This is what
-//    `outputFileTracingIncludes` actually controls, so it catches a
-//    misconfigured or removed include even if nothing else would.
-// 2. Live: the traced `server.js` is started in place and the real routes
-//    are requested, to catch runtime bugs (e.g. a bad path computation)
-//    that a static file-list check can't.
+// This script previously also asserted that packages/toolkit-content's
+// manifest and SKILL.md files appeared in a route's Node File Trace
+// manifest. That check is gone with /downloads: no route reads
+// packages/toolkit-content off disk at request time any more, so there is
+// no outputFileTracingIncludes entry left to protect. If a runtime route
+// ever reads workspace files off disk again, restore the static check —
+// `outputFileTracingIncludes` is exactly what it was there to guard.
 //
 // (Running the live check from an isolated copy of only `.next/standalone`
-// would be a stronger version of check 2, but Node's `fs.cp` has to
-// recreate pnpm's many symlinks, which needs elevated privileges/Developer
-// Mode on Windows — so check 1 carries the "did we actually package the
-// right files" burden here instead.)
+// would be stronger, but Node's `fs.cp` has to recreate pnpm's many
+// symlinks, which needs elevated privileges/Developer Mode on Windows.)
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -34,35 +30,10 @@ const nextDir = path.join(webDir, ".next");
 const standaloneWebDir = path.join(nextDir, "standalone", "apps", "web");
 const serverEntry = path.join(standaloneWebDir, "server.js");
 
-const KNOWN_MODULE_ID = "module-00-setup";
 const PORT = 4173;
 
 function log(message) {
   console.log(`[verify-standalone-build] ${message}`);
-}
-
-function assertTraced(nftRelativePath, requiredSuffixes) {
-  const nftPath = path.join(nextDir, "server", nftRelativePath);
-  if (!existsSync(nftPath)) {
-    throw new Error(`Expected a Node File Trace manifest at ${nftPath}.`);
-  }
-
-  const { files } = JSON.parse(readFileSync(nftPath, "utf8"));
-  const missing = requiredSuffixes.filter(
-    (suffix) =>
-      !files.some((file) => file.replaceAll("\\", "/").endsWith(suffix)),
-  );
-
-  if (missing.length > 0) {
-    throw new Error(
-      `${nftRelativePath} is missing traced file(s): ${missing.join(", ")}.\n` +
-        `Check apps/web/next.config.ts's outputFileTracingIncludes.`,
-    );
-  }
-
-  log(
-    `${nftRelativePath} traces all ${requiredSuffixes.length} required file(s).`,
-  );
 }
 
 async function fetchStatus(url) {
@@ -93,11 +64,6 @@ async function main() {
     );
   }
 
-  assertTraced(path.join("app", "downloads", "[module]", "route.js.nft.json"), [
-    "packages/toolkit-content/manifest.json",
-    `packages/toolkit-content/skills/${KNOWN_MODULE_ID}/SKILL.md`,
-  ]);
-
   log(`Starting standalone server on port ${PORT}...`);
   const server = spawn(process.execPath, [serverEntry], {
     cwd: standaloneWebDir,
@@ -121,12 +87,11 @@ async function main() {
   const baseUrl = `http://127.0.0.1:${PORT}`;
 
   try {
-    await waitForServer(`${baseUrl}/downloads`, 15_000, () => serverOutput);
+    await waitForServer(`${baseUrl}/`, 15_000, () => serverOutput);
 
-    const checks = [
-      { path: "/downloads", expected: 200 },
-      { path: `/downloads/${KNOWN_MODULE_ID}`, expected: 200 },
-    ];
+    // Public, unauthenticated, and rendered by the app shell — enough to
+    // prove the standalone bundle resolved its workspace dependencies.
+    const checks = [{ path: "/", expected: 200 }];
 
     for (const check of checks) {
       const status = await fetchStatus(`${baseUrl}${check.path}`);

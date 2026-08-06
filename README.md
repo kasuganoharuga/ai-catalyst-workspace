@@ -10,7 +10,6 @@ The first version is Skill-first and workspace-ready:
 
 - Browse Toolkit modules
 - View module detail pages
-- Download module `SKILL.md` files
 - Reserve future workspace and admin routes
 - Keep FastAPI available for later AI workflow execution
 - Run a Remote MCP Server skeleton (stateless Streamable HTTP, no tools registered yet) that future AI-agent (e.g. Claude) access to the same Toolkit workflows will build on
@@ -198,7 +197,7 @@ Framework rules once this is implemented:
 
 Official artifact validation is never exposed as an MCP tool — schema check constraints already gate it so it can't be MCP-triggered; MCP only ever exposes the non-authoritative `run_draft_check` path.
 
-`apps/web/lib/toolkit.ts` (Toolkit manifest + module/skill markdown reads) is existing business logic that belongs in `packages/services` per rule 1 above, but has not been moved yet — that migration, along with all handler/service implementation, is deferred to a follow-up pass.
+Toolkit content is read at seed time only (`packages/services/src/content-seed/`); the public Skill-download gallery that used to read it at request time has been retired.
 
 ## Frontend Conventions
 

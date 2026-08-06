@@ -6,7 +6,7 @@ import {
 } from "@ai-catalyst/services/invitation";
 
 // Thin Next.js shell over packages/services/invitation: adds React's
-// request-scoped cache() the same way lib/toolkit.ts does — no business
+// request-scoped cache() the same way lib/workspace.ts does — no business
 // logic lives here. Only the read path is exposed this way; create/revoke
 // are mutations, so they go through the server actions in
 // lib/actions/admin-actions.ts and lib/actions/mentor-actions.ts, which
