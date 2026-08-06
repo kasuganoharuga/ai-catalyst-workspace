@@ -24,7 +24,7 @@ export function ModuleCatalogCard({
 
   return (
     <Link
-      href={`/modules/${module.moduleKey}`}
+      href={`/modules/${encodeURIComponent(module.moduleKey)}`}
       className={cn(
         "group flex flex-col rounded-xl border border-border bg-card p-5 transition hover:border-foreground/30",
         isComingSoon && "opacity-70 hover:opacity-100",

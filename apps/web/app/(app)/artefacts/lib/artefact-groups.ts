@@ -27,7 +27,7 @@ function startActionForUnsaved(
   status: RunModuleStatus,
 ): ArtefactStartAction {
   if (isStartableRunStatus(status)) {
-    return { kind: "start", href: `/modules/${moduleKey}` };
+    return { kind: "start", href: `/modules/${encodeURIComponent(moduleKey)}` };
   }
   return { kind: "locked" };
 }
@@ -141,7 +141,7 @@ export function buildPreviewArtefactGroups(
           entry.moduleKey === nextStartableKey
             ? ({
                 kind: "start",
-                href: `/modules/${entry.moduleKey}`,
+                href: `/modules/${encodeURIComponent(entry.moduleKey)}`,
               } as const)
             : ({ kind: "locked" } as const),
       })),

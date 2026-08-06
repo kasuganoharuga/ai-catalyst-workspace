@@ -39,7 +39,7 @@ export function FounderRow({ founder }: { founder: MentorFounderSummary }) {
 
   return (
     <Link
-      href={`/founders/${founder.workspaceId}`}
+      href={`/founders/${encodeURIComponent(founder.workspaceId)}`}
       className="group flex flex-col gap-3 border-b border-border py-4 transition last:border-b-0 hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-6"
     >
       <div className="flex min-w-0 items-center gap-3 sm:flex-1">

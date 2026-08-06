@@ -81,7 +81,7 @@ export function ModuleStatusCard({
 
   return (
     <Link
-      href={`/modules/${catalog.moduleKey}`}
+      href={`/modules/${encodeURIComponent(catalog.moduleKey)}`}
       className={cn(
         "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
         isLocked && "opacity-60",

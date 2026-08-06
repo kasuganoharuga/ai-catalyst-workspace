@@ -69,7 +69,7 @@ export function resolveNextModuleDestination(
     );
 
   if (actionable) {
-    return `/modules/${actionable.moduleKey}`;
+    return `/modules/${encodeURIComponent(actionable.moduleKey)}`;
   }
 
   return "/dashboard";

@@ -179,7 +179,7 @@ function resolveNextAction(input: {
     return {
       title: dashboardCopy.actionModule1Title,
       body: dashboardCopy.actionModule1Body,
-      href: `/modules/${MODULE_1_KEY}`,
+      href: `/modules/${encodeURIComponent(MODULE_1_KEY)}`,
       cta: dashboardCopy.actionModule1Cta,
     };
   }

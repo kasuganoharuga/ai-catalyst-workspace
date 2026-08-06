@@ -70,7 +70,7 @@ export default async function MentorArtefactPage({
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           <Link
-            href={`/founders/${workspaceId}`}
+            href={`/founders/${encodeURIComponent(workspaceId)}`}
             className="underline-offset-2 hover:underline"
           >
             {mentorArtefactDocumentCopy.backLink}

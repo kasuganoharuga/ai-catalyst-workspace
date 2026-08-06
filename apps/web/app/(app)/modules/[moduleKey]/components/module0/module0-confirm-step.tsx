@@ -129,13 +129,13 @@ export function Module0ConfirmStep({
         {documentSaved && artifactKey ? (
           <div className="flex flex-wrap gap-x-4 gap-y-2 border-t border-border px-4 py-3 text-xs">
             <Link
-              href={`/artefacts/${moduleKey}/${artifactKey}`}
+              href={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}`}
               className="font-medium text-foreground underline-offset-2 hover:underline"
             >
               Read document
             </Link>
             <a
-              href={`/artefacts/${moduleKey}/${artifactKey}/download`}
+              href={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`}
               className="font-medium text-foreground underline-offset-2 hover:underline"
             >
               Download

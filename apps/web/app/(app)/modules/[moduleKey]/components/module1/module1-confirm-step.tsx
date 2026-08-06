@@ -109,8 +109,8 @@ export function Module1ConfirmStep({
                   )
                 : null
             }
-            readHref={`/artefacts/${moduleKey}/${artifactKey}`}
-            downloadHref={`/artefacts/${moduleKey}/${artifactKey}/download`}
+            readHref={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}`}
+            downloadHref={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`}
           >
             {documentPreview}
           </DocumentPreview>

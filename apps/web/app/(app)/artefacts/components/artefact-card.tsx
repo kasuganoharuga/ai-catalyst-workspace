@@ -32,7 +32,7 @@ export function ArtefactDocumentRow({
 }) {
   const status = statusFor(artefact);
   const saved = artefact.versionNumber !== null;
-  const readHref = `/artefacts/${artefact.moduleKey}/${artefact.artifactKey}`;
+  const readHref = `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}`;
   const downloadHref = `${readHref}/download`;
 
   return (

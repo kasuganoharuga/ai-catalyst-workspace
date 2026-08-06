@@ -197,7 +197,7 @@ function ModuleProgressRow({
         {artefactKey ? (
           <Button asChild size="sm" variant="outline">
             <Link
-              href={`/founders/${workspaceId}/artefacts/${module.moduleKey}/${artefactKey}`}
+              href={`/founders/${encodeURIComponent(workspaceId)}/artefacts/${encodeURIComponent(module.moduleKey)}/${encodeURIComponent(artefactKey)}`}
             >
               {mentorFounderDetailCopy.readCta}
             </Link>
