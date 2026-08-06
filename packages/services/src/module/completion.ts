@@ -132,12 +132,26 @@ async function loadCompletionContext(
   return result.rows[0] ?? null;
 }
 
+// Founder-visible: this string is written into the Setup Summary's
+// "AI client:" line, so it has to name the assistant the Founder actually
+// connected. `actor.provider` is derived from the OAuth client's registered
+// redirect host, not from self-declared client_name, so it is safe to
+// display. Unlike the enum columns (module_responses.source_provider et al,
+// which only accept website/claude/openai), this is free text, so "other"
+// — a legitimately registered third client — gets an honest generic label
+// rather than being forced into one of the two known brands.
 function resolveAiClientLabel(actor: ActorContext): string {
   if (actor.source === "web") {
     return "Founder Toolkit (Web)";
   }
-  // V1: one MCP AI client — same hardcode as resolveInteractionProvider.
-  return "Claude (Remote MCP)";
+  switch (actor.provider) {
+    case "claude":
+      return "Claude (Remote MCP)";
+    case "openai":
+      return "ChatGPT (Remote MCP)";
+    default:
+      return "AI assistant (Remote MCP)";
+  }
 }
 
 // Module 0's Setup Summary Artifact is system-generated, not

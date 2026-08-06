@@ -1,8 +1,15 @@
 # Founder Toolkit V1 — Module 0 and Module 1 Workflow
 
 **Document status:** Draft for product, UX, MCP, and engineering alignment  
-**Version:** 1.3 — Module 1 interview flow / program_versions v2 (2026-07-20)  
+**Version:** 1.4 — assistant-neutral wording (2026-08-05)  
 **Modules covered:** Module 0 — Setup and Connection; Module 1 — Pressure-Test My Idea
+
+**Revision notes (1.4):**
+
+- The Founder chooses Claude or ChatGPT (`user_profiles.preferred_ai_provider`); both connect as Remote MCP clients and use the same Tools. This document no longer names Claude as the only client. It says "the AI assistant" everywhere except §2.1, where naming the two supported products is the point.
+- Founder-facing labels that open one specific app (`Open in <assistant>`) are resolved per provider from `apps/web/app/(app)/lib/assistant.ts`. `apps/web/app/(app)/lib/copy.ts` carries the same rule for website copy and `copy.test.ts` enforces it.
+- Per-assistant connection guidance shipped, so it is no longer listed under §23 "Not required in the first MVP UI".
+- Module 0's Setup Summary "AI client:" line now names the connected assistant, derived from `ActorContext.provider` rather than hardcoded to Claude.
 
 **Revision notes (1.3):**
 
@@ -56,7 +63,7 @@ The Founder Toolkit website manages the journey. The connected AI client provide
 | Component | Responsibility |
 |---|---|
 | **Founder Toolkit website** | Login, Venture selection, setup guidance, module overview, progress, status, resume, review checkpoints, and module unlocking |
-| **AI client** | Conversational workspace where the Founder completes module activities; V1 initially supports one Claude Remote MCP client |
+| **AI client** | Conversational workspace where the Founder completes module activities; V1 supports Claude and ChatGPT, each connected as a Remote MCP client |
 | **Remote MCP server** | Authenticates the client, exposes controlled Tools/Resources/Prompts, loads module context, and calls the shared Service layer |
 | **Service layer** | Enforces permissions, state transitions, idempotency, validation, artefact rules, and completion requirements |
 | **Platform database** | Stores identity, Workspace/Venture ownership, Run/Branch/Module/Attempt state, confirmed responses, artefact metadata, decisions, and audit references |
@@ -70,7 +77,7 @@ Founder
    │
    ├── Website ───────────────┐
    │                           │
-   └── Claude + Remote MCP ───┼──> packages/services
+   └── AI assistant + MCP ────┼──> packages/services
                                │          │
                                │          ├──> packages/db ──> PostgreSQL
                                │          │
@@ -113,7 +120,7 @@ The database is the source of truth for business state and ownership. S3-compati
 
 ### 2.4 One-time client connection
 
-The Founder connects Claude to the Remote MCP server once.
+The Founder connects their chosen AI assistant to the Remote MCP server once.
 
 Later modules do not require:
 
@@ -135,7 +142,7 @@ flowchart TD
     A[Founder accepts invitation and signs in] --> B[Create or select active Venture]
     B --> C[Create Program Run if required]
     C --> D[Open Module 0 setup page]
-    D --> E[Connect Claude through Remote MCP OAuth]
+    D --> E[Connect the AI assistant through Remote MCP OAuth]
     E --> F[Run setup check]
     F -->|Connection or storage check fails| G[Show exact repair action]
     G --> F
@@ -144,7 +151,7 @@ flowchart TD
     I --> J[Module 0 completes automatically after verification - V1 system completion]
     J --> K[Module 1 becomes available according to workflow rules]
     K --> L[Founder opens Module 1 overview]
-    L --> M[Open or resume Claude]
+    L --> M[Open or resume the AI assistant]
     M --> N[MCP loads authorised Module 1 context]
     N --> O[Collect Q1 to Q6 with per-question confirm only]
     O --> P[Summary Confirm then batch-save six responses]
@@ -212,9 +219,9 @@ The website explains:
 It also explains:
 
 - the website manages status, progress, and review;
-- the Founder completes the guided conversation in Claude;
+- the Founder completes the guided conversation in their AI assistant;
 - the platform securely stores generated artefacts;
-- the Founder only needs to connect Claude once;
+- the Founder only needs to connect the assistant once;
 - no per-module Skill download is required.
 
 **Primary action:** `Continue setup`
@@ -243,7 +250,7 @@ The Founder must not retype information already stored in the Venture record.
 
 ---
 
-### Step 0.3 — Connect Claude through Remote MCP
+### Step 0.3 — Connect the AI assistant through Remote MCP
 
 The website provides a one-time Remote MCP connection action.
 
@@ -256,7 +263,7 @@ The connection flow must:
 5. verify issuer, audience, expiry, scope, and client ID on every request;
 6. avoid putting a permanent Workspace ID in the token as an authorisation fact.
 
-**Success state:** `Claude connected`
+**Success state:** `Assistant connected`
 
 **Failure states:**
 
@@ -274,7 +281,7 @@ Each failure should show one specific recovery action.
 
 ### Step 0.4 — Run Setup Check
 
-The Founder selects `Run setup check` from the website or starts Module 0 in Claude.
+The Founder selects `Run setup check` from the website or starts Module 0 in their AI assistant.
 
 The system verifies:
 
@@ -356,7 +363,7 @@ The resulting database record stores controlled metadata. The AI client receives
 Display:
 
 - active Venture;
-- Claude connection status;
+- assistant connection status;
 - MCP health;
 - platform storage health;
 - Setup Summary status;
@@ -368,7 +375,7 @@ Display:
 
 Display only the failed items and their repair action, for example:
 
-- `Reconnect Claude`
+- `Reconnect the assistant`
 - `Sign in with the correct account`
 - `Retry MCP authorisation`
 - `Restore the active Venture`
@@ -385,7 +392,7 @@ The Founder should not repeat successful steps unnecessarily.
 sequenceDiagram
     participant F as Founder
     participant W as Website
-    participant C as Claude
+    participant C as AI assistant
     participant M as Remote MCP
     participant S as Service Layer
     participant D as PostgreSQL
@@ -398,7 +405,7 @@ sequenceDiagram
     D-->>S: Current state
     S-->>W: Setup status and next action
 
-    F->>W: Connect Claude
+    F->>W: Connect the AI assistant
     W->>M: Start OAuth connection
     M-->>F: Authorise requested scopes
     F-->>M: Approve
@@ -435,7 +442,7 @@ The exact database states remain governed by the shared Run/Module/Attempt state
 | UI state | Meaning |
 |---|---|
 | `not_started` | Module 0 has not started |
-| `connection_required` | Claude/MCP OAuth is not ready |
+| `connection_required` | Assistant/MCP OAuth is not ready |
 | `checking` | Setup check is running |
 | `repair_required` | One or more checks failed |
 | `ready_for_generation` | Connection and storage checks passed |
@@ -500,7 +507,7 @@ Module 1 can start when:
 - Module 0 has reached the prerequisite state defined by the Program Version;
 - Module 1 is `available` or resumable;
 - no conflicting in-progress Attempt exists;
-- Claude/MCP connection is available.
+- the assistant/MCP connection is available.
 
 The Module must be resumed rather than duplicated when a valid in-progress Attempt already exists.
 
@@ -519,7 +526,7 @@ Display:
 - active Venture and Branch;
 - resume point, when applicable;
 - final review requirement;
-- primary action: `Open in Claude` or `Resume in Claude`.
+- primary action: `Open in <assistant>` or `Resume in <assistant>`, named from the Founder's chosen assistant.
 
 The website does not provide the main six-question form in V1.
 
@@ -545,7 +552,7 @@ The page reads current state from the shared Services. It does not infer complet
 
 ### Step 1A.1 — Load Authorised Context
 
-Claude requests the current Module context through MCP.
+The assistant requests the current Module context through MCP.
 
 The Service verifies:
 
@@ -645,7 +652,7 @@ Then show the **final** verdict in chat (draft analysis + Founder's Decision fil
 The final Markdown is saved through:
 
 ```text
-Claude
+AI assistant
   → MCP save_artifact
   → ArtifactSubmissionService
   → StorageService
@@ -685,7 +692,7 @@ Website CTAs and copy differ by decision (encourage continuing vs parking vs rev
 
 - preserve Responses and Verdict as history for this Attempt;
 - do **not** auto-create a revised Attempt;
-- after website confirmation, the next Module is available; the Founder may also re-run Module 1 with Claude on the revised framing.
+- after website confirmation, the next Module is available; the Founder may also re-run Module 1 with the assistant on the revised framing.
 
 ### Kill
 
@@ -701,7 +708,7 @@ Website CTAs and copy differ by decision (encourage continuing vs parking vs rev
 sequenceDiagram
     participant F as Founder
     participant W as Website
-    participant C as Claude
+    participant C as AI assistant
     participant M as Remote MCP
     participant S as Service Layer
     participant D as PostgreSQL
@@ -714,7 +721,7 @@ sequenceDiagram
     D-->>S: Current state
     S-->>W: Start/resume/review state
 
-    F->>W: Open or resume Claude
+    F->>W: Open or resume the AI assistant
     C->>M: get_module_context
     M->>S: Load authorised context
     S->>D: Verify ownership and state
@@ -1002,12 +1009,12 @@ Rules:
 
 - Founder invitation and login;
 - active Venture selection;
-- one-time Claude Remote MCP connection;
+- one-time Remote MCP connection for the chosen assistant;
 - setup health/status page;
 - Module 0 setup check;
 - platform storage health display without exposing S3 details;
 - Module 0/1 overview pages;
-- `Open in Claude` / resume action;
+- `Open in <assistant>` / resume action;
 - progress and canonical status;
 - final artefact availability through a controlled download/view action;
 - Proceed/Pivot/Kill result display;
@@ -1023,7 +1030,6 @@ Rules:
 - fully embedded website chat;
 - editing the full artefact inside the website;
 - separate per-module Skill installation;
-- separate Claude and Codex onboarding;
 - Mentor review UI before the Mentor iteration;
 - presentation or investor-deck generation.
 
@@ -1036,12 +1042,12 @@ Rules:
 1. Founder signs in.
 2. Founder creates or selects an active Venture.
 3. Founder opens Module 0.
-4. Founder connects Claude through Remote MCP OAuth.
+4. Founder connects their AI assistant through Remote MCP OAuth.
 5. Setup check verifies context, Tool access, database state, and StorageService.
 6. Setup Summary is stored and verified.
 7. Module 0 reaches its configured review/completion state.
 8. Module 1 becomes available according to the Program rules.
-9. Founder completes six confirmed answers in Claude.
+9. Founder completes six confirmed answers in the assistant.
 10. Verdict and decision are saved as a versioned artefact.
 11. Draft and official validation follow the permission matrix.
 12. Website displays the correct review and next-route state.
@@ -1050,7 +1056,7 @@ Rules:
 
 1. Founder leaves during question 4.
 2. The first three confirmed Responses remain in PostgreSQL.
-3. Claude reconnects and MCP loads the active Attempt.
+3. The assistant reconnects and MCP loads the active Attempt.
 4. The workflow resumes at question 4.
 5. No duplicate Attempt or artefact is created.
 
@@ -1102,7 +1108,7 @@ Rules:
 
 The first two modules should prove this loop:
 
-> **Website guidance → one connected Claude workspace → authorised MCP workflow → structured confirmed data → one versioned S3-backed artefact → verified submission → controlled review and unlock.**
+> **Website guidance → one connected AI assistant → authorised MCP workflow → structured confirmed data → one versioned S3-backed artefact → verified submission → controlled review and unlock.**
 
 The Founder should experience S3 as reliable platform storage, not as a storage product they must configure.
 

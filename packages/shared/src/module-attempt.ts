@@ -16,7 +16,12 @@ export type ModuleAttemptType = "initial" | "retry";
 // Mirrors the `module_attempts.started_via` check constraint. Distinct
 // from `module_responses.source_provider`, which has no "system" value —
 // see packages/services/src/attempt/internal/interaction-provider.ts.
-export type ModuleAttemptStartedVia = "website" | "claude" | "openai" | "system";
+export type ModuleAttemptStartedVia =
+  | "website"
+  | "claude"
+  | "openai"
+  | "other"
+  | "system";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `ProgramRun`/`Venture`. Mapped once at the Service

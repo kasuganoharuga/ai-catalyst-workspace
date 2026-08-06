@@ -1,4 +1,5 @@
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
 import type { ArtifactSubmissionCreatedVia } from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
@@ -9,14 +10,13 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 // mappers across modules" convention those two already establish
 // (storage/index.ts's own comment on resolveStorageCreatedVia spells out
 // why). `artifact_submissions.created_via` has its own enum
-// (website/claude/openai/renderer/system/import), a superset of the
+// (website/claude/openai/other/renderer/system/import), a superset of the
 // other two columns' domains, but this function only needs to produce
-// the two values actually reachable through saveArtifactSubmission's
+// the values actually reachable through saveArtifactSubmission's
 // `assertRole(actor, ["founder"])` gate.
 export function resolveSubmissionCreatedVia(actor: ActorContext): ArtifactSubmissionCreatedVia {
   if (actor.source === "mcp") {
-    // V1: one MCP client.
-    return "claude";
+    return resolveMcpProviderTag(actor);
   }
   if (actor.source === "web" || actor.source === undefined) {
     return "website";

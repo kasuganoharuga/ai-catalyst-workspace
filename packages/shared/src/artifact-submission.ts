@@ -2,11 +2,13 @@
 // infra/database/migrations/0001_aidb_v5_baseline.sql.
 export type ArtifactSubmissionStatus = "draft" | "submitted" | "superseded" | "deleted";
 
-// Mirrors the `artifact_submissions.created_via` check constraint.
+// Mirrors the `artifact_submissions.created_via` check constraint
+// (0011 added 'other' for MCP clients that are neither Claude nor ChatGPT).
 export type ArtifactSubmissionCreatedVia =
   | "website"
   | "claude"
   | "openai"
+  | "other"
   | "renderer"
   | "system"
   | "import";

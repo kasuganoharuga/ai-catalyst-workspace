@@ -47,6 +47,26 @@ export interface ActorContext {
   traceId?: string;
 }
 
+/**
+ * The provenance value to record for an MCP-sourced actor.
+ *
+ * Every Service module maps its own provenance column independently (see
+ * the "don't share mappers across modules" comments in artifact/internal
+ * and storage/index.ts) because each column has a different enum domain.
+ * This is not that mapper — it is only the provider-name half, which is
+ * identical everywhere and was previously duplicated as a hardcoded
+ * "claude" in four places. Callers still decide what to do for web,
+ * system, and admin actors themselves.
+ *
+ * `provider` is optional on ActorContext, so an MCP actor built by hand
+ * (older test fixtures) has none. That resolves to "other" rather than
+ * defaulting to a brand: an unidentified client is exactly what "other"
+ * means, and guessing "claude" is the bug this replaces.
+ */
+export function resolveMcpProviderTag(actor: ActorContext): McpProvider {
+  return actor.provider ?? "other";
+}
+
 export function createWebActorContext(params: {
   userId: string;
   role: ActorRole;

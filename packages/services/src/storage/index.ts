@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
 import type { StorageObject, StorageObjectUploadStatus } from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
@@ -148,16 +149,18 @@ function mapStorageObjectRow(row: StorageObjectRow): StorageObject {
   };
 }
 
-// Maps ActorContext.source onto storage_objects.created_via. V1 has a
-// single MCP AI client, so mcp → "claude".
+// Maps ActorContext onto storage_objects.created_via. An mcp-sourced actor
+// records which AI client it actually was (resolveMcpProviderTag) — 0011
+// added "other" to this column's domain for a client that is neither
+// Claude nor ChatGPT.
 function resolveStorageCreatedVia(
   actor: ActorContext,
-): "website" | "claude" | "system" {
+): "website" | "claude" | "openai" | "other" | "system" {
   if (actor.source === "system") {
     return "system";
   }
   if (actor.source === "mcp") {
-    return "claude";
+    return resolveMcpProviderTag(actor);
   }
   // "web", or unset (common in tests) → website-originated founder.
   return "website";

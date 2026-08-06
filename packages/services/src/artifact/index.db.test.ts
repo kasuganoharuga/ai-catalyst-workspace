@@ -3,7 +3,7 @@ import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
-import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import type { ActorContext, McpProvider } from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
@@ -99,8 +99,14 @@ function webFounderActor(userId: string): ActorContext {
   return { userId, role: "founder", source: "web" };
 }
 
-function mcpFounderActor(userId: string): ActorContext {
-  return { userId, role: "founder", source: "mcp" };
+// `provider` is what resolveSubmissionCreatedVia records, so the fixture
+// takes it rather than leaving it undefined — an MCP actor with no
+// provider is the "unidentified client" case, not a stand-in for Claude.
+function mcpFounderActor(
+  userId: string,
+  provider: McpProvider = "claude",
+): ActorContext {
+  return { userId, role: "founder", source: "mcp", provider };
 }
 
 // Matches storage/index.db.test.ts's own system-actor fixture convention:
@@ -486,16 +492,36 @@ describe("artifact service — database integration", () => {
       expect(row.created_by_user_id).toBe(actor.userId);
     });
 
-    it("maps an mcp-sourced founder to created_via 'claude'", async () => {
-      const { actor, attemptId } = await createDraftAttempt("save-mcp");
+    it("records created_via from the MCP client's provider, not a hardcoded brand", async () => {
+      const cases: { provider: McpProvider; slug: string }[] = [
+        { provider: "claude", slug: "save-mcp-claude" },
+        { provider: "openai", slug: "save-mcp-openai" },
+        { provider: "other", slug: "save-mcp-other" },
+      ];
+
+      for (const { provider, slug } of cases) {
+        const { actor, attemptId } = await createDraftAttempt(slug);
+
+        const submission = await saveVerdict(
+          mcpFounderActor(actor.userId, provider),
+          attemptId,
+          `# Verdict\n\nFrom ${provider}.\n\n${REQUIRED_MARKER}\n`,
+        );
+
+        expect(submission.createdVia, provider).toBe(provider);
+      }
+    });
+
+    it("records an MCP actor with no identified provider as 'other'", async () => {
+      const { actor, attemptId } = await createDraftAttempt("save-mcp-unknown");
 
       const submission = await saveVerdict(
-        mcpFounderActor(actor.userId),
+        { userId: actor.userId, role: "founder", source: "mcp" },
         attemptId,
-        `# Verdict\n\nFrom Claude.\n\n${REQUIRED_MARKER}\n`,
+        `# Verdict\n\nFrom an unidentified client.\n\n${REQUIRED_MARKER}\n`,
       );
 
-      expect(submission.createdVia).toBe("claude");
+      expect(submission.createdVia).toBe("other");
     });
 
     it("increments version_number and marks the prior version superseded on changed content", async () => {
