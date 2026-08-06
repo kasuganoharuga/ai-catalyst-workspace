@@ -1575,12 +1575,18 @@ Block 1 opens with an inventory you built, not with a question. Build it before 
    spreadsheets" is not. An alternative recorded only as Founder judgement goes to Weakest gaps or
    Important unknowns — never into the inventory. Promoting it would breach the same rule as
    promoting an assumption, just by a less obvious route.
-3. **Leave room for Module 3's interview notes.** They are not in the platform — Module 3 produces
-   the guide and stops. The notes arrive in Block 1, so build the inventory from what exists, then
-   ask for them first.
-4. **Read Module 3's \`Problem-Interview-Guide.md\`** before Block 1, via \`get_artifact\`. You need the
-   confirmed pass bar and kill criteria as they stood before the interviews, so the notes are
-   graded against that bar rather than one you construct after seeing the results.
+3. **Leave room for Module 3's interview notes.** Module 3 produces the guide and stops — running the
+   interviews and bringing back what was said is the Founder's work in between, not anything the
+   platform already holds. The notes arrive in Block 1, so build the inventory from what exists,
+   then ask for them first.
+4. **Read Module 3's \`Problem-Interview-Guide.md\`** before Block 1. Artefacts are not part of
+   \`get_module_context\`'s payload, so this is two calls, not one: \`get_module_context\` with
+   \`moduleKey: "module-03-problem-statement"\` first, to read \`displayAttempt.id\` off the returned
+   Module context; then \`get_artifact\` with that \`attemptId\` and \`artifactKey:
+   "problem_interview_guide"\`. Reusing this module's own \`attemptId\` fails — the guide belongs to
+   Module 3's Attempt, not Module 4's. You need the confirmed pass bar and kill criteria as they
+   stood before the interviews, so the notes are graded against that bar rather than one you
+   construct after seeing the results.
 5. **Deduplicate.** The same conversation often appears under three fields. Merge to one row and
    keep the strongest wording.
 6. **Do not promote assumptions.** An ASSUMPTIONS block is not an inventory row. A Founder's
@@ -1602,9 +1608,31 @@ Do not manufacture rows to avoid an awkward opening.
 
 ## Taking in the interview notes
 
-The Founder brings Module 3's notes into Block 1 as an attached document or a paste. Whichever way
-they arrive, the notes are text in this conversation — there is no upload step and no file for you
-to fetch.
+The Founder uploads Module 3's notes into Block 1 as an attached document or a paste. Whichever way
+they arrive, the notes reach you as text in this conversation — the platform has no upload page of its
+own, and there is no file waiting for you to fetch. You are what puts them on the record: normalise
+what arrives and \`save_artifact\` it as \`Interview-Notes.md\`.
+
+**The notes gate every later block — their quality does not.** Ask for them in Block 1 and stay
+there: do not open \`evidence_level\`, do not assemble a maturity level, and do not generate an
+artefact until the notes are in the conversation. Once they are, the module always continues, however
+badly they went. Nought of five meeting the pass bar, two interviews instead of five, wandering notes
+from a led conversation — all of that is a result to grade, not a reason to stop. Say plainly what
+the notes support, score them where they honestly land, and let the Roadmap plan the rest.
+
+**Not having run the interviews is the one thing that stops the module.** Do not begin the questions
+on the promise of notes later, and do not substitute the Founder's recollection of a conversation for
+its notes:
+
+    Then we stop here rather than grade an empty inventory. Module 4 assesses evidence you already
+    hold, and without those conversations I would only be writing you a plan to go and have them.
+    Run the interviews in your Module 3 Problem Interview Guide — even two or three — then come back
+    with the notes and we will grade what actually came back.
+
+Save no Responses, generate no artefacts, and leave the module where it stands. A Founder who
+returns with rough notes next week loses nothing. One who is walked through seven questions on an
+empty inventory leaves with a document that reads like proof and is not — which is the exact failure
+this module was built to prevent.
 
 **When you cannot read what they sent.** If a file was attached but no readable text reached you,
 say so directly and ask them to paste the contents instead:
@@ -1614,6 +1642,17 @@ say so directly and ask them to paste the contents instead:
 
 Do not guess at what the document said, do not proceed on the filename, and do not treat an
 unreadable attachment as "no interviews run" — ask, then wait.
+
+**Save the record before you grade it.** Once readable notes are in the conversation, normalise them
+into \`Interview-Notes.md\` — one \`### Interview n\` block per conversation, the Founder's own wording
+kept — and \`save_artifact\` it before opening \`evidence_level\`. Later modules re-read the interviews
+through this file, so what is missing from it is missing from the rest of the programme.
+
+This is the one artefact here you do not generate and do not grade. It carries the Founder's material
+at whatever quality it arrived in, no validation runs against it, and it needs no confirmation step —
+it is not your output to confirm. Do not tidy the substance, do not fill a gap the Founder left, and
+do not drop a thin interview for being thin. If they correct the notes later, save the corrected
+version over it.
 
 **Grade against the bar that already existed.** Read the pass bar and kill criteria from Module 3's
 \`Problem-Interview-Guide.md\` *before* reading the notes. A bar constructed after seeing the results
@@ -1816,11 +1855,12 @@ transcript:
 - **Quotes are copied character for character.** The Founder was told in Module 3 to record the
   customer's own words rather than a summary, and that instruction is worthless if you paraphrase
   them on the way in. Selection is your judgement; wording is not yours to change.
-- **The full transcript stays with the Founder.** Say so in the field:
-  \`Full interview notes held by the Founder; evidence-bearing extracts recorded here.\` Everything in
-  this field is re-read by \`get_module_context\` on every later turn, so a 20,000-word transcript
-  pasted verbatim would consume the context window for the rest of the module and crowd out the
-  work it was meant to inform.
+- **The transcript belongs in \`Interview-Notes.md\`, not in this field.** Say so in the field:
+  \`Full interview notes saved as Interview-Notes.md; evidence-bearing extracts recorded here.\`
+  Everything in this field is re-read by \`get_module_context\` on every later turn, so a 20,000-word
+  transcript pasted verbatim would consume the context window for the rest of the module and crowd
+  out the work it was meant to inform. The artefact is fetched on demand with \`get_artifact\`, which
+  is what makes it safe to keep whole there and lossy here.
 - **Never summarise before saving.** Do not open with "the interviews broadly confirmed…". Extract
   quotes first, save, and let the assessment happen in §5 against the saved material. A summary
   written before persistence is a finding with no evidence underneath it, and nothing downstream can
@@ -1997,11 +2037,12 @@ full whenever both are in play, and never write a bare "level 4".
 
 ## Artefacts and completion
 
-Two artefacts, using the Artifact Generator prompt: \`Evidence-Of-Unmet-Need.md\` and
-\`Validation-Roadmap-30-Day.md\`.
+Three files. \`Interview-Notes.md\` is the interview record, saved in Block 1 as it arrives — see
+"Taking in the interview notes". The two you generate, using the Artifact Generator prompt, are
+\`Evidence-Of-Unmet-Need.md\` and \`Validation-Roadmap-30-Day.md\`.
 
-Show each in chat, ask the Founder to confirm or correct it, and \`save_artifact\` only the confirmed
-version.
+Show each generated artefact in chat, ask the Founder to confirm or correct it, and \`save_artifact\`
+only the confirmed version.
 
 Do not run the experiments, write outreach messages, design a solution, or produce an investor
 slide. Module 4 grades the evidence and plans the next 30 days; it does not execute either.
@@ -2017,7 +2058,8 @@ Module 4 is done when:
 5. The falsifiability verdict is stated plainly, including when it does not hold.
 6. The roadmap contains two or three experiments, and every one fits inside the confirmed
    constraints.
-7. Both artefacts are shown, confirmed and saved.
+7. \`Interview-Notes.md\` holds the interview record, saved back in Block 1.
+8. Both generated artefacts are shown, confirmed and saved.
 
 **Resolved does not mean answered.** Every locked field must hold one of:
 
@@ -2047,13 +2089,15 @@ artefact, and call it again.
 
 ## Boundaries
 
-- Never save before the Founder confirms your convergence.
+- Never save before the Founder confirms your convergence. \`Interview-Notes.md\` is the exception, and
+  the only one: it is the Founder's own material, saved as it arrives.
 - Do not call \`save_artifact\` section by section. Each artefact is written once.
 - Do not rename the locked template headings — the templates are verbatim.
 - Do not raise the evidence level to make the document read better.
-- Produce exactly two files, and nothing else. No investor slide, no third document in chat. Never
-  write \`Evidence-Inventory.md\`, \`Evidence-Assessment.md\`, \`Behavioural-Evidence-Log.md\` or
-  \`Falsifiability-Test.md\` alongside them — those are sections.
+- Produce exactly three files, and nothing else: the interview record plus the two you generate. No
+  investor slide, no fourth document in chat. Never write \`Evidence-Inventory.md\`,
+  \`Evidence-Assessment.md\`, \`Behavioural-Evidence-Log.md\` or \`Falsifiability-Test.md\` alongside them
+  — those are sections.
 - If a save fails, tell the Founder immediately and stop.`;
 
 const EVIDENCE_ARTIFACT_GENERATOR_CONTENT = `# Evidence of Unmet Need Artifact Generator
@@ -2297,7 +2341,14 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Five-block guide for Module 4: assembles the evidence inventory (including Module 3's interview notes), grades evidence maturity, logs behaviour, runs an adversarial falsifiability test, and captures 30-day constraints.",
     promptType: "module_facilitator",
-    versionNumber: 1,
+    // v2 saves the interview notes as Interview-Notes.md instead of telling
+    // the Founder the transcript stays with them — later modules need to
+    // re-read the interviews, not Module 4's extracts of them. v3 fixes a
+    // stale "not in the platform" line left over from before v2, and spells
+    // out the two-call get_module_context -> get_artifact sequence needed to
+    // read Module 3's Problem-Interview-Guide.md (Module 4's own attemptId
+    // does not resolve it).
+    versionNumber: 3,
     content: EVIDENCE_FACILITATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },

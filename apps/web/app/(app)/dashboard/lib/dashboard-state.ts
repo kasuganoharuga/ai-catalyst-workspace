@@ -10,7 +10,6 @@ import { deriveMcpConnectionState } from "@/lib/mcp-connection";
 import { resolveGreetingName } from "@/lib/user-profile";
 
 import { dashboardCopy } from "../../lib/copy";
-import { MODULE_0_KEY, MODULE_1_KEY } from "../../lib/module-display";
 import type { DashboardNextAction, DashboardViewModel } from "../types";
 import { connectionStatContent } from "./connection-stat";
 
@@ -19,12 +18,39 @@ type ProfileLike = {
   lastName: string | null;
 };
 
+/** The one Module a founder would actually work on next: the first
+ * unlocked-but-not-done Module in sequence order, or null once every
+ * Module currently unlockable is complete. Setup Modules are excluded
+ * (unless `showSetupModule`) — the earlier `setupPending` branch already
+ * covers Module 0 being mid-flight. */
+function findCurrentModule(
+  runModules: RunModuleSummary[],
+  catalog: ModuleCatalogEntry[],
+  showSetupModule: boolean,
+): { moduleKey: string; title: string; subtitle: string | null } | null {
+  const catalogByKey = new Map(
+    catalog.map((entry) => [entry.moduleKey, entry]),
+  );
+  const candidate = runModules
+    .filter((m) => showSetupModule || m.moduleType !== "setup")
+    .find((m) => m.status === "available" || m.status === "in_progress");
+  if (!candidate) return null;
+  const entry = catalogByKey.get(candidate.moduleKey);
+  return {
+    moduleKey: candidate.moduleKey,
+    title: candidate.title,
+    subtitle: entry?.subtitle ?? null,
+  };
+}
+
 export function buildDashboardViewModel(input: {
   catalog: ModuleCatalogEntry[];
   runModules: RunModuleSummary[];
   hasRun: boolean;
-  module0: ModuleContext | null;
-  module1: ModuleContext | null;
+  /** Every Module Context on the Founder's active Run, one batched call —
+   * not just Module 0/1 — so artefact counts and per-Module carousel
+   * status cover Modules 2-4 too. */
+  contexts: ModuleContext[];
   connection: McpConnectionStatus;
   profile: ProfileLike;
   sessionUserName: string;
@@ -36,8 +62,7 @@ export function buildDashboardViewModel(input: {
     catalog,
     runModules,
     hasRun,
-    module0,
-    module1,
+    contexts,
     connection,
     profile,
     sessionUserName,
@@ -52,17 +77,14 @@ export function buildDashboardViewModel(input: {
       m.catalogStatus === "live" &&
       (showSetupModule || m.moduleType !== "setup"),
   );
-  const contextByKey = new Map<string, ModuleContext | null>([
-    [MODULE_0_KEY, module0],
-    [MODULE_1_KEY, module1],
-  ]);
+  const contextByKey = new Map(
+    contexts.map((context) => [context.runModule.moduleKey, context]),
+  );
   const visibleCatalogCount = catalog.filter(
     (m) => showSetupModule || m.moduleType !== "setup",
   ).length;
 
-  const verdictReady =
-    module1?.activeAttempt?.status === "ready_for_review" ||
-    module1?.runModule.status === "completed";
+  const currentModule = findCurrentModule(runModules, catalog, showSetupModule);
 
   const unlockedCount = runModules.filter(
     (m) =>
@@ -71,8 +93,7 @@ export function buildDashboardViewModel(input: {
       (showSetupModule || m.moduleType !== "setup"),
   ).length;
 
-  const artefactsSaved = [module0, module1]
-    .filter((context): context is ModuleContext => context !== null)
+  const artefactsSaved = contexts
     .flatMap((context) => context.artifacts)
     .filter((artifact) => artifact.latestSubmission !== null).length;
 
@@ -94,7 +115,7 @@ export function buildDashboardViewModel(input: {
     authorised: connection.authorised,
     hasRun,
     setupPending,
-    verdictReady,
+    currentModule,
   });
 
   const nextAction = resolveNextAction({
@@ -103,7 +124,7 @@ export function buildDashboardViewModel(input: {
     authorised: connection.authorised,
     hasRun,
     setupPending,
-    verdictReady,
+    currentModule,
   });
 
   const greetingName = resolveGreetingName(profile, sessionUserName ?? "");
@@ -126,17 +147,20 @@ export function buildDashboardViewModel(input: {
   };
 }
 
+type CurrentModule = ReturnType<typeof findCurrentModule>;
+
 function resolveWelcomeSub(input: {
   isFirstVisit: boolean;
   authorised: boolean;
   hasRun: boolean;
   setupPending: boolean;
-  verdictReady: boolean;
+  currentModule: CurrentModule;
 }): string | null {
   if (input.isFirstVisit) return null;
   if (!input.authorised) return dashboardCopy.subNeedsConnection;
   if (!input.hasRun || input.setupPending) return dashboardCopy.subNeedsRun;
-  if (!input.verdictReady) return dashboardCopy.subInProgress;
+  if (input.currentModule)
+    return dashboardCopy.subInProgress(input.currentModule.title);
   return dashboardCopy.subDone;
 }
 
@@ -146,7 +170,7 @@ function resolveNextAction(input: {
   authorised: boolean;
   hasRun: boolean;
   setupPending: boolean;
-  verdictReady: boolean;
+  currentModule: CurrentModule;
 }): DashboardNextAction {
   if (!input.profileComplete && !input.profilePromptSkipped) {
     return {
@@ -166,7 +190,7 @@ function resolveNextAction(input: {
       cta: dashboardCopy.actionConnectCta,
     };
   }
-  // Setup still open must not deep-link Module 1 (lands on a dead gate).
+  // Setup still open must not deep-link a Module (lands on a dead gate).
   if (!input.hasRun || input.setupPending) {
     return {
       title: dashboardCopy.actionOpenRunTitle,
@@ -175,12 +199,12 @@ function resolveNextAction(input: {
       cta: dashboardCopy.actionOpenRunCta,
     };
   }
-  if (!input.verdictReady) {
+  if (input.currentModule) {
     return {
-      title: dashboardCopy.actionModule1Title,
-      body: dashboardCopy.actionModule1Body,
-      href: `/modules/${encodeURIComponent(MODULE_1_KEY)}`,
-      cta: dashboardCopy.actionModule1Cta,
+      title: dashboardCopy.actionModuleTitle(input.currentModule.title),
+      body: input.currentModule.subtitle ?? "",
+      href: `/modules/${encodeURIComponent(input.currentModule.moduleKey)}`,
+      cta: dashboardCopy.actionModuleCta,
     };
   }
   return {

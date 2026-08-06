@@ -1,10 +1,17 @@
-import type { ModuleAttemptStatus, RunModuleStatus } from "@ai-catalyst/shared";
+import type {
+  ModuleAttemptStatus,
+  ModuleContextQuestion,
+  RunModuleStatus,
+} from "@ai-catalyst/shared";
 
 // Presentation-only: maps run/attempt states to labels and colours (logic stays in services).
 
-// Content-stable module keys from content-seed — V1 status UI knows these two by name.
+// Content-stable module keys from content-seed — V1 status UI knows these by name.
 export const MODULE_0_KEY = "module-00-setup";
 export const MODULE_1_KEY = "module-01-pressure-test";
+export const MODULE_2_KEY = "module-02-customer-avatar";
+export const MODULE_3_KEY = "module-03-problem-statement";
+export const MODULE_4_KEY = "module-04-evidence-of-unmet-need";
 
 // Module 1 decision-stage keys — shown as "Your decision", not counted with the six questions.
 // Includes legacy v1 keys so older program versions still render.
@@ -14,6 +21,183 @@ export const DECISION_QUESTION_KEYS = new Set([
   "initial_decision",
   "final_decision",
 ]);
+
+/**
+ * Module 2's thirteen `module_questions` rows are the Facilitator's
+ * per-field save points, but the founder-facing conversation runs as
+ * eight blocks (see content-seed/content/module-2.ts's `questionGroup`
+ * values) — this mirrors that grouping so the progress UI can say "eight
+ * blocks", matching resolveModuleCopy's questionsLabel, instead of
+ * thirteen individual fields.
+ */
+const MODULE_2_QUESTION_BLOCKS: {
+  group: string;
+  label: string;
+  questionKeys: string[];
+}[] = [
+  {
+    group: "snapshot",
+    label: "Who they are, where they are, and what they are moving towards",
+    questionKeys: [
+      "customer_picture",
+      "customer_where",
+      "customer_stage",
+      "commercial_moment",
+    ],
+  },
+  {
+    group: "segment",
+    label: "The beachhead segment you start with",
+    questionKeys: ["beachhead_segment"],
+  },
+  {
+    group: "situation",
+    label: "The moment the problem becomes urgent",
+    questionKeys: ["customer_situation"],
+  },
+  {
+    group: "unmet_needs",
+    label: "What they need but cannot get today",
+    questionKeys: ["functional_needs", "emotional_needs"],
+  },
+  {
+    group: "buying_signals",
+    label: "The signs they are ready to act",
+    questionKeys: ["tier1_signals", "tier2_signals"],
+  },
+  {
+    group: "disqualifiers",
+    label: "Who to leave out, and why",
+    questionKeys: ["disqualifiers"],
+  },
+  {
+    group: "core_promise",
+    label: "What they are actually buying",
+    questionKeys: ["core_promise"],
+  },
+  {
+    group: "validation",
+    label: "How much of this is evidence, not assumption",
+    questionKeys: ["validation_status"],
+  },
+];
+
+/**
+ * Short phrases standing in for each Question's full `question_text`.
+ * Keyed by Module because the same key can mean different things in
+ * different Modules (`validation_status` in both 2 and 3). The assistant
+ * asks the real question one at a time; these only have to be
+ * recognisable at a glance.
+ */
+const QUESTION_LABELS: Record<string, Record<string, string>> = {
+  [MODULE_1_KEY]: {
+    idea_one_sentence: "Your idea in one sentence",
+    target_customer: "Who the customer really is",
+    customer_problem: "The problem it solves for them",
+    business_model: "How the idea makes money",
+    current_stage: "Where the idea stands today",
+    competitors_alternatives: "What they use instead today",
+  },
+  [MODULE_3_KEY]: {
+    problem_draft: "Your first take on the problem",
+    current_alternatives: "What they use instead today",
+    five_whys_ladder: "The five whys, one layer at a time",
+    root_cause: "The structural root cause underneath",
+    problem_statement: "The problem in one clear statement",
+    pain_intensity: "How much this hurts them today",
+    priority_evidence: "Why it is a priority, not a nice-to-have",
+    validation_status: "How much of this is evidence, not assumption",
+  },
+  [MODULE_4_KEY]: {
+    evidence_additions: "What the interviews actually returned",
+    evidence_level: "The evidence level you have reached",
+    evidence_level_reasoning: "Why that level and not a higher one",
+    observed_behaviour: "What customers did, not what they said",
+    strongest_counterargument: "The strongest case against you",
+    counterargument_defence: "Your honest answer to that case",
+    validation_constraints: "The time, money and access you have",
+  },
+};
+
+/** One row in a Module's simplified work-step progress list — a short phrase, never the full question text. */
+export interface ModuleQuestionDisplayGroup {
+  key: string;
+  label: string;
+  done: boolean;
+}
+
+/** Fallback for a Question with no curated phrase: "idea_one_sentence" -> "Idea one sentence". */
+function humanizeQuestionKey(questionKey: string): string {
+  const [first, ...rest] = questionKey.split("_");
+  if (!first) {
+    return questionKey;
+  }
+  return [first[0].toUpperCase() + first.slice(1), ...rest].join(" ");
+}
+
+/**
+ * The Question whose saved Response is the only proof the platform has
+ * that a Module's off-platform prerequisite was met. Module 4's
+ * `evidence_additions` is where Module 3's interview notes enter the
+ * system, so a Response against it means the notes reached the assistant.
+ */
+const PREREQUISITE_QUESTION_KEY: Record<string, string> = {
+  [MODULE_4_KEY]: "evidence_additions",
+};
+
+/** False for a Module with no prerequisite — the row is copy-gated, not shown at all. */
+export function isWorkPrerequisiteMet(
+  moduleKey: string,
+  questions: ModuleContextQuestion[],
+): boolean {
+  const questionKey = PREREQUISITE_QUESTION_KEY[moduleKey];
+  if (!questionKey) {
+    return false;
+  }
+  return questions.some(
+    (question) =>
+      question.questionKey === questionKey && question.responseStatus !== null,
+  );
+}
+
+/**
+ * Simplified rows for a Module's work-step progress list. Module 2
+ * collapses to its eight founder-facing blocks; every other Module gets
+ * one row per Question. Either way the row carries a short phrase, not
+ * the full `questionText` sentence.
+ */
+export function buildQuestionDisplayGroups(
+  moduleKey: string,
+  questions: ModuleContextQuestion[],
+): ModuleQuestionDisplayGroup[] {
+  if (moduleKey === MODULE_2_KEY) {
+    const questionByKey = new Map(
+      questions.map((question) => [question.questionKey, question]),
+    );
+    return MODULE_2_QUESTION_BLOCKS.map((block) => {
+      const blockQuestions = block.questionKeys
+        .map((key) => questionByKey.get(key))
+        .filter(
+          (question): question is ModuleContextQuestion =>
+            question !== undefined,
+        );
+      return {
+        key: block.group,
+        label: block.label,
+        done:
+          blockQuestions.length > 0 &&
+          blockQuestions.every((question) => question.responseStatus !== null),
+      };
+    });
+  }
+  const labels = QUESTION_LABELS[moduleKey] ?? {};
+  return questions.map((question) => ({
+    key: question.questionKey,
+    label:
+      labels[question.questionKey] ?? humanizeQuestionKey(question.questionKey),
+    done: question.responseStatus !== null,
+  }));
+}
 
 // How many --module-accent-N vars globals.css defines; indices wrap past seven modules.
 const MODULE_ACCENT_COUNT = 7;

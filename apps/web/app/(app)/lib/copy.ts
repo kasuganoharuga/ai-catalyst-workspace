@@ -380,8 +380,13 @@ export const dashboardCopy = {
   subNeedsConnection:
     "Connect your AI assistant once. That's the only setup step.",
   subNeedsRun: "Your program is ready to open.",
-  subInProgress: "Module 1 is open. Work through it with your AI assistant.",
-  subDone: "Module 1 is done. Your verdict is saved.",
+  // Names whichever Module is actually next — not hard-coded to Module 1,
+  // since a founder who has finished it moves on to Modules 2, 3 and 4.
+  subInProgress: (moduleTitle: string) =>
+    `${moduleTitle} is open. Work through it with your AI assistant.`,
+  // Reachable once every Module currently unlockable is done — more open
+  // as new content ships, so this never claims the program itself is over.
+  subDone: "Everything open right now is done. More opens as it's ready.",
 
   actionFirstKicker: "First",
   actionProfileTitle: "Set up your profile",
@@ -403,13 +408,14 @@ export const dashboardCopy = {
   actionOpenRunBody: "Takes you straight to your first module.",
   actionOpenRunCta: "Open program",
 
-  actionModule1Title: "Start Module 1",
-  actionModule1Body:
-    "Six questions about your idea, then you decide: proceed, pivot or kill.",
-  actionModule1Cta: "Open Module 1",
+  // Names whichever Module is actually next; body comes from that Module's
+  // own catalog subtitle rather than a second hand-authored blurb here.
+  actionModuleTitle: (moduleTitle: string) => `Start ${moduleTitle}`,
+  actionModuleCta: "Open module",
 
-  actionDoneTitle: "Module 1 is complete",
-  actionDoneBody: "Your verdict is saved and versioned in your artefacts.",
+  // Reachable once every Module currently unlockable is done.
+  actionDoneTitle: "Everything open right now is complete",
+  actionDoneBody: "Your documents are saved and versioned in your artefacts.",
   actionDoneCta: "View artefacts",
 
   statModules: "Modules unlocked",
@@ -529,42 +535,28 @@ export const module0Copy = {
   progressChecksPending: "Happens by itself once the document is saved.",
 } as const;
 
-// ── Module 1 ────────────────────────────────────────────────────────────
+// ── Standard modules (1-4 today) ────────────────────────────────────────
+//
+// Split into a shared skeleton every standard Module's three-step wizard
+// renders the same way (`moduleRunCopy`), and a per-Module table for
+// everything that names what the Module actually produces
+// (`MODULE_BRIEF_COPY`) — the brief's title and body, why it matters, the
+// "before you begin" list, the questions label, and what the confirm step
+// calls the saved document(s). `resolveModuleCopy` merges the two so a
+// component only ever reads one flat object.
+//
+// Module 1 was the only standard Module before this split and its strings
+// below are carried over unchanged; Modules 2-4's are drawn from their own
+// reviewed prompt sets (skills/module-0N-*/prompts/module-0N-prompt-set.md),
+// not invented fresh.
 
-export const module1Copy = {
+export const moduleRunCopy = {
   stepBrief: "What this is",
   stepWork: "Work through it",
   stepConfirm: "Confirm and unlock",
 
-  briefTitle: "What this module is for",
-  briefBody:
-    "Your AI assistant plays a veteran investor and challenges your idea. You'll cover where it breaks, who you're really competing with, and what would have to be true for it to work. You finish with a decision you can defend: proceed, pivot or kill.",
-
   whyHeading: "Why it matters",
-  whyBody:
-    "Most ideas fail because nobody asked the hard questions early enough. By the time the market answers them, a year and a lot of money are gone. This is the cheap version of that conversation.",
-  whyBuildsOn: (moduleIndex: string) =>
-    `Every module after Module ${moduleIndex} builds on the verdict you write here. Vague answers now cost you in each one.`,
-
-  beforeHeading: "Before you start",
-  before: [
-    {
-      lead: "Set aside 30–45 minutes.",
-      body: "Half-answers produce a verdict you can't use.",
-    },
-    {
-      lead: "Be specific, not polished.",
-      body: '"Founders who\'ve cold-emailed 50 investors and stalled" beats "early-stage startups". Rough wording is fine.',
-    },
-    {
-      lead: "Expect pushback.",
-      body: "You'll be given the strongest case against your idea, and vague answers will be challenged. That is intentional.",
-    },
-    {
-      lead: "This doesn't replace talking to customers.",
-      body: "Anything without a real conversation behind it is recorded as an assumption, not evidence.",
-    },
-  ],
+  beforeHeading: "Before you begin",
 
   workTitle: "Work through it in your AI assistant",
   workBody:
@@ -584,29 +576,24 @@ export const module1Copy = {
   notConnectedLink: "Connect one",
   notConnectedSuffix: ", then come back.",
 
-  questionsLabel: "Six pressure-test questions",
   questionsCount: (answered: number, total: number) =>
     `${answered} / ${total} answered`,
 
+  // Only Module 1 has a Founder decision to record alongside its document —
+  // Phase 3 makes this row conditional on decisionQuestions existing at all
+  // rather than showing "Comes after the verdict." forever on Modules with
+  // no decision concept. Left as-is here; this pass only splits the copy.
   progressDecision: "Proceed, pivot or kill recorded",
   progressDecisionDone: "Your decision is saved.",
   progressDecisionPending: "Comes after the verdict.",
-  progressVerdict: "Verdict saved to your workspace",
-  progressVerdictPending: "Nothing saved yet.",
-  progressChecks: "Nothing missing from it",
+  progressChecks: "Everything required is included.",
   progressChecksDone: "Read it over whenever you're ready.",
-  progressChecksPending: "Happens by itself once your verdict is saved.",
+  progressChecksPending: "Happens automatically once your documents are saved.",
 
-  confirmTitle: "Read it over, then confirm",
-  confirmBody:
-    "Your verdict is saved and nothing is missing from it. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
-  confirmNoFileTitle: "No file yet",
-  confirmNoFileBody:
-    "We haven't found a verdict in your workspace yet. Once it's saved, you sign it off here.",
   confirmNoFileLocked:
-    "You can look ahead here. You'll be able to start this module and save a verdict once the one before it is done.",
+    "You can look ahead here. You'll be able to start this module and save your documents once the one before it is done.",
   confirmNoFileNotStarted:
-    "You can look ahead here. Sign-off appears once your verdict has been saved.",
+    "You can look ahead here. Sign-off appears once your documents have been saved.",
   confirmUnavailable: "Sign-off opens along with this module.",
   confirmFinishFirst: "Finish the conversation in the previous step first.",
   reviseHint:
@@ -625,6 +612,241 @@ export const module1Copy = {
   documentMeta: (version: number, savedAt: string | null) =>
     savedAt ? `Version ${version} · ${savedAt}` : `Version ${version}`,
 } as const;
+
+export interface ModuleBeforeItem {
+  lead: string;
+  /** Omitted where the lead says the whole thing — a warning carries more weight unexplained. */
+  body?: string;
+  /**
+   * A prerequisite the founder must have met off-platform before starting,
+   * not merely advice about how to answer well. Rendered as a warning
+   * rather than another bullet — Module 4 is unworkable without the
+   * Module 3 interviews, and a founder who reads past that wastes the
+   * module.
+   */
+  severity?: "warning";
+}
+
+/** The vague-vs-specific example card on the work step. Optional — only Module 1's brief carries one today. */
+export interface ModuleCoachingCard {
+  heading: string;
+  weakLabel: string;
+  weakExample: string;
+  strongLabel: string;
+  strongExample: string;
+  footer: string;
+}
+
+export interface ModuleBriefCopy {
+  briefTitle: string;
+  briefBody: string;
+  whyBody: string;
+  whyBuildsOn: (moduleIndex: string) => string;
+  before: ModuleBeforeItem[];
+  /**
+   * Something the founder must hand the assistant before the questions
+   * start — the first row of the work step's progress list, so it reads as
+   * part of the same sequence as the rows it gates. Only Module 4 has one:
+   * its facilitator prompt refuses to open the evidence questions until the
+   * Module 3 interview notes are in the conversation, and the founder
+   * should learn that here rather than from the assistant.
+   */
+  workPrerequisite?: { label: string; pending: string; done: string };
+  questionsLabel: string;
+  /** Work-step CheckLine label/pending-detail for a Module with exactly one Artifact. */
+  progressVerdict: string;
+  progressVerdictPending: string;
+  confirmTitle: string;
+  confirmBody: string;
+  confirmNoFileTitle: string;
+  confirmNoFileBody: string;
+  /** Undefined for every Module except 1 — StrongAnswerCard renders nothing without one. */
+  coachingCard?: ModuleCoachingCard;
+}
+
+export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
+  "module-01-pressure-test": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant plays a veteran investor and challenges your idea. You'll cover where it breaks, who you're really competing with, and what would have to be true for it to work. You finish with a decision you can defend: proceed, pivot or kill.",
+    whyBody:
+      "Most ideas fail because nobody asked the hard questions early enough. By the time the market answers them, a year and a lot of money are gone. This is the cheap version of that conversation.",
+    whyBuildsOn: (moduleIndex: string) =>
+      `Every module after Module ${moduleIndex} builds on the verdict you write here. Vague answers now cost you in each one.`,
+    before: [
+      {
+        lead: "Set aside 30–45 minutes.",
+        body: "Half-answers produce a verdict you can't use.",
+      },
+      {
+        lead: "Be specific, not polished.",
+        body: '"Founders who\'ve cold-emailed 50 investors and stalled" beats "early-stage startups". Rough wording is fine.',
+      },
+      {
+        lead: "Expect pushback.",
+        body: "You'll be given the strongest case against your idea, and vague answers will be challenged. That is intentional.",
+      },
+      {
+        lead: "This doesn't replace talking to customers.",
+        body: "Anything without a real conversation behind it is recorded as an assumption, not evidence.",
+      },
+    ],
+    questionsLabel: "Six pressure-test questions",
+    progressVerdict: "Verdict saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Read it over, then confirm",
+    confirmBody:
+      "Your verdict is saved and nothing is missing from it. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
+    confirmNoFileTitle: "No file yet",
+    confirmNoFileBody:
+      "We haven't found a verdict in your workspace yet. Once it's saved, you sign it off here.",
+    coachingCard: {
+      heading: "Strong answers look like this",
+      weakLabel: "Too vague to test",
+      weakExample: "Everyone building a startup needs this.",
+      strongLabel: "Specific enough to argue with",
+      strongExample:
+        "ANZ pre-seed SaaS founders raising their first $500k who've cold-emailed 50+ investors and stalled.",
+      footer:
+        "A real person, a number, and evidence they already tried something.",
+    },
+  },
+
+  "module-02-customer-avatar": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant narrows a broad customer category into one specific beachhead customer — precise enough to find, interview and act on. You'll define who they are, what they need, and how to recognise when they're ready to buy, then confirm a structured Ideal Customer Avatar.",
+    whyBody:
+      'A product built for "everyone" is a product nobody urgently needs. Naming one beachhead customer precisely turns a vague idea into something you can actually find, interview and test with.',
+    whyBuildsOn: (moduleIndex: string) =>
+      `Every module after Module ${moduleIndex} builds on the customer you name here. A vague Avatar makes every later module vaguer too.`,
+    before: [
+      {
+        lead: "Allow 20–30 minutes.",
+        body: "Eight short conversation blocks, not thirteen separate interrogations.",
+      },
+      {
+        lead: "Be specific rather than polished.",
+        body: "A named role, a real trigger moment, and language you'd actually hear beat a tidy persona.",
+      },
+      {
+        lead: "Say honestly when you do not know.",
+        body: "An honest gap is recorded as an unknown, not invented to sound complete.",
+      },
+      {
+        lead: "Treat the result as a hypothesis, not evidence.",
+        body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
+      },
+    ],
+    questionsLabel: "Eight customer-avatar blocks",
+    progressVerdict: "Avatar saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Read it over, then confirm",
+    confirmBody:
+      "Your Ideal Customer Avatar is saved. Confirming marks this module done and opens the next one.",
+    confirmNoFileTitle: "No file yet",
+    confirmNoFileBody:
+      "Your Ideal Customer Avatar hasn't arrived yet. Return to your AI assistant and ask it to save the Avatar, then refresh this page.",
+  },
+
+  "module-03-problem-statement": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant works from your customer's surface complaint towards a structural root cause using a Five Whys ladder, then turns the result into five interview questions you can take to real customers. This module prepares the interviews — it does not conduct them or analyse the responses.",
+    whyBody:
+      "The first complaint a customer names is rarely the reason the problem persists. Building for the symptom instead of the root cause is how founders end up solving the wrong problem very well.",
+    whyBuildsOn: (moduleIndex: string) =>
+      `Every module after Module ${moduleIndex} builds on the root cause and interview questions you settle here. A shallow answer here means the interviews test the wrong thing.`,
+    before: [
+      {
+        lead: "Allow 30–40 minutes.",
+        body: 'Working down to a root cause takes a few more "why" turns than it feels like it should.',
+      },
+      {
+        lead: "Be specific rather than polished.",
+        body: '"No shared directory exists" beats "communication is hard" — a structural reason beats a tidy sentence.',
+      },
+      {
+        lead: "Expect each answer to be challenged and taken deeper.",
+        body: "The ladder stops at the root cause, not at the first plausible-sounding answer.",
+      },
+      {
+        lead: "This module creates interview questions, not customer evidence.",
+        body: "You still have to run the five conversations yourself before the next module can grade what came back.",
+      },
+    ],
+    questionsLabel: "Eight problem-statement questions",
+    progressVerdict: "Problem Statement saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Confirm your problem and interview documents",
+    confirmBody:
+      "Your Problem Statement and Problem Interview Guide are saved. Confirming marks this module done and opens the next one.",
+    confirmNoFileTitle: "No files yet",
+    confirmNoFileBody:
+      "Your Module 3 documents haven't arrived yet. Return to your AI assistant and ask it to save the Problem Statement and Problem Interview Guide, then refresh this page.",
+  },
+
+  "module-04-evidence-of-unmet-need": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant inventories and grades the evidence you bring — starting with the notes from your Module 3 interviews — then builds a 30-day validation plan. It also makes the strongest case that the problem may not be real or urgent enough and asks you to respond with evidence.",
+    whyBody:
+      "Repeated assumptions can feel like validation. Separating what you actually know from what you merely believe keeps you honest before you spend more time building.",
+    whyBuildsOn: (moduleIndex: string) =>
+      `Module ${moduleIndex} is the last module currently open. Its Roadmap is what you actually do next — the evidence it plans for is what decides whether to keep going.`,
+    before: [
+      {
+        severity: "warning",
+        lead: "Do not start this module until you have finished the Module 3 interviews.",
+      },
+      {
+        lead: "Allow 30–40 minutes.",
+        body: "Grading evidence honestly and standing up to the counterargument both take a moment's real thought.",
+      },
+      {
+        lead: "Expect your evidence to be challenged.",
+        body: "One part of this module argues the other side on purpose. That's by design, not a fault.",
+      },
+      {
+        lead: "This module plans validation experiments; it does not run them for you.",
+        body: "The 30-day Roadmap is a to-do list you carry out afterwards.",
+      },
+    ],
+    workPrerequisite: {
+      label: "Interview notes",
+      pending: "Nothing uploaded yet.",
+      done: "In the chat and graded.",
+    },
+    questionsLabel: "Seven evidence questions",
+    progressVerdict: "Evidence saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Confirm your evidence and validation documents",
+    confirmBody:
+      "Your Evidence of Unmet Need and 30-Day Validation Roadmap are saved. Confirming marks this module done.",
+    confirmNoFileTitle: "No files yet",
+    confirmNoFileBody:
+      "Your Module 4 documents haven't arrived yet. Return to your AI assistant and ask it to save Evidence of Unmet Need and 30-Day Validation Roadmap, then refresh this page.",
+  },
+};
+
+/**
+ * Merges the shared wizard skeleton with one Module's own brief/confirm
+ * copy into the single flat object every step component reads. Falls back
+ * to Module 1's table for an unrecognised key rather than throwing — a
+ * draft placeholder Module (5, 6) is never live, so this path is only ever
+ * exercised by a real standard Module.
+ */
+export function resolveModuleCopy(moduleKey: string) {
+  const brief =
+    MODULE_BRIEF_COPY[moduleKey] ??
+    MODULE_BRIEF_COPY["module-01-pressure-test"];
+  return { ...moduleRunCopy, ...brief };
+}
+
+// Retained so existing call sites and the neutrality guard below keep
+// working without change — always Module 1's own copy, same as before this
+// file split it out of a single `module1Copy`.
+export const module1Copy = resolveModuleCopy("module-01-pressure-test");
 
 // Proceed, pivot and kill all complete Module 1 — wording differs by what happens next.
 export type FounderDecision = "proceed" | "pivot" | "kill";
@@ -660,6 +882,32 @@ export function module1ConfirmCta(decision: FounderDecision): string {
   return "Confirm and open the next module";
 }
 
+// ── Completing a Module with no Founder decision (Modules 2-4 today) ───
+//
+// module1CompletedTitle/Body/ConfirmCta above assume a proceed/pivot/kill
+// decision — meaningful only for Module 1. Every other standard Module has
+// no decision to record, so these three read purely off whether a next
+// Module is actually open, and never claim one exists when Module 4 (the
+// last currently open Module) is confirmed.
+
+export function moduleCompletedTitle(nextModuleTitle: string | null): string {
+  return nextModuleTitle
+    ? "Signed off. The next module is open."
+    : "Signed off.";
+}
+
+export function moduleCompletedBody(nextModuleTitle: string | null): string {
+  return nextModuleTitle
+    ? `You confirmed this, which opened ${nextModuleTitle}. Your saved documents stay in your workspace.`
+    : "You confirmed this. This is the last module open right now — your saved documents stay in your workspace, and more modules open as they become ready.";
+}
+
+export function moduleConfirmCta(nextModuleTitle: string | null): string {
+  return nextModuleTitle
+    ? "Confirm and open the next module"
+    : "Confirm completion";
+}
+
 // ── Running a module again ──────────────────────────────────────────────
 
 export const retryCopy = {
@@ -681,6 +929,15 @@ export const moduleGateCopy = {
   needsRunTitle: "Open this module",
   needsRunBody: "Opens the module and gets your workspace ready for it.",
   needsRunCta: "Open module",
+
+  // A Run already exists but has no row for this Module — its program
+  // version postdates the one the Run was created against (e.g. new
+  // Modules activated after the Founder's program started). "Open module"
+  // would find the existing Run and return without creating anything, so
+  // this gets its own honest copy instead of a button that does nothing.
+  missingFromRunTitle: "This module isn't part of your program yet",
+  missingFromRunBody:
+    "This module was added after your program started, so your current program doesn't include it yet. Ask your program lead if you should have access to it.",
 
   setupPendingTitle: "Finish setting up your workspace",
   setupPendingBody:
@@ -719,6 +976,13 @@ export const artefactsCopy = {
   startCta: "Start module",
   lockedCta: "Locked",
   storageNote: "Files are stored in your workspace, not just in the chat.",
+
+  // Handoff cards — what a founder carries between two modules, rather than
+  // what either module produces. Worded so the card explains its own place
+  // in the sequence without a step number to lean on.
+  interviewNotesTitle: "Interview notes",
+  interviewNotesSubtitle:
+    "The Problem & Five Whys interviews as you recorded them. Hand them to your assistant in whatever shape you have — a file, a doc, or pasted text — and what's kept here is formatted Markdown for Proof to grade.",
 } as const;
 
 // ── Workspace ───────────────────────────────────────────────────────────

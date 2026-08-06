@@ -144,6 +144,7 @@ describe("listModuleCatalog", () => {
         artifactKey: "setup_summary",
         name: "Founder Toolkit Setup Summary",
         requiredFilename: "Founder-Toolkit-Setup-Summary.md",
+        isRequired: true,
         outline: [
           { heading: "Founder Context", items: [] },
           { heading: "Connection", items: [] },
@@ -294,12 +295,14 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
         artifactKey: "fixture_artifact_one",
         name: "Fixture Artifact One",
         requiredFilename: "one.md",
+        isRequired: true,
         outline: [],
       },
       {
         artifactKey: "fixture_artifact_two",
         name: "Fixture Artifact Two",
         requiredFilename: "two.md",
+        isRequired: true,
         outline: [],
       },
     ]);

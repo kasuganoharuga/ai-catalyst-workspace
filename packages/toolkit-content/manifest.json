@@ -51,7 +51,7 @@
       "id": "module-02-customer-avatar",
       "number": "02",
       "slug": "customer-avatar",
-      "title": "Ideal Customer Avatar",
+      "title": "Target Customer",
       "objective": "Define exactly who you are building for, what they urgently need, how to recognise when they are ready to buy, and who should not be included.",
       "founderInputs": [
         "Module 01 target customer and problem",
@@ -76,7 +76,7 @@
       "id": "module-03-problem-statement",
       "number": "03",
       "slug": "problem-statement",
-      "title": "Problem Statement & Five Whys",
+      "title": "Problem & Five Whys",
       "objective": "Drive the beachhead customer's surface complaint down to a structural root cause, and turn it into five interview questions the Founder can take to real customers.",
       "founderInputs": [
         "Beachhead segment and customer situation",
@@ -97,7 +97,7 @@
       "id": "module-04-evidence-of-unmet-need",
       "number": "04",
       "slug": "evidence-of-unmet-need",
-      "title": "Evidence of Unmet Need",
+      "title": "Proof",
       "objective": "Reconcile what the Founder believes against what they have actually observed, grade the evidence, and plan the next 30 days of validation.",
       "founderInputs": [
         "Problem interview notes",

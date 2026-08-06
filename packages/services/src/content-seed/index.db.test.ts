@@ -151,7 +151,7 @@ describe("seedToolkitContent", () => {
     ]);
   });
 
-  it("loads Module 2 (Ideal Customer Avatar) content with the right question and artifact contracts", async () => {
+  it("loads Module 2 (Target Customer) content with the right question and artifact contracts", async () => {
     const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
     const modules = await fetchModuleRows(result.programVersionId);
     const module2 = modules.find((row) => row.module_key === "module-02-customer-avatar")!;
@@ -262,7 +262,7 @@ describe("seedToolkitContent", () => {
     ]);
   });
 
-  it("loads Module 4 (Evidence of Unmet Need) content with the right question and artifact contracts", async () => {
+  it("loads Module 4 (Proof) content with the right question and artifact contracts", async () => {
     const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
     const modules = await fetchModuleRows(result.programVersionId);
     const module4 = modules.find((row) => row.module_key === "module-04-evidence-of-unmet-need")!;
@@ -314,6 +314,14 @@ describe("seedToolkitContent", () => {
         artifact_key: "validation_roadmap_30_day",
         required_filename: "Validation-Roadmap-30-Day.md",
         validator_key: "structured_markdown_v1",
+        renderer_key: null,
+      },
+      // Last, and the only one without a validator: the raw interview record is
+      // this Module's input, accepted at whatever quality it arrives in.
+      {
+        artifact_key: "interview_notes",
+        required_filename: "Interview-Notes.md",
+        validator_key: null,
         renderer_key: null,
       },
     ]);

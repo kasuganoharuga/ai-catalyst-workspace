@@ -18,10 +18,24 @@ export type ArtefactCardModel = {
   startAction?: ArtefactStartAction;
 };
 
+/**
+ * "handoff" is an artefact a Founder carries between two modules rather than
+ * one a module produces — it gets its own card, with no step number, so it
+ * reads as the thing passed across the gap instead of either module's output.
+ */
+export type ArtefactGroupKind = "module" | "handoff";
+
 export type ArtefactModuleGroupModel = {
+  kind: ArtefactGroupKind;
   moduleKey: string;
-  moduleTitle: string;
-  moduleSubtitle: string | null;
+  title: string;
+  subtitle: string | null;
+  /** Owning module, for the accent colour and the numbered badge. */
   sequenceIndex: number;
+  /**
+   * Display order. Whole numbers for modules; a handoff sits on the fraction
+   * between the two it bridges (3.5 lands after Module 3, before Module 4).
+   */
+  sortIndex: number;
   artefacts: ArtefactCardModel[];
 };

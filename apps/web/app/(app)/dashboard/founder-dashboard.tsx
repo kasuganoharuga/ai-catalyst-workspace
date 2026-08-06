@@ -12,14 +12,16 @@ import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { listModuleCatalog } from "@/lib/module-catalog";
 import { hasSkippedProfilePrompt } from "@/lib/profile-prompt-dismissal";
-import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
+import {
+  listModuleContextsForActiveRun,
+  listRunModules,
+} from "@/lib/run-modules";
 import { getMyProfile } from "@/lib/user-profile";
 
 import { ContinueProgrammeButton } from "../components/continue-programme-button";
 import { PageShell } from "../components/page-shell";
 import { Stat, StatRow } from "../components/stat";
 import { dashboardCopy } from "../lib/copy";
-import { MODULE_0_KEY, MODULE_1_KEY } from "../lib/module-display";
 import { ModulesCarousel } from "./components/modules-carousel";
 import { NextActionCard } from "./components/next-action-card";
 import { PasswordPrompt } from "./components/password-prompt";
@@ -60,17 +62,13 @@ export async function FounderDashboard() {
   ]);
 
   const hasRun = runResult.runId !== null;
-  const [module0, module1] = await Promise.all([
-    hasRun ? getModuleContextByKey(actor, MODULE_0_KEY) : Promise.resolve(null),
-    hasRun ? getModuleContextByKey(actor, MODULE_1_KEY) : Promise.resolve(null),
-  ]);
+  const contexts = hasRun ? await listModuleContextsForActiveRun(actor) : [];
 
   const view = buildDashboardViewModel({
     catalog,
     runModules: runResult.modules,
     hasRun,
-    module0,
-    module1,
+    contexts,
     connection,
     profile,
     sessionUserName: session.user.name,

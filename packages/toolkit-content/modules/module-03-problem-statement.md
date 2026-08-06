@@ -1,4 +1,4 @@
-# Module 03: Problem Statement & Five Whys
+# Module 03: Problem & Five Whys
 
 Drive the beachhead customer's surface complaint down to a structural root cause, and turn it into
 five interview questions the Founder can take to real customers.

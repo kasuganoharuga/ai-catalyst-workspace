@@ -15,6 +15,7 @@ import {
   moduleAccentStyle,
 } from "../../../lib/module-display";
 import { loadModuleDetail } from "../lib/load-module-detail";
+import type { ModuleArtifactView } from "../types";
 import { StatusPill } from "../../components/status-pill";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
@@ -43,6 +44,7 @@ export async function ModuleDetailBody({
     context,
     connection,
     runModule,
+    moduleMissingFromExistingRun,
     activeAttempt,
     displayAttempt,
     needsRetry,
@@ -51,14 +53,25 @@ export async function ModuleDetailBody({
     isCompleted,
     awaitingConfirmation,
     nextModuleTitle,
-    failedValidation,
+    failedValidations,
     setupPending,
     venture,
     coreQuestions,
     decisionQuestions,
     startPrompt,
-    artifactDocumentContent,
+    artifacts,
   } = detail;
+
+  // MarkdownDocument construction happens here (a Server Component), not in
+  // load-module-detail.ts, so that file stays free of react-markdown and
+  // JSX — matches the pattern the original single-artifact
+  // `artifactDocumentContent` field used.
+  const artifactViews: ModuleArtifactView[] = artifacts.map((artifact) => ({
+    ...artifact,
+    documentPreview: artifact.content ? (
+      <MarkdownDocument content={artifact.content} />
+    ) : null,
+  }));
 
   return (
     <>
@@ -113,8 +126,26 @@ export async function ModuleDetailBody({
         </div>
       ) : null}
 
+      {/* An existing Run with no row for this Module — its program version
+          postdates the Run's own, so "Open module" would find the existing
+          Run and quietly return, leaving the founder right back here. This
+          is its own honest state, not the ordinary "needs a Run" gate. */}
+      {isLive && !runModule && moduleMissingFromExistingRun ? (
+        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
+          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
+            {moduleGateCopy.missingFromRunTitle}
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
+            {moduleGateCopy.missingFromRunBody}
+          </p>
+          <Button asChild variant="outline" size="lg" className="mt-6">
+            <Link href="/modules">{moduleGateCopy.backToModules}</Link>
+          </Button>
+        </div>
+      ) : null}
+
       {/* Without a connection, Continue only surfaces an error toast. */}
-      {isLive && !runModule ? (
+      {isLive && !runModule && !moduleMissingFromExistingRun ? (
         <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
           <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
             {connection?.authorised
@@ -174,9 +205,12 @@ export async function ModuleDetailBody({
       {runModule && context ? (
         isSetupModule ? (
           <section className="mt-8 space-y-6">
-            {failedValidation ? (
-              <ValidationIssuesCard validation={failedValidation} />
-            ) : null}
+            {failedValidations.map((validation) => (
+              <ValidationIssuesCard
+                key={validation.id}
+                validation={validation}
+              />
+            ))}
             {needsRetry ? (
               <RetryPassCard
                 programRunModuleId={runModule.id}
@@ -209,9 +243,12 @@ export async function ModuleDetailBody({
           </section>
         ) : (
           <section className="mt-8 space-y-6">
-            {failedValidation ? (
-              <ValidationIssuesCard validation={failedValidation} />
-            ) : null}
+            {failedValidations.map((validation) => (
+              <ValidationIssuesCard
+                key={validation.id}
+                validation={validation}
+              />
+            ))}
             <Module1Run
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
@@ -222,23 +259,10 @@ export async function ModuleDetailBody({
               connected={Boolean(connection?.authorised)}
               coreQuestions={coreQuestions}
               decisionQuestions={decisionQuestions}
-              artifactKey={context.artifacts[0]?.artifactKey ?? null}
-              artifactName={context.artifacts[0]?.name ?? null}
-              artifactVersion={
-                context.artifacts[0]?.latestSubmission?.versionNumber ?? null
-              }
-              artifactSavedAt={
-                context.artifacts[0]?.latestSubmission?.submittedAt ?? null
-              }
-              expectedArtifacts={entry.expectedArtifacts}
+              artifacts={artifactViews}
               hasAttempt={activeAttempt !== null}
               needsRetry={needsRetry}
               awaitingConfirmation={awaitingConfirmation}
-              documentPreview={
-                artifactDocumentContent ? (
-                  <MarkdownDocument content={artifactDocumentContent} />
-                ) : null
-              }
               isCompleted={isCompleted}
               preview={isLocked ? "locked" : null}
               startPrompt={startPrompt}
@@ -261,15 +285,10 @@ export async function ModuleDetailBody({
             connected={Boolean(connection?.authorised)}
             coreQuestions={[]}
             decisionQuestions={[]}
-            artifactKey={null}
-            artifactName={null}
-            artifactVersion={null}
-            artifactSavedAt={null}
-            expectedArtifacts={entry.expectedArtifacts}
+            artifacts={artifactViews}
             hasAttempt={false}
             needsRetry={false}
             awaitingConfirmation={false}
-            documentPreview={null}
             isCompleted={false}
             preview="not-started"
             startPrompt={startPrompt}

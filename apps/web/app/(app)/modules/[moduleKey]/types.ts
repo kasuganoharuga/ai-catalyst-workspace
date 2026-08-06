@@ -13,6 +13,29 @@ export type ExpectedArtifact = {
 };
 
 /**
+ * One Module Artifact's rendering state — merges the catalog's static
+ * `outline` with the Run's real submission data. A Module with more than
+ * one Artifact (Modules 3 and 4 each have two) renders one of these per
+ * Artifact rather than assuming there is only ever one; Module 1 and
+ * Module 0 (which do have exactly one) just render an array of length 1.
+ */
+export type ModuleArtifactView = {
+  artifactKey: string;
+  name: string;
+  requiredFilename: string | null;
+  outline: { heading: string; items: string[] }[];
+  versionNumber: number | null;
+  savedAt: string | null;
+  /**
+   * The saved document, already rendered on the server. Null until this
+   * Artifact has something saved — passed in rather than fetched here so
+   * this stays a client component without pulling react-markdown into its
+   * bundle.
+   */
+  documentPreview: ReactNode;
+};
+
+/**
  * Why this module is being shown read-only.
  *
  * "locked" — an earlier module has to be finished first.
@@ -56,24 +79,14 @@ export type Module1RunProps = {
   connected: boolean;
   coreQuestions: ModuleContextQuestion[];
   decisionQuestions: ModuleContextQuestion[];
-  artifactKey: string | null;
-  artifactName: string | null;
-  artifactVersion: number | null;
-  artifactSavedAt: string | null;
-  expectedArtifacts: ExpectedArtifact[];
+  /** One entry per Artifact this Module produces, in sequence order. */
+  artifacts: ModuleArtifactView[];
   hasAttempt: boolean;
   needsRetry: boolean;
   awaitingConfirmation: boolean;
   isCompleted: boolean;
   /** `null` means the module is live and workable; otherwise preview-only. */
   preview: ModulePreviewReason;
-  /**
-   * The saved document, already rendered on the server. Null until the
-   * assistant has saved something — passed in rather than fetched here so
-   * this stays a client component without pulling react-markdown into its
-   * bundle.
-   */
-  documentPreview: ReactNode;
   startPrompt: string;
   nextModuleTitle: string | null;
 };

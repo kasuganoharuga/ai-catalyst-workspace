@@ -1,12 +1,14 @@
 import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
 
 // Ported from skills/module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md
-// (§1 field ownership, §3 question rows, §5 artifact generator) and the two
-// templates it names. Two artefacts: Evidence-Of-Unmet-Need.md grades what
-// is actually known (including Module 3's interview notes, which arrive
+// (§1 field ownership, §3 question rows, §5 artifact generator) and the
+// templates it names. Two graded outputs: Evidence-Of-Unmet-Need.md grades
+// what is actually known (including Module 3's interview notes, which arrive
 // here through `evidence_additions`); Validation-Roadmap-30-Day.md plans
-// the next 30 days. Upstream Module 2/3 validation statuses are historical
-// snapshots, never a ceiling on the level this module may assign.
+// the next 30 days. Interview-Notes.md is a third, ungraded artefact holding
+// the interview record itself — see INTERVIEW_NOTES_ARTIFACT. Upstream Module
+// 2/3 validation statuses are historical snapshots, never a ceiling on the
+// level this module may assign.
 
 const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 
@@ -133,6 +135,34 @@ Results are not recorded in this roadmap. For each experiment, keep:
 - the decision made as a result.
 
 Keep the results with you and bring them into the review that follows.
+`;
+
+const INTERVIEW_NOTES_TEMPLATE = `# Interview Notes
+
+## Venture
+- Venture name:
+
+## Interviews
+
+### Interview 1
+
+**Who they are:**
+
+**When it happened:**
+
+**How it happened:**
+
+**What they said about the problem:**
+
+**What they have already done about it:**
+
+**Direct quotes:**
+
+**What this changes:**
+
+## Signals Outside The Interviews
+
+## Still Unknown
 `;
 
 const EVIDENCE_LEVEL_OPTIONS = [
@@ -597,10 +627,51 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   },
 };
 
+// The Founder's raw interview record, stored rather than left in the chat:
+// `evidence_additions` still carries what the notes *say* into the graded
+// document, but nothing durable held the notes themselves. Deliberately
+// unlike the two artefacts above:
+//  - `isRequired: false`, so it never blocks completeModuleAttempt — the
+//    "did you actually interview anyone" gate lives in the facilitator
+//    prompt, which grades thin notes rather than rejecting them;
+//  - `validatorKey: null` (with the empty validationConfig that implies),
+//    because raw notes have no structure worth failing a Founder over. The
+//    template below is formatting guidance for the assistant, not a
+//    contract enforced on submission.
+// Last in sequence even though the facilitator saves it first, in Block 1:
+// several consumers read `expectedArtifacts[0]` as the Module's headline output
+// (apps/web's module catalog card renders it as "Produces …", and the dashboard
+// treats it as the primary artefact), and an ungraded inbound record is not what
+// this Module produces. Its position ahead of the outputs on the artefacts page
+// is presentation, ordered there rather than by sequence_index.
+const INTERVIEW_NOTES_ARTIFACT: ArtifactContent = {
+  artifactKey: "interview_notes",
+  sequenceIndex: 3,
+  name: "Interview Notes",
+  description:
+    "The Module 3 problem interviews as the Founder recorded them, normalised to Markdown and kept in the workspace. Raw input to the evidence assessment, accepted at whatever quality it arrives in.",
+  isRequired: false,
+  artifactType: "document",
+  sourceFormat: "markdown",
+  outputFormat: "markdown",
+  requiredFilename: "Interview-Notes.md",
+  rendererKey: null,
+  validatorKey: null,
+  allowedMimeTypes: ["text/markdown", "text/plain"],
+  maxFileSizeBytes: 262_144,
+  maxFiles: 1,
+  outputConfig: {
+    schemaVersion: 1,
+    templateFormat: "markdown",
+    templateMarkdown: INTERVIEW_NOTES_TEMPLATE,
+  },
+  validationConfig: {},
+};
+
 export const MODULE_4_CONTENT: ModuleContent = {
   moduleKey: "module-04-evidence-of-unmet-need",
   sequenceIndex: 4,
-  title: "Evidence of Unmet Need",
+  title: "Proof",
   subtitle: "Grade what you actually know against what you believe, and plan the next 30 days",
   description:
     "Seven confirmed structured answers saved field by field, an Evidence of Unmet Need assessment (including Module 3's interview notes), and a 30-Day Validation Roadmap. Upstream validation statuses are historical snapshots, never a cap.",
@@ -613,5 +684,9 @@ export const MODULE_4_CONTENT: ModuleContent = {
   estimatedMinutes: 50,
   isPublishable: true,
   questions: EVIDENCE_QUESTIONS,
-  artifacts: [EVIDENCE_OF_UNMET_NEED_ARTIFACT, VALIDATION_ROADMAP_ARTIFACT],
+  artifacts: [
+    EVIDENCE_OF_UNMET_NEED_ARTIFACT,
+    VALIDATION_ROADMAP_ARTIFACT,
+    INTERVIEW_NOTES_ARTIFACT,
+  ],
 };

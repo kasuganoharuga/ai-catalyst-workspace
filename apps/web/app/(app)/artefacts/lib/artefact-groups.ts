@@ -4,11 +4,84 @@ import type {
   RunModuleStatus,
 } from "@ai-catalyst/shared";
 
+import { artefactsCopy } from "../../lib/copy";
+import { MODULE_4_KEY } from "../../lib/module-display";
 import type {
   ArtefactCardModel,
   ArtefactModuleGroupModel,
   ArtefactStartAction,
 } from "../types";
+
+type HandoffSpec = {
+  /** The module that owns the artefact definition. */
+  moduleKey: string;
+  artifactKey: string;
+  /** Between which two modules the card lands — see `sortIndex` on the model. */
+  sortIndex: number;
+  title: string;
+  subtitle: string;
+};
+
+// Interview notes belong to Module 4 in the database (that is where they are
+// handed over and graded), but on this page they read as what the founder
+// carries out of Module 3 — so they leave Module 4's group and sit between
+// the two.
+const HANDOFF_ARTEFACTS: HandoffSpec[] = [
+  {
+    moduleKey: MODULE_4_KEY,
+    artifactKey: "interview_notes",
+    sortIndex: 3.5,
+    title: artefactsCopy.interviewNotesTitle,
+    subtitle: artefactsCopy.interviewNotesSubtitle,
+  },
+];
+
+/**
+ * Lifts handoff artefacts out of their owning module's group into cards of
+ * their own, then orders everything by `sortIndex`. A module left with no
+ * artefacts of its own drops out rather than rendering an empty card.
+ */
+function splitHandoffGroups(
+  groups: ArtefactModuleGroupModel[],
+): ArtefactModuleGroupModel[] {
+  const result: ArtefactModuleGroupModel[] = [];
+
+  for (const group of groups) {
+    const specs = HANDOFF_ARTEFACTS.filter(
+      (spec) => spec.moduleKey === group.moduleKey,
+    );
+    if (specs.length === 0) {
+      result.push(group);
+      continue;
+    }
+
+    const handoffKeys = new Set(specs.map((spec) => spec.artifactKey));
+    const ownArtefacts = group.artefacts.filter(
+      (artefact) => !handoffKeys.has(artefact.artifactKey),
+    );
+    if (ownArtefacts.length > 0) {
+      result.push({ ...group, artefacts: ownArtefacts });
+    }
+
+    for (const spec of specs) {
+      const artefacts = group.artefacts.filter(
+        (artefact) => artefact.artifactKey === spec.artifactKey,
+      );
+      if (artefacts.length === 0) continue;
+      result.push({
+        kind: "handoff",
+        moduleKey: group.moduleKey,
+        title: spec.title,
+        subtitle: spec.subtitle,
+        sequenceIndex: group.sequenceIndex,
+        sortIndex: spec.sortIndex,
+        artefacts,
+      });
+    }
+  }
+
+  return result.sort((a, b) => a.sortIndex - b.sortIndex);
+}
 
 function isVisibleModule(
   entry: ModuleCatalogEntry | undefined,
@@ -42,7 +115,7 @@ export function buildSavedArtefactGroups(
     catalog.map((entry) => [entry.moduleKey, entry]),
   );
 
-  return contexts
+  const moduleGroups = contexts
     .filter((context) =>
       isVisibleModule(
         catalogByKey.get(context.runModule.moduleKey),
@@ -90,15 +163,18 @@ export function buildSavedArtefactGroups(
       );
 
       return {
+        kind: "module" as const,
         moduleKey: context.runModule.moduleKey,
-        moduleTitle: context.runModule.title,
-        moduleSubtitle: entry?.subtitle ?? null,
+        title: context.runModule.title,
+        subtitle: entry?.subtitle ?? null,
         sequenceIndex: context.runModule.sequenceIndex,
+        sortIndex: context.runModule.sequenceIndex,
         artefacts,
       };
     })
-    .filter((group) => group.artefacts.length > 0)
-    .sort((a, b) => a.sequenceIndex - b.sequenceIndex);
+    .filter((group) => group.artefacts.length > 0);
+
+  return splitHandoffGroups(moduleGroups);
 }
 
 /**
@@ -118,13 +194,15 @@ export function buildPreviewArtefactGroups(
       entry.catalogStatus === "live" && entry.expectedArtifacts.length > 0,
   )?.moduleKey;
 
-  return catalogModules
+  const moduleGroups = catalogModules
     .filter((entry) => entry.expectedArtifacts.length > 0)
     .map((entry) => ({
+      kind: "module" as const,
       moduleKey: entry.moduleKey,
-      moduleTitle: entry.title,
-      moduleSubtitle: entry.subtitle,
+      title: entry.title,
+      subtitle: entry.subtitle,
       sequenceIndex: entry.sequenceIndex,
+      sortIndex: entry.sequenceIndex,
       artefacts: entry.expectedArtifacts.map((artifact) => ({
         moduleKey: entry.moduleKey,
         moduleTitle: entry.title,
@@ -133,7 +211,7 @@ export function buildPreviewArtefactGroups(
         artifactKey: artifact.artifactKey,
         name: artifact.name,
         requiredFilename: artifact.requiredFilename,
-        isRequired: true,
+        isRequired: artifact.isRequired,
         versionNumber: null,
         submissionStatus: null,
         savedAt: null,
@@ -145,8 +223,9 @@ export function buildPreviewArtefactGroups(
               } as const)
             : ({ kind: "locked" } as const),
       })),
-    }))
-    .sort((a, b) => a.sequenceIndex - b.sequenceIndex);
+    }));
+
+  return splitHandoffGroups(moduleGroups);
 }
 
 export function artefactCounts(groups: ArtefactModuleGroupModel[]) {

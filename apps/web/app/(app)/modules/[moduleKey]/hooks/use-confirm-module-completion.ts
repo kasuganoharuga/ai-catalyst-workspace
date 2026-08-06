@@ -10,8 +10,11 @@ import { errorCopy, toastCopy } from "../../../lib/copy";
 
 /**
  * Shared confirm action for both modules' Confirm steps — calls the
- * confirm-completion server action, toasts success or failure, then
- * refreshes the page so newly unlocked state shows up.
+ * confirm-completion server action, toasts success or failure, then goes
+ * straight to the modules list. This used to just router.refresh(), which
+ * left the founder looking at a second "Continue to X" link/button they had
+ * to click again; navigating directly means one click both unlocks the next
+ * module and lands on it.
  */
 export function useConfirmModuleCompletion({
   programRunModuleId,
@@ -38,7 +41,7 @@ export function useConfirmModuleCompletion({
           ? toastCopy.moduleConfirmedNext(nextModuleTitle)
           : undefined,
       });
-      router.refresh();
+      router.push("/modules");
     });
   }
 

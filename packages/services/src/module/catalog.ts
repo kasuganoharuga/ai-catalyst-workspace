@@ -35,6 +35,7 @@ interface RawCatalogArtifact {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
+  isRequired: boolean;
   // Internal-only — stripped in mapArtifact so the Founder DTO never
   // ships the full template Markdown, only the derived outline.
   templateMarkdown: string | null;
@@ -59,6 +60,7 @@ function mapArtifact(raw: RawCatalogArtifact): ModuleCatalogArtifact {
     artifactKey: raw.artifactKey,
     name: raw.name,
     requiredFilename: raw.requiredFilename,
+    isRequired: raw.isRequired,
     outline: parseTemplateOutline(raw.templateMarkdown),
   };
 }
@@ -102,6 +104,7 @@ const CATALOG_QUERY = `
           'artifactKey', ad.artifact_key,
           'name', ad.name,
           'requiredFilename', ad.required_filename,
+          'isRequired', ad.is_required,
           'templateMarkdown', ad.output_config->>'templateMarkdown'
         )
         order by ad.sequence_index

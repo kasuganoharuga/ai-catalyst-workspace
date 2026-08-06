@@ -423,11 +423,11 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
 export const MODULE_2_CONTENT: ModuleContent = {
   moduleKey: "module-02-customer-avatar",
   sequenceIndex: 2,
-  title: "Ideal Customer Avatar",
+  title: "Target Customer",
   subtitle:
     "Define exactly who you are building for, what they urgently need, and how to recognise when they are ready to buy",
   description:
-    "Thirteen confirmed structured answers saved field by field, and one locked-schema Ideal Customer Avatar with an internal Validation Status. Completion is not validation.",
+    "Eight conversation blocks confirming every field, and one locked-schema Ideal Customer Avatar with an internal Validation Status. Completion is not validation.",
   objective:
     "Define exactly who you are building for, what they urgently need, how to recognise when they are ready to buy, and who should not be included.",
   moduleType: "standard",

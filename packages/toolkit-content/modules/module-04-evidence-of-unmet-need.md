@@ -1,4 +1,4 @@
-# Module 04: Evidence of Unmet Need
+# Module 04: Proof
 
 Reconcile what the Founder believes against what they have actually observed, grade the evidence,
 and plan the next 30 days of validation.

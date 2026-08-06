@@ -5,14 +5,19 @@ import {
   dashboardCopy,
   errorCopy,
   lifecycleStageLabel,
+  MODULE_BRIEF_COPY,
   module0Copy,
-  module1Copy,
   module1CompletedBody,
   module1CompletedTitle,
   module1ConfirmCta,
+  moduleCompletedBody,
+  moduleCompletedTitle,
+  moduleConfirmCta,
   moduleGateCopy,
+  moduleRunCopy,
   modulesCopy,
   profilePromptCopy,
+  resolveModuleCopy,
   retryCopy,
   ventureStatusLabel,
   workspaceCopy,
@@ -20,6 +25,50 @@ import {
 } from "@/app/(app)/lib/copy";
 
 const DECISIONS: FounderDecision[] = ["proceed", "pivot", "kill"];
+
+const STANDARD_MODULE_KEYS = [
+  "module-01-pressure-test",
+  "module-02-customer-avatar",
+  "module-03-problem-statement",
+  "module-04-evidence-of-unmet-need",
+];
+
+describe("resolveModuleCopy", () => {
+  it("gives every standard Module its own briefTitle/briefBody/questionsLabel, not just Module 1's", () => {
+    const questionsLabels = STANDARD_MODULE_KEYS.map(
+      (key) => resolveModuleCopy(key).questionsLabel,
+    );
+    expect(new Set(questionsLabels).size).toBe(STANDARD_MODULE_KEYS.length);
+
+    const briefBodies = STANDARD_MODULE_KEYS.map(
+      (key) => resolveModuleCopy(key).briefBody,
+    );
+    expect(new Set(briefBodies).size).toBe(STANDARD_MODULE_KEYS.length);
+  });
+
+  it("merges in the shared wizard skeleton for every Module", () => {
+    for (const key of STANDARD_MODULE_KEYS) {
+      expect(resolveModuleCopy(key).stepBrief).toBe(moduleRunCopy.stepBrief);
+      expect(resolveModuleCopy(key).workTitle).toBe(moduleRunCopy.workTitle);
+    }
+  });
+
+  it("falls back to Module 1's table for an unrecognised key rather than throwing", () => {
+    expect(() => resolveModuleCopy("module-99-does-not-exist")).not.toThrow();
+    expect(resolveModuleCopy("module-99-does-not-exist")).toEqual(
+      resolveModuleCopy("module-01-pressure-test"),
+    );
+  });
+
+  it('names what each Module 3/4 confirm step actually produces, not a generic "verdict"', () => {
+    expect(
+      resolveModuleCopy("module-03-problem-statement").confirmTitle,
+    ).toMatch(/problem and interview/i);
+    expect(
+      resolveModuleCopy("module-04-evidence-of-unmet-need").confirmTitle,
+    ).toMatch(/evidence and validation/i);
+  });
+});
 
 describe("module 1 completion copy", () => {
   it("gives every decision its own title and call to action", () => {
@@ -35,11 +84,8 @@ describe("module 1 completion copy", () => {
   // more honest answer feel they got it wrong.
   it("names the next module when there is one, for every decision", () => {
     for (const decision of DECISIONS) {
-      const body = module1CompletedBody(
-        decision,
-        "Module 2 · Ideal Customer Avatar",
-      );
-      expect(body, decision).toContain("Module 2 · Ideal Customer Avatar");
+      const body = module1CompletedBody(decision, "Module 2 · Target Customer");
+      expect(body, decision).toContain("Module 2 · Target Customer");
     }
   });
 
@@ -50,6 +96,24 @@ describe("module 1 completion copy", () => {
       expect(body, decision).not.toContain("null");
       expect(body.trim().endsWith("."), decision).toBe(true);
     }
+  });
+});
+
+// A Module with no Founder decision (2-4 today) never uses
+// module1CompletedTitle/Body/ConfirmCta — these are its decision-free
+// equivalents, and must never claim a next module exists when there isn't one.
+describe("completion copy for Modules with no Founder decision", () => {
+  it("never dangles a next-module reference when there isn't one", () => {
+    expect(moduleCompletedTitle(null)).not.toMatch(/next module/i);
+    expect(moduleCompletedBody(null)).not.toContain("undefined");
+    expect(moduleCompletedBody(null)).not.toContain("null");
+    expect(moduleConfirmCta(null)).not.toMatch(/next module/i);
+  });
+
+  it("names the next module when there is one", () => {
+    expect(moduleCompletedTitle("Proof")).toMatch(/next module/i);
+    expect(moduleCompletedBody("Proof")).toContain("Proof");
+    expect(moduleConfirmCta("Proof")).toMatch(/next module/i);
   });
 });
 
@@ -90,13 +154,19 @@ describe("neutral copy", () => {
     dashboardCopy,
     moduleGateCopy,
     module0Copy,
-    module1Copy,
+    moduleRunCopy,
     modulesCopy,
     artefactsCopy,
     workspaceCopy,
     retryCopy,
     errorCopy,
     profilePromptCopy,
+    ...Object.fromEntries(
+      Object.entries(MODULE_BRIEF_COPY).map(([moduleKey, copy]) => [
+        `MODULE_BRIEF_COPY[${moduleKey}]`,
+        copy,
+      ]),
+    ),
   };
 
   // Walks nested objects and arrays, because manualStep-shaped entries and

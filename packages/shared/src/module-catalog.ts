@@ -26,6 +26,12 @@ export interface ModuleCatalogArtifact {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
+  /**
+   * False for supporting artefacts a Module accepts but never blocks on (e.g.
+   * Module 4's interview notes). Carried here so the pre-run catalog preview
+   * can say "optional" instead of assuming everything is required.
+   */
+  isRequired: boolean;
   outline: ModuleCatalogArtifactOutlineSection[];
 }
 

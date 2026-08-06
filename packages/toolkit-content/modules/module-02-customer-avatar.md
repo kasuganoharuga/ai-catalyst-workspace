@@ -1,4 +1,4 @@
-# Module 02: Ideal Customer Avatar
+# Module 02: Target Customer
 
 Define exactly who you are building for, why they need it now, and how you will validate them this
 week.

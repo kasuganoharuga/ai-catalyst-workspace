@@ -19,8 +19,12 @@ import { PROMPTS_CONTENT } from "./prompts.js";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const TOOLKIT_CONTENT_ROOT = join(__dirname, "../../../../toolkit-content/skills");
 
+// Normalises CRLF to LF: these source files are read on whatever line
+// endings the working tree checked them out with (this repo has files on
+// both), while the seeded TypeScript constants they're compared against
+// were authored with plain `\n` throughout.
 function readSourceFile(relativePath: string): string {
-  return readFileSync(join(TOOLKIT_CONTENT_ROOT, relativePath), "utf-8");
+  return readFileSync(join(TOOLKIT_CONTENT_ROOT, relativePath), "utf-8").replace(/\r\n/g, "\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -216,6 +220,20 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
   },
 ];
 
+// Artefacts with no validator of their own. They still must not drift from
+// their authoring template, but the "skeleton fails its own draft check"
+// test below is meaningless without rules to fail — a null validator_key
+// carries an empty validationConfig by construction
+// (validateConfigForValidator), so there is nothing for runDraftCheck to
+// reject.
+const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
+  {
+    moduleKey: "module-04-evidence-of-unmet-need",
+    artifactKey: "interview_notes",
+    sourcePath: "module-04-evidence-of-unmet-need/templates/Interview-Notes.md",
+  },
+];
+
 function findArtifact(moduleKey: string, artifactKey: string) {
   const module = DEFAULT_TOOLKIT_CONTENT.modules.find((m) => m.moduleKey === moduleKey);
   if (!module) throw new Error(`no such module: ${moduleKey}`);
@@ -225,7 +243,7 @@ function findArtifact(moduleKey: string, artifactKey: string) {
 }
 
 describe("seeded templateMarkdown matches the authoring template with hints stripped", () => {
-  for (const fixture of TEMPLATE_FIXTURES) {
+  for (const fixture of [...TEMPLATE_FIXTURES, ...UNVALIDATED_TEMPLATE_FIXTURES]) {
     it(`${fixture.moduleKey} / ${fixture.artifactKey}`, () => {
       const artifact = findArtifact(fixture.moduleKey, fixture.artifactKey);
       const seededTemplate = (artifact.outputConfig as { templateMarkdown: string }).templateMarkdown;

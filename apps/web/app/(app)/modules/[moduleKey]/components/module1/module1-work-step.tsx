@@ -7,66 +7,69 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 import { AssistantHandoff } from "../../../../components/assistant-handoff";
-import { module1Copy } from "../../../../lib/copy";
+import { resolveModuleCopy } from "../../../../lib/copy";
+import {
+  buildQuestionDisplayGroups,
+  isWorkPrerequisiteMet,
+} from "../../../../lib/module-display";
 import type { Module1RunProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
 import { StepHeading } from "../shared/step-heading";
 import { StrongAnswerCard } from "../strong-answer-card";
 
 export function Module1WorkStep({
+  moduleKey,
   connected,
   provider,
   startPrompt,
   coreQuestions,
   decisionQuestions,
-  artifactName,
-  artifactVersion,
+  artifacts,
   awaitingConfirmation,
   isCompleted,
   preview,
   needsRetry,
   accent,
 }: Module1RunProps & { accent: ModuleAccent }) {
+  const copy = resolveModuleCopy(moduleKey);
   const isPreview = preview !== null;
-  const answered = coreQuestions.filter(
-    (q) => q.responseStatus !== null,
-  ).length;
+  // Simplified, block-level rows — never the full question text; see
+  // buildQuestionDisplayGroups for why Module 2 collapses to eight blocks
+  // while every other Module gets one short-labelled row per Question.
+  const displayGroups = buildQuestionDisplayGroups(moduleKey, coreQuestions);
+  const answered = displayGroups.filter((group) => group.done).length;
   const decisionAnswered = decisionQuestions.filter(
     (q) => q.responseStatus !== null,
   ).length;
-  const documentSaved = artifactVersion !== null;
+  const prerequisiteMet = isWorkPrerequisiteMet(moduleKey, coreQuestions);
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
   const previewBody =
-    preview === "locked"
-      ? module1Copy.workBodyLocked
-      : module1Copy.workBodyNotStarted;
+    preview === "locked" ? copy.workBodyLocked : copy.workBodyNotStarted;
   const previewNote =
-    preview === "locked"
-      ? module1Copy.workLockedNote
-      : module1Copy.workNotStartedNote;
+    preview === "locked" ? copy.workLockedNote : copy.workNotStartedNote;
 
   return (
     <>
       <StepHeading
-        title={module1Copy.workTitle}
-        body={isPreview ? previewBody : module1Copy.workBody}
+        title={copy.workTitle}
+        body={isPreview ? previewBody : copy.workBody}
       />
 
-      <StrongAnswerCard />
+      <StrongAnswerCard card={copy.coachingCard} />
 
       {/* Only when the module is live: in preview the heading above has
           already said why nothing here works yet. */}
       {!isPreview && !connected ? (
         <div className="mt-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground">
-          {module1Copy.notConnected}{" "}
+          {copy.notConnected}{" "}
           <Link
             href="/connection"
             className="font-medium text-foreground underline-offset-2 hover:underline"
           >
-            {module1Copy.notConnectedLink}
+            {copy.notConnectedLink}
           </Link>
-          {module1Copy.notConnectedSuffix}
+          {copy.notConnectedSuffix}
         </div>
       ) : null}
 
@@ -81,11 +84,26 @@ export function Module1WorkStep({
         />
       </div>
 
-      {/* Milestones from what the assistant actually saved. The six
-          questions sit as the first CheckLine — collapsed by default,
-          expanded in place. */}
+      {/* Milestones from what the assistant actually saved. The questions
+          sit as the first CheckLine — collapsed by default, expanded in
+          place as short block labels, never the full question text (the
+          assistant asks those one at a time; reading them cold here would
+          invite pre-drafted answers). */}
       <dl className="mt-8 text-sm">
-        {coreQuestions.length > 0 ? (
+        {/* First, because it gates every row under it: the assistant will not
+            open the questions until this has arrived. */}
+        {copy.workPrerequisite ? (
+          <CheckLine
+            ok={prerequisiteMet}
+            label={copy.workPrerequisite.label}
+            detail={
+              prerequisiteMet
+                ? copy.workPrerequisite.done
+                : copy.workPrerequisite.pending
+            }
+          />
+        ) : null}
+        {displayGroups.length > 0 ? (
           <div className="border-t border-border/70 py-3 first:border-t-0">
             <button
               type="button"
@@ -97,12 +115,12 @@ export function Module1WorkStep({
                 <span
                   className={cn(
                     "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
-                    answered === coreQuestions.length
+                    answered === displayGroups.length
                       ? "bg-primary"
                       : "border border-border",
                   )}
                 >
-                  {answered === coreQuestions.length ? (
+                  {answered === displayGroups.length ? (
                     <Check
                       aria-hidden="true"
                       className="h-2.5 w-2.5 text-primary-foreground"
@@ -110,13 +128,11 @@ export function Module1WorkStep({
                     />
                   ) : null}
                 </span>
-                <span className="text-foreground">
-                  {module1Copy.questionsLabel}
-                </span>
+                <span className="text-foreground">{copy.questionsLabel}</span>
               </span>
               <span className="flex shrink-0 items-center gap-1.5 text-right text-xs leading-5 text-muted-foreground">
                 <span className="font-mono tabular-nums">
-                  {module1Copy.questionsCount(answered, coreQuestions.length)}
+                  {copy.questionsCount(answered, displayGroups.length)}
                 </span>
                 <ChevronDown
                   aria-hidden="true"
@@ -130,66 +146,90 @@ export function Module1WorkStep({
 
             {questionsOpen ? (
               <ol className="mt-3 space-y-2 pl-[1.625rem]">
-                {coreQuestions.map((question) => {
-                  const done = question.responseStatus !== null;
-                  return (
-                    <li key={question.questionKey} className="flex gap-3">
-                      <span
-                        className={cn(
-                          "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
-                          done ? "" : "border border-border",
-                        )}
-                        style={done ? accent : undefined}
-                      >
-                        {done ? (
-                          <Check
-                            aria-hidden="true"
-                            className="h-2.5 w-2.5 text-white"
-                            strokeWidth={3}
-                          />
-                        ) : null}
-                      </span>
-                      <span
-                        className={cn(
-                          "text-sm leading-6",
-                          done ? "text-foreground" : "text-muted-foreground",
-                        )}
-                      >
-                        {question.questionText}
-                      </span>
-                    </li>
-                  );
-                })}
+                {displayGroups.map((group) => (
+                  <li key={group.key} className="flex gap-3">
+                    <span
+                      className={cn(
+                        "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full",
+                        group.done ? "" : "border border-border",
+                      )}
+                      style={group.done ? accent : undefined}
+                    >
+                      {group.done ? (
+                        <Check
+                          aria-hidden="true"
+                          className="h-2.5 w-2.5 text-white"
+                          strokeWidth={3}
+                        />
+                      ) : null}
+                    </span>
+                    <span
+                      className={cn(
+                        "text-sm leading-6",
+                        group.done
+                          ? "text-foreground"
+                          : "text-muted-foreground",
+                      )}
+                    >
+                      {group.label}
+                    </span>
+                  </li>
+                ))}
               </ol>
             ) : null}
           </div>
         ) : null}
 
-        <CheckLine
-          ok={decisionAnswered > 0}
-          label={module1Copy.progressDecision}
-          detail={
-            decisionAnswered > 0
-              ? module1Copy.progressDecisionDone
-              : module1Copy.progressDecisionPending
-          }
-        />
-        <CheckLine
-          ok={documentSaved}
-          label={module1Copy.progressVerdict}
-          detail={
-            documentSaved
-              ? `${artifactName ?? "Document"} · version ${artifactVersion}`
-              : module1Copy.progressVerdictPending
-          }
-        />
+        {/* Only Module 1 has a Founder decision to record — a Module with
+            no decisionQuestions at all (2-4 today) never shows this row,
+            rather than announcing "Comes after the verdict." forever. */}
+        {decisionQuestions.length > 0 ? (
+          <CheckLine
+            ok={decisionAnswered > 0}
+            label={copy.progressDecision}
+            detail={
+              decisionAnswered > 0
+                ? copy.progressDecisionDone
+                : copy.progressDecisionPending
+            }
+          />
+        ) : null}
+        {/* One CheckLine per Artifact. A Module with exactly one (Module 0
+            and 1 today) keeps the original single-document copy; a Module
+            with more than one (Modules 3 and 4) names each document by
+            itself — Phase 2 gives every Module its own progress-row copy,
+            this is the structural loop that lets it. */}
+        {artifacts.length === 1 ? (
+          <CheckLine
+            ok={artifacts[0].versionNumber !== null}
+            label={copy.progressVerdict}
+            detail={
+              artifacts[0].versionNumber !== null
+                ? `${artifacts[0].name} · version ${artifacts[0].versionNumber}`
+                : copy.progressVerdictPending
+            }
+          />
+        ) : (
+          artifacts.map((artifact) => (
+            <CheckLine
+              key={artifact.artifactKey}
+              ok={artifact.versionNumber !== null}
+              label={artifact.name}
+              detail={
+                artifact.versionNumber !== null
+                  ? `Saved · version ${artifact.versionNumber}`
+                  : copy.progressVerdictPending
+              }
+            />
+          ))
+        )}
         <CheckLine
           ok={awaitingConfirmation || isCompleted}
-          label={module1Copy.progressChecks}
+          label={copy.progressChecks}
           detail={
             awaitingConfirmation || isCompleted
-              ? module1Copy.progressChecksDone
-              : module1Copy.progressChecksPending
+              ? copy.progressChecksDone
+              : copy.progressChecksPending
           }
         />
       </dl>

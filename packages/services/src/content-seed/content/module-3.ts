@@ -491,7 +491,7 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
 export const MODULE_3_CONTENT: ModuleContent = {
   moduleKey: "module-03-problem-statement",
   sequenceIndex: 3,
-  title: "Problem Statement & Five Whys",
+  title: "Problem & Five Whys",
   subtitle:
     "Drive the beachhead customer's surface complaint down to a structural root cause, and prepare five interview questions to test it",
   description:

@@ -58,8 +58,13 @@ export default async function ArtefactsPage() {
           </div>
 
           <div className="mt-5 flex flex-col gap-5">
+            {/* A handoff card shares its owning module's key, so the key has
+                to carry position too. */}
             {displayGroups.map((group) => (
-              <ArtefactModuleGroup key={group.moduleKey} group={group} />
+              <ArtefactModuleGroup
+                key={`${group.moduleKey}:${group.sortIndex}`}
+                group={group}
+              />
             ))}
           </div>
 
