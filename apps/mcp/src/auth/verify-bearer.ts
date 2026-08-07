@@ -114,6 +114,7 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
           error: { code: -32603, message: "Internal server error." },
           id: null,
         });
+        return;
       }
     })();
   };
