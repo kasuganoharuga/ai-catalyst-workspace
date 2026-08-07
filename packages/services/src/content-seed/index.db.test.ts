@@ -205,7 +205,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "ideal_customer_avatar",
         required_filename: "Ideal-Customer-Avatar.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
+        renderer_key: "ideal_customer_avatar_export_v1",
       },
     ]);
   });

@@ -20,6 +20,7 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 
 // Package subpath imports for Turbopack resolution when apps/web bundles services.
 import { assertPdfStructure } from "@ai-catalyst/services/artifact/internal/renderers/assert-pdf-structure";
+import { idealCustomerAvatarWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/ideal-customer-avatar-workbook-v1";
 import { problemInterviewWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/problem-interview-workbook-v1";
 import { validationRoadmapWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/validation-roadmap-workbook-v1";
 
@@ -55,6 +56,7 @@ export function registerWorkbookRenderer<TModel>(renderer: WorkbookRenderer<TMod
 const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
   [problemInterviewWorkbookV1.rendererKey]: registerWorkbookRenderer(problemInterviewWorkbookV1),
   [validationRoadmapWorkbookV1.rendererKey]: registerWorkbookRenderer(validationRoadmapWorkbookV1),
+  [idealCustomerAvatarWorkbookV1.rendererKey]: registerWorkbookRenderer(idealCustomerAvatarWorkbookV1),
 };
 
 /**

@@ -117,10 +117,27 @@ export interface PagePlan {
   footerLabel: string | null;
 }
 
+/**
+ * A solid-colour background fill — masthead bands, section-card backgrounds,
+ * grid divider hairlines. Pure decoration, never content: unlike
+ * `LockedContentEntry`, nothing here is checked by `assertPlanMatchesModel`
+ * (there is no model-derived text to compare), and nothing here is checked
+ * structurally either (a filled rectangle leaves no reliably-inspectable
+ * trace in a reopened PDF the way a named field does). Drawn before every
+ * page's locked content and fields, so text and fields always sit on top.
+ */
+export interface RectFillEntry {
+  page: number;
+  rect: Rect;
+  /** RGB, 0-1 range, matching pdf-lib's `rgb()`. */
+  color: { r: number; g: number; b: number };
+}
+
 export interface WorkbookRenderPlan {
   pages: PagePlan[];
   fields: FieldPlan[];
   lockedContent: LockedContentEntry[];
+  rects: RectFillEntry[];
   provenance: Provenance;
 }
 

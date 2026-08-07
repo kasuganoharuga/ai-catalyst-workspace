@@ -1,11 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { assertPdfStructure } from "./assert-pdf-structure.js";
+import { IDEAL_CUSTOMER_AVATAR_FIELD_MANIFEST_V1 } from "./manifests/ideal-customer-avatar-v1.js";
 import { PROBLEM_INTERVIEW_FIELD_MANIFEST_V1 } from "./manifests/interview-v1.js";
 import { VALIDATION_ROADMAP_FIELD_MANIFEST_V1 } from "./manifests/roadmap-v1.js";
+import type { IdealCustomerAvatarModel } from "./parse/ideal-customer-avatar.js";
 import type { InterviewGuideModel } from "./parse/interview-guide.js";
 import type { ValidationRoadmapModel } from "./parse/validation-roadmap.js";
 import { renderWorkbookPlan } from "./pdf/render-plan.js";
+import { buildIdealCustomerAvatarPlan } from "./plan/ideal-customer-avatar-plan.js";
 import { buildInterviewWorkbookPlan } from "./plan/interview-workbook-plan.js";
 import { buildValidationRoadmapPlan } from "./plan/validation-roadmap-plan.js";
 import type { Provenance } from "./types.js";
@@ -182,5 +185,46 @@ describe("assertPdfStructure — validation_roadmap_workbook_v1", () => {
     await expect(assertPdfStructure(bytes, brokenPlan, VALIDATION_ROADMAP_FIELD_MANIFEST_V1)).rejects.toThrow(
       /manifest declares/,
     );
+  });
+});
+
+const AVATAR_MODEL: IdealCustomerAvatarModel = {
+  ventureName: "Kerbside",
+  segment: "Australian pre-seed / seed founders raising $500k–$3M.",
+  snapshot: {
+    who: "32–42, technical or domain-expert founder; 2–8 person team.",
+    where: "Sydney / Melbourne / Brisbane.",
+    stage: "Post-MVP, $10k–$80k ARR or strong pilots.",
+    raise: "First institutional round. SAFE, note or priced seed.",
+  },
+  situation: "Has proven the product works and now needs capital to hire and scale.",
+  unmetNeeds: {
+    functional: ["Close the round in a defined window.", "Avoid mistakes that cost them control.", "Know who to talk to."],
+    emotional: ["Stop feeling like an outsider.", "Certainty over vibes.", "Protect their credibility."],
+  },
+  buyingSignals: {
+    tier1: ["Searches how to raise a seed round.", "Downloads a capital-raising guide.", "Grabs a term sheet template."],
+    tier2: ["First paying customers.", "Accepted into an accelerator.", "Signed up to cap table tooling."],
+  },
+  disqualifiers: ["Wants a broker to raise it for them.", "Already has a signed term sheet.", "Idea stage, pre-MVP."],
+  corePromise: "Run a professional seed raise in a defined window, keep control, and own the process for next time.",
+  validationStatus: {
+    currentLevel: "Interviewed",
+    basedOnObservation: "Three founders interviewed matched this profile closely.",
+    founderAssumptions: "Raise timeline assumption not yet tested.",
+    importantUnknowns: "Whether Tier 1 signals convert at the rate assumed.",
+    contradictingEvidence: "None recorded yet.",
+    highestPriorityQuestions: "Does the accelerator-adjacent channel actually produce warm introductions?",
+  },
+};
+
+describe("assertPdfStructure — ideal_customer_avatar_export_v1", () => {
+  it("passes for a plan and PDF that honestly agree, with zero form fields", async () => {
+    const plan = buildIdealCustomerAvatarPlan(AVATAR_MODEL, {
+      ...PROVENANCE,
+      rendererKey: "ideal_customer_avatar_export_v1",
+    });
+    const bytes = await renderWorkbookPlan(plan);
+    await expect(assertPdfStructure(bytes, plan, IDEAL_CUSTOMER_AVATAR_FIELD_MANIFEST_V1)).resolves.toBeUndefined();
   });
 });

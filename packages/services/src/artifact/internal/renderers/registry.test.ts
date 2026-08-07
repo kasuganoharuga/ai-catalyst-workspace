@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 
+import { idealCustomerAvatarWorkbookV1 } from "./ideal-customer-avatar-workbook-v1.js";
 import { problemInterviewWorkbookV1 } from "./problem-interview-workbook-v1.js";
 import { registerWorkbookRenderer, resolveWorkbookRenderer } from "./registry.js";
 import { validationRoadmapWorkbookV1 } from "./validation-roadmap-workbook-v1.js";
 
 describe("resolveWorkbookRenderer", () => {
-  it("resolves both real renderer keys", () => {
+  it("resolves all three real renderer keys", () => {
     expect(resolveWorkbookRenderer("problem_interview_workbook_v1").rendererKey).toBe(
       "problem_interview_workbook_v1",
     );
     expect(resolveWorkbookRenderer("validation_roadmap_workbook_v1").rendererKey).toBe(
       "validation_roadmap_workbook_v1",
+    );
+    expect(resolveWorkbookRenderer("ideal_customer_avatar_export_v1").rendererKey).toBe(
+      "ideal_customer_avatar_export_v1",
     );
   });
 
@@ -29,8 +33,9 @@ describe("resolveWorkbookRenderer", () => {
     expect(resolveWorkbookRenderer("problem_interview_workbook_v1")).not.toBe(fake);
   });
 
-  it("snapshots rendererVersion for both renderers — a bump here must be deliberate", () => {
+  it("snapshots rendererVersion for all three renderers — a bump here must be deliberate", () => {
     expect(problemInterviewWorkbookV1.rendererVersion).toBe("1");
     expect(validationRoadmapWorkbookV1.rendererVersion).toBe("1");
+    expect(idealCustomerAvatarWorkbookV1.rendererVersion).toBe("1");
   });
 });

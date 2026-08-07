@@ -152,6 +152,16 @@ export async function renderWorkbookPlan(plan: WorkbookRenderPlan): Promise<Buff
     pdfPages.push(doc.addPage([A4.width, A4.height]));
   }
 
+  // Drawn before locked content and fields on every page, so background
+  // bands/cards never paint over the text or widgets that sit on top of
+  // them.
+  for (const fill of plan.rects) {
+    pdfPages[fill.page].drawRectangle({
+      ...fill.rect,
+      color: rgb(fill.color.r, fill.color.g, fill.color.b),
+    });
+  }
+
   for (const entry of plan.lockedContent) {
     const page = pdfPages[entry.page];
     const font = entry.bold ? fonts.bold : fonts.regular;

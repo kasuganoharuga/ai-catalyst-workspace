@@ -78,7 +78,7 @@ export default async function ArtefactDetailPage({
               <Button asChild size="lg">
                 <a href={`${downloadHref}?format=workbook`}>
                   <Download aria-hidden="true" />
-                  Download fillable PDF
+                  Download PDF
                 </a>
               </Button>
               <Button asChild size="lg" variant="ghost">

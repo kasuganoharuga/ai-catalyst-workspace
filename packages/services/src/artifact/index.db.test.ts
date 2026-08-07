@@ -131,6 +131,7 @@ const fixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
       pages: [{ footerLabel: "Fixture" }],
       fields: [],
       lockedContent: [{ role: "raw", text, page: 0, x: 40, y: 760, maxWidth: 500, size: 9, bold: false }],
+      rects: [],
       provenance,
     };
   },

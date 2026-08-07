@@ -25,7 +25,7 @@
 import type { Font as FontkitFont } from "fontkit";
 
 import { blockHeight, linePitch, wrapText } from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
-import type { FieldPlan, LockedContentEntry, PagePlan } from "../types.js";
+import type { FieldPlan, LockedContentEntry, PagePlan, RectFillEntry } from "../types.js";
 
 export const A4: { width: number; height: number } = { width: 595, height: 842 };
 
@@ -57,6 +57,7 @@ export class LayoutBuilder {
   private pages: PagePlan[] = [];
   private fields: FieldPlan[] = [];
   private lockedContent: LockedContentEntry[] = [];
+  private rects: RectFillEntry[] = [];
 
   /** Index of the page currently being laid out — 0-indexed, matches `pages`. */
   private pageIndex = -1;
@@ -212,6 +213,17 @@ export class LayoutBuilder {
     this.y -= options.gap ?? 0;
   }
 
+  /**
+   * Records a solid-colour background fill at an already-decided rect —
+   * never advances or reads the cursor, so callers place it either before
+   * laying out the content that sits on top (most cases) or after
+   * measuring where that content landed (e.g. a card background sized to
+   * the text it ends up containing).
+   */
+  rectAt(rect: { x: number; y: number; width: number; height: number }, color: { r: number; g: number; b: number }): void {
+    this.rects.push({ page: this.pageIndex, rect, color });
+  }
+
   /** Reserves a rectangle for a text field, page-breaking first if it doesn't fit. Advances the cursor past it. */
   textField(
     name: string,
@@ -261,7 +273,7 @@ export class LayoutBuilder {
     return field;
   }
 
-  toPlanParts(): { pages: PagePlan[]; fields: FieldPlan[]; lockedContent: LockedContentEntry[] } {
-    return { pages: this.pages, fields: this.fields, lockedContent: this.lockedContent };
+  toPlanParts(): { pages: PagePlan[]; fields: FieldPlan[]; lockedContent: LockedContentEntry[]; rects: RectFillEntry[] } {
+    return { pages: this.pages, fields: this.fields, lockedContent: this.lockedContent, rects: this.rects };
   }
 }

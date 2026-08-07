@@ -604,8 +604,11 @@ export const moduleRunCopy = {
   documentRead: "Read document",
   documentDownload: "Download",
   // Shown instead of documentDownload once a workbook exists for this
-  // Artifact — same primary/secondary split as artefactsCopy's pair.
-  documentDownloadWorkbook: "Download fillable PDF",
+  // Artifact — same primary/secondary split as artefactsCopy's pair. Not
+  // all PDF renderers are fillable (Module 2's Ideal Customer Avatar is a
+  // read-only styled export), so this stays generic rather than claiming
+  // "fillable" for every one of them.
+  documentDownloadWorkbook: "Download PDF",
   documentDownloadSource: "Markdown source",
   documentDecisionLabel: "Your decision",
   documentNotSaved: "Not saved yet.",
@@ -997,10 +1000,12 @@ export const artefactsCopy = {
 
   readCta: "Read document",
   downloadCta: "Download",
-  // Shown instead of downloadCta once a workbook exists — the fillable PDF
+  // Shown instead of downloadCta once a PDF renderer exists — the PDF
   // becomes the primary download, and the Markdown record moves to a
-  // smaller secondary link beside it (operational-workbooks plan §11).
-  downloadWorkbookCta: "Download fillable PDF",
+  // smaller secondary link beside it (operational-workbooks plan §11). Not
+  // every renderer is a fillable form (Module 2's Ideal Customer Avatar is
+  // a read-only styled export), so this stays generic.
+  downloadWorkbookCta: "Download PDF",
   downloadSourceCta: "Markdown source",
   startCta: "Start module",
   lockedCta: "Locked",

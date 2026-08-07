@@ -31,6 +31,7 @@ function samplePlan(overrides: Partial<WorkbookRenderPlan> = {}): WorkbookRender
       { role: "question_1", text: "Tell me about the last time this happened.", page: 0, x: 40, y: 750, maxWidth: 400, size: 10, bold: false },
       { role: "pass_bar_condition_1", text: "Named a cost in time or money.", page: 1, x: 60, y: 700, maxWidth: 300, size: 9, bold: false },
     ],
+    rects: [],
     provenance: PROVENANCE,
     ...overrides,
   };
@@ -114,6 +115,29 @@ describe("renderWorkbookPlan — structure", () => {
       expect.arrayContaining(["/WorkbookSans", "/WorkbookSansBold"]),
     );
     expect(acroForm.get(PDFName.of("DA"))).toBeDefined();
+  });
+});
+
+describe("renderWorkbookPlan — background fills", () => {
+  it("renders successfully with rects on multiple pages, page count unaffected", async () => {
+    const plan = samplePlan({
+      rects: [
+        { page: 0, rect: { x: 0, y: 780, width: 595, height: 62 }, color: { r: 0.12, g: 0.23, b: 0.37 } },
+        { page: 1, rect: { x: 38, y: 600, width: 250, height: 90 }, color: { r: 0.945, g: 0.961, b: 0.976 } },
+      ],
+    });
+    const bytes = await renderWorkbookPlan(plan);
+    const doc = await PDFDocument.load(bytes);
+    expect(doc.getPageCount()).toBe(2);
+  });
+
+  it("draws locked content on top of a rect on the same page without corrupting the text", async () => {
+    const plan = samplePlan({
+      rects: [{ page: 0, rect: { x: 0, y: 780, width: 595, height: 62 }, color: { r: 0.12, g: 0.23, b: 0.37 } }],
+    });
+    const bytes = await renderWorkbookPlan(plan);
+    const text = await extractPageText(bytes, 1);
+    expect(text).toContain("Kerbside");
   });
 });
 

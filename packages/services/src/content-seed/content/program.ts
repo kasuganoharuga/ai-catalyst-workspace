@@ -27,6 +27,15 @@ import type { ProgramContent } from "../types.js";
 // replaces — see infra/database/migrations/0012_content_lock.sql's own
 // comments for why).
 const V1_CHANGELOG = [
+  "## Ideal Customer Avatar gains a styled PDF export",
+  "Module 2's Ideal-Customer-Avatar.md is now also downloadable as an on-demand, never-stored PDF ",
+  "(\"?format=workbook\") ported from a Claude Design mockup — a navy masthead, four-column Snapshot ",
+  "band, and tiered Buying Signal cards, in place of the plain Markdown. Read-only: there is nothing ",
+  "for a Founder to fill in, since Module 2 fully generates this artefact. renderer_key is now ",
+  "\"ideal_customer_avatar_export_v1\". The template's internal Validation Status section is still ",
+  "rendered (compactly, muted) rather than dropped, per renderer-template-contract.test.ts's reverse ",
+  "check.",
+  "",
   "## Operational workbooks — Modules 3 and 4 gain a fillable PDF renderer",
   "Problem-Interview-Guide.md and Validation-Roadmap-30-Day.md are now also downloadable as an ",
   "on-demand, never-stored fillable PDF (\"?format=workbook\") alongside the existing Markdown ",

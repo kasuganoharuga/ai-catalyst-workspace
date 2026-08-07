@@ -311,8 +311,8 @@ export function buildInterviewWorkbookPlan(
   }
   handoffPage(layout, provenance);
 
-  const { pages, fields, lockedContent } = layout.toPlanParts();
-  return { pages, fields, lockedContent, provenance };
+  const { pages, fields, lockedContent, rects } = layout.toPlanParts();
+  return { pages, fields, lockedContent, rects, provenance };
 }
 
 /**
