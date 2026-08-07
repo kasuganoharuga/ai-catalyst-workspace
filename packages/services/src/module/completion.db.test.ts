@@ -191,6 +191,7 @@ function buildFixtureContent(programKey: string): ToolkitSeedContent {
       versionLabel: `v1-${programKey}`,
       versionName: `Fixture v1 ${programKey}`,
       versionDescription: null,
+      contentLock: "frozen",
       releaseNotes: null,
     },
     modules: [buildModule0(), buildModule1()],

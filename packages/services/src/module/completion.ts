@@ -114,10 +114,17 @@ async function loadCompletionContext(
        r.run_number,
        b.name as branch_name,
        (
-         select title_snapshot from program_run_modules
-         where program_run_branch_id = m.program_run_branch_id
-           and sequence_index > m.sequence_index
-         order by sequence_index
+         -- Filtered to module_definitions.status = 'active' so an
+         -- archived-but-not-yet-reconciled-out-of-this-Run Module is
+         -- never surfaced as "what's next" — see the living-V1 plan's
+         -- progression query audit (module_definitions archival must not
+         -- leak into this founder-facing string).
+         select pnm.title_snapshot
+         from program_run_modules pnm
+         join module_definitions nd on nd.id = pnm.module_definition_id and nd.status = 'active'
+         where pnm.program_run_branch_id = m.program_run_branch_id
+           and pnm.sequence_index > m.sequence_index
+         order by pnm.sequence_index
          limit 1
        ) as next_module_title
      from program_run_modules m
@@ -178,7 +185,7 @@ async function ensureSetupSummarySubmission(
 ): Promise<void> {
   const requiredArtifactsResult = await pool.query<{ artifact_key: string }>(
     `select artifact_key from artifact_definitions
-     where module_definition_id = $1 and is_required = true
+     where module_definition_id = $1 and is_required = true and status <> 'archived'
      order by sequence_index`,
     [moduleDefinitionId],
   );
@@ -354,22 +361,32 @@ async function completeSystemModule(
     actor,
   });
 
+  // Joined to module_definitions.status = 'active' so a Module whose
+  // definition has been archived (removed from the living content
+  // constants) is never treated as "next" here — it must neither be
+  // unlocked nor block the *following* still-active Module from being
+  // found. This is the same "archived definitions exit the active
+  // progression chain" invariant reconcileRunModules enforces when it
+  // moves an orphaned row's sequence_index past every active Module's;
+  // this query is the other half of that invariant, on the read side.
   const nextModuleResult = await client.query<{
     id: string;
     module_key: string;
     title_snapshot: string;
     status: string;
   }>(
-    `select id, module_key, title_snapshot, status
-     from program_run_modules
-     where program_run_branch_id = $1 and sequence_index > $2
-     order by sequence_index
+    `select pnm.id, pnm.module_key, pnm.title_snapshot, pnm.status
+     from program_run_modules pnm
+     join module_definitions nd on nd.id = pnm.module_definition_id and nd.status = 'active'
+     where pnm.program_run_branch_id = $1 and pnm.sequence_index > $2
+     order by pnm.sequence_index
      limit 1
-     for update`,
+     for update of pnm`,
     [runModule.program_run_branch_id, runModule.sequence_index],
   );
   const nextModule = nextModuleResult.rows[0];
-  // No next Module (this was the last one), or it's already
+  // No next (active-definition) Module (this was the last one, or every
+  // Module after it has been archived), or it's already
   // available/in_progress/completed/inherited from an earlier run of this
   // same completion (idempotent replay) — either way, nothing to unlock.
   if (!nextModule || nextModule.status !== "locked") {

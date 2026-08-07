@@ -88,6 +88,7 @@ async function loadSetupRunModule(
      where m.program_run_id = $1
        and m.workspace_id = $2
        and d.module_type = 'setup'
+       and d.status = 'active'
        and (r.active_branch_id is null or m.program_run_branch_id = r.active_branch_id)
      order by m.sequence_index
      limit 1`,

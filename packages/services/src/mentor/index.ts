@@ -148,6 +148,7 @@ export async function listMentorFounders(
        join module_definitions d on d.id = m.module_definition_id
        where m.program_run_branch_id = run.active_branch_id
          and d.module_type <> 'setup'
+         and d.status = 'active'
      ) progress on run.active_branch_id is not null
      where w.mentor_user_id = $1
        and u.deleted_at is null

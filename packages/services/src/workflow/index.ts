@@ -23,6 +23,10 @@ import {
   type RunModuleSummaryRow,
 } from "@ai-catalyst/services/internal/run-module";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import {
+  RUN_MODULE_RECONCILE_LOCK_KEY,
+  reconcileProgramRunInTransaction,
+} from "@ai-catalyst/services/workflow/internal/reconcile-run-modules";
 // Imports the Program's content constant directly rather than the whole
 // content-seed module, same reasoning as module/catalog.ts.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
@@ -197,6 +201,21 @@ export async function getOrCreateProgramRun(
     }
     assertVentureWritable(venture.status);
 
+    // Shared content-seed advisory lock — acquired here, BEFORE either
+    // branch below reads any module_definitions row, and always in this
+    // order (Venture row lock, then this). Both branches read Module
+    // Definitions to build or reconcile this Run's program_run_modules,
+    // and a concurrent `pnpm db:seed`/`pnpm db:freeze` (which hold this
+    // same key exclusively while they resequence/archive/freeze that
+    // content) must never interleave with either read: reading mid-reseed
+    // could create a brand new Run from a half-shifted temporary sequence
+    // range, or let an existing Run's reconcile see a `mutable` lock that
+    // flips to `frozen` moments later — see
+    // workflow/internal/reconcile-run-modules.ts's lock-order doc comment
+    // for why the order must never reverse (Venture -> SEED_LOCK, never
+    // the other way).
+    await client.query("select pg_advisory_xact_lock_shared($1)", [RUN_MODULE_RECONCILE_LOCK_KEY]);
+
     const existingResult = await client.query<ProgramRunRow>(
       `select ${PROGRAM_RUN_COLUMNS} from program_runs
        where venture_id = $1 and status <> 'archived'
@@ -215,6 +234,17 @@ export async function getOrCreateProgramRun(
           `Program Run ${existingRow.id} has no active Branch.`,
         );
       }
+
+      // Lazily front-fills this Run's program_run_modules with anything a
+      // "living" (content_lock='mutable') Program Version has grown since
+      // this Run was created or last reconciled — see
+      // reconcileProgramRunInTransaction's own doc comment for the full
+      // contract (it no-ops entirely, zero statements, once V1 is frozen).
+      await reconcileProgramRunInTransaction(client, {
+        programRunId: existingRow.id,
+        programVersionId: existingRow.program_version_id,
+      });
+
       await client.query("commit");
       return { run: mapProgramRunRow(existingRow), created: false };
     }

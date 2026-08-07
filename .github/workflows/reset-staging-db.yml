@@ -1,0 +1,148 @@
+name: Reset Staging Database
+
+# Destructive: drops and recreates staging's entire `public` schema —
+# every table, every row (users, workspaces, ventures, Program Runs,
+# Artifact submissions), gone, with no undo. This exists to support the
+# living-V1 rollout's PR2 (staging must go from several retired
+# program_versions down to one fresh living v1 — see packages/db/src/reset.ts's
+# own doc comment for why that needs a real reset, not an in-place edit),
+# not for routine use.
+#
+# Deliberately NOT wired into deploy-aws.yml or any push trigger —
+# workflow_dispatch only, and gated by two independent things neither of
+# which alone is sufficient:
+#   1. The `environment: staging` block below — a real GitHub Environment
+#      protection boundary (required reviewers / restricted secrets),
+#      the actual safety boundary. packages/db/src/reset.ts's own
+#      "does this look like prod" regex check is a UX guard on top of
+#      this, not a substitute for it.
+#   2. A typed confirmation phrase, checked before any AWS credential is
+#      even configured.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type exactly "RESET STAGING" to confirm — this permanently destroys ALL staging data.'
+        required: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  reset:
+    name: Reset staging database
+    runs-on: ubuntu-latest
+    environment: staging
+
+    env:
+      AWS_ACCOUNT_ID: "765332581489"
+      AWS_REGION: ap-southeast-2
+      AWS_ROLE_ARN: arn:aws:iam::765332581489:role/ai-catalyst-github-actions-deploy
+      ENV_PREFIX: ai-catalyst-staging
+      CLUSTER: ai-catalyst-staging
+      SUBNETS: subnet-07b302fc84ea32325,subnet-0463eda6ac077e977
+      SECURITY_GROUP: sg-0e0aad4d80002be63
+      # Matches infra/aws/terraform/modules/rds's db_name default, which
+      # staging's own terraform config does not override.
+      STAGING_DB_NAME: ai_catalyst
+
+    steps:
+      - name: Verify confirmation phrase
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.inputs.confirm }}" != "RESET STAGING" ]; then
+            echo "Confirmation phrase did not match \"RESET STAGING\" exactly. Aborting without touching anything." >&2
+            exit 1
+          fi
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Resolve current MCP task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Reuses whatever task definition the mcp service is already
+          # running (same image, same DATABASE_URL from Secrets Manager
+          # deploy-aws.yml wires up) — this workflow only overrides the
+          # container's command and adds one env var, exactly like
+          # deploy-aws.yml's own run_mcp_task helper does for migrate/seed.
+          MCP_TASK_DEF_ARN="$(aws ecs describe-services \
+            --cluster "${CLUSTER}" \
+            --services "${ENV_PREFIX}-mcp" \
+            --query 'services[0].taskDefinition' \
+            --output text)"
+
+          if [ -z "${MCP_TASK_DEF_ARN}" ] || [ "${MCP_TASK_DEF_ARN}" = "None" ]; then
+            echo "Could not resolve the current ${ENV_PREFIX}-mcp task definition." >&2
+            exit 1
+          fi
+
+          echo "MCP_TASK_DEF_ARN=${MCP_TASK_DEF_ARN}" >> "$GITHUB_ENV"
+
+      - name: Run database reset
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          overrides="$(jq -nc \
+            --arg container "mcp" \
+            --arg dbname "${STAGING_DB_NAME}" \
+            '{containerOverrides:[{
+              name: $container,
+              command: ["pnpm", "--filter", "@ai-catalyst/db", "run", "reset", "--", "--confirm-database", $dbname],
+              environment: [{name: "ALLOW_DESTRUCTIVE_DB_RESET", value: "1"}]
+            }]}')"
+
+          run_output="$(aws ecs run-task \
+            --cluster "${CLUSTER}" \
+            --task-definition "${MCP_TASK_DEF_ARN}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED}" \
+            --overrides "${overrides}" \
+            --output json)"
+
+          failures="$(echo "${run_output}" | jq '.failures | length')"
+          if [ "${failures}" != "0" ]; then
+            echo "${run_output}" | jq '.failures' >&2
+            exit 1
+          fi
+
+          task_arn="$(echo "${run_output}" | jq -r '.tasks[0].taskArn')"
+          if [ -z "${task_arn}" ] || [ "${task_arn}" = "null" ]; then
+            echo "Failed to start the reset task." >&2
+            echo "${run_output}" >&2
+            exit 1
+          fi
+
+          aws ecs wait tasks-stopped --cluster "${CLUSTER}" --tasks "${task_arn}"
+
+          task_desc="$(aws ecs describe-tasks --cluster "${CLUSTER}" --tasks "${task_arn}" --output json)"
+
+          exit_code="$(echo "${task_desc}" | jq -r '
+            .tasks[0].containers[]
+            | select(.name == "mcp")
+            | .exitCode
+            | if . == null then empty else tostring end
+          ')"
+
+          if [ -z "${exit_code}" ]; then
+            echo "Reset task: could not read mcp container exit code." >&2
+            echo "${task_desc}" | jq '.tasks[0].containers // .tasks[0]' >&2
+            exit 1
+          fi
+
+          if [ "${exit_code}" != "0" ]; then
+            echo "Reset task failed with exit code ${exit_code}." >&2
+            echo "${task_desc}" | jq '.tasks[0].containers[] | select(.name == "mcp")' >&2
+            exit 1
+          fi
+
+          echo "Staging database schema reset (public schema dropped and recreated)."
+          echo "Next: trigger a normal deploy of the branch with the new content constants (push to develop, or re-run deploy-aws.yml) — it runs migrate + seed as part of its own pipeline."

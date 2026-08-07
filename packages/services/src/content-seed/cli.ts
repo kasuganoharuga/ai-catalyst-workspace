@@ -2,11 +2,17 @@ import { Pool } from "pg";
 
 import { seedToolkitContent } from "./index.js";
 
+function parseAllowArchive(argv: string[], env: NodeJS.ProcessEnv): boolean {
+  return argv.includes("--allow-archive") || env.ALLOW_DESTRUCTIVE_CONTENT_CHANGE === "1";
+}
+
 async function run(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) {
     throw new Error("DATABASE_URL is required");
   }
+
+  const allowArchive = parseAllowArchive(process.argv.slice(2), process.env);
 
   // Deliberately a standalone pool, not the shared singleton: this CLI is
   // short-lived and must call pool.end() on exit, which would be the wrong
@@ -17,13 +23,19 @@ async function run(): Promise<void> {
 
   try {
     await client.query("begin");
-    const result = await seedToolkitContent(client);
+    const result = await seedToolkitContent(client, undefined, { allowArchive });
     await client.query("commit");
 
     if (result.published) {
       console.log(
         `Published program_version ${result.programVersionId} ` +
           `(${result.modulesReconciled} modules, ${result.promptsReconciled} prompt versions).`,
+      );
+    } else if (result.modulesActivated > 0 || result.promptVersionsActivated > 0) {
+      console.log(
+        `program_version ${result.programVersionId} (content_lock=${result.contentLock}) reconciled in place: ` +
+          `${result.modulesActivated} module(s) newly activated, ` +
+          `${result.promptVersionsActivated} prompt version(s) newly published.`,
       );
     } else {
       console.log(

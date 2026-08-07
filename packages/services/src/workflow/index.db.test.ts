@@ -109,6 +109,7 @@ function buildFixtureContent(
       versionLabel: `v1-${programKey}`,
       versionName: `Fixture v1 ${programKey}`,
       versionDescription: null,
+      contentLock: "frozen",
       releaseNotes: null,
     },
     modules,
@@ -506,6 +507,7 @@ describe("getOrCreateProgramRun — database integration", () => {
           "unlockedAt",
           "startedAt",
           "completedAt",
+          "isArchivedDefinition",
         ].sort(),
       );
     });
@@ -611,5 +613,197 @@ describe("getOrCreateProgramRun — database integration", () => {
         programRunModuleId: firstModule.id,
       });
     });
+  });
+});
+
+// ---------------------------------------------------------------------
+// End-to-end: a living (content_lock='mutable') program_version's Module
+// added after a Founder's Run already exists must reach that Run the next
+// time getOrCreateProgramRun's existing-Run branch runs — this is the
+// core fix reconcile-run-modules.ts + workflow/internal wiring provide.
+// The pure branch-walk algorithm itself is unit-tested directly in
+// workflow/internal/reconcile-run-modules.test.ts; this suite only proves
+// the real getOrCreateProgramRun code path invokes it correctly.
+// ---------------------------------------------------------------------
+describe("getOrCreateProgramRun — living content reconciliation", () => {
+  const RUN_SUFFIX = randomBytes(4).toString("hex");
+  const emailPrefix = `workflow-living-test-${RUN_SUFFIX}`;
+  const LIVING_PROGRAM_KEY = `workflow-living-${RUN_SUFFIX}`;
+  const createdUserIds: string[] = [];
+
+  // Each test gets its OWN program_key (not shared across this describe
+  // block's tests) — content-seed's desired-module-set is the COMPLETE
+  // set every time, so two tests progressively seeding different Module
+  // sets against the SAME program_version would see each other's earlier
+  // Modules as "missing from constants" and trip the archive guard.
+  function buildMutableFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+    return {
+      program: {
+        programKey,
+        programName: `Living workflow test program ${programKey}`,
+        programDescription: null,
+        versionNumber: 1,
+        versionLabel: `v1-${programKey}`,
+        versionName: `Fixture living v1 ${programKey}`,
+        versionDescription: null,
+        contentLock: "mutable",
+        releaseNotes: null,
+      },
+      modules,
+      prompts: [],
+      promptBindings: [],
+    };
+  }
+
+  async function createFounderWithWorkspaceAndVenture(
+    label: string,
+  ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
+    const email = `${emailPrefix}-${label}@example.com`;
+    const userResult = await pool.query<{ id: string }>(
+      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
+      [`${emailPrefix}-${label}`, email],
+    );
+    createdUserIds.push(userResult.rows[0].id);
+    const actor: ActorContext = { userId: userResult.rows[0].id, role: "founder" };
+
+    const workspaceResult = await pool.query<{ id: string }>(
+      `insert into workspaces (founder_user_id, name, slug)
+       values ($1, $2, $3) returning id`,
+      [actor.userId, `Fixture living ${label}`, `workflow-living-${label}-${randomUUID()}`],
+    );
+    const workspaceId = workspaceResult.rows[0].id;
+
+    const ventureResult = await pool.query<{ id: string }>(
+      `insert into ventures (workspace_id, created_by_user_id, name, slug)
+       values ($1, $2, $3, $4) returning id`,
+      [
+        workspaceId,
+        actor.userId,
+        `Fixture Living Venture ${label}`,
+        `workflow-living-venture-${label}-${randomUUID()}`,
+      ],
+    );
+
+    return { actor, workspaceId, ventureId: ventureResult.rows[0].id };
+  }
+
+  afterAll(async () => {
+    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
+      createdUserIds,
+    ]);
+    await pool.query(
+      "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
+      [createdUserIds],
+    );
+    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+      createdUserIds,
+    ]);
+    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
+    // Every test's program_key is LIVING_PROGRAM_KEY prefixed — see
+    // buildMutableFixtureContent's own comment for why each test uses a
+    // distinct one.
+    await pool.query("delete from programs where program_key like $1", [`${LIVING_PROGRAM_KEY}%`]);
+  });
+
+  it("front-fills a Module added after the Run was created, the next time getOrCreateProgramRun runs", async () => {
+    const programKey = `${LIVING_PROGRAM_KEY}-front-fill`;
+    await withTransaction((client) =>
+      seedToolkitContent(client, buildMutableFixtureContent(programKey, [buildFixtureModule("living-a", 0, true)])),
+    );
+
+    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("front-fill");
+    await setActiveVenture(actor, ventureId);
+    const created = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    expect(created.created).toBe(true);
+
+    let { modules } = await listRunModules(actor);
+    expect(modules.map((module) => module.moduleKey)).toEqual(["living-a"]);
+
+    // A Module added to the living content AFTER this Run was created.
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-a", 0, true),
+          buildFixtureModule("living-b", 1, true),
+        ]),
+      ),
+    );
+
+    // The Founder's next Continue Programme click — existing-Run branch,
+    // not create — must pick up living-b.
+    const again = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    expect(again.created).toBe(false);
+    expect(again.run.id).toBe(created.run.id);
+
+    ({ modules } = await listRunModules(actor));
+    expect(modules.map((module) => module.moduleKey)).toEqual(["living-a", "living-b"]);
+    const livingB = modules.find((module) => module.moduleKey === "living-b")!;
+    // living-a hasn't been completed, so living-b must be inserted locked,
+    // not available — this is the "predecessor doesn't allow access" case.
+    expect(livingB.status).toBe("locked");
+  });
+
+  it("does not re-lock an already-available Module when a new one is inserted after it", async () => {
+    const programKey = `${LIVING_PROGRAM_KEY}-monotonic`;
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-x", 0, true),
+          buildFixtureModule("living-z", 1, true),
+        ]),
+      ),
+    );
+
+    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("monotonic");
+    await setActiveVenture(actor, ventureId);
+    await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+
+    const { modules: beforeInsert } = await listRunModules(actor);
+    const zBefore = beforeInsert.find((module) => module.moduleKey === "living-z")!;
+    expect(zBefore.status).toBe("locked"); // x not completed yet
+
+    // Now insert living-y between x and z by resequencing z from 1 to 2.
+    // No Module is removed from the content set, so this needs no
+    // --allow-archive: it's purely an insert + resequence.
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-x", 0, true),
+          buildFixtureModule("living-y", 1, true),
+          buildFixtureModule("living-z", 2, true),
+        ]),
+      ),
+    );
+
+    await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const { modules: afterInsert } = await listRunModules(actor);
+    expect(afterInsert.map((module) => module.moduleKey)).toEqual(["living-x", "living-y", "living-z"]);
+    const zAfter = afterInsert.find((module) => module.moduleKey === "living-z")!;
+    // Still locked (nothing completed x or y) — this specific assertion
+    // isn't the point; the point is it did NOT crash and z's row moved
+    // to the correct new sequence_index without a unique-constraint
+    // violation despite y taking its old slot.
+    expect(zAfter.status).toBe("locked");
+    expect(zAfter.sequenceIndex).toBe(2);
+  });
+
+  it("is a no-op on the second call when nothing changed", async () => {
+    const programKey = `${LIVING_PROGRAM_KEY}-noop`;
+    await withTransaction((client) =>
+      seedToolkitContent(client, buildMutableFixtureContent(programKey, [buildFixtureModule("living-noop", 0, true)])),
+    );
+
+    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("noop");
+    await setActiveVenture(actor, ventureId);
+    const first = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const { modules: modulesBefore } = await listRunModules(actor);
+
+    const second = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    expect(second.run.id).toBe(first.run.id);
+    const { modules: modulesAfter } = await listRunModules(actor);
+    expect(modulesAfter).toEqual(modulesBefore);
   });
 });

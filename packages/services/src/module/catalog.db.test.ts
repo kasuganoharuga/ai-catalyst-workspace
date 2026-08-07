@@ -98,6 +98,10 @@ function buildFixtureContent(
       versionLabel,
       versionName: `Fixture ${versionLabel}`,
       versionDescription: null,
+      // Fixed frozen: these tests exercise published-version *selection*
+      // (resolvePublishedProgramVersionId picking the highest
+      // version_number), not content mutability.
+      contentLock: "frozen",
       releaseNotes: null,
     },
     modules,

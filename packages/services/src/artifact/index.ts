@@ -269,13 +269,14 @@ async function loadArtifactDefinitionByKey(
     `select id, module_definition_id, artifact_key, validator_key, output_format,
             required_filename, validation_config, is_required, sequence_index
      from artifact_definitions
-     where module_definition_id = $1 and artifact_key = $2`,
+     where module_definition_id = $1 and artifact_key = $2 and status <> 'archived'`,
     [moduleDefinitionId, artifactKey],
   );
   const row = result.rows[0];
   if (!row) {
     // Indistinguishable from the caller's perspective whether artifactKey
-    // belongs to a different Module or doesn't exist at all — same
+    // belongs to a different Module, doesn't exist at all, or has been
+    // archived out of the living content constants — same
     // enumeration-safety convention as attempt/index.ts's question lookup.
     throw new ServiceError("NOT_FOUND", "Artifact not found.");
   }
@@ -290,7 +291,7 @@ async function loadRequiredArtifactDefinitions(
     `select id, module_definition_id, artifact_key, validator_key, output_format,
             required_filename, validation_config, is_required, sequence_index
      from artifact_definitions
-     where module_definition_id = $1 and is_required = true
+     where module_definition_id = $1 and is_required = true and status <> 'archived'
      order by sequence_index`,
     [moduleDefinitionId],
   );

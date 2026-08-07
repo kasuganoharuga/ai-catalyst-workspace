@@ -205,7 +205,7 @@ async function loadArtifactsByModuleAttempts(
             s.submitted_at as submission_submitted_at,
             s.updated_at as submission_updated_at
      from module_ctx mc
-     join artifact_definitions ad on ad.module_definition_id = mc.module_definition_id
+     join artifact_definitions ad on ad.module_definition_id = mc.module_definition_id and ad.status <> 'archived'
      left join lateral (
        select version_number, status, submitted_at, updated_at
        from artifact_submissions

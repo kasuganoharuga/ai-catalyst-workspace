@@ -22,7 +22,7 @@ export const RUN_MODULE_SUMMARY_COLUMNS = `
   m.id, m.workspace_id, m.program_run_id, m.program_run_branch_id, m.module_definition_id,
   m.module_key, m.title_snapshot, m.sequence_index, m.status,
   m.active_attempt_id, m.accepted_attempt_id, m.unlocked_at, m.started_at, m.completed_at,
-  d.module_type, d.completion_mode
+  d.module_type, d.completion_mode, d.status as definition_status
 `;
 
 export interface RunModuleSummaryRow {
@@ -42,6 +42,7 @@ export interface RunModuleSummaryRow {
   completed_at: Date | null;
   module_type: ModuleType;
   completion_mode: ModuleCompletionMode;
+  definition_status: string;
 }
 
 export function mapRunModuleSummaryRow(
@@ -64,6 +65,7 @@ export function mapRunModuleSummaryRow(
     unlockedAt: row.unlocked_at?.toISOString() ?? null,
     startedAt: row.started_at?.toISOString() ?? null,
     completedAt: row.completed_at?.toISOString() ?? null,
+    isArchivedDefinition: row.definition_status === "archived",
   };
 }
 

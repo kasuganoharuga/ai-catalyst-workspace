@@ -47,6 +47,7 @@ describe("mentor service — database integration", () => {
         versionLabel: `v1-${PROGRAM_KEY}`,
         versionName: `Fixture v1 ${PROGRAM_KEY}`,
         versionDescription: null,
+        contentLock: "frozen",
         releaseNotes: null,
       },
       modules: [

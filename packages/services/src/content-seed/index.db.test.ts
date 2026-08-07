@@ -535,3 +535,348 @@ describe("seedToolkitContent", () => {
     expect(new Set(sequenceIndexes).size).toBe(sequenceIndexes.length);
   });
 });
+
+// ---------------------------------------------------------------------
+// Living content (content_lock = 'mutable'): the core PR1B behavior —
+// archive/revive/resequence in place against an already-published
+// program_version, gated by allowArchive, with the DB (not the content
+// constant) as the authority on editability. Uses small purpose-built
+// fixtures rather than DEFAULT_TOOLKIT_CONTENT, since the real toolkit
+// content's inter-module conditions/validator configs add complexity this
+// suite doesn't need.
+// ---------------------------------------------------------------------
+describe("seedToolkitContent — living content (content_lock = 'mutable')", () => {
+  const LIVING_SUFFIX = `${RUN_SUFFIX}-living`;
+  const LIVING_PROGRAM_KEY = `content-seed-living-test-${LIVING_SUFFIX}`;
+  const LIVING_PROMPT_KEY = `content-seed-living-prompt-${LIVING_SUFFIX}`;
+
+  type LivingModule = ToolkitSeedContent["modules"][number];
+  type LivingQuestion = LivingModule["questions"][number];
+  type LivingArtifact = LivingModule["artifacts"][number];
+  type LivingBinding = ToolkitSeedContent["promptBindings"][number];
+
+  function buildQuestion(questionKey: string, sequenceIndex: number): LivingQuestion {
+    return {
+      questionKey,
+      sequenceIndex,
+      questionGroup: null,
+      questionText: `Fixture question ${questionKey}`,
+      helpText: null,
+      placeholderText: null,
+      responseType: "short_text",
+      isRequired: true,
+      allowSkip: false,
+      options: [],
+      conditions: {},
+    };
+  }
+
+  function buildArtifact(artifactKey: string, sequenceIndex: number): LivingArtifact {
+    return {
+      artifactKey,
+      sequenceIndex,
+      name: `Fixture artifact ${artifactKey}`,
+      description: null,
+      isRequired: true,
+      artifactType: "document",
+      sourceFormat: "markdown",
+      outputFormat: "markdown",
+      requiredFilename: `${artifactKey}.md`,
+      rendererKey: null,
+      validatorKey: null,
+      allowedMimeTypes: ["text/markdown"],
+      maxFileSizeBytes: 10_000,
+      maxFiles: 1,
+      validationConfig: {},
+      outputConfig: {},
+    };
+  }
+
+  function buildModule(
+    moduleKey: string,
+    sequenceIndex: number,
+    questions: LivingQuestion[],
+    artifacts: LivingArtifact[],
+  ): LivingModule {
+    return {
+      moduleKey,
+      sequenceIndex,
+      title: `Fixture ${moduleKey}`,
+      subtitle: null,
+      description: null,
+      objective: null,
+      moduleType: "standard",
+      isRequired: true,
+      allowRevisions: true,
+      completionMode: "artifact",
+      estimatedMinutes: null,
+      isPublishable: true,
+      questions,
+      artifacts,
+    };
+  }
+
+  function buildLivingContent(
+    modules: LivingModule[],
+    options: { contentLock?: "mutable" | "frozen"; bindings?: LivingBinding[] } = {},
+  ): ToolkitSeedContent {
+    return {
+      program: {
+        programKey: LIVING_PROGRAM_KEY,
+        programName: "Living content test program",
+        programDescription: null,
+        versionNumber: 1,
+        versionLabel: `v1-living-${LIVING_SUFFIX}`,
+        versionName: "Fixture living v1",
+        versionDescription: null,
+        contentLock: options.contentLock ?? "mutable",
+        releaseNotes: null,
+      },
+      modules,
+      prompts: [
+        {
+          promptKey: LIVING_PROMPT_KEY,
+          name: "Fixture prompt",
+          description: null,
+          promptType: "module_facilitator",
+          versionNumber: 1,
+          content: "Fixture prompt content v1",
+          contentFormat: "markdown",
+          variableConfig: {},
+        },
+      ],
+      promptBindings: options.bindings ?? [],
+    };
+  }
+
+  async function cleanupLivingContent(): Promise<void> {
+    await pool.query("delete from programs where program_key = $1", [LIVING_PROGRAM_KEY]);
+  }
+
+  async function fetchLivingModuleRows(programVersionId: string) {
+    const result = await pool.query<{
+      id: string;
+      module_key: string;
+      status: string;
+      sequence_index: number;
+    }>(
+      `select id, module_key, status, sequence_index
+       from module_definitions
+       where program_version_id = $1
+       order by sequence_index`,
+      [programVersionId],
+    );
+    return result.rows;
+  }
+
+  beforeEach(cleanupLivingContent);
+  afterAll(cleanupLivingContent);
+
+  it("edits prompt content in place: same id, same version_number, still published", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1])),
+    );
+    expect(first.contentLock).toBe("mutable");
+
+    const before = await pool.query<{ id: string; version_number: number; status: string }>(
+      "select id, version_number, status from prompt_versions where prompt_definition_id = (select id from prompt_definitions where prompt_key = $1)",
+      [LIVING_PROMPT_KEY],
+    );
+    expect(before.rows[0].status).toBe("published");
+
+    const changed = buildLivingContent([m1]);
+    changed.prompts[0]!.content = "Fixture prompt content v1 — edited in place";
+    const second = await withTransaction((client) => seedToolkitContent(client, changed));
+    expect(second.programVersionId).toBe(first.programVersionId);
+
+    const after = await pool.query<{ id: string; version_number: number; status: string; content: string }>(
+      "select id, version_number, status, content from prompt_versions where prompt_definition_id = (select id from prompt_definitions where prompt_key = $1)",
+      [LIVING_PROMPT_KEY],
+    );
+    expect(after.rows[0].id).toBe(before.rows[0].id);
+    expect(after.rows[0].version_number).toBe(before.rows[0].version_number);
+    expect(after.rows[0].status).toBe("published");
+    expect(after.rows[0].content).toBe("Fixture prompt content v1 — edited in place");
+  });
+
+  it("activates a Module added after first publish — the core living-V1 gap this PR fixes", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1])),
+    );
+    expect(first.published).toBe(true);
+
+    const m2 = buildModule("m2", 2, [], [buildArtifact("a2", 1)]);
+    const second = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, m2])),
+    );
+    expect(second.published).toBe(false); // not a *first* publish
+    expect(second.modulesActivated).toBe(1);
+
+    const modules = await fetchLivingModuleRows(first.programVersionId);
+    expect(modules.map((row) => row.module_key)).toEqual(["m1", "m2"]);
+    expect(modules.every((row) => row.status === "active")).toBe(true);
+  });
+
+  it("rejects archiving a Module without --allow-archive, and leaves it untouched", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    const m2 = buildModule("m2", 2, [], [buildArtifact("a2", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, m2])),
+    );
+
+    await expect(
+      withTransaction((client) => seedToolkitContent(client, buildLivingContent([m1]))),
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "DESTRUCTIVE_CONTENT_CHANGE_NOT_ALLOWED",
+    });
+
+    const modules = await fetchLivingModuleRows(first.programVersionId);
+    expect(modules.map((row) => row.module_key).sort()).toEqual(["m1", "m2"]);
+    expect(modules.every((row) => row.status === "active")).toBe(true);
+  });
+
+  it("archives a removed Module (cascading to its Questions/Artifacts/Bindings) with --allow-archive, then revives it at the same id on return", async () => {
+    const m1 = buildModule("m1", 1, [buildQuestion("q1", 1)], [buildArtifact("a1", 1)]);
+    const m2 = buildModule("m2", 2, [buildQuestion("q2", 1)], [buildArtifact("a2", 1)]);
+    const bindings: LivingBinding[] = [
+      { moduleKey: "m2", promptKey: LIVING_PROMPT_KEY, purpose: "facilitator", sequenceIndex: 1, isRequired: true },
+    ];
+
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, m2], { bindings })),
+    );
+    const beforeArchive = await fetchLivingModuleRows(first.programVersionId);
+    const m2Id = beforeArchive.find((row) => row.module_key === "m2")!.id;
+
+    const removed = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1]), { allowArchive: true }),
+    );
+    expect(removed.programVersionId).toBe(first.programVersionId);
+
+    const afterArchive = await fetchLivingModuleRows(first.programVersionId);
+    const archivedM2 = afterArchive.find((row) => row.module_key === "m2")!;
+    expect(archivedM2.id).toBe(m2Id); // same row, not deleted
+    expect(archivedM2.status).toBe("archived");
+
+    const archivedQuestion = await pool.query<{ status: string }>(
+      "select status from module_questions where module_definition_id = $1 and question_key = 'q2'",
+      [m2Id],
+    );
+    expect(archivedQuestion.rows[0].status).toBe("archived");
+
+    const archivedArtifact = await pool.query<{ status: string }>(
+      "select status from artifact_definitions where module_definition_id = $1 and artifact_key = 'a2'",
+      [m2Id],
+    );
+    expect(archivedArtifact.rows[0].status).toBe("archived");
+
+    const remainingBindings = await pool.query(
+      "select id from module_prompt_bindings where module_definition_id = $1",
+      [m2Id],
+    );
+    expect(remainingBindings.rows).toHaveLength(0);
+
+    // Bring m2 back — same key, different sequenceIndex than before, to
+    // also exercise revive-into-a-different-slot.
+    const revivedM2 = buildModule("m2", 3, [buildQuestion("q2", 1)], [buildArtifact("a2", 1)]);
+    const revived = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, revivedM2])),
+    );
+    expect(revived.programVersionId).toBe(first.programVersionId);
+
+    const afterRevive = await fetchLivingModuleRows(first.programVersionId);
+    const revivedRow = afterRevive.find((row) => row.module_key === "m2")!;
+    expect(revivedRow.id).toBe(m2Id); // revived in place, id unchanged
+    expect(revivedRow.status).toBe("active"); // isPublishable:true -> activated by this same seed
+    expect(revivedRow.sequence_index).toBe(3);
+
+    const revivedQuestion = await pool.query<{ status: string }>(
+      "select status from module_questions where module_definition_id = $1 and question_key = 'q2'",
+      [m2Id],
+    );
+    expect(revivedQuestion.rows[0].status).toBe("active");
+  });
+
+  it("resequences (swaps) two Modules without violating the sequence_index unique index", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    const m2 = buildModule("m2", 2, [], [buildArtifact("a2", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, m2])),
+    );
+
+    const swapped = buildLivingContent([
+      buildModule("m1", 2, [], [buildArtifact("a1", 1)]),
+      buildModule("m2", 1, [], [buildArtifact("a2", 1)]),
+    ]);
+    await withTransaction((client) => seedToolkitContent(client, swapped));
+
+    const modules = await fetchLivingModuleRows(first.programVersionId);
+    expect(modules.map((row) => row.module_key)).toEqual(["m2", "m1"]);
+    const sequenceIndexes = modules.map((row) => row.sequence_index);
+    expect(new Set(sequenceIndexes).size).toBe(sequenceIndexes.length);
+  });
+
+  it("archiving a Module frees its sequence_index for another Module in the same seed run", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    const m2 = buildModule("m2", 2, [], [buildArtifact("a2", 1)]);
+    const m3 = buildModule("m3", 3, [], [buildArtifact("a3", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1, m2, m3])),
+    );
+
+    // Remove m2 (frees sequence_index 2) and promote m3 into that slot,
+    // in the same seed run — exactly the case that breaks a naive
+    // "just recompute UNIQUE keys" approach (see reconcile-ordered-rows.ts).
+    const rearranged = buildLivingContent([
+      buildModule("m1", 1, [], [buildArtifact("a1", 1)]),
+      buildModule("m3", 2, [], [buildArtifact("a3", 1)]),
+    ]);
+    await withTransaction((client) => seedToolkitContent(client, rearranged, { allowArchive: true }));
+
+    const modules = await fetchLivingModuleRows(first.programVersionId);
+    const m2Row = modules.find((row) => row.module_key === "m2")!;
+    const m3Row = modules.find((row) => row.module_key === "m3")!;
+    expect(m2Row.status).toBe("archived");
+    expect(m3Row.sequence_index).toBe(2);
+  });
+
+  it("rejects demoting an active Module to a draft placeholder (isPublishable: false)", async () => {
+    const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
+    await withTransaction((client) => seedToolkitContent(client, buildLivingContent([m1])));
+
+    const demoted = buildLivingContent([{ ...m1, isPublishable: false }]);
+    await expect(withTransaction((client) => seedToolkitContent(client, demoted))).rejects.toMatchObject(
+      {
+        name: "ContentSeedError",
+        code: "MODULE_DEMOTION_UNSUPPORTED",
+      },
+    );
+  });
+
+  it("is a no-op (zero row changes) re-seeding identical living content twice", async () => {
+    const m1 = buildModule("m1", 1, [buildQuestion("q1", 1)], [buildArtifact("a1", 1)]);
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1])),
+    );
+
+    const before = await pool.query(
+      "select updated_at from module_definitions where program_version_id = $1 order by module_key",
+      [first.programVersionId],
+    );
+
+    const second = await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1])),
+    );
+    expect(second.modulesActivated).toBe(0);
+    expect(second.promptVersionsActivated).toBe(0);
+
+    const after = await pool.query(
+      "select updated_at from module_definitions where program_version_id = $1 order by module_key",
+      [first.programVersionId],
+    );
+    expect(after.rows).toEqual(before.rows);
+  });
+});

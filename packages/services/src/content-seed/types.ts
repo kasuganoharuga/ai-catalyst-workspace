@@ -137,6 +137,8 @@ export interface ModulePromptBindingContent {
   isRequired: boolean;
 }
 
+export type ContentLock = "mutable" | "frozen";
+
 export interface ProgramContent {
   programKey: string;
   programName: string;
@@ -146,6 +148,13 @@ export interface ProgramContent {
   versionName: string;
   versionDescription: string | null;
   releaseNotes: string | null;
+  // The initial content_lock this program_version is created with if it
+  // does not yet exist in the database. For an *existing* row, the
+  // database's own content_lock column is authoritative, not this field
+  // — see db/program.ts's isContentEditable. Only db:freeze may move an
+  // existing row from mutable to frozen; this seed script never writes
+  // content_lock on an existing row.
+  contentLock: ContentLock;
 }
 
 export interface ToolkitSeedContent {

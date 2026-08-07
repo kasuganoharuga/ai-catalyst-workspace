@@ -112,7 +112,7 @@ const CATALOG_QUERY = `
       '[]'::jsonb
     ) as expected_artifacts
   from module_definitions md
-  left join artifact_definitions ad on ad.module_definition_id = md.id
+  left join artifact_definitions ad on ad.module_definition_id = md.id and ad.status <> 'archived'
   where md.program_version_id = $1
     and md.status <> 'archived'
 `;

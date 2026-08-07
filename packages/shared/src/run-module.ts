@@ -36,4 +36,14 @@ export interface RunModuleSummary {
   unlockedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  // True when this Module's module_definitions row is archived (removed
+  // from a "living" V1 program_version's content constants) but this Run
+  // still has a program_run_modules row for it — kept for the Founder's
+  // history (an archived-but-completed Module's Artifacts/Responses are
+  // still real), but it is permanently excluded from the active
+  // progression chain: it is never unlocked, and never counted toward
+  // "what's next" (see module/completion.ts's unlockNextModule). Callers
+  // choose how to render this — e.g. a "no longer part of the programme"
+  // badge — rather than the DTO hiding the row outright.
+  isArchivedDefinition: boolean;
 }
