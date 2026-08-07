@@ -3,7 +3,6 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main
       - develop
   workflow_dispatch:
 
@@ -38,15 +37,15 @@ jobs:
         run: |
           set -euo pipefail
 
+          # The AWS production environment is being retired: its cluster, ALB
+          # and task definitions are gone, so main has no deploy target. Fail
+          # loudly rather than letting a dispatch churn against missing
+          # resources. Restore this case only alongside a real production
+          # environment, with its own subnets and security group.
           case "${GITHUB_REF_NAME}" in
             main)
-              {
-                echo "ENV_NAME=production"
-                echo "ENV_PREFIX=ai-catalyst-production"
-                echo "CLUSTER=ai-catalyst-production"
-                echo "SUBNETS=subnet-0ddbc7e753b4e8210,subnet-03355a2c923b59a25"
-                echo "SECURITY_GROUP=sg-01996f8e18c24c4aa"
-              } >> "$GITHUB_ENV"
+              echo "main has no deploy target: the AWS production environment was retired." >&2
+              exit 1
               ;;
             develop)
               {
