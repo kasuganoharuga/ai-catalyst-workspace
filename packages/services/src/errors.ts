@@ -69,7 +69,29 @@ export type ServiceErrorCode =
   // an official validation outcome (ready_for_review/validation_failed
   // short-circuit instead of reaching this error; see runOfficialValidation's
   // own comment for why those two are idempotent rather than errors).
-  | "ATTEMPT_NOT_AWAITING_VALIDATION";
+  | "ATTEMPT_NOT_AWAITING_VALIDATION"
+  // renderArtifactWorkbook was called against an Artifact Definition whose
+  // `renderer_key` is null — same family and same rationale as
+  // VALIDATOR_NOT_CONFIGURED: a content/deployment mismatch, not the
+  // caller's fault, surfaced as a state conflict (409) rather than
+  // INTERNAL_INVARIANT_ERROR so a Founder can be told the workbook isn't
+  // available yet rather than treating it as a 500.
+  | "WORKBOOK_RENDERER_NOT_CONFIGURED"
+  // renderArtifactWorkbook was called before any confirmed (status
+  // 'submitted') Artifact Submission exists — a workbook's locked content
+  // (Pass Bar, Kill Criteria) must be frozen, so it is only ever built from
+  // a confirmed version, never a draft.
+  | "WORKBOOK_SOURCE_NOT_CONFIRMED"
+  // The confirmed submission's stored bytes no longer hash to its recorded
+  // checksum — provenance records the computed-and-verified hash, never
+  // the database column alone, so this must be caught before a workbook
+  // silently carries a false claim about its own source. Never the
+  // caller's fault; a 500, not a 4xx.
+  | "WORKBOOK_SOURCE_INTEGRITY_FAILED"
+  // parse / buildPlan / assertPlanMatchesModel / render / assertPdfStructure
+  // threw while building a workbook — a renderer or content bug, never the
+  // caller's fault; a 500, not a 4xx.
+  | "WORKBOOK_RENDER_FAILED";
 
 export class ServiceError extends Error {
   constructor(

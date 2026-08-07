@@ -277,6 +277,9 @@ describe("getModuleContext — database integration", () => {
         isRequired: true,
         requiredFilename: "verdict.md",
         latestSubmission: null,
+        workbookSupported: false,
+        workbookAvailable: false,
+        workbookFormat: null,
       },
     ]);
   });

@@ -20,6 +20,7 @@ export type {
   ModuleCatalogArtifact,
   ModuleCatalogArtifactOutlineSection,
   ModuleCatalogEntry,
+  WorkbookFormat,
 } from "./module-catalog.js";
 export type { ProgramRun, ProgramRunStatus } from "./program-run.js";
 export type {

@@ -50,6 +50,7 @@ function ArtifactStatusBlock({
         )}
         readHref={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifact.artifactKey)}`}
         downloadHref={`/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifact.artifactKey)}/download`}
+        workbookAvailable={artifact.workbookAvailable}
       >
         {artifact.documentPreview}
       </DocumentPreview>

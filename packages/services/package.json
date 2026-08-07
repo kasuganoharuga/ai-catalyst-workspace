@@ -18,6 +18,25 @@
     "./module/internal/template-outline": "./src/module/internal/template-outline.ts",
     "./artifact": "./src/artifact/index.ts",
     "./artifact/internal/markdown-sections": "./src/artifact/internal/markdown-sections.ts",
+    "./artifact/internal/renderers/registry": "./src/artifact/internal/renderers/registry.ts",
+    "./artifact/internal/renderers/assert-pdf-structure": "./src/artifact/internal/renderers/assert-pdf-structure.ts",
+    "./artifact/internal/renderers/manifest-fields": "./src/artifact/internal/renderers/manifest-fields.ts",
+    "./artifact/internal/renderers/manifests/interview-v1": "./src/artifact/internal/renderers/manifests/interview-v1.ts",
+    "./artifact/internal/renderers/manifests/roadmap-v1": "./src/artifact/internal/renderers/manifests/roadmap-v1.ts",
+    "./artifact/internal/renderers/parse/interview-guide": "./src/artifact/internal/renderers/parse/interview-guide.ts",
+    "./artifact/internal/renderers/parse/validation-roadmap": "./src/artifact/internal/renderers/parse/validation-roadmap.ts",
+    "./artifact/internal/renderers/pdf/embed-fonts": "./src/artifact/internal/renderers/pdf/embed-fonts.ts",
+    "./artifact/internal/renderers/pdf/fonts/noto-sans-bold": "./src/artifact/internal/renderers/pdf/fonts/noto-sans-bold.ts",
+    "./artifact/internal/renderers/pdf/fonts/noto-sans-regular": "./src/artifact/internal/renderers/pdf/fonts/noto-sans-regular.ts",
+    "./artifact/internal/renderers/pdf/layout-builder": "./src/artifact/internal/renderers/pdf/layout-builder.ts",
+    "./artifact/internal/renderers/pdf/metrics": "./src/artifact/internal/renderers/pdf/metrics.ts",
+    "./artifact/internal/renderers/pdf/render-plan": "./src/artifact/internal/renderers/pdf/render-plan.ts",
+    "./artifact/internal/renderers/plan/interview-workbook-plan": "./src/artifact/internal/renderers/plan/interview-workbook-plan.ts",
+    "./artifact/internal/renderers/plan/shared-assertions": "./src/artifact/internal/renderers/plan/shared-assertions.ts",
+    "./artifact/internal/renderers/plan/validation-roadmap-plan": "./src/artifact/internal/renderers/plan/validation-roadmap-plan.ts",
+    "./artifact/internal/renderers/problem-interview-workbook-v1": "./src/artifact/internal/renderers/problem-interview-workbook-v1.ts",
+    "./artifact/internal/renderers/types": "./src/artifact/internal/renderers/types.ts",
+    "./artifact/internal/renderers/validation-roadmap-workbook-v1": "./src/artifact/internal/renderers/validation-roadmap-workbook-v1.ts",
     "./artifact/internal/validators/registry": "./src/artifact/internal/validators/registry.ts",
     "./artifact/internal/validators/pressure-test-verdict-v1": "./src/artifact/internal/validators/pressure-test-verdict-v1.ts",
     "./artifact/internal/validators/pressure-test-verdict-v2": "./src/artifact/internal/validators/pressure-test-verdict-v2.ts",
@@ -64,7 +83,8 @@
     "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/profile/index.db.test.ts src/company-profile/index.db.test.ts src/content-seed/index.db.test.ts src/content-seed/db/freeze.db.test.ts src/module/catalog.db.test.ts src/module/context.db.test.ts src/module/completion.db.test.ts src/module/auto-setup.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/mentor/index.db.test.ts src/attempt/index.db.test.ts src/storage/index.db.test.ts src/artifact/index.db.test.ts src/audit/index.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts",
     "reconcile-runs": "tsx src/workflow/reconcile-runs-cli.ts",
-    "freeze": "tsx src/content-seed/freeze-cli.ts"
+    "freeze": "tsx src/content-seed/freeze-cli.ts",
+    "generate-workbook-fonts": "node scripts/generate-workbook-fonts.mjs"
   },
   "dependencies": {
     "@ai-catalyst/clients": "workspace:*",
@@ -75,14 +95,21 @@
     "@aws-sdk/client-s3": "^3.1090.0",
     "@aws-sdk/client-sesv2": "^3.1090.0",
     "@aws-sdk/s3-request-presigner": "^3.1090.0",
+    "@pdf-lib/fontkit": "^1.1.1",
+    "fontkit": "^2.0.4",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.16.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/fontkit": "^2.0.9",
     "@types/node": "^20",
     "@types/pg": "^8.15.6",
+    "pdfjs-dist": "^6.2.108",
     "tsx": "^4.20.6",
+    "typeface-noto-sans": "^1.1.13",
     "typescript": "^5",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.10",
+    "wawoff2": "^2.0.1"
   }
 }

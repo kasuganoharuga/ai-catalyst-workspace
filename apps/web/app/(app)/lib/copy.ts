@@ -603,6 +603,10 @@ export const moduleRunCopy = {
   documentCovers: "It should cover",
   documentRead: "Read document",
   documentDownload: "Download",
+  // Shown instead of documentDownload once a workbook exists for this
+  // Artifact — same primary/secondary split as artefactsCopy's pair.
+  documentDownloadWorkbook: "Download fillable PDF",
+  documentDownloadSource: "Markdown source",
   documentDecisionLabel: "Your decision",
   documentNotSaved: "Not saved yet.",
   // A supporting document the Module accepts but never blocks completion
@@ -793,7 +797,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     ],
     completedNextStep: {
       title: "Next: run the five interviews",
-      body: "Nothing here runs them for you. Take your Problem Interview Guide to five matching customers, write each conversation up separately in their own words within 30 minutes, and keep the notes. The next module opens by grading what actually came back, and can't start without them — three or four is still worth bringing.",
+      body: "Nothing here runs them for you. Take your Problem Interview Guide to five matching customers, write each conversation up separately in their own words within 30 minutes, and keep the notes. If you download the fillable PDF workbook to write in during the calls, it stays your own working copy — filling it in saves nothing back to AI Catalyst, so bring the finished notes into Module 4 yourself. The next module opens by grading what actually came back, and can't start without them — three or four is still worth bringing.",
     },
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
@@ -993,6 +997,11 @@ export const artefactsCopy = {
 
   readCta: "Read document",
   downloadCta: "Download",
+  // Shown instead of downloadCta once a workbook exists — the fillable PDF
+  // becomes the primary download, and the Markdown record moves to a
+  // smaller secondary link beside it (operational-workbooks plan §11).
+  downloadWorkbookCta: "Download fillable PDF",
+  downloadSourceCta: "Markdown source",
   startCta: "Start module",
   lockedCta: "Locked",
   storageNote: "Files are stored in your workspace, not just in the chat.",

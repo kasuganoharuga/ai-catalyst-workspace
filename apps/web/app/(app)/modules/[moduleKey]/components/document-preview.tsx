@@ -32,6 +32,7 @@ export function DocumentPreview({
   meta,
   readHref,
   downloadHref,
+  workbookAvailable = false,
   children,
 }: {
   name: string;
@@ -39,6 +40,8 @@ export function DocumentPreview({
   meta: string | null;
   readHref: string;
   downloadHref: string;
+  /** A confirmed submission exists and a renderer is configured — shows the fillable PDF as the primary download, Markdown as secondary. */
+  workbookAvailable?: boolean;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
@@ -67,12 +70,28 @@ export function DocumentPreview({
             </p>
           ) : null}
         </div>
-        <Button asChild variant="outline" size="sm" className="shrink-0">
-          <a href={downloadHref}>
-            <Download aria-hidden="true" />
-            {module1Copy.documentDownload}
-          </a>
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {workbookAvailable ? (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <a href={`${downloadHref}?format=workbook`}>
+                  <Download aria-hidden="true" />
+                  {module1Copy.documentDownloadWorkbook}
+                </a>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <a href={downloadHref}>{module1Copy.documentDownloadSource}</a>
+              </Button>
+            </>
+          ) : (
+            <Button asChild variant="outline" size="sm">
+              <a href={downloadHref}>
+                <Download aria-hidden="true" />
+                {module1Copy.documentDownload}
+              </a>
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="relative">

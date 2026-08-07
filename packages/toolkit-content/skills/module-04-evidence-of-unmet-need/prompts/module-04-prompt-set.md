@@ -393,6 +393,15 @@ nothing downstream can check, and the Founder has no way to tell the difference.
 From step 4 onwards the saved file — not this conversation — is the record of what the customers
 said. Every later module re-reads the interviews through it, and so does the rest of this one.
 
+**A workbook tick is the Founder's observation, not your verdict.** Founders who print the Problem
+Interview Guide as a fillable PDF tick each Pass Bar condition and Kill Criterion by hand, per
+interview, while the conversation is fresh — and some will carry that self-assessment straight into
+`Interview-Notes.md` ("P1 and P2 met, P3 not met"). Treat every such tick as a contemporaneous
+observation to weigh, never as the finding itself. Verify each one against the written notes for that
+same interview — the verbatim quotes, the observed behaviour, the cost already spent — before it
+counts toward the pass bar here. A tick with no supporting quote or observation underneath it in the
+notes is worth exactly as much as an unticked box: say so, and grade what the evidence actually shows.
+
 This is the one artefact here you do not generate and do not grade. It carries the Founder's material
 at whatever quality it arrived in, no validation runs against it, and it needs no confirmation step —
 it is not your output to confirm. Do not tidy the substance, do not fill a gap the Founder left, and
@@ -1229,10 +1238,14 @@ discrepancy between the two means the table is wrong or Start Here is.
 in storage.
 
 Founders do not read or fill Markdown, so when renderer support exists it can also be rendered on
-demand as an editable and printable `.docx` operational workbook. **The DOCX is the instrument; the
-Markdown remains the record.** The DOCX is never stored as a second artefact.
-`Evidence-Of-Unmet-Need.md` has no renderer — it is read, not worked in. Architecture in
-[docs/product/operational-workbooks.md](../../../../../docs/product/operational-workbooks.md).
+demand as a **fillable PDF** operational workbook — never a stored DOCX; that format was the
+original tracked spec and was superseded before any renderer shipped. **The PDF is the instrument;
+the Markdown remains the record.** The PDF is never stored as a second artefact, never uploaded back,
+and never read by anything on the platform. `Evidence-Of-Unmet-Need.md` has no renderer — it is read,
+not worked in. Implementation lives in
+`packages/services/src/artifact/internal/renderers/` (parser, field manifest, Render Plan builder,
+shared PDF layout engine, structural assertions) — this section states the content contract that
+layer must keep, not the mechanics of how it keeps it.
 
 **The locked headings are a contract.** `validation_roadmap_workbook_v1` declares `requiredSections`
 = every locked heading in this template, `##` and `###` alike: Venture · Constraints · What These
@@ -1242,65 +1255,73 @@ Record Results. A heading renamed or added here without updating the renderer mu
 The `###` matters: the scoring anchors are a subheading, and a list of `##` sections only would have
 let them be renamed without anything noticing.
 
-**The workbook expands the table into one page per experiment**, and each page is pre-filled *only*
-from fields explicitly present in the confirmed Markdown.
+**The workbook expands the table into two pages per experiment** — Page A carries the locked
+criteria plus what to do before the result is known, Page B carries the result — and each page is
+pre-filled *only* from fields explicitly present in the confirmed Markdown.
 
 Pre-filled for every experiment: the experiment, the claim tested, the scheduled window, time, cost,
 expected evidence signal strength, and the pre-set pass and fail conditions. For the first
 experiment only, also `What to do` and `Who to contact, and how`, from Start Here.
 
-Left blank to fill: participants, contact route, actions completed, observable result, verbatim
-evidence, contradicting evidence, Pass / Fail / Inconclusive, the effect on evidence maturity, the
-decision to continue / revise / stop, and the next action.
+Left blank to fill: participants, contact route, actions completed, the dates completed, observable
+result, verbatim evidence, contradicting evidence, the actual time and cost spent, Pass / Fail /
+Inconclusive, the effect on evidence maturity, the decision to continue / revise / stop, and the next
+action.
 
 **The renderer never infers a missing field.** This template records a target and an access route
 only for the first experiment, so experiments 2 and 3 leave those operational fields blank rather
 than having a plausible channel invented for them. If later experiments should carry their own
 target, the fix is to add the field to this template — not to let the renderer guess.
 
-Two or three experiment pages, matching however many the record holds — never a blank page for an
-experiment that does not exist.
+Two or three experiment pages of criteria, matching however many the record holds — never a blank
+page for an experiment that does not exist.
 
 This is also why every experiment carries a pass and a fail condition rather than only the first:
 each one becomes a page a Founder records against, and a page with no fail condition collects
 encouragement.
 
-**Interview workbooks arrive here filled.** The preceding module's guide is served as a workbook
-whose interview sections are laid out to this module's evidence intake — per interview: participant
-identity, beachhead match, verbatim quotes, pass-bar conditions met, contradicting evidence. When a
-Founder brings that in through `evidence_additions`, it should already be structured; treat the
-interview section headings as the per-interview boundaries rather than re-deriving them from
-prose.
+**Interview workbooks arrive here filled, but never read directly.** The preceding module's guide is
+served as a workbook whose interview sections are laid out to this module's evidence intake — per
+interview: participant identity, beachhead match, verbatim quotes, Pass Bar and Kill Criteria ticks,
+contradicting evidence. The platform never reads that PDF back; a Founder transcribes it (or a
+Founder-facing client does) into `Interview-Notes.md` through `evidence_additions`. See "Taking in
+the interview notes" above for why a tick recorded there is evidence to weigh, not a verdict to
+accept.
 
-`rendererKey` stays `null` in `module-4.ts` until the registry and its tests exist.
+`rendererKey` is `validation_roadmap_workbook_v1` in `module-4.ts` as of Program v7 — the registry,
+both assertion gates (Render Plan content equality, then PDF structure) and the download route all
+exist, and every one of them runs on every render; none can be skipped by a caller.
 
-### Protected workbook rules
+### Locked vs. fillable fields
 
-The workbook is editable **only inside named input controls**; everything derived from this Markdown
-is locked against accidental editing. Full rules in the architecture doc; the parts that constrain
-this template:
+The workbook is fillable **only inside named AcroForm fields**; everything else is text drawn
+directly onto the page with no field behind it at all. This is not a protection flag a Founder could
+switch off — there is nothing to unlock, because the locked content was never a field to begin with.
 
-**Locked** — Constraints · claims being tested · experiment name · claim tested · scheduled window ·
-time · cost · expected evidence signal strength · **pass condition** · **fail condition**.
+**Locked (drawn, not a field)** — Constraints · claims being tested · experiment name · claim tested
+· scheduled window · time · cost · expected evidence signal strength · **pass condition** · **fail
+condition**.
 
-**Editable** — participants · contact route · actions completed · observable result · verbatim
-evidence · contradicting evidence · Pass / Fail / Inconclusive · effect on evidence maturity ·
-continue / revise / stop · next action.
+**Fillable (a real form field)** — participants · contact route · actions completed · dates
+completed · observable result · verbatim evidence · contradicting evidence · actual time · actual
+cost · Pass / Fail / Inconclusive · effect on evidence maturity · continue / revise / stop · next
+action.
 
 **Pass and fail must be locked.** They are pre-set specifically so they cannot move once the result
 is known, and the workbook is the document a Founder fills in *while looking at the result*. Leaving
-them editable there would quietly undo the rule this whole roadmap rests on — that an experiment
+them fillable there would quietly undo the rule this whole roadmap rests on — that an experiment
 without a fixed fail condition produces encouragement rather than evidence.
 
-Content control tags are stable and numbered per experiment page —
+Form field names are stable and numbered per experiment page —
 `experiment_1.participants`, `experiment_1.contact_route`, `experiment_1.actions_completed`,
-`experiment_1.observable_result`, `experiment_1.verbatim_evidence`, `experiment_1.contradictions`,
+`experiment_1.dates_completed`, `experiment_1.observable_result`, `experiment_1.verbatim_evidence`,
+`experiment_1.contradictions`, `experiment_1.actual_time`, `experiment_1.actual_cost`,
 `experiment_1.outcome`, `experiment_1.maturity_impact`, `experiment_1.decision`,
 `experiment_1.next_action` — identical structure across every page, index only.
 
-The renderer validates its own output before returning it: one page per experiment present in the
-Markdown and no blank page, pass / fail / window / time / cost on every page matching the Markdown
-exactly, experiment 1 agreeing with Start Here, result-recording fields present, pass and fail not
-editable, protection enabled. It fails rather than return an unprotected or partial workbook.
-
-Protection is a workflow control, not encryption. It stops the accident, not a determined Founder.
+The renderer validates its own output before returning it, in two separate passes that check
+different things: first, that the Render Plan agrees with the confirmed Markdown exactly (every
+pass / fail / window / time / cost matches, experiment 1 agrees with Start Here, no placeholder text,
+a footer on every page); second, once real PDF bytes exist, that the file's structure matches that
+plan exactly (every expected field present exactly once, dropdown vocabulary correct, the embedded
+fonts and provenance intact). It fails rather than return a partial or structurally wrong workbook.

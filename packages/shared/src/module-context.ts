@@ -1,4 +1,5 @@
 import type { ArtifactSubmissionStatus } from "./artifact-submission.js";
+import type { WorkbookFormat } from "./module-catalog.js";
 import type { ModuleAttempt, ModuleResponseStatus, ModuleResponseType } from "./module-attempt.js";
 import type { RunModuleSummary } from "./run-module.js";
 
@@ -32,6 +33,17 @@ export interface ModuleContextArtifactSummary {
     /** Last write time (draft save or later update) — use for "Saved …" UI. */
     updatedAt: string;
   } | null;
+  /** A renderer is configured for this Artifact Definition — same fact as ModuleCatalogArtifact.workbookSupported, just also available at Attempt scope. */
+  workbookSupported: boolean;
+  /**
+   * `workbookSupported` AND a confirmed (non-draft) version exists to build
+   * one from. Two separate flags rather than one, because "no renderer for
+   * this artefact" and "not confirmed yet" need different UI copy — a
+   * single boolean derived from `rendererKey` alone would show a download
+   * button that then 409s on a draft-only artefact.
+   */
+  workbookAvailable: boolean;
+  workbookFormat: WorkbookFormat | null;
 }
 
 // Module-bound Prompt Version content returned so the AI client can follow

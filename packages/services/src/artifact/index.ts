@@ -26,6 +26,7 @@ import {
 } from "@ai-catalyst/services/storage";
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import { resolveValidator } from "@ai-catalyst/services/artifact/internal/validators/registry";
+import { resolveWorkbookRenderer } from "@ai-catalyst/services/artifact/internal/renderers/registry";
 import { resolveSubmissionCreatedVia } from "@ai-catalyst/services/artifact/internal/created-via";
 import {
   resolveArtifactEventActorType,
@@ -34,6 +35,11 @@ import {
 } from "@ai-catalyst/services/artifact/internal/triggered-via";
 
 import type { ValidationRunResult, Validator } from "./internal/validators/types.js";
+import type {
+  Provenance,
+  RegisteredWorkbookRenderer,
+  WorkbookRenderOptions,
+} from "./internal/renderers/types.js";
 
 // Owns Artifact Submission versioning and ValidationService (draft_check /
 // official validation). apps/web and apps/mcp call the same Service
@@ -59,6 +65,10 @@ export interface ArtifactServiceDependencies {
   // a fixture Validator without touching the real content's own
   // registrations in internal/validators/registry.ts.
   validators?: Record<string, Validator>;
+  // Same seam, for renderArtifactWorkbook — lets tests register a fixture
+  // WorkbookRenderer without touching the real registrations in
+  // internal/renderers/registry.ts.
+  renderers?: Record<string, RegisteredWorkbookRenderer>;
 }
 
 const EDITABLE_ATTEMPT_STATUSES = ["draft", "in_progress"] as const;
@@ -86,6 +96,7 @@ interface ArtifactDefinitionRow {
   module_definition_id: string;
   artifact_key: string;
   validator_key: string | null;
+  renderer_key: string | null;
   output_format: string;
   required_filename: string | null;
   validation_config: Record<string, unknown>;
@@ -266,7 +277,7 @@ async function loadArtifactDefinitionByKey(
   artifactKey: string,
 ): Promise<ArtifactDefinitionRow> {
   const result = await executor.query<ArtifactDefinitionRow>(
-    `select id, module_definition_id, artifact_key, validator_key, output_format,
+    `select id, module_definition_id, artifact_key, validator_key, renderer_key, output_format,
             required_filename, validation_config, is_required, sequence_index
      from artifact_definitions
      where module_definition_id = $1 and artifact_key = $2 and status <> 'archived'`,
@@ -739,6 +750,140 @@ export async function getArtifactSubmission(
     ? await getGeneratedTextContent(actor, submission.primary_storage_object_id)
     : null;
   return { submission: mapArtifactSubmissionRow(submission), content };
+}
+
+// ---------------------------------------------------------------------
+// renderArtifactWorkbook
+// ---------------------------------------------------------------------
+
+async function loadProgramVersionNumber(
+  executor: QueryExecutor,
+  programRunId: string,
+): Promise<number> {
+  const result = await executor.query<{ version_number: number }>(
+    `select pv.version_number
+     from program_runs pr
+     join program_versions pv on pv.id = pr.program_version_id
+     where pr.id = $1`,
+    [programRunId],
+  );
+  const row = result.rows[0];
+  if (!row) {
+    throw new ServiceError(
+      "INTERNAL_INVARIANT_ERROR",
+      `program_run ${programRunId} has no resolvable program_version.`,
+    );
+  }
+  return row.version_number;
+}
+
+export interface RenderArtifactWorkbookInput {
+  attemptId: string;
+  artifactKey: string;
+  /** Founder-chosen interview round length (5-10) — see operational-workbooks plan §5.2. Ignored by renderers that don't read it (e.g. validation_roadmap_workbook_v1). */
+  sectionCount?: number;
+}
+
+export interface RenderedWorkbook {
+  buffer: Buffer;
+  mimeType: string;
+  filename: string;
+}
+
+/**
+ * Builds an on-demand, never-stored workbook (fillable PDF) for a Module 3/4
+ * artefact that has one configured — see operational-workbooks plan §9.
+ * Reuses getArtifactSubmission's exact authorisation boundary
+ * (resolveAttemptContextForFounder + loadArtifactDefinitionByKey) rather
+ * than reimplementing it, then adds the workbook-specific gates: a
+ * renderer must be configured, the source must be a *confirmed* submission
+ * (never a draft — Pass Bar and Kill Criteria must be frozen), and the
+ * stored bytes must still hash to their recorded checksum. Provenance
+ * records that computed-and-verified hash, never the database column
+ * alone.
+ */
+export async function renderArtifactWorkbook(
+  actor: ActorContext,
+  input: RenderArtifactWorkbookInput,
+  deps: ArtifactServiceDependencies = {},
+): Promise<RenderedWorkbook> {
+  assertRole(actor, ["founder"]);
+  const attemptId = parseEntityIdOrNotFound(input.attemptId, "Attempt not found.");
+  if (
+    input.sectionCount !== undefined &&
+    (!Number.isInteger(input.sectionCount) || input.sectionCount < 5 || input.sectionCount > 10)
+  ) {
+    throw new ServiceError("VALIDATION_ERROR", "sectionCount must be an integer between 5 and 10.");
+  }
+
+  const context = await resolveAttemptContextForFounder(actor, attemptId, pool, {
+    forUpdate: false,
+  });
+  const artifactDefinition = await loadArtifactDefinitionByKey(
+    pool,
+    context.runModule.module_definition_id,
+    input.artifactKey,
+  );
+  if (!artifactDefinition.renderer_key) {
+    throw new ServiceError(
+      "WORKBOOK_RENDERER_NOT_CONFIGURED",
+      `Artifact "${input.artifactKey}" has no workbook renderer configured.`,
+    );
+  }
+
+  const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
+    forUpdate: false,
+  });
+  if (
+    !submission ||
+    submission.status !== "submitted" ||
+    !submission.primary_storage_object_id ||
+    !submission.content_sha256
+  ) {
+    throw new ServiceError(
+      "WORKBOOK_SOURCE_NOT_CONFIRMED",
+      `Artifact "${input.artifactKey}" has no confirmed submission to build a workbook from.`,
+    );
+  }
+
+  const markdown = await getGeneratedTextContent(actor, submission.primary_storage_object_id);
+  const computedHash = sha256(Buffer.from(markdown, "utf8"));
+  if (computedHash !== submission.content_sha256) {
+    throw new ServiceError(
+      "WORKBOOK_SOURCE_INTEGRITY_FAILED",
+      `Stored bytes for artifact "${input.artifactKey}" no longer match their recorded checksum.`,
+    );
+  }
+
+  const renderer = resolveWorkbookRenderer(artifactDefinition.renderer_key, deps.renderers);
+  const programVersionNumber = await loadProgramVersionNumber(pool, context.runModule.program_run_id);
+
+  const provenance: Provenance = {
+    sourceArtifactId: artifactDefinition.artifact_key,
+    sourceArtifactVersion: submission.version_number,
+    sourceContentHash: computedHash,
+    rendererKey: renderer.rendererKey,
+    rendererVersion: renderer.rendererVersion,
+    generatedAt: new Date().toISOString(),
+    workspaceId: context.workspaceId,
+    programRunId: context.runModule.program_run_id,
+    programVersionNumber,
+  };
+  const options: WorkbookRenderOptions | undefined =
+    input.sectionCount !== undefined ? { sectionCount: input.sectionCount } : undefined;
+
+  // Parse/plan/assertion/render/structural-assertion failures all surface
+  // as WORKBOOK_RENDER_FAILED — never the caller's fault, but distinct from
+  // INTERNAL_INVARIANT_ERROR (an unregistered key) and from the two "not
+  // ready yet" conflicts above.
+  try {
+    const { buffer } = await renderer.build(markdown, provenance, options);
+    return { buffer, mimeType: renderer.mimeType, filename: renderer.downloadFilename };
+  } catch (error) {
+    if (error instanceof ServiceError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    throw new ServiceError("WORKBOOK_RENDER_FAILED", message);
+  }
 }
 
 // ---------------------------------------------------------------------

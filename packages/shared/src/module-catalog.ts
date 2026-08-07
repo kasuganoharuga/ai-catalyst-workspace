@@ -22,6 +22,9 @@ export interface ModuleCatalogArtifactOutlineSection {
   items: string[];
 }
 
+/** Formats a workbook renderer may produce. PDF only today; kept as a union rather than a boolean so a future format is additive, not a breaking DTO change. */
+export type WorkbookFormat = "pdf";
+
 export interface ModuleCatalogArtifact {
   artifactKey: string;
   name: string;
@@ -33,6 +36,16 @@ export interface ModuleCatalogArtifact {
    */
   isRequired: boolean;
   outline: ModuleCatalogArtifactOutlineSection[];
+  /**
+   * Whether this Artifact Definition has a `rendererKey` configured at all —
+   * a catalog-level fact with no Attempt binding, so it can never say
+   * whether a *confirmed* version actually exists yet (that needs an
+   * Attempt; see ModuleContextArtifactSummary.workbookAvailable below).
+   * `rendererKey` itself stays server-side; no client code should ever have
+   * to recognise a specific renderer key.
+   */
+  workbookSupported: boolean;
+  workbookFormat: WorkbookFormat | null;
 }
 
 export interface ModuleCatalogEntry {

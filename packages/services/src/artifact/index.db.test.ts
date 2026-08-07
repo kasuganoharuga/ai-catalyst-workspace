@@ -10,9 +10,14 @@ import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "@ai-catalyst/services/attempt";
 
 import type { Validator } from "./internal/validators/types.js";
+import { registerWorkbookRenderer } from "./internal/renderers/registry.js";
+import type { WorkbookRenderer } from "./internal/renderers/types.js";
+import type { FieldManifest } from "./internal/renderers/types.js";
+import { renderWorkbookPlan } from "./internal/renderers/pdf/render-plan.js";
 import {
   getArtifactSubmission,
   getLatestValidation,
+  renderArtifactWorkbook,
   runDraftCheck,
   runOfficialValidation,
   saveArtifactSubmission,
@@ -82,6 +87,81 @@ const fixtureValidator: Validator = {
 
 const FIXTURE_DEPS = { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } };
 const PASSING_FIXTURE_CONTENT = `# Verdict\n\n${REQUIRED_MARKER}\n`;
+
+// A minimal but real WorkbookRenderer — its `render` step reuses the real
+// shared `renderWorkbookPlan` emitter (the same one both production
+// renderers use), so the PDF it produces genuinely satisfies
+// registerWorkbookRenderer's unconditional assertPdfStructure gate (real
+// /DR fonts, real provenance Info-dict, matching page count) rather than
+// needing a hand-rolled stub PDF. This suite is about
+// renderArtifactWorkbook's own source-resolution/integrity/authorisation
+// logic (§9 of the operational-workbooks plan), not renderer content —
+// the renderer pipeline itself already has its own dedicated unit tests
+// under internal/renderers/.
+const FIXTURE_RENDERER_KEY = "fixture-renderer-v1";
+
+interface FixtureWorkbookModel {
+  raw: string;
+}
+
+const FIXTURE_FIELD_MANIFEST: FieldManifest = {
+  sectionPrefix: "fixture",
+  sectionCount: { kind: "fixed", value: 1 },
+  fields: [],
+};
+
+const fixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
+  rendererKey: FIXTURE_RENDERER_KEY,
+  rendererVersion: "1.0.0-fixture",
+  mimeType: "application/pdf",
+  extension: "pdf",
+  downloadFilename: "fixture-workbook.pdf",
+  requiredSections: [],
+  fieldManifest: FIXTURE_FIELD_MANIFEST,
+  parse(markdown) {
+    return { raw: markdown };
+  },
+  buildPlan(model, provenance) {
+    // Collapsed to one line, same as any real renderer's extracted field
+    // text (never raw multi-line Markdown) — a literal "\n" has no glyph in
+    // any font's coverage table, so drawing it directly would fail the
+    // render step's own font-coverage check before ever reaching a PDF.
+    const text = model.raw.replace(/\s+/g, " ").trim();
+    return {
+      pages: [{ footerLabel: "Fixture" }],
+      fields: [],
+      lockedContent: [{ role: "raw", text, page: 0, x: 40, y: 760, maxWidth: 500, size: 9, bold: false }],
+      provenance,
+    };
+  },
+  assertPlanMatchesModel(plan, model) {
+    const text = model.raw.replace(/\s+/g, " ").trim();
+    if (!plan.lockedContent.some((entry) => entry.text.includes(text))) {
+      throw new Error("WORKBOOK_RENDER_FAILED: fixture content missing from plan.");
+    }
+  },
+  render: renderWorkbookPlan,
+};
+
+// A second registration that always fails assertPlanMatchesModel — used
+// only by the "render failure" test below, to prove renderArtifactWorkbook
+// wraps a plain Error thrown from inside the pipeline into a proper
+// WORKBOOK_RENDER_FAILED ServiceError rather than letting it escape as-is.
+const brokenFixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
+  ...fixtureRenderer,
+  assertPlanMatchesModel() {
+    throw new Error("WORKBOOK_RENDER_FAILED: intentional test failure.");
+  },
+};
+
+const FIXTURE_WORKBOOK_DEPS = {
+  ...FIXTURE_DEPS,
+  renderers: { [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(fixtureRenderer) },
+};
+const BROKEN_FIXTURE_WORKBOOK_DEPS = {
+  ...FIXTURE_DEPS,
+  renderers: { [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(brokenFixtureRenderer) },
+};
 
 function saveVerdict(
   actor: ActorContext,
@@ -163,7 +243,12 @@ function buildFixtureQuestions(): FixtureQuestion[] {
 
 function buildFixtureArtifact(
   artifactKey: string,
-  options: { validatorKey: string | null; isRequired: boolean; sequenceIndex: number },
+  options: {
+    validatorKey: string | null;
+    isRequired: boolean;
+    sequenceIndex: number;
+    rendererKey?: string | null;
+  },
 ): FixtureArtifact {
   return {
     artifactKey,
@@ -175,7 +260,7 @@ function buildFixtureArtifact(
     sourceFormat: "markdown",
     outputFormat: "markdown",
     requiredFilename: `${artifactKey}.md`,
-    rendererKey: null,
+    rendererKey: options.rendererKey ?? null,
     validatorKey: options.validatorKey,
     allowedMimeTypes: ["text/markdown"],
     maxFileSizeBytes: 262_144,
@@ -232,6 +317,13 @@ describe("artifact service — database integration", () => {
   const emailPrefix = `artifact-test-${RUN_SUFFIX}`;
   const PROGRAM_KEY = `artifact-service-${RUN_SUFFIX}`;
   const PROGRAM_KEY_MULTI = `artifact-service-multi-${RUN_SUFFIX}`;
+  // Its own Program, not just another module tacked onto PROGRAM_KEY —
+  // module sequencing locks module N+1 until module N completes, so a
+  // second module added to PROGRAM_KEY's existing sequence would stay
+  // permanently "locked" (module-a and module-b are never completed by
+  // these tests) unless it were module 0. A dedicated single-module
+  // Program sidesteps that entirely.
+  const PROGRAM_KEY_WORKBOOK = `artifact-service-workbook-${RUN_SUFFIX}`;
   const createdUserIds: string[] = [];
 
   async function createFounderWithWorkspaceAndVenture(
@@ -403,6 +495,41 @@ describe("artifact service — database integration", () => {
     return context;
   }
 
+  function saveWorkbookDoc(actor: ActorContext, attemptId: string, content: string = PASSING_FIXTURE_CONTENT) {
+    return saveArtifactSubmission(actor, { attemptId, artifactKey: "workbook-doc", content }, FIXTURE_DEPS);
+  }
+
+  async function createDraftWorkbookAttempt(label: string) {
+    const context = await createRunWithModules(label, PROGRAM_KEY_WORKBOOK, {
+      available: "artifact-module-workbook",
+    });
+    const created = await startOrResumeAttempt(context.actor, {
+      programRunModuleId: context.availableModuleId,
+    });
+    return { ...context, attemptId: created.attempt.id };
+  }
+
+  // Reaches artifact_submissions.status = 'submitted' for real, the same
+  // way production does: submit the Attempt, then run official validation
+  // (module-workbook has exactly one required artifact, so it alone
+  // passing is enough for `allPassed`).
+  async function createSubmittedWorkbookAttempt(label: string, content: string = PASSING_FIXTURE_CONTENT) {
+    const context = await createDraftWorkbookAttempt(label);
+    await saveWorkbookDoc(context.actor, context.attemptId, content);
+    // module-workbook, like every fixture module, seeds the "final_decision"
+    // question — fixtureValidator.runOfficialCheck requires it answered
+    // "proceed" to pass, the same as createSubmittedAttempt's flow.
+    await saveFounderResponse(context.actor, {
+      attemptId: context.attemptId,
+      questionKey: "final_decision",
+      value: "proceed",
+    });
+    await submitAttempt(context.actor, { attemptId: context.attemptId });
+    const systemUserId = await createTrustedUser(`${label}-system`);
+    await runOfficialValidation(systemActor(systemUserId), { attemptId: context.attemptId }, FIXTURE_DEPS);
+    return context;
+  }
+
   beforeAll(async () => {
     await withTransaction((client) =>
       seedToolkitContent(
@@ -425,6 +552,29 @@ describe("artifact service — database integration", () => {
               validatorKey: FIXTURE_VALIDATOR_KEY,
               isRequired: true,
               sequenceIndex: 1,
+            }),
+          ]),
+        ]),
+      ),
+    );
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        // Isolated in its own Program on purpose — see PROGRAM_KEY_WORKBOOK's
+        // comment: renderArtifactWorkbook's tests need an artifact whose
+        // submission actually reaches artifact_submissions.status =
+        // 'submitted' (only set by runOfficialValidation once every
+        // *required* artifact in the module passes), and adding a
+        // renderer_key to an existing required module-a/b artifact would
+        // change what "all required artifacts submitted" means for every
+        // test already relying on those modules.
+        buildFixtureContent(PROGRAM_KEY_WORKBOOK, [
+          buildFixtureModule("artifact-module-workbook", 0, [
+            buildFixtureArtifact("workbook-doc", {
+              validatorKey: FIXTURE_VALIDATOR_KEY,
+              isRequired: true,
+              sequenceIndex: 1,
+              rendererKey: FIXTURE_RENDERER_KEY,
             }),
           ]),
         ]),
@@ -475,7 +625,7 @@ describe("artifact service — database integration", () => {
     ]);
     await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
     await pool.query("delete from programs where program_key = any($1::text[])", [
-      [PROGRAM_KEY, PROGRAM_KEY_MULTI],
+      [PROGRAM_KEY, PROGRAM_KEY_MULTI, PROGRAM_KEY_WORKBOOK],
     ]);
   });
 
@@ -783,6 +933,108 @@ describe("artifact service — database integration", () => {
 
       await expect(
         getLatestValidation(otherActor, { attemptId, artifactKey: "verdict" }),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
+    });
+  });
+
+  describe("renderArtifactWorkbook", () => {
+    it("builds a PDF once the source submission is confirmed", async () => {
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-happy-path");
+
+      const result = await renderArtifactWorkbook(
+        actor,
+        { attemptId, artifactKey: "workbook-doc" },
+        FIXTURE_WORKBOOK_DEPS,
+      );
+
+      expect(result.mimeType).toBe("application/pdf");
+      expect(result.filename).toBe("fixture-workbook.pdf");
+      expect(result.buffer.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+    });
+
+    it("throws WORKBOOK_RENDERER_NOT_CONFIGURED when the Artifact Definition has no renderer_key", async () => {
+      const { actor, attemptId } = await createSubmittedAttempt("workbook-no-renderer");
+
+      await expect(
+        renderArtifactWorkbook(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_WORKBOOK_DEPS),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_RENDERER_NOT_CONFIGURED" });
+    });
+
+    it("throws WORKBOOK_SOURCE_NOT_CONFIRMED when no submission exists yet", async () => {
+      const { actor, attemptId } = await createDraftWorkbookAttempt("workbook-no-submission");
+
+      await expect(
+        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_NOT_CONFIRMED" });
+    });
+
+    it("throws WORKBOOK_SOURCE_NOT_CONFIRMED when the submission is still a draft", async () => {
+      const { actor, attemptId } = await createDraftWorkbookAttempt("workbook-draft-only");
+      await saveWorkbookDoc(actor, attemptId);
+
+      await expect(
+        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_NOT_CONFIRMED" });
+    });
+
+    it("throws INTERNAL_INVARIANT_ERROR when renderer_key is set but nothing is registered for it", async () => {
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-unregistered");
+
+      await expect(
+        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_DEPS),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "INTERNAL_INVARIANT_ERROR" });
+    });
+
+    it("wraps a renderer pipeline failure as WORKBOOK_RENDER_FAILED", async () => {
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-render-failed");
+
+      await expect(
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc" },
+          BROKEN_FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_RENDER_FAILED" });
+    });
+
+    it("throws WORKBOOK_SOURCE_INTEGRITY_FAILED when the stored bytes no longer match the recorded checksum", async () => {
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-integrity");
+      await pool.query(
+        `update storage_objects so
+         set checksum_sha256 = '0000000000000000000000000000000000000000000000000000000000000'
+         from artifact_files f
+         join artifact_submissions s on s.id = f.artifact_submission_id
+         join artifact_definitions d on d.id = s.artifact_definition_id
+         where f.storage_object_id = so.id
+           and f.is_primary = true
+           and s.module_attempt_id = $1
+           and d.artifact_key = 'workbook-doc'`,
+        [attemptId],
+      );
+
+      await expect(
+        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_INTEGRITY_FAILED" });
+    });
+
+    it("rejects an out-of-range sectionCount as VALIDATION_ERROR, before the renderer is ever invoked", async () => {
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-section-count");
+
+      await expect(
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc", sectionCount: 3 },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+    });
+
+    it("rejects a cross-Workspace founder actor as NOT_FOUND", async () => {
+      const { attemptId } = await createSubmittedWorkbookAttempt("workbook-cross-workspace-target");
+      const { actor: otherActor } = await createDraftWorkbookAttempt("workbook-cross-workspace-caller");
+
+      await expect(
+        renderArtifactWorkbook(otherActor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
       ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
   });

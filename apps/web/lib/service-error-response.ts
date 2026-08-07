@@ -47,7 +47,14 @@ function statusForCode(code: ServiceErrorCode): number {
       return 409;
     case "VALIDATOR_NOT_CONFIGURED":
     case "ATTEMPT_NOT_AWAITING_VALIDATION":
+    case "WORKBOOK_RENDERER_NOT_CONFIGURED":
+    case "WORKBOOK_SOURCE_NOT_CONFIRMED":
       return 409;
+    case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
+    case "WORKBOOK_RENDER_FAILED":
+      // Never the caller's fault — a renderer/content bug or a storage
+      // integrity failure, same rationale as INTERNAL_INVARIANT_ERROR.
+      return 500;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;

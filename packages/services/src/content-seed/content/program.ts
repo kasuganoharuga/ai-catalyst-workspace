@@ -27,6 +27,19 @@ import type { ProgramContent } from "../types.js";
 // replaces — see infra/database/migrations/0012_content_lock.sql's own
 // comments for why).
 const V1_CHANGELOG = [
+  "## Operational workbooks — Modules 3 and 4 gain a fillable PDF renderer",
+  "Problem-Interview-Guide.md and Validation-Roadmap-30-Day.md are now also downloadable as an ",
+  "on-demand, never-stored fillable PDF (\"?format=workbook\") alongside the existing Markdown ",
+  "download — a Founder-facing operational copy for the pen-and-paper/typing work these two ",
+  "artefacts exist to drive, while the Markdown in storage stays the sole record either module ever ",
+  "reads. problem_interview_guide's renderer_key is now \"problem_interview_workbook_v1\" and ",
+  "validation_roadmap_30_day's is \"validation_roadmap_workbook_v1\"; every other artefact's ",
+  "renderer_key stays null. A filled workbook is never uploaded back and never becomes an artifact ",
+  "version. evidence_facilitator gained one clarification alongside this: a workbook's ticked Pass ",
+  "Bar/Kill Criteria boxes, if a Founder carries them into Interview-Notes.md, are the Founder's ",
+  "contemporaneous observation to weigh against the written notes for that interview — never the ",
+  "grading verdict on their own.",
+  "",
   "## Living V1 rollout — content_lock becomes 'mutable'",
   "Every prompt/content edit used to require publishing a brand-new program_version, which a Founder ",
   "already mid-Run never saw (program_versions binds at Run creation and never moves — see that column's ",

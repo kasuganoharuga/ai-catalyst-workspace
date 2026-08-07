@@ -77,8 +77,12 @@ function outcomeForServiceErrorCode(
     case "STORAGE_OBJECT_NOT_DELETABLE":
     case "VALIDATOR_NOT_CONFIGURED":
     case "ATTEMPT_NOT_AWAITING_VALIDATION":
+    case "WORKBOOK_RENDERER_NOT_CONFIGURED":
+    case "WORKBOOK_SOURCE_NOT_CONFIRMED":
       return "validation_error";
     case "INTERNAL_INVARIANT_ERROR":
+    case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
+    case "WORKBOOK_RENDER_FAILED":
       return "system_error";
     default: {
       const exhaustive: never = code;

@@ -67,18 +67,32 @@ export default async function ArtefactDetailPage({
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="lg" variant="outline">
             <Link href={`/modules/${encodeURIComponent(moduleKey)}`}>
               Open module
             </Link>
           </Button>
-          <Button asChild size="lg">
-            <a href={downloadHref}>
-              <Download aria-hidden="true" />
-              Download
-            </a>
-          </Button>
+          {document.workbookAvailable ? (
+            <>
+              <Button asChild size="lg">
+                <a href={`${downloadHref}?format=workbook`}>
+                  <Download aria-hidden="true" />
+                  Download fillable PDF
+                </a>
+              </Button>
+              <Button asChild size="lg" variant="ghost">
+                <a href={downloadHref}>Markdown source</a>
+              </Button>
+            </>
+          ) : (
+            <Button asChild size="lg">
+              <a href={downloadHref}>
+                <Download aria-hidden="true" />
+                Download
+              </a>
+            </Button>
+          )}
         </div>
       </div>
 

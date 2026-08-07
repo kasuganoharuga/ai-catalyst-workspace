@@ -149,6 +149,8 @@ export function buildSavedArtefactGroups(
             versionNumber,
             submissionStatus: artifact.latestSubmission?.status ?? null,
             savedAt: artifact.latestSubmission?.updatedAt ?? null,
+            workbookAvailable: artifact.workbookAvailable,
+            workbookFormat: artifact.workbookFormat,
             // Unsaved rows need a CTA — same Start/Locked affordance as the
             // pre-run preview path; without this the card renders empty actions.
             startAction:
@@ -215,6 +217,12 @@ export function buildPreviewArtefactGroups(
         versionNumber: null,
         submissionStatus: null,
         savedAt: null,
+        // No Attempt exists yet in this pre-run preview, so a workbook can
+        // never actually be downloaded here regardless of renderer support
+        // — matches load-module-detail.ts's own pre-Run workbookAvailable
+        // rule.
+        workbookAvailable: false,
+        workbookFormat: artifact.workbookFormat,
         startAction:
           entry.moduleKey === nextStartableKey
             ? ({

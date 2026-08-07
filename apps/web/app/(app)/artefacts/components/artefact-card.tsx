@@ -68,12 +68,26 @@ export function ArtefactDocumentRow({
           >
             <Link href={readHref}>{artefactsCopy.readCta}</Link>
           </Button>
-          <Button asChild size="default" variant="outline">
-            <a href={downloadHref}>
-              <Download aria-hidden="true" />
-              {artefactsCopy.downloadCta}
-            </a>
-          </Button>
+          {artefact.workbookAvailable ? (
+            <>
+              <Button asChild size="default" variant="outline">
+                <a href={`${downloadHref}?format=workbook`}>
+                  <Download aria-hidden="true" />
+                  {artefactsCopy.downloadWorkbookCta}
+                </a>
+              </Button>
+              <Button asChild size="default" variant="ghost">
+                <a href={downloadHref}>{artefactsCopy.downloadSourceCta}</a>
+              </Button>
+            </>
+          ) : (
+            <Button asChild size="default" variant="outline">
+              <a href={downloadHref}>
+                <Download aria-hidden="true" />
+                {artefactsCopy.downloadCta}
+              </a>
+            </Button>
+          )}
         </div>
       ) : artefact.startAction ? (
         <div className="flex shrink-0 items-center">

@@ -261,7 +261,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "problem_interview_guide",
         required_filename: "Problem-Interview-Guide.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
+        renderer_key: "problem_interview_workbook_v1",
       },
     ]);
   });
@@ -329,7 +329,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "validation_roadmap_30_day",
         required_filename: "Validation-Roadmap-30-Day.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
+        renderer_key: "validation_roadmap_workbook_v1",
       },
     ]);
   });

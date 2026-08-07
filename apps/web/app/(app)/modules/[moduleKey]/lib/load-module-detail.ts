@@ -109,6 +109,12 @@ export function buildArtifactMetadata(
       outline: artifact.outline,
       versionNumber: null,
       savedAt: null,
+      workbookSupported: artifact.workbookSupported,
+      // No Run/Attempt exists yet in this preview path, so no confirmed
+      // version can exist either — always false here regardless of
+      // workbookSupported.
+      workbookAvailable: false,
+      workbookFormat: artifact.workbookFormat,
     }));
   }
 
@@ -120,6 +126,9 @@ export function buildArtifactMetadata(
     outline: outlineByKey.get(artifact.artifactKey) ?? [],
     versionNumber: artifact.latestSubmission?.versionNumber ?? null,
     savedAt: artifact.latestSubmission?.submittedAt ?? null,
+    workbookSupported: artifact.workbookSupported,
+    workbookAvailable: artifact.workbookAvailable,
+    workbookFormat: artifact.workbookFormat,
   }));
 }
 

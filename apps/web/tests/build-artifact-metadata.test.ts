@@ -15,6 +15,8 @@ function catalogArtifact(
     requiredFilename: `${artifactKey}.md`,
     isRequired: true,
     outline: [{ heading: "Venture", items: [] }],
+    workbookSupported: false,
+    workbookFormat: null,
     ...overrides,
   };
 }
@@ -30,6 +32,9 @@ function contextArtifact(
     isRequired,
     requiredFilename: `${artifactKey}.md`,
     latestSubmission,
+    workbookSupported: false,
+    workbookAvailable: false,
+    workbookFormat: null,
   };
 }
 
@@ -49,6 +54,9 @@ describe("buildArtifactMetadata", () => {
         outline: [{ heading: "Venture", items: [] }],
         versionNumber: null,
         savedAt: null,
+        workbookSupported: false,
+        workbookAvailable: false,
+        workbookFormat: null,
       },
       {
         artifactKey: "problem_interview_guide",
@@ -58,8 +66,54 @@ describe("buildArtifactMetadata", () => {
         outline: [{ heading: "Venture", items: [] }],
         versionNumber: null,
         savedAt: null,
+        workbookSupported: false,
+        workbookAvailable: false,
+        workbookFormat: null,
       },
     ]);
+  });
+
+  it("in the pre-Run preview, workbookAvailable is always false even when the catalog says workbookSupported", () => {
+    const result = buildArtifactMetadata(null, [
+      catalogArtifact("problem_interview_guide", {
+        workbookSupported: true,
+        workbookFormat: "pdf",
+      }),
+    ]);
+    expect(result[0]).toMatchObject({
+      workbookSupported: true,
+      workbookAvailable: false,
+      workbookFormat: "pdf",
+    });
+  });
+
+  it("once a Run exists, workbookAvailable comes straight from the context Artifact, not the catalog", () => {
+    const result = buildArtifactMetadata(
+      [
+        {
+          ...contextArtifact("problem_interview_guide", {
+            versionNumber: 3,
+            status: "submitted",
+            submittedAt: "2026-08-06T03:00:00.000Z",
+            updatedAt: "2026-08-06T03:00:00.000Z",
+          }),
+          workbookSupported: true,
+          workbookAvailable: true,
+          workbookFormat: "pdf",
+        },
+      ],
+      [
+        catalogArtifact("problem_interview_guide", {
+          workbookSupported: true,
+          workbookFormat: "pdf",
+        }),
+      ],
+    );
+    expect(result[0]).toMatchObject({
+      workbookSupported: true,
+      workbookAvailable: true,
+      workbookFormat: "pdf",
+    });
   });
 
   it("preserves contextArtifacts' order and real data when a Run exists, merging in the catalog outline", () => {
@@ -91,6 +145,9 @@ describe("buildArtifactMetadata", () => {
       outline: [{ heading: "Root Cause", items: [] }],
       versionNumber: 2,
       savedAt: "2026-08-06T03:00:00.000Z",
+      workbookSupported: false,
+      workbookAvailable: false,
+      workbookFormat: null,
     });
     expect(result[1]).toEqual({
       artifactKey: "problem_interview_guide",
@@ -100,6 +157,9 @@ describe("buildArtifactMetadata", () => {
       outline: [{ heading: "Pass Bar", items: [] }],
       versionNumber: null,
       savedAt: null,
+      workbookSupported: false,
+      workbookAvailable: false,
+      workbookFormat: null,
     });
   });
 

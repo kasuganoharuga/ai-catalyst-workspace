@@ -1,3 +1,5 @@
+import type { WorkbookFormat } from "@ai-catalyst/shared";
+
 export type ArtefactStartAction =
   { kind: "start"; href: string } | { kind: "locked" };
 
@@ -16,6 +18,9 @@ export type ArtefactCardModel = {
   savedAt: string | null;
   /** Replaces Read/Download when the document has never been saved. */
   startAction?: ArtefactStartAction;
+  /** A confirmed submission exists and a renderer is configured — the fillable PDF download can render. */
+  workbookAvailable: boolean;
+  workbookFormat: WorkbookFormat | null;
 };
 
 /**

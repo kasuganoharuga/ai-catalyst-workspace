@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type {
   ModuleContextQuestion,
   PreferredAiProvider,
+  WorkbookFormat,
 } from "@ai-catalyst/shared";
 
 export type ExpectedArtifact = {
@@ -17,6 +18,9 @@ export type ExpectedArtifact = {
    */
   isRequired: boolean;
   outline: { heading: string; items: string[] }[];
+  /** A renderer is configured for this Artifact — no Run/Attempt binding here, so this alone never means a workbook can be downloaded yet (see ModuleArtifactView.workbookAvailable). */
+  workbookSupported: boolean;
+  workbookFormat: WorkbookFormat | null;
 };
 
 /**
@@ -34,6 +38,10 @@ export type ModuleArtifactView = {
   outline: { heading: string; items: string[] }[];
   versionNumber: number | null;
   savedAt: string | null;
+  workbookSupported: boolean;
+  /** True only once a confirmed (non-draft) version exists to build a workbook from — see packages/shared's ModuleContextArtifactSummary.workbookAvailable. Always false in the pre-Run catalog preview. */
+  workbookAvailable: boolean;
+  workbookFormat: WorkbookFormat | null;
   /**
    * The saved document, already rendered on the server. Null until this
    * Artifact has something saved — passed in rather than fetched here so

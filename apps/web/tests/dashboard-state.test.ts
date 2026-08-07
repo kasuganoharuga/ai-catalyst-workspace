@@ -78,6 +78,9 @@ function context(
         submittedAt: "2026-08-06T00:00:00.000Z",
         updatedAt: "2026-08-06T00:00:00.000Z",
       },
+      workbookSupported: false,
+      workbookAvailable: false,
+      workbookFormat: null,
     })),
     prompts: [],
   };

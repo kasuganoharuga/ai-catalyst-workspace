@@ -1660,6 +1660,15 @@ nothing downstream can check, and the Founder has no way to tell the difference.
 From step 4 onwards the saved file — not this conversation — is the record of what the customers
 said. Every later module re-reads the interviews through it, and so does the rest of this one.
 
+**A workbook tick is the Founder's observation, not your verdict.** Founders who print the Problem
+Interview Guide as a fillable PDF tick each Pass Bar condition and Kill Criterion by hand, per
+interview, while the conversation is fresh — and some will carry that self-assessment straight into
+\`Interview-Notes.md\` ("P1 and P2 met, P3 not met"). Treat every such tick as a contemporaneous
+observation to weigh, never as the finding itself. Verify each one against the written notes for that
+same interview — the verbatim quotes, the observed behaviour, the cost already spent — before it
+counts toward the pass bar here. A tick with no supporting quote or observation underneath it in the
+notes is worth exactly as much as an unticked box: say so, and grade what the evidence actually shows.
+
 This is the one artefact here you do not generate and do not grade. It carries the Founder's material
 at whatever quality it arrived in, no validation runs against it, and it needs no confirmation step —
 it is not your output to confirm. Do not tidy the substance, do not fill a gap the Founder left, and

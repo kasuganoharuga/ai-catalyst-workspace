@@ -161,9 +161,14 @@ function tokenizeTableRow(line: string): string[] {
   return cells;
 }
 
-// Strips simple Markdown emphasis markers (`**bold**`, `*italic*`) from a
-// cell's edges/content so comparisons see the underlying text.
-function stripCellEmphasis(text: string): string {
+// Strips simple Markdown emphasis markers (`**bold**`, `*italic*`) so
+// comparisons — and, for the workbook renderers, drawn PDF content — see
+// the underlying text rather than literal asterisks. Exported: several
+// locked template strings (e.g. Pass Bar's preamble, the Expected evidence
+// signal strength anchors) are entirely wrapped in `**...**` in the source
+// Markdown, and a renderer drawing that text verbatim onto a page would
+// show the asterisks.
+export function stripMarkdownEmphasis(text: string): string {
   return text.replace(/\*\*([^*]*)\*\*/g, "$1").replace(/\*([^*]*)\*/g, "$1");
 }
 
@@ -178,7 +183,7 @@ function parseTableRowCells(rawLine: string): string[] {
     rawCells[rawCells.length - 1].trim().length === 0
       ? rawCells.slice(1, -1)
       : rawCells;
-  return inner.map((cell) => stripCellEmphasis(cell.trim()).trim());
+  return inner.map((cell) => stripMarkdownEmphasis(cell.trim()).trim());
 }
 
 function isTableLine(line: string): boolean {

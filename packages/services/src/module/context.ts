@@ -75,6 +75,7 @@ interface ArtifactRow {
   is_required: boolean;
   required_filename: string | null;
   sequence_index: number;
+  renderer_key: string | null;
   submission_version_number: number | null;
   submission_status: ArtifactSubmissionStatus | null;
   submission_submitted_at: Date | null;
@@ -199,7 +200,7 @@ async function loadArtifactsByModuleAttempts(
        from unnest($1::uuid[], $2::uuid[]) as ctx(module_definition_id, attempt_id)
      )
      select mc.module_definition_id, ad.artifact_key, ad.name, ad.is_required,
-            ad.required_filename, ad.sequence_index,
+            ad.required_filename, ad.sequence_index, ad.renderer_key,
             s.version_number as submission_version_number,
             s.status as submission_status,
             s.submitted_at as submission_submitted_at,
@@ -255,21 +256,31 @@ async function loadPromptsByModuleDefinitionIds(
 }
 
 function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary[] {
-  return rows.map((row) => ({
-    artifactKey: row.artifact_key,
-    name: row.name,
-    isRequired: row.is_required,
-    requiredFilename: row.required_filename,
-    latestSubmission:
-      row.submission_version_number === null || row.submission_updated_at === null
-        ? null
-        : {
-            versionNumber: row.submission_version_number,
-            status: row.submission_status as ArtifactSubmissionStatus,
-            submittedAt: row.submission_submitted_at?.toISOString() ?? null,
-            updatedAt: row.submission_updated_at.toISOString(),
-          },
-  }));
+  return rows.map((row) => {
+    const workbookSupported = row.renderer_key !== null;
+    return {
+      artifactKey: row.artifact_key,
+      name: row.name,
+      isRequired: row.is_required,
+      requiredFilename: row.required_filename,
+      latestSubmission:
+        row.submission_version_number === null || row.submission_updated_at === null
+          ? null
+          : {
+              versionNumber: row.submission_version_number,
+              status: row.submission_status as ArtifactSubmissionStatus,
+              submittedAt: row.submission_submitted_at?.toISOString() ?? null,
+              updatedAt: row.submission_updated_at.toISOString(),
+            },
+      workbookSupported,
+      // "Confirmed" per the operational-workbooks plan: submitted, never a
+      // draft or an unvalidated save. The lateral join above already
+      // excludes superseded/deleted, so 'submitted' is the only non-draft
+      // status that can reach here.
+      workbookAvailable: workbookSupported && row.submission_status === "submitted",
+      workbookFormat: workbookSupported ? "pdf" : null,
+    };
+  });
 }
 
 function attemptHasAnsweredResponses(

@@ -492,7 +492,7 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Validation-Roadmap-30-Day.md",
-  rendererKey: null,
+  rendererKey: "validation_roadmap_workbook_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,

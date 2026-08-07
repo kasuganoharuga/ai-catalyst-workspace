@@ -39,6 +39,10 @@ interface RawCatalogArtifact {
   // Internal-only — stripped in mapArtifact so the Founder DTO never
   // ships the full template Markdown, only the derived outline.
   templateMarkdown: string | null;
+  // Internal-only — never shipped as-is; mapArtifact reduces this to the
+  // workbookSupported/workbookFormat booleans/enum the DTO actually
+  // carries, so no client code ever has to recognise a specific renderer key.
+  rendererKey: string | null;
 }
 
 interface ModuleCatalogRow {
@@ -62,6 +66,8 @@ function mapArtifact(raw: RawCatalogArtifact): ModuleCatalogArtifact {
     requiredFilename: raw.requiredFilename,
     isRequired: raw.isRequired,
     outline: parseTemplateOutline(raw.templateMarkdown),
+    workbookSupported: raw.rendererKey !== null,
+    workbookFormat: raw.rendererKey !== null ? "pdf" : null,
   };
 }
 
@@ -105,7 +111,8 @@ const CATALOG_QUERY = `
           'name', ad.name,
           'requiredFilename', ad.required_filename,
           'isRequired', ad.is_required,
-          'templateMarkdown', ad.output_config->>'templateMarkdown'
+          'templateMarkdown', ad.output_config->>'templateMarkdown',
+          'rendererKey', ad.renderer_key
         )
         order by ad.sequence_index
       ) filter (where ad.id is not null),
