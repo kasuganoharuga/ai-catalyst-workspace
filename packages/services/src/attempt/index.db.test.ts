@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -7,6 +6,11 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "./index.js";
 
@@ -28,21 +32,6 @@ function webFounderActor(userId: string): ActorContext {
   // instead of falling through to its "claude" default — these tests
   // assert on started_via/source_provider values.
   return { userId, role: "founder", source: "web" };
-}
-
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 const CURRENT_STAGE_OPTIONS = [
@@ -165,33 +154,21 @@ describe("attempt service — database integration", () => {
   async function createFounderWithWorkspaceAndVenture(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor = webFounderActor(userResult.rows[0].id);
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "attempt-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `attempt-service-${label}-${randomUUID()}`],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "attempt-service-venture",
+    });
 
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [
-        workspaceId,
-        actor.userId,
-        `Fixture Venture ${label}`,
-        `attempt-service-venture-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId, ventureId: ventureResult.rows[0].id };
+    return { actor: webFounderActor(userId), workspaceId, ventureId };
   }
 
   // Module A (sequence_index 0) always starts 'available'; Module B

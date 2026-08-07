@@ -8,7 +8,7 @@ import { upsertPreferredAiProvider } from "./preferred-ai-provider.js";
 /**
  * Integration tests against the real Postgres database (see
  * apps/web/tests/README.md for prerequisites). Named `*.db.test.ts` so
- * `test`'s `--exclude` skips it while `test:db` runs it.
+ * `pnpm test` skips it and `pnpm test:db` runs it.
  *
  * This is the one write path for `user_profiles.preferred_ai_provider` —
  * both `setPreferredAiProvider` (profile/index.ts) and mcp-auth's

@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
+import { withTransaction } from "@ai-catalyst/services/testing/db-fixtures";
 
 import { DEFAULT_TOOLKIT_CONTENT, seedToolkitContent } from "./index.js";
 import type { ToolkitSeedContent } from "./types.js";
@@ -49,21 +49,6 @@ function buildTestContent(): ToolkitSeedContent {
 
 const TEST_CONTENT = buildTestContent();
 const PROGRAM_KEY = TEST_CONTENT.program.programKey;
-
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 // `programs` cascades to program_versions -> module_definitions ->
 // module_questions/artifact_definitions/module_prompt_bindings, none of

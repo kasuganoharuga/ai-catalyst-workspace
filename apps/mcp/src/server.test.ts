@@ -22,7 +22,7 @@ const VALID_ACTOR: ActorContext = {
 // A fake verifier (no database) — apps/mcp's Bearer-verification behavior
 // itself is covered here; the real `verifyMcpBearerToken` database lookup
 // is covered by packages/services/src/mcp-auth/index.db.test.ts, and the
-// full issuance flow by apps/web/tests/mcp-oauth.http.test.ts.
+// full issuance flow by apps/web/tests/mcp-oauth.http.db.test.ts.
 async function fakeVerify(rawToken: unknown): Promise<ActorContext> {
   if (rawToken === VALID_TOKEN) {
     return VALID_ACTOR;

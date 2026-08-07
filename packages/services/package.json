@@ -82,9 +82,6 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude \"**/*.db.test.ts\"",
-    "test:watch": "vitest",
-    "test:db": "vitest run src/invitation/index.db.test.ts src/workspace/index.db.test.ts src/workspace/active-context.db.test.ts src/venture/index.db.test.ts src/profile/index.db.test.ts src/company-profile/index.db.test.ts src/content-seed/index.db.test.ts src/content-seed/db/freeze.db.test.ts src/module/catalog.db.test.ts src/module/context.db.test.ts src/module/completion.db.test.ts src/module/auto-setup.db.test.ts src/workflow/index.db.test.ts src/mcp-auth/index.db.test.ts src/mentor/index.db.test.ts src/attempt/index.db.test.ts src/storage/index.db.test.ts src/artifact/index.db.test.ts src/audit/index.db.test.ts",
     "seed": "tsx src/content-seed/cli.ts",
     "reconcile-runs": "tsx src/workflow/reconcile-runs-cli.ts",
     "freeze": "tsx src/content-seed/freeze-cli.ts",

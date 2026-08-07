@@ -1,38 +1,18 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
-import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import {
   DEFAULT_TOOLKIT_CONTENT,
   seedToolkitContent,
 } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
+import { founderActor, withTransaction } from "@ai-catalyst/services/testing/db-fixtures";
 
 import { getModuleCatalogEntry, listModuleCatalog } from "./catalog.js";
 
 type FixtureModule = ToolkitSeedContent["modules"][number];
 type FixtureArtifact = FixtureModule["artifacts"][number];
-
-function founderActor(): ActorContext {
-  return { userId: randomUUID(), role: "founder" };
-}
-
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 function buildFixtureArtifact(
   artifactKey: string,

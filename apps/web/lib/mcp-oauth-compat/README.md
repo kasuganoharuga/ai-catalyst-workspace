@@ -240,11 +240,11 @@ before assuming this compatibility layer still applies unchanged, then
 re-run:
 
 - `pnpm --filter web run auth:check` (schema still matches the database)
-- `pnpm --filter web test` (includes
-  `apps/web/tests/mcp-oauth.http.test.ts`, which exercises the full DCR ->
+- `pnpm test:db` (includes
+  `apps/web/tests/mcp-oauth.http.db.test.ts`, which exercises the full DCR ->
   authorize -> consent -> token flow through the real HTTP route handler,
   plus every hook's negative-path behavior, against a real database)
-- `pnpm --filter @ai-catalyst/services test:db -- src/mcp-auth/index.db.test.ts`
+- `pnpm test:db packages/services/src/mcp-auth/index.db.test.ts`
   (unit-level coverage of every branch in
   `checkAuthorizationCodeIsRedeemable`/`getPendingMcpConsentRequest`, plus
   the grant lifetime rules and the one-connection-at-a-time eviction)

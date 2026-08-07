@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -8,6 +7,7 @@ import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import { withTransaction } from "@ai-catalyst/services/testing/db-fixtures";
 
 import { autoCompleteSetupModule } from "./auto-setup.js";
 
@@ -33,23 +33,6 @@ const SETUP_ARTIFACT_KEY = "setup_summary";
 
 function webFounderActor(userId: string): ActorContext {
   return { userId, role: "founder", source: "web" };
-}
-
-async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 function buildSetupModule(): FixtureModule {

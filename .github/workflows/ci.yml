@@ -65,6 +65,8 @@ jobs:
     env:
       # packages/services/src/mcp-auth imports @ai-catalyst/db's pool at
       # module load time — see the frontend job DATABASE_URL comment above.
+      # `pnpm test` also covers apps/web's offline tests, which reach the same
+      # pool through @ai-catalyst/services; nothing here opens a connection.
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
 
     steps:
@@ -88,8 +90,8 @@ jobs:
       - name: Typecheck packages/* and apps/mcp
         run: pnpm typecheck:packages
 
-      - name: Test packages/*
-        run: pnpm test:packages
+      - name: Test everything that runs without a database
+        run: pnpm test
 
       - name: Check architectural import boundaries
         run: pnpm depcruise
@@ -234,14 +236,10 @@ jobs:
             exit 1
           fi
 
-      - name: Run Better Auth integration tests
-        run: pnpm --filter web run test
-
-      - name: Test packages/services (DB-dependent)
-        run: pnpm --filter @ai-catalyst/services run test:db
-
-      - name: Test apps/mcp tool handlers (DB-dependent)
-        run: pnpm --filter @ai-catalyst/mcp run test:db
+      # Every *.db.test.ts across packages/*, apps/mcp and apps/web, driven by
+      # a glob rather than a hand-maintained file list (see vitest.config.ts).
+      - name: Test everything that needs a database
+        run: pnpm test:db
 
       - name: Re-run migrations (expect no-op)
         run: |

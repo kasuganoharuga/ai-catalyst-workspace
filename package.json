@@ -18,7 +18,10 @@
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
     "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/clients --filter @ai-catalyst/toolkit-content --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
-    "test:packages": "pnpm --filter @ai-catalyst/toolkit-content --filter @ai-catalyst/services --filter @ai-catalyst/mcp run test",
+    "test": "vitest run --project unit --project web-unit",
+    "test:db": "vitest run --project db --project web-db",
+    "test:all": "vitest run",
+    "test:watch": "vitest",
     "format:check:web": "pnpm --filter web format:check",
     "format:web": "pnpm --filter web format",
     "build": "pnpm --filter web build",
@@ -30,6 +33,7 @@
     }
   },
   "devDependencies": {
-    "dependency-cruiser": "^18.1.0"
+    "dependency-cruiser": "^18.1.0",
+    "vitest": "^4.1.10"
   }
 }

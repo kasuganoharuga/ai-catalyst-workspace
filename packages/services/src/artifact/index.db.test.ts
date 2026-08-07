@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -8,6 +7,11 @@ import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "@ai-catalyst/services/attempt";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import type { Validator } from "./internal/validators/types.js";
 import { registerWorkbookRenderer } from "./internal/renderers/registry.js";
@@ -204,21 +208,6 @@ function adminActor(userId: string): ActorContext {
   return { userId, role: "admin" };
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
 const DECISION_OPTIONS = [
   { value: "proceed", label: "Proceed" },
   { value: "pivot", label: "Pivot" },
@@ -330,33 +319,21 @@ describe("artifact service — database integration", () => {
   async function createFounderWithWorkspaceAndVenture(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor = webFounderActor(userResult.rows[0].id);
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "artifact-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `artifact-service-${label}-${randomUUID()}`],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "artifact-service-venture",
+    });
 
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [
-        workspaceId,
-        actor.userId,
-        `Fixture Venture ${label}`,
-        `artifact-service-venture-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId, ventureId: ventureResult.rows[0].id };
+    return { actor: webFounderActor(userId), workspaceId, ventureId };
   }
 
   async function createTrustedUser(label: string): Promise<string> {

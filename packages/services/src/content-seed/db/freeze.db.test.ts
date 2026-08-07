@@ -1,9 +1,13 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import { getOrCreateProgramRun } from "../../workflow/index.js";
 import { seedToolkitContent } from "../index.js";
@@ -14,21 +18,6 @@ type FixtureModule = ToolkitSeedContent["modules"][number];
 type FixtureArtifact = FixtureModule["artifacts"][number];
 type FixturePrompt = ToolkitSeedContent["prompts"][number];
 type FixtureBinding = ToolkitSeedContent["promptBindings"][number];
-
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 function buildArtifact(artifactKey: string): FixtureArtifact {
   return {
@@ -117,25 +106,21 @@ describe("freezeProgramVersion — database integration", () => {
   async function createFounderWithVenture(
     label: string,
   ): Promise<{ actor: ActorContext; ventureId: string }> {
-    const email = `${emailPrefix}-${label}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = { userId: userResult.rows[0].id, role: "founder" };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "freeze-test",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug) values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `freeze-test-${label}-${randomUUID()}`],
-    );
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [workspaceResult.rows[0].id, actor.userId, `Fixture Venture ${label}`, `freeze-venture-${label}-${randomUUID()}`],
-    );
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "freeze-venture",
+    });
 
-    return { actor, ventureId: ventureResult.rows[0].id };
+    return { actor: { userId, role: "founder" }, ventureId };
   }
 
   afterAll(async () => {

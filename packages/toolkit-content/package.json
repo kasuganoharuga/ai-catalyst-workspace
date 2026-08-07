@@ -9,8 +9,7 @@
     "./paths": "./src/paths.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/node": "^20",

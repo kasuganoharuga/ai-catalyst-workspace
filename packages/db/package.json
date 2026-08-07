@@ -10,8 +10,7 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "migrate": "tsx src/migrate.ts",
-    "reset": "tsx src/reset.ts",
-    "test": "vitest run"
+    "reset": "tsx src/reset.ts"
   },
   "dependencies": {
     "pg": "^8.16.3"

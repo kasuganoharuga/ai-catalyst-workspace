@@ -7,9 +7,7 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude \"**/*.db.test.ts\"",
-    "test:db": "vitest run src/tools/tools.db.test.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-catalyst/contracts": "workspace:*",

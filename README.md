@@ -91,10 +91,21 @@ Run frontend checks before opening a pull request:
 pnpm lint
 pnpm typecheck:web
 pnpm typecheck:packages
-pnpm test:packages
+pnpm test
 pnpm format:check:web
 pnpm build
 ```
+
+`pnpm test` covers every test that runs without a database. The
+database-backed suites (`*.db.test.ts`) need a migrated Postgres, so they run
+separately once `pnpm docker:up` is healthy:
+
+```powershell
+pnpm test:db
+```
+
+Both are driven by the projects in [`vitest.config.ts`](vitest.config.ts);
+`pnpm test:all` runs the two together.
 
 Format locally (before commit):
 

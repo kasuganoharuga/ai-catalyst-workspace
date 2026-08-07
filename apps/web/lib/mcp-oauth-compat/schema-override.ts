@@ -61,7 +61,7 @@ import type { BetterAuthPlugin } from "better-auth";
  * specific plugin object is exercised end-to-end by the real
  * `/mcp/register` -> `/mcp/authorize` -> `/oauth2/consent` -> `/mcp/token`
  * flow against the actual `mcp_oauth_*` tables in
- * apps/web/tests/mcp-oauth.http.test.ts. Any Better Auth version bump MUST
+ * apps/web/tests/mcp-oauth.http.db.test.ts. Any Better Auth version bump MUST
  * re-run that suite before assuming this still holds — see this
  * directory's README.md.
  */

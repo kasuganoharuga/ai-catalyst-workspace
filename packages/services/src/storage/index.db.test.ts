@@ -15,6 +15,7 @@ import {
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import { MAX_GENERATED_TEXT_BYTES } from "@ai-catalyst/services/storage/internal/validation";
 import { LocalStorageProvider } from "@ai-catalyst/services/storage/providers/local";
+import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fixtures";
 
 import {
   createPendingGeneratedObject,
@@ -40,28 +41,14 @@ describe("storage service — database integration", () => {
   async function createFounderWithWorkspace(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string }> {
-    const email = `${emailPrefix}-${label}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = {
-      userId: userResult.rows[0].id,
-      role: "founder",
-    };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "storage-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [
-        actor.userId,
-        `Fixture ${label}`,
-        `storage-service-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId: workspaceResult.rows[0].id };
+    return { actor: { userId, role: "founder" }, workspaceId };
   }
 
   async function getRawRow(id: string): Promise<{

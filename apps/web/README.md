@@ -34,11 +34,14 @@ name — see `apps/web/lib/mcp-oauth-compat/README.md`.
 pnpm lint
 pnpm typecheck
 pnpm format:check
-pnpm test
 pnpm build
 ```
 
 Use `pnpm format` to apply Prettier formatting within the web app.
+
+Tests are orchestrated from the repository root rather than per app — run
+`pnpm test` (offline) and `pnpm test:db` (needs Postgres) there. See
+[`tests/README.md`](tests/README.md).
 
 `pnpm auth:check` verifies Better Auth's expected schema (from `lib/auth.ts`)
 still matches the database after the latest migration — see

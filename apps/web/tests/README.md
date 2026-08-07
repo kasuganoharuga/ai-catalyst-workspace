@@ -1,9 +1,10 @@
 # apps/web tests
 
-These are integration tests, not unit tests — `auth.db.test.ts` and
-`auth.http.test.ts` write real rows to the local Postgres database (via
-`apps/web/lib/auth.ts` or `@ai-catalyst/services`), then clean up what they
-created in an `afterAll`.
+Files named `*.db.test.ts` here are integration tests, not unit tests —
+`auth.db.test.ts`, `auth.http.db.test.ts` and `mcp-oauth.http.db.test.ts` write
+real rows to the local Postgres database (via `apps/web/lib/auth.ts` or
+`@ai-catalyst/services`), then clean up what they created in an `afterAll`.
+Everything else in this directory runs offline.
 
 ## Prerequisites
 
@@ -14,8 +15,13 @@ created in an `afterAll`.
 
 ## Running
 
+These run from the repository root, via the `web-unit` / `web-db` projects in
+[`vitest.config.ts`](../../../vitest.config.ts):
+
 ```powershell
-pnpm --filter web test
+pnpm test                          # offline tests only (all packages + web)
+pnpm test:db                       # database-backed tests (all packages + web)
+pnpm test:db apps/web/tests        # just this directory's database tests
 ```
 
 ## What's covered where
@@ -24,7 +30,7 @@ pnpm --filter web test
   handler, to isolate Better Auth's core write/read behavior: role forced to
   `pending` and name forced to email on signup, the case-insensitive unique
   email constraint, and a matching `sessions` row on sign-in.
-- `auth.http.test.ts` calls the real exported `GET`/`POST` from
+- `auth.http.db.test.ts` calls the real exported `GET`/`POST` from
   `app/api/auth/[...all]/route.ts` with plain `Request` objects, round-tripping
   the `Set-Cookie` → `Cookie` header the way a browser would, covering the
   full register → session → sign-out flow over the actual HTTP contract. It

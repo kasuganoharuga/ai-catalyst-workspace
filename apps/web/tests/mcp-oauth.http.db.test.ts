@@ -13,7 +13,7 @@ import { GET, POST } from "../app/api/auth/[...all]/route";
  * branches (already covered by packages/services/src/mcp-auth's db tests).
  *
  * Each `it` mutates shared state (session cookies, client_id, consent/auth
- * codes) the same way apps/web/tests/auth.http.test.ts does, since this is a
+ * codes) the same way apps/web/tests/auth.http.db.test.ts does, since this is a
  * single real flow through a stateful protocol.
  */
 describe("MCP OAuth 2.1 �� HTTP route handler", () => {

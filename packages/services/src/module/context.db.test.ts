@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -10,6 +9,11 @@ import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import { saveFounderResponse, startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import { getModuleContext } from "./context.js";
 
@@ -127,21 +131,6 @@ function buildFixtureContent(programKey: string, modules: FixtureModule[]): Tool
   };
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
 describe("getModuleContext — database integration", () => {
   const RUN_SUFFIX = randomBytes(4).toString("hex");
   const emailPrefix = `module-context-test-${RUN_SUFFIX}`;
@@ -151,32 +140,20 @@ describe("getModuleContext — database integration", () => {
   async function createFounderWithActiveVenture(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = { userId: userResult.rows[0].id, role: "founder" };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "module-context",
+    });
+    createdUserIds.push(userId);
+    const actor: ActorContext = { userId, role: "founder" };
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `module-context-${label}-${randomUUID()}`],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
-
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [
-        workspaceId,
-        actor.userId,
-        `Fixture Venture ${label}`,
-        `module-context-venture-${label}-${randomUUID()}`,
-      ],
-    );
-    const ventureId = ventureResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "module-context-venture",
+    });
 
     await setActiveVenture(actor, ventureId);
     await getOrCreateProgramRun(actor, { ventureId }, { programKey: PROGRAM_KEY });

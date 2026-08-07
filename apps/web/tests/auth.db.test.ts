@@ -8,7 +8,7 @@ import { auth } from "../lib/auth";
  * tests/README.md for prerequisites). These call `auth.api.*` directly —
  * bypassing the HTTP route handler entirely — to isolate Better Auth's core
  * write/read behavior from the request/response plumbing, which
- * tests/auth.http.test.ts covers separately.
+ * tests/auth.http.db.test.ts covers separately.
  */
 describe("Better Auth — database integration", () => {
   const email = `db-test-${randomUUID()}@example.com`;

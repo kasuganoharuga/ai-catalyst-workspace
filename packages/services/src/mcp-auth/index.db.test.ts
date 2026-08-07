@@ -28,7 +28,7 @@ import {
 /**
  * Integration tests against the real Postgres database (see
  * apps/web/tests/README.md for prerequisites). Named `*.db.test.ts` so
- * `test`'s `--exclude` skips it while `test:db` runs it.
+ * `pnpm test` skips it and `pnpm test:db` runs it.
  */
 describe("mcp-auth service — database integration", () => {
   const idPrefix = `mcp-auth-test-${randomUUID()}`;
