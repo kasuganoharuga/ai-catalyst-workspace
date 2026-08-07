@@ -34,7 +34,12 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
     { kind: "fixed", type: "text", suffix: "date_year", capacity: 4 },
     { kind: "fixed", type: "text", suffix: "participant", capacity: 30 },
     { kind: "fixed", type: "text", suffix: "role_organisation", capacity: 40 },
-    { kind: "fixed", type: "text", suffix: "recruitment_channel", capacity: 30 },
+    {
+      kind: "fixed",
+      type: "text",
+      suffix: "recruitment_channel",
+      capacity: 30,
+    },
     { kind: "fixed", type: "text", suffix: "beachhead_match", capacity: 250 },
     {
       kind: "family",
@@ -52,9 +57,24 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
 
     // Page B — evidence and assessment
     { kind: "fixed", type: "text", suffix: "verbatim_quotes", capacity: 620 },
-    { kind: "fixed", type: "text", suffix: "observed_behaviour", capacity: 470 },
-    { kind: "fixed", type: "text", suffix: "existing_workaround", capacity: 170 },
-    { kind: "fixed", type: "text", suffix: "money_or_time_spent", capacity: 170 },
+    {
+      kind: "fixed",
+      type: "text",
+      suffix: "observed_behaviour",
+      capacity: 470,
+    },
+    {
+      kind: "fixed",
+      type: "text",
+      suffix: "existing_workaround",
+      capacity: 170,
+    },
+    {
+      kind: "fixed",
+      type: "text",
+      suffix: "money_or_time_spent",
+      capacity: 170,
+    },
     { kind: "fixed", type: "text", suffix: "contradictions", capacity: 470 },
     {
       kind: "family",
@@ -63,7 +83,12 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
       // 3–4, driven by how many conditions the confirmed Pass Bar actually
       // has (parse/interview-guide.ts's passBar.conditions.length) — never
       // an empty 4th field when the guide has three.
-      count: { kind: "fromModel", source: "passBarConditions", minimum: 3, maximum: 4 },
+      count: {
+        kind: "fromModel",
+        source: "passBarConditions",
+        minimum: 3,
+        maximum: 4,
+      },
     },
     {
       kind: "family",

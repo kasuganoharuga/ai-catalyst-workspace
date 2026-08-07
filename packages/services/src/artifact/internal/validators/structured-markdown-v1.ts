@@ -53,7 +53,10 @@ function getResponse(
 }
 
 /** The Response's confirmed answer, parsed out of the save protocol's `CONFIRMED ANSWER` block. `null` when unanswered. */
-function confirmedAnswerFor(ctx: ValidationContext, questionKey: string): string | null {
+function confirmedAnswerFor(
+  ctx: ValidationContext,
+  questionKey: string,
+): string | null {
   const response = getResponse(ctx, questionKey);
   if (!response || response.answerText === null) {
     return null;
@@ -61,7 +64,10 @@ function confirmedAnswerFor(ctx: ValidationContext, questionKey: string): string
   return extractConfirmedAnswer(response.answerText);
 }
 
-function scopedContent(ctx: ValidationContext, scope: HeadingRef | undefined): string {
+function scopedContent(
+  ctx: ValidationContext,
+  scope: HeadingRef | undefined,
+): string {
   if (!scope) {
     return ctx.content;
   }
@@ -79,7 +85,11 @@ function labelRefValue(ref: LabelRef, ctx: ValidationContext): string | null {
  * RECORDED_UNKNOWN_PATTERNS). Never satisfied by "any non-empty prose with
  * no list items", which would pass "TBD" or a confident, unevidenced claim.
  */
-function hasRecordedUnknownEscape(ctx: ValidationContext, level: number, heading: string): boolean {
+function hasRecordedUnknownEscape(
+  ctx: ValidationContext,
+  level: number,
+  heading: string,
+): boolean {
   const body = getSection(ctx.content, level, heading);
   if (body === null) {
     return false;
@@ -94,12 +104,20 @@ function hasRecordedUnknownEscape(ctx: ValidationContext, level: number, heading
   return isSubstantiveText(prose) && matchesRecordedUnknown(prose);
 }
 
-function rowsFor(ctx: ValidationContext, level: number, heading: string): string[][] {
+function rowsFor(
+  ctx: ValidationContext,
+  level: number,
+  heading: string,
+): string[][] {
   const body = getSection(ctx.content, level, heading) ?? "";
   return parseTable(body)?.rows ?? [];
 }
 
-function headersFor(ctx: ValidationContext, level: number, heading: string): string[] {
+function headersFor(
+  ctx: ValidationContext,
+  level: number,
+  heading: string,
+): string[] {
   const body = getSection(ctx.content, level, heading) ?? "";
   return parseTable(body)?.headers ?? [];
 }
@@ -111,7 +129,9 @@ function headersFor(ctx: ValidationContext, level: number, heading: string): str
  * accepted as the separator, so "3-5" and "3/5" are rejected as malformed
  * rather than misread as score 3 with reasoning "5".
  */
-function parseScoredReasoningCell(raw: string): { score: number; reasoning: string } | null {
+function parseScoredReasoningCell(
+  raw: string,
+): { score: number; reasoning: string } | null {
   const trimmed = raw.trim();
   let match = /^(-?\d+)\s*(?:—|:)\s*(.+)$/.exec(trimmed);
   if (!match) {
@@ -136,7 +156,9 @@ function checkSectionsExist(
   rule: Extract<DraftRule, { type: "sections_exist" }>,
   ctx: ValidationContext,
 ): RuleCheck {
-  const missing = rule.sections.filter((s) => !sectionExists(ctx.content, s.level, s.heading));
+  const missing = rule.sections.filter(
+    (s) => !sectionExists(ctx.content, s.level, s.heading),
+  );
   return {
     key: rule.key,
     passed: missing.length === 0,
@@ -155,7 +177,9 @@ function checkSectionNonEmpty(
   return {
     key: rule.key,
     passed,
-    message: passed ? undefined : `Section "${rule.heading}" is missing or not yet filled in.`,
+    message: passed
+      ? undefined
+      : `Section "${rule.heading}" is missing or not yet filled in.`,
   };
 }
 
@@ -167,7 +191,8 @@ function checkMinimumNamedItems(
   const count = substantiveListItems(body).length;
   const passed =
     count >= rule.minimum ||
-    (rule.orRecordedUnknown === true && hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
+    (rule.orRecordedUnknown === true &&
+      hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
   return {
     key: rule.key,
     passed,
@@ -185,7 +210,8 @@ function checkRangeNamedItems(
   const count = substantiveListItems(body).length;
   const passed =
     (count >= rule.minimum && count <= rule.maximum) ||
-    (rule.orRecordedUnknown === true && hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
+    (rule.orRecordedUnknown === true &&
+      hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
   return {
     key: rule.key,
     passed,
@@ -202,7 +228,8 @@ function checkMinimumTableRows(
   const count = rowsFor(ctx, rule.level, rule.heading).length;
   const passed =
     count >= rule.minimum ||
-    (rule.orRecordedUnknown === true && hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
+    (rule.orRecordedUnknown === true &&
+      hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
   return {
     key: rule.key,
     passed,
@@ -219,7 +246,8 @@ function checkRangeTableRows(
   const count = rowsFor(ctx, rule.level, rule.heading).length;
   const passed =
     (count >= rule.minimum && count <= rule.maximum) ||
-    (rule.orRecordedUnknown === true && hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
+    (rule.orRecordedUnknown === true &&
+      hasRecordedUnknownEscape(ctx, rule.level, rule.heading));
   return {
     key: rule.key,
     passed,
@@ -290,7 +318,9 @@ function checkTableColumnExactSequence(
   }
   const actual = rows.map((row) => normalizeComparisonValue(row[idx] ?? ""));
   const expected = rule.values.map((value) => normalizeComparisonValue(value));
-  const passed = actual.length === expected.length && actual.every((v, i) => v === expected[i]);
+  const passed =
+    actual.length === expected.length &&
+    actual.every((v, i) => v === expected[i]);
   return {
     key: rule.key,
     passed,
@@ -359,7 +389,9 @@ function checkTableColumnEnum(
       message: `Column "${rule.column}" not found in "${rule.heading}".`,
     };
   }
-  const allowedNormalized = rule.allowed.map((value) => normalizeComparisonValue(value));
+  const allowedNormalized = rule.allowed.map((value) =>
+    normalizeComparisonValue(value),
+  );
   const problems: string[] = [];
   rows.forEach((row, rowIndex) => {
     const raw = (row[idx] ?? "").trim();
@@ -421,7 +453,11 @@ function checkLabelPresent(
   rule: Extract<DraftRule, { type: "label_present" }>,
   ctx: ValidationContext,
 ): RuleCheck {
-  const passed = sectionHasSubstantiveLabel(ctx.content, rule.label, rule.scope);
+  const passed = sectionHasSubstantiveLabel(
+    ctx.content,
+    rule.label,
+    rule.scope,
+  );
   return {
     key: rule.key,
     passed,
@@ -436,8 +472,12 @@ function checkLabelEnum(
   ctx: ValidationContext,
 ): RuleCheck {
   const value = labelRefValue({ label: rule.label, scope: rule.scope }, ctx);
-  const allowedNormalized = rule.allowed.map((option) => normalizeComparisonValue(option));
-  const passed = value !== null && allowedNormalized.includes(normalizeComparisonValue(value));
+  const allowedNormalized = rule.allowed.map((option) =>
+    normalizeComparisonValue(option),
+  );
+  const passed =
+    value !== null &&
+    allowedNormalized.includes(normalizeComparisonValue(value));
   return {
     key: rule.key,
     passed,
@@ -486,12 +526,16 @@ function checkLabelMatchesResponse(
   rule: Extract<SubmissionRule, { type: "label_matches_response" }>,
   ctx: ValidationContext,
 ): RuleCheck {
-  const labelValue = labelRefValue({ label: rule.label, scope: rule.scope }, ctx);
+  const labelValue = labelRefValue(
+    { label: rule.label, scope: rule.scope },
+    ctx,
+  );
   const responseValue = confirmedAnswerFor(ctx, rule.responseKey);
   const passed =
     labelValue !== null &&
     responseValue !== null &&
-    normalizeComparisonValue(labelValue) === normalizeComparisonValue(responseValue);
+    normalizeComparisonValue(labelValue) ===
+      normalizeComparisonValue(responseValue);
   return {
     key: rule.key,
     passed,
@@ -508,7 +552,10 @@ function checkLabelsAgree(
 ): RuleCheck {
   const a = labelRefValue(rule.labelA, ctx);
   const b = labelRefValue(rule.labelB, ctx);
-  const passed = a !== null && b !== null && normalizeComparisonValue(a) === normalizeComparisonValue(b);
+  const passed =
+    a !== null &&
+    b !== null &&
+    normalizeComparisonValue(a) === normalizeComparisonValue(b);
   return {
     key: rule.key,
     passed,
@@ -532,12 +579,21 @@ function checkLabelsMatchFirstTableRow(
   for (const mapping of rule.mappings) {
     const columnIndex = tableColumnIndex(headers, mapping.column);
     if (columnIndex === -1) {
-      problems.push(`column "${mapping.column}" not found in "${rule.table.heading}"`);
+      problems.push(
+        `column "${mapping.column}" not found in "${rule.table.heading}"`,
+      );
       continue;
     }
-    const labelValue = labelRefValue({ label: mapping.label, scope: mapping.scope }, ctx);
+    const labelValue = labelRefValue(
+      { label: mapping.label, scope: mapping.scope },
+      ctx,
+    );
     const cellValue = firstRow[columnIndex] ?? "";
-    if (labelValue === null || normalizeComparisonValue(labelValue) !== normalizeComparisonValue(cellValue)) {
+    if (
+      labelValue === null ||
+      normalizeComparisonValue(labelValue) !==
+        normalizeComparisonValue(cellValue)
+    ) {
       problems.push(
         `"${mapping.label}" ("${labelValue ?? "(none)"}") does not match "${mapping.column}" row 1 ("${cellValue}")`,
       );
@@ -550,7 +606,10 @@ function checkLabelsMatchFirstTableRow(
   };
 }
 
-function runSubmissionRule(rule: SubmissionRule, ctx: ValidationContext): RuleCheck {
+function runSubmissionRule(
+  rule: SubmissionRule,
+  ctx: ValidationContext,
+): RuleCheck {
   switch (rule.type) {
     case "label_matches_response":
       return checkLabelMatchesResponse(rule, ctx);
@@ -569,7 +628,9 @@ function combineResults(checks: RuleCheck[]): ValidationRunResult {
   const score =
     checks.length === 0
       ? 100
-      : Math.round((checks.filter((check) => check.passed).length / checks.length) * 100);
+      : Math.round(
+          (checks.filter((check) => check.passed).length / checks.length) * 100,
+        );
   return { checks, issues, warnings: [], passed, score };
 }
 
@@ -578,7 +639,9 @@ function combineResults(checks: RuleCheck[]): ValidationRunResult {
 // means seeded content diverged from its schema after the fact — a
 // deployment inconsistency, not a business error a caller can act on.
 function parseConfig(ctx: ValidationContext) {
-  const result = StructuredMarkdownValidationConfigSchema.safeParse(ctx.validationConfig);
+  const result = StructuredMarkdownValidationConfigSchema.safeParse(
+    ctx.validationConfig,
+  );
   if (!result.success) {
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
@@ -590,13 +653,17 @@ function parseConfig(ctx: ValidationContext) {
 
 function runDraftCheck(ctx: ValidationContext): ValidationRunResult {
   const config = parseConfig(ctx);
-  return combineResults(config.draftRules.map((rule) => runDraftRule(rule, ctx)));
+  return combineResults(
+    config.draftRules.map((rule) => runDraftRule(rule, ctx)),
+  );
 }
 
 function runOfficialCheck(ctx: ValidationContext): ValidationRunResult {
   const config = parseConfig(ctx);
   const draftChecks = config.draftRules.map((rule) => runDraftRule(rule, ctx));
-  const submissionChecks = config.submissionRules.map((rule) => runSubmissionRule(rule, ctx));
+  const submissionChecks = config.submissionRules.map((rule) =>
+    runSubmissionRule(rule, ctx),
+  );
   return combineResults([...draftChecks, ...submissionChecks]);
 }
 

@@ -16,7 +16,10 @@ import type {
 } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
-import { getRunModuleByKey, listRunModules } from "@ai-catalyst/services/workflow";
+import {
+  getRunModuleByKey,
+  listRunModules,
+} from "@ai-catalyst/services/workflow";
 
 interface AttemptRow {
   id: string;
@@ -239,23 +242,26 @@ async function loadPromptsByModuleDefinitionIds(
      order by mpb.module_definition_id, mpb.purpose, mpb.sequence_index`,
     [moduleDefinitionIds],
   );
-  const grouped = groupRowsByKey(result.rows, (row) => row.module_definition_id);
+  const grouped = groupRowsByKey(
+    result.rows,
+    (row) => row.module_definition_id,
+  );
   return new Map(
     [...grouped.entries()].map(([moduleDefinitionId, rows]) => [
       moduleDefinitionId,
-      rows.map(
-        (row): ModuleContextPrompt => ({
-          purpose: row.purpose,
-          promptKey: row.prompt_key,
-          versionNumber: row.version_number,
-          content: row.content,
-        }),
-      ),
+      rows.map((row): ModuleContextPrompt => ({
+        purpose: row.purpose,
+        promptKey: row.prompt_key,
+        versionNumber: row.version_number,
+        content: row.content,
+      })),
     ]),
   );
 }
 
-function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary[] {
+function mapArtifactSummaries(
+  rows: ArtifactRow[],
+): ModuleContextArtifactSummary[] {
   return rows.map((row) => {
     const workbookSupported = row.renderer_key !== null;
     return {
@@ -264,7 +270,8 @@ function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary
       isRequired: row.is_required,
       requiredFilename: row.required_filename,
       latestSubmission:
-        row.submission_version_number === null || row.submission_updated_at === null
+        row.submission_version_number === null ||
+        row.submission_updated_at === null
           ? null
           : {
               versionNumber: row.submission_version_number,
@@ -277,7 +284,8 @@ function mapArtifactSummaries(rows: ArtifactRow[]): ModuleContextArtifactSummary
       // draft or an unvalidated save. The lateral join above already
       // excludes superseded/deleted, so 'submitted' is the only non-draft
       // status that can reach here.
-      workbookAvailable: workbookSupported && row.submission_status === "submitted",
+      workbookAvailable:
+        workbookSupported && row.submission_status === "submitted",
       workbookFormat: workbookSupported ? "pdf" : null,
     };
   });
@@ -292,7 +300,10 @@ function attemptHasAnsweredResponses(
     return false;
   }
   for (const response of responses.values()) {
-    if (response.response_status === "answered" || response.response_status === "skipped") {
+    if (
+      response.response_status === "answered" ||
+      response.response_status === "skipped"
+    ) {
       return true;
     }
   }
@@ -380,7 +391,8 @@ function assembleModuleContext(
     resumeQuestionKey,
     questions,
     artifacts: mapArtifactSummaries(artifactRows),
-    prompts: promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
+    prompts:
+      promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
   };
 }
 
@@ -442,7 +454,10 @@ async function buildModuleContextsFromRunModules(
 
   const artifactAttemptIds = runModules.map((runModule, index) => {
     const activeId = runModule.activeAttemptId;
-    if (activeId && attemptHasAnsweredResponses(activeId, responsesByAttemptId)) {
+    if (
+      activeId &&
+      attemptHasAnsweredResponses(activeId, responsesByAttemptId)
+    ) {
       return activeId;
     }
     if (activeId) {

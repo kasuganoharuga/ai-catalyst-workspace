@@ -8,7 +8,10 @@ describe("validateConfigForValidator", () => {
     for (const module of DEFAULT_TOOLKIT_CONTENT.modules) {
       for (const artifact of module.artifacts) {
         expect(() =>
-          validateConfigForValidator(artifact.validatorKey, artifact.validationConfig),
+          validateConfigForValidator(
+            artifact.validatorKey,
+            artifact.validationConfig,
+          ),
         ).not.toThrow();
       }
     }
@@ -46,7 +49,9 @@ describe("validateConfigForValidator", () => {
     expect(() =>
       validateConfigForValidator("structured_markdown_v1", {
         schemaVersion: 1,
-        draftRules: [{ type: "section_non_empty", level: 2, heading: "Segment" }],
+        draftRules: [
+          { type: "section_non_empty", level: 2, heading: "Segment" },
+        ],
         submissionRules: [],
       }),
     ).toThrow();
@@ -54,6 +59,8 @@ describe("validateConfigForValidator", () => {
 
   it("requires the empty-object config for an artifact with no validator", () => {
     expect(() => validateConfigForValidator(null, {})).not.toThrow();
-    expect(() => validateConfigForValidator(null, { draftRules: [] })).toThrow();
+    expect(() =>
+      validateConfigForValidator(null, { draftRules: [] }),
+    ).toThrow();
   });
 });

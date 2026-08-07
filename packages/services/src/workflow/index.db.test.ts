@@ -76,7 +76,9 @@ function buildFixtureModule(
     estimatedMinutes: null,
     isPublishable,
     questions: [],
-    artifacts: isPublishable ? [buildFixtureArtifact(`${moduleKey}-artifact`)] : [],
+    artifacts: isPublishable
+      ? [buildFixtureArtifact(`${moduleKey}-artifact`)]
+      : [],
   };
 }
 
@@ -161,9 +163,10 @@ describe("getOrCreateProgramRun — database integration", () => {
     // -> ventures has no "on delete cascade" of its own (setActiveVenture
     // calls in this suite point it at a fixture Venture) — same reasoning
     // as artifact/index.db.test.ts's own afterAll comment.
-    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
     // Cascades away program_runs -> program_run_branches ->
     // program_run_modules (all `on delete cascade` from ventures/runs/
     // branches per 0001_aidb_v5_baseline.sql).
@@ -171,14 +174,18 @@ describe("getOrCreateProgramRun — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
     // Cascades away program_versions -> module_definitions -> artifact_definitions.
-    await pool.query("delete from programs where program_key = any($1::text[])", [
-      [ACTIVE_PROGRAM_KEY, NO_ACTIVE_MODULES_PROGRAM_KEY],
-    ]);
+    await pool.query(
+      "delete from programs where program_key = any($1::text[])",
+      [[ACTIVE_PROGRAM_KEY, NO_ACTIVE_MODULES_PROGRAM_KEY]],
+    );
   });
 
   it("rejects a non-founder actor before touching the database", async () => {
@@ -209,14 +216,19 @@ describe("getOrCreateProgramRun — database integration", () => {
   });
 
   it("rejects a Venture that belongs to another Workspace", async () => {
-    const { actor } = await createFounderWithWorkspaceAndVenture("cross-workspace");
+    const { actor } =
+      await createFounderWithWorkspaceAndVenture("cross-workspace");
     const { ventureId: foreignVentureId } =
       await createFounderWithWorkspaceAndVenture("cross-workspace-other");
 
     await expect(
-      getOrCreateProgramRun(actor, { ventureId: foreignVentureId }, {
-        programKey: ACTIVE_PROGRAM_KEY,
-      }),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId: foreignVentureId },
+        {
+          programKey: ACTIVE_PROGRAM_KEY,
+        },
+      ),
     ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
   });
 
@@ -229,19 +241,28 @@ describe("getOrCreateProgramRun — database integration", () => {
     );
 
     await expect(
-      getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY }),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        { programKey: ACTIVE_PROGRAM_KEY },
+      ),
     ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
   });
 
   it("rejects when the Workspace is not active", async () => {
     const { actor, workspaceId, ventureId } =
       await createFounderWithWorkspaceAndVenture("suspended-workspace");
-    await pool.query("update workspaces set status = 'suspended' where id = $1", [
-      workspaceId,
-    ]);
+    await pool.query(
+      "update workspaces set status = 'suspended' where id = $1",
+      [workspaceId],
+    );
 
     await expect(
-      getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY }),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        { programKey: ACTIVE_PROGRAM_KEY },
+      ),
     ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
   });
 
@@ -250,9 +271,13 @@ describe("getOrCreateProgramRun — database integration", () => {
       await createFounderWithWorkspaceAndVenture("no-active-modules");
 
     await expect(
-      getOrCreateProgramRun(actor, { ventureId }, {
-        programKey: NO_ACTIVE_MODULES_PROGRAM_KEY,
-      }),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        {
+          programKey: NO_ACTIVE_MODULES_PROGRAM_KEY,
+        },
+      ),
     ).rejects.toMatchObject({
       name: "ServiceError",
       code: "INTERNAL_INVARIANT_ERROR",
@@ -269,9 +294,13 @@ describe("getOrCreateProgramRun — database integration", () => {
     const { actor, workspaceId, ventureId } =
       await createFounderWithWorkspaceAndVenture("create");
 
-    const result = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: ACTIVE_PROGRAM_KEY,
-    });
+    const result = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: ACTIVE_PROGRAM_KEY,
+      },
+    );
 
     expect(result.created).toBe(true);
     expect(result.run.workspaceId).toBe(workspaceId);
@@ -345,16 +374,25 @@ describe("getOrCreateProgramRun — database integration", () => {
   });
 
   it("returns the same Run idempotently on a second call, creating nothing new", async () => {
-    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("idempotent");
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("idempotent");
 
-    const first = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: ACTIVE_PROGRAM_KEY,
-    });
+    const first = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: ACTIVE_PROGRAM_KEY,
+      },
+    );
     expect(first.created).toBe(true);
 
-    const second = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: ACTIVE_PROGRAM_KEY,
-    });
+    const second = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: ACTIVE_PROGRAM_KEY,
+      },
+    );
     expect(second.created).toBe(false);
     expect(second.run).toEqual(first.run);
 
@@ -366,12 +404,17 @@ describe("getOrCreateProgramRun — database integration", () => {
   });
 
   it("assigns run_number 2 when an earlier archived Run already occupies run_number 1", async () => {
-    const { actor, ventureId } =
-      await createFounderWithWorkspaceAndVenture("run-number-increment");
+    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture(
+      "run-number-increment",
+    );
 
-    const first = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: ACTIVE_PROGRAM_KEY,
-    });
+    const first = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: ACTIVE_PROGRAM_KEY,
+      },
+    );
     expect(first.run.runNumber).toBe(1);
 
     // program_runs_one_active_per_venture only blocks a *second non-archived*
@@ -381,20 +424,33 @@ describe("getOrCreateProgramRun — database integration", () => {
       [first.run.id],
     );
 
-    const second = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: ACTIVE_PROGRAM_KEY,
-    });
+    const second = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: ACTIVE_PROGRAM_KEY,
+      },
+    );
     expect(second.created).toBe(true);
     expect(second.run.id).not.toBe(first.run.id);
     expect(second.run.runNumber).toBe(2);
   });
 
   it("creates exactly one Run when two calls race for the same brand-new Venture", async () => {
-    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("concurrency");
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("concurrency");
 
     const [resultA, resultB] = await Promise.all([
-      getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY }),
-      getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY }),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        { programKey: ACTIVE_PROGRAM_KEY },
+      ),
+      getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        { programKey: ACTIVE_PROGRAM_KEY },
+      ),
     ]);
 
     expect(resultA.run.id).toBe(resultB.run.id);
@@ -415,7 +471,9 @@ describe("getOrCreateProgramRun — database integration", () => {
     });
 
     it("returns all-null / empty when the Founder has a Workspace but no active Venture selected", async () => {
-      const { actor } = await createFounderWithWorkspaceAndVenture("list-modules-no-active-venture");
+      const { actor } = await createFounderWithWorkspaceAndVenture(
+        "list-modules-no-active-venture",
+      );
 
       const result = await listRunModules(actor);
       expect(result).toEqual({
@@ -427,8 +485,9 @@ describe("getOrCreateProgramRun — database integration", () => {
     });
 
     it("returns all-null / empty when the active Venture has no Run yet", async () => {
-      const { actor, ventureId } =
-        await createFounderWithWorkspaceAndVenture("list-modules-no-run");
+      const { actor, ventureId } = await createFounderWithWorkspaceAndVenture(
+        "list-modules-no-run",
+      );
       await setActiveVenture(actor, ventureId);
 
       const result = await listRunModules(actor);
@@ -444,9 +503,13 @@ describe("getOrCreateProgramRun — database integration", () => {
       const { actor, workspaceId, ventureId } =
         await createFounderWithWorkspaceAndVenture("list-modules");
       await setActiveVenture(actor, ventureId);
-      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
-        programKey: ACTIVE_PROGRAM_KEY,
-      });
+      const { run } = await getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        {
+          programKey: ACTIVE_PROGRAM_KEY,
+        },
+      );
 
       const result = await listRunModules(actor);
       expect(result.workspaceId).toBe(workspaceId);
@@ -488,14 +551,17 @@ describe("getOrCreateProgramRun — database integration", () => {
   describe("getRunModuleByKey", () => {
     it("rejects a non-founder actor", async () => {
       await expect(
-        getRunModuleByKey({ userId: randomUUID(), role: "admin" }, { moduleKey: "x" }),
+        getRunModuleByKey(
+          { userId: randomUUID(), role: "admin" },
+          { moduleKey: "x" },
+        ),
       ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
     });
 
     it("rejects a missing moduleKey", async () => {
-      await expect(
-        getRunModuleByKey(founderActor(), {}),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      await expect(getRunModuleByKey(founderActor(), {})).rejects.toMatchObject(
+        { name: "ServiceError", code: "VALIDATION_ERROR" },
+      );
     });
 
     it("throws NOT_FOUND when the Founder has no active Venture/Run yet", async () => {
@@ -505,10 +571,15 @@ describe("getOrCreateProgramRun — database integration", () => {
     });
 
     it("throws NOT_FOUND for a moduleKey outside the active Run's Branch", async () => {
-      const { actor, ventureId } =
-        await createFounderWithWorkspaceAndVenture("get-module-not-found");
+      const { actor, ventureId } = await createFounderWithWorkspaceAndVenture(
+        "get-module-not-found",
+      );
       await setActiveVenture(actor, ventureId);
-      await getOrCreateProgramRun(actor, { ventureId }, { programKey: ACTIVE_PROGRAM_KEY });
+      await getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        { programKey: ACTIVE_PROGRAM_KEY },
+      );
 
       await expect(
         getRunModuleByKey(actor, { moduleKey: "does-not-exist" }),
@@ -519,11 +590,17 @@ describe("getOrCreateProgramRun — database integration", () => {
       const { actor, workspaceId, ventureId } =
         await createFounderWithWorkspaceAndVenture("get-module");
       await setActiveVenture(actor, ventureId);
-      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
-        programKey: ACTIVE_PROGRAM_KEY,
-      });
+      const { run } = await getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        {
+          programKey: ACTIVE_PROGRAM_KEY,
+        },
+      );
 
-      const result = await getRunModuleByKey(actor, { moduleKey: "workflow-module-b" });
+      const result = await getRunModuleByKey(actor, {
+        moduleKey: "workflow-module-b",
+      });
       expect(result.moduleKey).toBe("workflow-module-b");
       expect(result.workspaceId).toBe(workspaceId);
       expect(result.programRunId).toBe(run.id);
@@ -534,7 +611,10 @@ describe("getOrCreateProgramRun — database integration", () => {
   describe("resolveAttemptRunContext", () => {
     it("rejects a non-founder actor", async () => {
       await expect(
-        resolveAttemptRunContext({ userId: randomUUID(), role: "admin" }, randomUUID()),
+        resolveAttemptRunContext(
+          { userId: randomUUID(), role: "admin" },
+          randomUUID(),
+        ),
       ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
     });
 
@@ -548,16 +628,21 @@ describe("getOrCreateProgramRun — database integration", () => {
       const { actor: ownerActor, ventureId: ownerVentureId } =
         await createFounderWithWorkspaceAndVenture("attempt-context-owner");
       await setActiveVenture(ownerActor, ownerVentureId);
-      await getOrCreateProgramRun(ownerActor, { ventureId: ownerVentureId }, {
-        programKey: ACTIVE_PROGRAM_KEY,
-      });
+      await getOrCreateProgramRun(
+        ownerActor,
+        { ventureId: ownerVentureId },
+        {
+          programKey: ACTIVE_PROGRAM_KEY,
+        },
+      );
       const { modules } = await listRunModules(ownerActor);
       const { attempt } = await startOrResumeAttempt(ownerActor, {
         programRunModuleId: modules[0].id,
       });
 
-      const { actor: otherActor } =
-        await createFounderWithWorkspaceAndVenture("attempt-context-other");
+      const { actor: otherActor } = await createFounderWithWorkspaceAndVenture(
+        "attempt-context-other",
+      );
 
       await expect(
         resolveAttemptRunContext(otherActor, attempt.id),
@@ -568,9 +653,13 @@ describe("getOrCreateProgramRun — database integration", () => {
       const { actor, workspaceId, ventureId } =
         await createFounderWithWorkspaceAndVenture("attempt-context");
       await setActiveVenture(actor, ventureId);
-      const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
-        programKey: ACTIVE_PROGRAM_KEY,
-      });
+      const { run } = await getOrCreateProgramRun(
+        actor,
+        { ventureId },
+        {
+          programKey: ACTIVE_PROGRAM_KEY,
+        },
+      );
       const { modules } = await listRunModules(actor);
       const firstModule = modules[0];
       const { attempt } = await startOrResumeAttempt(actor, {
@@ -608,7 +697,10 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
   // set every time, so two tests progressively seeding different Module
   // sets against the SAME program_version would see each other's earlier
   // Modules as "missing from constants" and trip the archive guard.
-  function buildMutableFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+  function buildMutableFixtureContent(
+    programKey: string,
+    modules: FixtureModule[],
+  ): ToolkitSeedContent {
     return {
       program: {
         programKey,
@@ -648,32 +740,48 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
   }
 
   afterAll(async () => {
-    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
     await pool.query(
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
     // Every test's program_key is LIVING_PROGRAM_KEY prefixed — see
     // buildMutableFixtureContent's own comment for why each test uses a
     // distinct one.
-    await pool.query("delete from programs where program_key like $1", [`${LIVING_PROGRAM_KEY}%`]);
+    await pool.query("delete from programs where program_key like $1", [
+      `${LIVING_PROGRAM_KEY}%`,
+    ]);
   });
 
   it("front-fills a Module added after the Run was created, the next time getOrCreateProgramRun runs", async () => {
     const programKey = `${LIVING_PROGRAM_KEY}-front-fill`;
     await withTransaction((client) =>
-      seedToolkitContent(client, buildMutableFixtureContent(programKey, [buildFixtureModule("living-a", 0, true)])),
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-a", 0, true),
+        ]),
+      ),
     );
 
-    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("front-fill");
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("front-fill");
     await setActiveVenture(actor, ventureId);
-    const created = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const created = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey },
+    );
     expect(created.created).toBe(true);
 
     let { modules } = await listRunModules(actor);
@@ -692,12 +800,19 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
 
     // The Founder's next Continue Programme click — existing-Run branch,
     // not create — must pick up living-b.
-    const again = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const again = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey },
+    );
     expect(again.created).toBe(false);
     expect(again.run.id).toBe(created.run.id);
 
     ({ modules } = await listRunModules(actor));
-    expect(modules.map((module) => module.moduleKey)).toEqual(["living-a", "living-b"]);
+    expect(modules.map((module) => module.moduleKey)).toEqual([
+      "living-a",
+      "living-b",
+    ]);
     const livingB = modules.find((module) => module.moduleKey === "living-b")!;
     // living-a hasn't been completed, so living-b must be inserted locked,
     // not available — this is the "predecessor doesn't allow access" case.
@@ -716,12 +831,15 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
       ),
     );
 
-    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("monotonic");
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("monotonic");
     await setActiveVenture(actor, ventureId);
     await getOrCreateProgramRun(actor, { ventureId }, { programKey });
 
     const { modules: beforeInsert } = await listRunModules(actor);
-    const zBefore = beforeInsert.find((module) => module.moduleKey === "living-z")!;
+    const zBefore = beforeInsert.find(
+      (module) => module.moduleKey === "living-z",
+    )!;
     expect(zBefore.status).toBe("locked"); // x not completed yet
 
     // Now insert living-y between x and z by resequencing z from 1 to 2.
@@ -740,8 +858,14 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
 
     await getOrCreateProgramRun(actor, { ventureId }, { programKey });
     const { modules: afterInsert } = await listRunModules(actor);
-    expect(afterInsert.map((module) => module.moduleKey)).toEqual(["living-x", "living-y", "living-z"]);
-    const zAfter = afterInsert.find((module) => module.moduleKey === "living-z")!;
+    expect(afterInsert.map((module) => module.moduleKey)).toEqual([
+      "living-x",
+      "living-y",
+      "living-z",
+    ]);
+    const zAfter = afterInsert.find(
+      (module) => module.moduleKey === "living-z",
+    )!;
     // Still locked (nothing completed x or y) — this specific assertion
     // isn't the point; the point is it did NOT crash and z's row moved
     // to the correct new sequence_index without a unique-constraint
@@ -753,15 +877,29 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
   it("is a no-op on the second call when nothing changed", async () => {
     const programKey = `${LIVING_PROGRAM_KEY}-noop`;
     await withTransaction((client) =>
-      seedToolkitContent(client, buildMutableFixtureContent(programKey, [buildFixtureModule("living-noop", 0, true)])),
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-noop", 0, true),
+        ]),
+      ),
     );
 
-    const { actor, ventureId } = await createFounderWithWorkspaceAndVenture("noop");
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("noop");
     await setActiveVenture(actor, ventureId);
-    const first = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const first = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey },
+    );
     const { modules: modulesBefore } = await listRunModules(actor);
 
-    const second = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const second = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey },
+    );
     expect(second.run.id).toBe(first.run.id);
     const { modules: modulesAfter } = await listRunModules(actor);
     expect(modulesAfter).toEqual(modulesBefore);

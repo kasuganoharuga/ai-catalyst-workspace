@@ -1,7 +1,11 @@
 import { PDFDict, PDFDocument, PDFName } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
-import { PROVENANCE_INFO_KEYS, type Provenance, type WorkbookRenderPlan } from "../types.js";
+import {
+  PROVENANCE_INFO_KEYS,
+  type Provenance,
+  type WorkbookRenderPlan,
+} from "../types.js";
 import { renderWorkbookPlan } from "./render-plan.js";
 
 const PROVENANCE: Provenance = {
@@ -17,19 +21,73 @@ const PROVENANCE: Provenance = {
 };
 
 /** A minimal but structurally complete plan: two pages, one of each field kind, locked content on both pages. */
-function samplePlan(overrides: Partial<WorkbookRenderPlan> = {}): WorkbookRenderPlan {
+function samplePlan(
+  overrides: Partial<WorkbookRenderPlan> = {},
+): WorkbookRenderPlan {
   return {
     pages: [{ footerLabel: "Page one" }, { footerLabel: "Page two" }],
     fields: [
-      { kind: "text", name: "interview_1.date_day", page: 0, rect: { x: 40, y: 700, width: 40, height: 15 }, multiline: false, capacity: 2 },
-      { kind: "text", name: "interview_1.notes", page: 0, rect: { x: 40, y: 600, width: 400, height: 60 }, multiline: true, capacity: 200 },
-      { kind: "checkbox", name: "interview_1.pass_bar_1", page: 1, rect: { x: 40, y: 700, width: 10, height: 10 } },
-      { kind: "dropdown", name: "experiment_1.outcome", page: 1, rect: { x: 40, y: 650, width: 100, height: 15 }, options: ["Pass", "Fail", "Inconclusive"] },
+      {
+        kind: "text",
+        name: "interview_1.date_day",
+        page: 0,
+        rect: { x: 40, y: 700, width: 40, height: 15 },
+        multiline: false,
+        capacity: 2,
+      },
+      {
+        kind: "text",
+        name: "interview_1.notes",
+        page: 0,
+        rect: { x: 40, y: 600, width: 400, height: 60 },
+        multiline: true,
+        capacity: 200,
+      },
+      {
+        kind: "checkbox",
+        name: "interview_1.pass_bar_1",
+        page: 1,
+        rect: { x: 40, y: 700, width: 10, height: 10 },
+      },
+      {
+        kind: "dropdown",
+        name: "experiment_1.outcome",
+        page: 1,
+        rect: { x: 40, y: 650, width: 100, height: 15 },
+        options: ["Pass", "Fail", "Inconclusive"],
+      },
     ],
     lockedContent: [
-      { role: "venture_name", text: "Kerbside", page: 0, x: 40, y: 800, maxWidth: 400, size: 20, bold: true },
-      { role: "question_1", text: "Tell me about the last time this happened.", page: 0, x: 40, y: 750, maxWidth: 400, size: 10, bold: false },
-      { role: "pass_bar_condition_1", text: "Named a cost in time or money.", page: 1, x: 60, y: 700, maxWidth: 300, size: 9, bold: false },
+      {
+        role: "venture_name",
+        text: "Kerbside",
+        page: 0,
+        x: 40,
+        y: 800,
+        maxWidth: 400,
+        size: 20,
+        bold: true,
+      },
+      {
+        role: "question_1",
+        text: "Tell me about the last time this happened.",
+        page: 0,
+        x: 40,
+        y: 750,
+        maxWidth: 400,
+        size: 10,
+        bold: false,
+      },
+      {
+        role: "pass_bar_condition_1",
+        text: "Named a cost in time or money.",
+        page: 1,
+        x: 60,
+        y: 700,
+        maxWidth: 300,
+        size: 9,
+        bold: false,
+      },
     ],
     rects: [],
     provenance: PROVENANCE,
@@ -37,9 +95,13 @@ function samplePlan(overrides: Partial<WorkbookRenderPlan> = {}): WorkbookRender
   };
 }
 
-async function extractPageText(bytes: Buffer, pageNumber: number): Promise<string> {
+async function extractPageText(
+  bytes: Buffer,
+  pageNumber: number,
+): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) })
+    .promise;
   const page = await doc.getPage(pageNumber);
   const content = await page.getTextContent();
   return content.items
@@ -62,7 +124,12 @@ describe("renderWorkbookPlan — structure", () => {
     const fields = doc.getForm().getFields();
     const names = fields.map((f) => f.getName()).sort();
     expect(names).toEqual(
-      ["experiment_1.outcome", "interview_1.date_day", "interview_1.notes", "interview_1.pass_bar_1"].sort(),
+      [
+        "experiment_1.outcome",
+        "interview_1.date_day",
+        "interview_1.notes",
+        "interview_1.pass_bar_1",
+      ].sort(),
     );
     for (const field of fields) {
       expect(field.acroField.getWidgets()).toHaveLength(1);
@@ -72,14 +139,34 @@ describe("renderWorkbookPlan — structure", () => {
   it("dot-separated field names are enumerated correctly via form.getFields() (not the raw AcroForm /Fields array, which collapses siblings)", async () => {
     const plan = samplePlan({
       fields: [
-        { kind: "text", name: "interview_1.date_day", page: 0, rect: { x: 40, y: 700, width: 40, height: 15 }, multiline: false, capacity: 2 },
-        { kind: "text", name: "interview_1.date_month", page: 0, rect: { x: 90, y: 700, width: 40, height: 15 }, multiline: false, capacity: 2 },
+        {
+          kind: "text",
+          name: "interview_1.date_day",
+          page: 0,
+          rect: { x: 40, y: 700, width: 40, height: 15 },
+          multiline: false,
+          capacity: 2,
+        },
+        {
+          kind: "text",
+          name: "interview_1.date_month",
+          page: 0,
+          rect: { x: 90, y: 700, width: 40, height: 15 },
+          multiline: false,
+          capacity: 2,
+        },
       ],
     });
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
-    const names = doc.getForm().getFields().map((f) => f.getName());
-    expect(names.sort()).toEqual(["interview_1.date_day", "interview_1.date_month"]);
+    const names = doc
+      .getForm()
+      .getFields()
+      .map((f) => f.getName());
+    expect(names.sort()).toEqual([
+      "interview_1.date_day",
+      "interview_1.date_month",
+    ]);
   });
 
   it("embeds exactly the two intentional fonts, plus pdf-lib's Helvetica checkbox-appearance dependency", async () => {
@@ -101,14 +188,20 @@ describe("renderWorkbookPlan — structure", () => {
     for (const font of baseFonts) {
       const isHelvetica = font === "/Helvetica";
       const isEmbeddedNotoSans = /^\/NotoSans(-Bold)?-\d+$/.test(font);
-      expect(isHelvetica || isEmbeddedNotoSans, `unexpected embedded font: ${font}`).toBe(true);
+      expect(
+        isHelvetica || isEmbeddedNotoSans,
+        `unexpected embedded font: ${font}`,
+      ).toBe(true);
     }
   });
 
   it("wires /DR with both embedded fonts and an AcroForm-level /DA", async () => {
     const bytes = await renderWorkbookPlan(samplePlan());
     const doc = await PDFDocument.load(bytes);
-    const acroForm = doc.context.lookup(doc.catalog.get(PDFName.of("AcroForm")), PDFDict);
+    const acroForm = doc.context.lookup(
+      doc.catalog.get(PDFName.of("AcroForm")),
+      PDFDict,
+    );
     const dr = doc.context.lookup(acroForm.get(PDFName.of("DR")), PDFDict);
     const drFonts = doc.context.lookup(dr.get(PDFName.of("Font")), PDFDict);
     expect(drFonts.keys().map((k) => k.asString())).toEqual(
@@ -122,8 +215,16 @@ describe("renderWorkbookPlan — background fills", () => {
   it("renders successfully with rects on multiple pages, page count unaffected", async () => {
     const plan = samplePlan({
       rects: [
-        { page: 0, rect: { x: 0, y: 780, width: 595, height: 62 }, color: { r: 0.12, g: 0.23, b: 0.37 } },
-        { page: 1, rect: { x: 38, y: 600, width: 250, height: 90 }, color: { r: 0.945, g: 0.961, b: 0.976 } },
+        {
+          page: 0,
+          rect: { x: 0, y: 780, width: 595, height: 62 },
+          color: { r: 0.12, g: 0.23, b: 0.37 },
+        },
+        {
+          page: 1,
+          rect: { x: 38, y: 600, width: 250, height: 90 },
+          color: { r: 0.945, g: 0.961, b: 0.976 },
+        },
       ],
     });
     const bytes = await renderWorkbookPlan(plan);
@@ -133,7 +234,13 @@ describe("renderWorkbookPlan — background fills", () => {
 
   it("draws locked content on top of a rect on the same page without corrupting the text", async () => {
     const plan = samplePlan({
-      rects: [{ page: 0, rect: { x: 0, y: 780, width: 595, height: 62 }, color: { r: 0.12, g: 0.23, b: 0.37 } }],
+      rects: [
+        {
+          page: 0,
+          rect: { x: 0, y: 780, width: 595, height: 62 },
+          color: { r: 0.12, g: 0.23, b: 0.37 },
+        },
+      ],
     });
     const bytes = await renderWorkbookPlan(plan);
     const text = await extractPageText(bytes, 1);
@@ -150,8 +257,12 @@ describe("renderWorkbookPlan — provenance", () => {
     for (const key of PROVENANCE_INFO_KEYS) {
       expect(info.get(PDFName.of(key))).toBeDefined();
     }
-    expect(info.get(PDFName.of("SourceArtifactId"))?.toString()).toContain("artifact-123");
-    expect(info.get(PDFName.of("ProgramVersionNumber"))?.toString()).toContain("7");
+    expect(info.get(PDFName.of("SourceArtifactId"))?.toString()).toContain(
+      "artifact-123",
+    );
+    expect(info.get(PDFName.of("ProgramVersionNumber"))?.toString()).toContain(
+      "7",
+    );
   });
 });
 
@@ -185,7 +296,9 @@ describe("renderWorkbookPlan — drawn content and footers", () => {
   });
 
   it("a page with a null footerLabel still carries the fixed provenance line", async () => {
-    const plan = samplePlan({ pages: [{ footerLabel: null }, { footerLabel: null }] });
+    const plan = samplePlan({
+      pages: [{ footerLabel: null }, { footerLabel: null }],
+    });
     const bytes = await renderWorkbookPlan(plan);
     const page0Text = await extractPageText(bytes, 1);
     expect(page0Text).toContain("test_workbook_v1");
@@ -194,7 +307,16 @@ describe("renderWorkbookPlan — drawn content and footers", () => {
   it("extracts text with byte-correct characters — the WOFF2-vs-TTF regression this font module exists to prevent", async () => {
     const plan = samplePlan({
       lockedContent: [
-        { role: "venture_name", text: "Problem-Interview-Guide.md", page: 0, x: 40, y: 800, maxWidth: 400, size: 12, bold: false },
+        {
+          role: "venture_name",
+          text: "Problem-Interview-Guide.md",
+          page: 0,
+          x: 40,
+          y: 800,
+          maxWidth: 400,
+          size: 12,
+          bold: false,
+        },
       ],
     });
     const bytes = await renderWorkbookPlan(plan);
@@ -212,7 +334,9 @@ describe("renderWorkbookPlan — round-trip", () => {
     const bytes = await renderWorkbookPlan(samplePlan());
     const doc = await PDFDocument.load(bytes);
     const field = doc.getForm().getTextField("interview_1.notes");
-    field.setText("They rebuild the spreadsheet every Friday — “painful”, they said.");
+    field.setText(
+      "They rebuild the spreadsheet every Friday — “painful”, they said.",
+    );
     const saved = await doc.save();
 
     const reopened = await PDFDocument.load(saved);
@@ -228,7 +352,9 @@ describe("renderWorkbookPlan — round-trip", () => {
     const saved = await doc.save();
 
     const reopened = await PDFDocument.load(saved);
-    expect(reopened.getForm().getCheckBox("interview_1.pass_bar_1").isChecked()).toBe(true);
+    expect(
+      reopened.getForm().getCheckBox("interview_1.pass_bar_1").isChecked(),
+    ).toBe(true);
   });
 
   it("a dropdown selection after generation reads back correctly", async () => {
@@ -238,35 +364,64 @@ describe("renderWorkbookPlan — round-trip", () => {
     const saved = await doc.save();
 
     const reopened = await PDFDocument.load(saved);
-    expect(reopened.getForm().getDropdown("experiment_1.outcome").getSelected()).toEqual(["Fail"]);
+    expect(
+      reopened.getForm().getDropdown("experiment_1.outcome").getSelected(),
+    ).toEqual(["Fail"]);
   });
 
   it("respects the field's max length", async () => {
     const bytes = await renderWorkbookPlan(samplePlan());
     const doc = await PDFDocument.load(bytes);
-    expect(doc.getForm().getTextField("interview_1.date_day").getMaxLength()).toBe(2);
+    expect(
+      doc.getForm().getTextField("interview_1.date_day").getMaxLength(),
+    ).toBe(2);
   });
 });
 
 describe("renderWorkbookPlan — font coverage failures fail before any bytes are produced", () => {
   it("throws WORKBOOK_RENDER_FAILED for locked content outside font coverage, naming the field", async () => {
     const plan = samplePlan({
-      lockedContent: [{ role: "venture_name", text: "中文客户名称", page: 0, x: 40, y: 800, maxWidth: 400, size: 12, bold: false }],
+      lockedContent: [
+        {
+          role: "venture_name",
+          text: "中文客户名称",
+          page: 0,
+          x: 40,
+          y: 800,
+          maxWidth: 400,
+          size: 12,
+          bold: false,
+        },
+      ],
     });
-    await expect(renderWorkbookPlan(plan)).rejects.toThrow(/WORKBOOK_RENDER_FAILED.*venture_name/);
+    await expect(renderWorkbookPlan(plan)).rejects.toThrow(
+      /WORKBOOK_RENDER_FAILED.*venture_name/,
+    );
   });
 
   it("throws for an uncovered dropdown option", async () => {
     const plan = samplePlan({
       fields: [
-        { kind: "dropdown", name: "experiment_1.outcome", page: 0, rect: { x: 40, y: 700, width: 100, height: 15 }, options: ["中文"] },
+        {
+          kind: "dropdown",
+          name: "experiment_1.outcome",
+          page: 0,
+          rect: { x: 40, y: 700, width: 100, height: 15 },
+          options: ["中文"],
+        },
       ],
     });
-    await expect(renderWorkbookPlan(plan)).rejects.toThrow(/WORKBOOK_RENDER_FAILED/);
+    await expect(renderWorkbookPlan(plan)).rejects.toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws for an uncovered footer label", async () => {
-    const plan = samplePlan({ pages: [{ footerLabel: "中文" }, { footerLabel: null }] });
-    await expect(renderWorkbookPlan(plan)).rejects.toThrow(/WORKBOOK_RENDER_FAILED/);
+    const plan = samplePlan({
+      pages: [{ footerLabel: "中文" }, { footerLabel: null }],
+    });
+    await expect(renderWorkbookPlan(plan)).rejects.toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 });

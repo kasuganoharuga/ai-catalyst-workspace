@@ -20,7 +20,11 @@ function parseHeadingLines(lines: string[]): HeadingLine[] {
   lines.forEach((line, lineIndex) => {
     const match = /^(#{1,6})\s+(.+?)\s*$/.exec(line);
     if (match) {
-      result.push({ level: match[1].length, heading: match[2].trim(), lineIndex });
+      result.push({
+        level: match[1].length,
+        heading: match[2].trim(),
+        lineIndex,
+      });
     }
   });
   return result;
@@ -33,12 +37,17 @@ function parseHeadingLines(lines: string[]): HeadingLine[] {
  * heading exists at all — distinct from an empty string, which means the
  * heading exists but has no content under it yet.
  */
-export function getSection(content: string, level: number, headingText: string): string | null {
+export function getSection(
+  content: string,
+  level: number,
+  headingText: string,
+): string | null {
   const lines = content.split("\n");
   const headings = parseHeadingLines(lines);
   const target = headings.find(
     (heading) =>
-      heading.level === level && heading.heading.toLowerCase() === headingText.toLowerCase(),
+      heading.level === level &&
+      heading.heading.toLowerCase() === headingText.toLowerCase(),
   );
   if (!target) {
     return null;
@@ -46,15 +55,29 @@ export function getSection(content: string, level: number, headingText: string):
   const nextHeadingIndex = headings.findIndex(
     (heading) => heading.lineIndex > target.lineIndex && heading.level <= level,
   );
-  const endLine = nextHeadingIndex === -1 ? lines.length : headings[nextHeadingIndex].lineIndex;
-  return lines.slice(target.lineIndex + 1, endLine).join("\n").trim();
+  const endLine =
+    nextHeadingIndex === -1
+      ? lines.length
+      : headings[nextHeadingIndex].lineIndex;
+  return lines
+    .slice(target.lineIndex + 1, endLine)
+    .join("\n")
+    .trim();
 }
 
-export function sectionExists(content: string, level: number, headingText: string): boolean {
+export function sectionExists(
+  content: string,
+  level: number,
+  headingText: string,
+): boolean {
   return getSection(content, level, headingText) !== null;
 }
 
-export function isSectionNonEmpty(content: string, level: number, headingText: string): boolean {
+export function isSectionNonEmpty(
+  content: string,
+  level: number,
+  headingText: string,
+): boolean {
   const body = getSection(content, level, headingText);
   return body !== null && body.trim().length > 0;
 }
@@ -120,7 +143,11 @@ export function substantiveListItems(sectionBody: string): string[] {
   return listItems(sectionBody).filter((item) => isSubstantiveText(item));
 }
 
-export function isSectionSubstantive(content: string, level: number, headingText: string): boolean {
+export function isSectionSubstantive(
+  content: string,
+  level: number,
+  headingText: string,
+): boolean {
   const body = getSection(content, level, headingText);
   return body !== null && isSubstantiveText(body);
 }
@@ -191,7 +218,9 @@ function isTableLine(line: string): boolean {
 }
 
 function isSeparatorRow(cells: string[]): boolean {
-  return cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell.trim()));
+  return (
+    cells.length > 0 && cells.every((cell) => /^:?-+:?$/.test(cell.trim()))
+  );
 }
 
 export interface ParsedTable {
@@ -237,9 +266,14 @@ export function tableRows(sectionBody: string): string[][] {
 }
 
 /** Case-insensitive column lookup; `-1` when `columnName` is not a header in this table. */
-export function tableColumnIndex(headers: string[], columnName: string): number {
+export function tableColumnIndex(
+  headers: string[],
+  columnName: string,
+): number {
   const normalized = columnName.trim().toLowerCase();
-  return headers.findIndex((header) => header.trim().toLowerCase() === normalized);
+  return headers.findIndex(
+    (header) => header.trim().toLowerCase() === normalized,
+  );
 }
 
 // Everything in `sectionBody` except table-row lines (header, separator and
@@ -304,10 +338,19 @@ function isLabelBoundaryLine(line: string): boolean {
  * entirely absent — distinct from an empty string, which means the marker
  * is present but nothing follows it yet.
  */
-export function extractLabelValue(content: string, label: string): string | null {
+export function extractLabelValue(
+  content: string,
+  label: string,
+): string | null {
   const lines = content.split("\n");
-  const boldPattern = new RegExp(`^\\s*\\*\\*${escapeRegExp(label)}:\\*\\*\\s*(.*)$`, "i");
-  const listItemPattern = new RegExp(`^\\s*[-*](?!\\*)\\s+${escapeRegExp(label)}:\\s*(.*)$`, "i");
+  const boldPattern = new RegExp(
+    `^\\s*\\*\\*${escapeRegExp(label)}:\\*\\*\\s*(.*)$`,
+    "i",
+  );
+  const listItemPattern = new RegExp(
+    `^\\s*[-*](?!\\*)\\s+${escapeRegExp(label)}:\\s*(.*)$`,
+    "i",
+  );
 
   const markerIndex = lines.findIndex(
     (line) => boldPattern.test(line) || listItemPattern.test(line),
@@ -345,7 +388,9 @@ export function sectionHasSubstantiveLabel(
   label: string,
   scope?: { level: number; heading: string },
 ): boolean {
-  const searchContent = scope ? (getSection(content, scope.level, scope.heading) ?? "") : content;
+  const searchContent = scope
+    ? (getSection(content, scope.level, scope.heading) ?? "")
+    : content;
   const value = extractLabelValue(searchContent, label);
   return value !== null && isSubstantiveText(value);
 }
@@ -378,7 +423,9 @@ const SAVE_PROTOCOL_LABELS = [
 
 export function extractConfirmedAnswer(answerText: string): string {
   const lines = answerText.split("\n");
-  const labelIndex = lines.findIndex((line) => line.trim() === "CONFIRMED ANSWER");
+  const labelIndex = lines.findIndex(
+    (line) => line.trim() === "CONFIRMED ANSWER",
+  );
   if (labelIndex === -1) {
     return answerText.trim();
   }

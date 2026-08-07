@@ -58,7 +58,9 @@ const PROGRAM_KEY = TEST_CONTENT.program.programKey;
 // reusing already-published, unchanged Prompt content across runs is the
 // expected, supported case.
 async function cleanupSeedContent(): Promise<void> {
-  await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+  await pool.query("delete from programs where program_key = $1", [
+    PROGRAM_KEY,
+  ]);
 }
 
 async function fetchModuleRows(programVersionId: string) {
@@ -82,7 +84,9 @@ afterAll(cleanupSeedContent);
 
 describe("seedToolkitContent", () => {
   it("loads Module 0/1 content and publishes the Program Version on first run", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
 
     expect(result.published).toBe(true);
     expect(result.programVersionStatus).toBe("published");
@@ -100,14 +104,20 @@ describe("seedToolkitContent", () => {
     expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
     expect(modules.filter((row) => row.status === "draft")).toHaveLength(0);
 
-    const module0 = modules.find((row) => row.module_key === "module-00-setup")!;
-    const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
+    const module0 = modules.find(
+      (row) => row.module_key === "module-00-setup",
+    )!;
+    const module1 = modules.find(
+      (row) => row.module_key === "module-01-pressure-test",
+    )!;
 
     const module0Artifacts = await pool.query(
       "select artifact_key from artifact_definitions where module_definition_id = $1",
       [module0.id],
     );
-    expect(module0Artifacts.rows.map((row) => row.artifact_key)).toEqual(["setup_summary"]);
+    expect(module0Artifacts.rows.map((row) => row.artifact_key)).toEqual([
+      "setup_summary",
+    ]);
 
     const module0Questions = await pool.query(
       "select count(*) as count from module_questions where module_definition_id = $1",
@@ -141,9 +151,13 @@ describe("seedToolkitContent", () => {
   });
 
   it("loads Module 2 (Target Customer) content with the right question and artifact contracts", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(result.programVersionId);
-    const module2 = modules.find((row) => row.module_key === "module-02-customer-avatar")!;
+    const module2 = modules.find(
+      (row) => row.module_key === "module-02-customer-avatar",
+    )!;
 
     const questions = await pool.query<{
       question_key: string;
@@ -168,7 +182,9 @@ describe("seedToolkitContent", () => {
       "core_promise",
       "validation_status",
     ]);
-    const validationStatus = questions.rows.find((row) => row.question_key === "validation_status")!;
+    const validationStatus = questions.rows.find(
+      (row) => row.question_key === "validation_status",
+    )!;
     expect(validationStatus.response_type).toBe("single_choice");
     expect(validationStatus.options).toEqual([
       { value: "assumed", label: "Assumed" },
@@ -196,9 +212,13 @@ describe("seedToolkitContent", () => {
   });
 
   it("loads Module 3 (Problem Statement) content with the right question and artifact contracts", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(result.programVersionId);
-    const module3 = modules.find((row) => row.module_key === "module-03-problem-statement")!;
+    const module3 = modules.find(
+      (row) => row.module_key === "module-03-problem-statement",
+    )!;
 
     const questions = await pool.query<{
       question_key: string;
@@ -218,7 +238,9 @@ describe("seedToolkitContent", () => {
       "priority_evidence",
       "validation_status",
     ]);
-    const validationStatus = questions.rows.find((row) => row.question_key === "validation_status")!;
+    const validationStatus = questions.rows.find(
+      (row) => row.question_key === "validation_status",
+    )!;
     expect(validationStatus.response_type).toBe("single_choice");
     expect(validationStatus.options).toEqual([
       { value: "assumed", label: "Assumed" },
@@ -252,9 +274,13 @@ describe("seedToolkitContent", () => {
   });
 
   it("loads Module 4 (Proof) content with the right question and artifact contracts", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(result.programVersionId);
-    const module4 = modules.find((row) => row.module_key === "module-04-evidence-of-unmet-need")!;
+    const module4 = modules.find(
+      (row) => row.module_key === "module-04-evidence-of-unmet-need",
+    )!;
 
     const questions = await pool.query<{
       question_key: string;
@@ -273,7 +299,9 @@ describe("seedToolkitContent", () => {
       "counterargument_defence",
       "validation_constraints",
     ]);
-    const evidenceLevel = questions.rows.find((row) => row.question_key === "evidence_level")!;
+    const evidenceLevel = questions.rows.find(
+      (row) => row.question_key === "evidence_level",
+    )!;
     expect(evidenceLevel.response_type).toBe("single_choice");
     expect(evidenceLevel.options).toEqual([
       { value: "assumption", label: "Assumption" },
@@ -320,14 +348,18 @@ describe("seedToolkitContent", () => {
   });
 
   it("running it twice is a no-op that changes no ids or timestamps", async () => {
-    const first = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
 
     const before = await pool.query(
       "select updated_at, published_at from program_versions where id = $1",
       [first.programVersionId],
     );
 
-    const second = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const second = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
 
     expect(second.programVersionId).toBe(first.programVersionId);
     expect(second.published).toBe(false);
@@ -352,7 +384,9 @@ describe("seedToolkitContent", () => {
 
     const originalQuestionText = TEST_CONTENT.modules
       .find((module) => module.moduleKey === "module-01-pressure-test")!
-      .questions.find((question) => question.questionKey === "idea_one_sentence")!.questionText;
+      .questions.find(
+        (question) => question.questionKey === "idea_one_sentence",
+      )!.questionText;
 
     const mutated: ToolkitSeedContent = {
       ...TEST_CONTENT,
@@ -362,7 +396,11 @@ describe("seedToolkitContent", () => {
               ...module,
               questions: module.questions.map((question) =>
                 question.questionKey === "idea_one_sentence"
-                  ? { ...question, questionText: "Changed after publish — should be rejected" }
+                  ? {
+                      ...question,
+                      questionText:
+                        "Changed after publish — should be rejected",
+                    }
                   : question,
               ),
             }
@@ -378,14 +416,18 @@ describe("seedToolkitContent", () => {
     });
 
     const modules = await fetchModuleRows(
-      (await pool.query<{ id: string }>(
-        `select pv.id from program_versions pv
+      (
+        await pool.query<{ id: string }>(
+          `select pv.id from program_versions pv
          join programs p on p.id = pv.program_id
          where p.program_key = $1`,
-        [PROGRAM_KEY],
-      )).rows[0].id,
+          [PROGRAM_KEY],
+        )
+      ).rows[0].id,
     );
-    const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
+    const module1 = modules.find(
+      (row) => row.module_key === "module-01-pressure-test",
+    )!;
     const row = await pool.query(
       "select question_text from module_questions where module_definition_id = $1 and question_key = 'idea_one_sentence'",
       [module1.id],
@@ -404,7 +446,9 @@ describe("seedToolkitContent", () => {
       [target.promptKey],
     );
 
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     expect(result.published).toBe(false);
     expect(result.programVersionStatus).toBe("published");
 
@@ -440,9 +484,13 @@ describe("seedToolkitContent", () => {
   });
 
   it("rejects extra content rows not present in the content constants", async () => {
-    const first = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const first = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(first.programVersionId);
-    const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
+    const module1 = modules.find(
+      (row) => row.module_key === "module-01-pressure-test",
+    )!;
 
     await pool.query(
       `insert into module_questions (module_definition_id, question_key, sequence_index, question_text, response_type)
@@ -477,9 +525,10 @@ describe("seedToolkitContent", () => {
       code: "PUBLISH_PRECONDITION_FAILED",
     });
 
-    const programRow = await pool.query("select id from programs where program_key = $1", [
-      PROGRAM_KEY,
-    ]);
+    const programRow = await pool.query(
+      "select id from programs where program_key = $1",
+      [PROGRAM_KEY],
+    );
     expect(programRow.rows).toHaveLength(0);
   });
 
@@ -495,9 +544,13 @@ describe("seedToolkitContent", () => {
   });
 
   it("models pivot_detail as conditionally required, not just allow_skip", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(result.programVersionId);
-    const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
+    const module1 = modules.find(
+      (row) => row.module_key === "module-01-pressure-test",
+    )!;
 
     const row = await pool.query(
       "select is_required, allow_skip, conditions from module_questions where module_definition_id = $1 and question_key = 'pivot_detail'",
@@ -514,7 +567,9 @@ describe("seedToolkitContent", () => {
   });
 
   it("keeps exactly 5 active Modules and no drafts, with no sequence_index conflicts", async () => {
-    const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
+    const result = await withTransaction((client) =>
+      seedToolkitContent(client, TEST_CONTENT),
+    );
     const modules = await fetchModuleRows(result.programVersionId);
 
     expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
@@ -544,7 +599,10 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
   type LivingArtifact = LivingModule["artifacts"][number];
   type LivingBinding = ToolkitSeedContent["promptBindings"][number];
 
-  function buildQuestion(questionKey: string, sequenceIndex: number): LivingQuestion {
+  function buildQuestion(
+    questionKey: string,
+    sequenceIndex: number,
+  ): LivingQuestion {
     return {
       questionKey,
       sequenceIndex,
@@ -560,7 +618,10 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
     };
   }
 
-  function buildArtifact(artifactKey: string, sequenceIndex: number): LivingArtifact {
+  function buildArtifact(
+    artifactKey: string,
+    sequenceIndex: number,
+  ): LivingArtifact {
     return {
       artifactKey,
       sequenceIndex,
@@ -607,7 +668,10 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
 
   function buildLivingContent(
     modules: LivingModule[],
-    options: { contentLock?: "mutable" | "frozen"; bindings?: LivingBinding[] } = {},
+    options: {
+      contentLock?: "mutable" | "frozen";
+      bindings?: LivingBinding[];
+    } = {},
   ): ToolkitSeedContent {
     return {
       program: {
@@ -639,7 +703,9 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
   }
 
   async function cleanupLivingContent(): Promise<void> {
-    await pool.query("delete from programs where program_key = $1", [LIVING_PROGRAM_KEY]);
+    await pool.query("delete from programs where program_key = $1", [
+      LIVING_PROGRAM_KEY,
+    ]);
   }
 
   async function fetchLivingModuleRows(programVersionId: string) {
@@ -668,7 +734,11 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
     );
     expect(first.contentLock).toBe("mutable");
 
-    const before = await pool.query<{ id: string; version_number: number; status: string }>(
+    const before = await pool.query<{
+      id: string;
+      version_number: number;
+      status: string;
+    }>(
       "select id, version_number, status from prompt_versions where prompt_definition_id = (select id from prompt_definitions where prompt_key = $1)",
       [LIVING_PROMPT_KEY],
     );
@@ -676,17 +746,26 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
 
     const changed = buildLivingContent([m1]);
     changed.prompts[0]!.content = "Fixture prompt content v1 — edited in place";
-    const second = await withTransaction((client) => seedToolkitContent(client, changed));
+    const second = await withTransaction((client) =>
+      seedToolkitContent(client, changed),
+    );
     expect(second.programVersionId).toBe(first.programVersionId);
 
-    const after = await pool.query<{ id: string; version_number: number; status: string; content: string }>(
+    const after = await pool.query<{
+      id: string;
+      version_number: number;
+      status: string;
+      content: string;
+    }>(
       "select id, version_number, status, content from prompt_versions where prompt_definition_id = (select id from prompt_definitions where prompt_key = $1)",
       [LIVING_PROMPT_KEY],
     );
     expect(after.rows[0].id).toBe(before.rows[0].id);
     expect(after.rows[0].version_number).toBe(before.rows[0].version_number);
     expect(after.rows[0].status).toBe("published");
-    expect(after.rows[0].content).toBe("Fixture prompt content v1 — edited in place");
+    expect(after.rows[0].content).toBe(
+      "Fixture prompt content v1 — edited in place",
+    );
   });
 
   it("activates a Module added after first publish — the core living-V1 gap this PR fixes", async () => {
@@ -716,7 +795,9 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
     );
 
     await expect(
-      withTransaction((client) => seedToolkitContent(client, buildLivingContent([m1]))),
+      withTransaction((client) =>
+        seedToolkitContent(client, buildLivingContent([m1])),
+      ),
     ).rejects.toMatchObject({
       name: "ContentSeedError",
       code: "DESTRUCTIVE_CONTENT_CHANGE_NOT_ALLOWED",
@@ -728,10 +809,26 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
   });
 
   it("archives a removed Module (cascading to its Questions/Artifacts/Bindings) with --allow-archive, then revives it at the same id on return", async () => {
-    const m1 = buildModule("m1", 1, [buildQuestion("q1", 1)], [buildArtifact("a1", 1)]);
-    const m2 = buildModule("m2", 2, [buildQuestion("q2", 1)], [buildArtifact("a2", 1)]);
+    const m1 = buildModule(
+      "m1",
+      1,
+      [buildQuestion("q1", 1)],
+      [buildArtifact("a1", 1)],
+    );
+    const m2 = buildModule(
+      "m2",
+      2,
+      [buildQuestion("q2", 1)],
+      [buildArtifact("a2", 1)],
+    );
     const bindings: LivingBinding[] = [
-      { moduleKey: "m2", promptKey: LIVING_PROMPT_KEY, purpose: "facilitator", sequenceIndex: 1, isRequired: true },
+      {
+        moduleKey: "m2",
+        promptKey: LIVING_PROMPT_KEY,
+        purpose: "facilitator",
+        sequenceIndex: 1,
+        isRequired: true,
+      },
     ];
 
     const first = await withTransaction((client) =>
@@ -741,7 +838,9 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
     const m2Id = beforeArchive.find((row) => row.module_key === "m2")!.id;
 
     const removed = await withTransaction((client) =>
-      seedToolkitContent(client, buildLivingContent([m1]), { allowArchive: true }),
+      seedToolkitContent(client, buildLivingContent([m1]), {
+        allowArchive: true,
+      }),
     );
     expect(removed.programVersionId).toBe(first.programVersionId);
 
@@ -770,7 +869,12 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
 
     // Bring m2 back — same key, different sequenceIndex than before, to
     // also exercise revive-into-a-different-slot.
-    const revivedM2 = buildModule("m2", 3, [buildQuestion("q2", 1)], [buildArtifact("a2", 1)]);
+    const revivedM2 = buildModule(
+      "m2",
+      3,
+      [buildQuestion("q2", 1)],
+      [buildArtifact("a2", 1)],
+    );
     const revived = await withTransaction((client) =>
       seedToolkitContent(client, buildLivingContent([m1, revivedM2])),
     );
@@ -823,7 +927,9 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
       buildModule("m1", 1, [], [buildArtifact("a1", 1)]),
       buildModule("m3", 2, [], [buildArtifact("a3", 1)]),
     ]);
-    await withTransaction((client) => seedToolkitContent(client, rearranged, { allowArchive: true }));
+    await withTransaction((client) =>
+      seedToolkitContent(client, rearranged, { allowArchive: true }),
+    );
 
     const modules = await fetchLivingModuleRows(first.programVersionId);
     const m2Row = modules.find((row) => row.module_key === "m2")!;
@@ -834,19 +940,26 @@ describe("seedToolkitContent — living content (content_lock = 'mutable')", () 
 
   it("rejects demoting an active Module to a draft placeholder (isPublishable: false)", async () => {
     const m1 = buildModule("m1", 1, [], [buildArtifact("a1", 1)]);
-    await withTransaction((client) => seedToolkitContent(client, buildLivingContent([m1])));
+    await withTransaction((client) =>
+      seedToolkitContent(client, buildLivingContent([m1])),
+    );
 
     const demoted = buildLivingContent([{ ...m1, isPublishable: false }]);
-    await expect(withTransaction((client) => seedToolkitContent(client, demoted))).rejects.toMatchObject(
-      {
-        name: "ContentSeedError",
-        code: "MODULE_DEMOTION_UNSUPPORTED",
-      },
-    );
+    await expect(
+      withTransaction((client) => seedToolkitContent(client, demoted)),
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "MODULE_DEMOTION_UNSUPPORTED",
+    });
   });
 
   it("is a no-op (zero row changes) re-seeding identical living content twice", async () => {
-    const m1 = buildModule("m1", 1, [buildQuestion("q1", 1)], [buildArtifact("a1", 1)]);
+    const m1 = buildModule(
+      "m1",
+      1,
+      [buildQuestion("q1", 1)],
+      [buildArtifact("a1", 1)],
+    );
     const first = await withTransaction((client) =>
       seedToolkitContent(client, buildLivingContent([m1])),
     );

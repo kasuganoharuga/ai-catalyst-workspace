@@ -151,7 +151,9 @@ export function computeBranchReconciliationPlan(
   activeDefs: ActiveDefinitionRow[],
   current: ExistingRunModuleRow[],
 ): RunModuleReconciliationPlan {
-  const currentByDefId = new Map(current.map((row) => [row.moduleDefinitionId, row]));
+  const currentByDefId = new Map(
+    current.map((row) => [row.moduleDefinitionId, row]),
+  );
   const activeDefIds = new Set(activeDefs.map((def) => def.id));
 
   const missing: RunModuleReconciliationPlan["missing"] = [];
@@ -179,7 +181,10 @@ export function computeBranchReconciliationPlan(
       titleUpdates.push({ id: existing.id, title: def.title });
     }
     if (existing.sequenceIndex !== def.sequenceIndex) {
-      sequenceUpdates.push({ id: existing.id, finalSequenceIndex: def.sequenceIndex });
+      sequenceUpdates.push({
+        id: existing.id,
+        finalSequenceIndex: def.sequenceIndex,
+      });
     }
 
     let effectiveStatus = existing.status;
@@ -187,7 +192,8 @@ export function computeBranchReconciliationPlan(
       promotions.push(existing.id);
       effectiveStatus = "available";
     }
-    predecessorAllowsAccess = effectiveStatus === "completed" || effectiveStatus === "inherited";
+    predecessorAllowsAccess =
+      effectiveStatus === "completed" || effectiveStatus === "inherited";
   }
 
   // Orphans: pushed after every active-chain position, preserving their
@@ -200,7 +206,10 @@ export function computeBranchReconciliationPlan(
     .sort((a, b) => a.sequenceIndex - b.sequenceIndex);
   const orphanedIds = orphaned.map((row) => row.id);
 
-  const activeMaxSequence = activeDefs.reduce((max, def) => Math.max(max, def.sequenceIndex), 0);
+  const activeMaxSequence = activeDefs.reduce(
+    (max, def) => Math.max(max, def.sequenceIndex),
+    0,
+  );
   orphaned.forEach((row, index) => {
     const finalSequenceIndex = activeMaxSequence + 1 + index;
     if (row.sequenceIndex !== finalSequenceIndex) {
@@ -225,9 +234,14 @@ export function computeBranchReconciliationPlan(
   // algorithm, there is no "archived rows exit the competition"
   // shortcut here. The temporary offset must clear space against every
   // row currently in the Branch, not just the ones about to move.
-  const currentMaxSequence = current.reduce((max, row) => Math.max(max, row.sequenceIndex), 0);
+  const currentMaxSequence = current.reduce(
+    (max, row) => Math.max(max, row.sequenceIndex),
+    0,
+  );
   const desiredMaxSequence =
-    orphaned.length > 0 ? activeMaxSequence + orphaned.length : activeMaxSequence;
+    orphaned.length > 0
+      ? activeMaxSequence + orphaned.length
+      : activeMaxSequence;
   const offset = Math.max(currentMaxSequence, desiredMaxSequence) + SAFE_GAP;
 
   if (currentMaxSequence + offset > MAX_SEQUENCE_VALUE) {
@@ -292,12 +306,14 @@ export async function planBranchReconciliation(
      order by sequence_index`,
     [programVersionId],
   );
-  const activeDefs: ActiveDefinitionRow[] = activeDefsResult.rows.map((row) => ({
-    id: row.id,
-    moduleKey: row.module_key,
-    title: row.title,
-    sequenceIndex: row.sequence_index,
-  }));
+  const activeDefs: ActiveDefinitionRow[] = activeDefsResult.rows.map(
+    (row) => ({
+      id: row.id,
+      moduleKey: row.module_key,
+      title: row.title,
+      sequenceIndex: row.sequence_index,
+    }),
+  );
 
   const currentResult = await client.query<{
     id: string;
@@ -319,7 +335,12 @@ export async function planBranchReconciliation(
     status: row.status,
   }));
 
-  return computeBranchReconciliationPlan(branchId, programVersionId, activeDefs, current);
+  return computeBranchReconciliationPlan(
+    branchId,
+    programVersionId,
+    activeDefs,
+    current,
+  );
 }
 
 /**
@@ -359,10 +380,10 @@ export async function applyBranchReconciliation(
   }
 
   for (const row of plan.sequenceUpdates) {
-    await client.query(`update program_run_modules set sequence_index = $1 where id = $2`, [
-      row.finalSequenceIndex,
-      row.id,
-    ]);
+    await client.query(
+      `update program_run_modules set sequence_index = $1 where id = $2`,
+      [row.finalSequenceIndex, row.id],
+    );
   }
 
   for (const row of plan.titleUpdates) {
@@ -397,7 +418,10 @@ export async function applyBranchReconciliation(
     // JSON-serializable data with no caller-specific fields baked in
     // (every caller — getOrCreateProgramRun, the batch CLI — can produce
     // a plan the exact same way).
-    const branchResult = await client.query<{ workspace_id: string; program_run_id: string }>(
+    const branchResult = await client.query<{
+      workspace_id: string;
+      program_run_id: string;
+    }>(
       `select workspace_id, program_run_id from program_run_branches where id = $1`,
       [plan.branchId],
     );
@@ -443,7 +467,9 @@ export interface RunReconciliationSummary {
   promoted: number;
 }
 
-function emptyRunReconciliationSummary(skippedFrozen: boolean): RunReconciliationSummary {
+function emptyRunReconciliationSummary(
+  skippedFrozen: boolean,
+): RunReconciliationSummary {
   return {
     skippedFrozen,
     branchesReconciled: 0,
@@ -524,7 +550,9 @@ export async function reconcileProgramRunInTransaction(
  * or against a concurrent `pnpm db:seed`/`pnpm db:freeze` (which acquire
  * SEED_LOCK_KEY exclusively and never take a Venture lock at all).
  */
-export async function reconcileProgramRun(programRunId: string): Promise<RunReconciliationSummary> {
+export async function reconcileProgramRun(
+  programRunId: string,
+): Promise<RunReconciliationSummary> {
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -533,14 +561,24 @@ export async function reconcileProgramRun(programRunId: string): Promise<RunReco
       id: string;
       venture_id: string;
       program_version_id: string;
-    }>(`select id, venture_id, program_version_id from program_runs where id = $1`, [programRunId]);
+    }>(
+      `select id, venture_id, program_version_id from program_runs where id = $1`,
+      [programRunId],
+    );
     const run = runResult.rows[0];
     if (!run) {
-      throw new ServiceError("NOT_FOUND", `Program Run ${programRunId} not found.`);
+      throw new ServiceError(
+        "NOT_FOUND",
+        `Program Run ${programRunId} not found.`,
+      );
     }
 
-    await client.query(`select id from ventures where id = $1 for update`, [run.venture_id]);
-    await client.query("select pg_advisory_xact_lock_shared($1)", [SEED_LOCK_KEY]);
+    await client.query(`select id from ventures where id = $1 for update`, [
+      run.venture_id,
+    ]);
+    await client.query("select pg_advisory_xact_lock_shared($1)", [
+      SEED_LOCK_KEY,
+    ]);
 
     const summary = await reconcileProgramRunInTransaction(client, {
       programRunId: run.id,

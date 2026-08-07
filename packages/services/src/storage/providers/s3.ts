@@ -105,7 +105,10 @@ export class S3StorageProvider implements StorageProvider {
       return bodyToBuffer(result.Body as never);
     } catch (error) {
       if (isNotFound(error)) {
-        throw new ServiceError("NOT_FOUND", `No storage object at key "${key}".`);
+        throw new ServiceError(
+          "NOT_FOUND",
+          `No storage object at key "${key}".`,
+        );
       }
       throw error;
     }

@@ -18,8 +18,14 @@ import { defineConfig } from "vitest/config";
 const NODE_MODULES = "**/node_modules/**";
 const DB_TESTS = "**/*.db.test.ts";
 
-const workspaceUnitTests = ["packages/*/src/**/*.test.ts", "apps/mcp/src/**/*.test.ts"];
-const workspaceDbTests = ["packages/*/src/**/*.db.test.ts", "apps/mcp/src/**/*.db.test.ts"];
+const workspaceUnitTests = [
+  "packages/*/src/**/*.test.ts",
+  "apps/mcp/src/**/*.test.ts",
+];
+const workspaceDbTests = [
+  "packages/*/src/**/*.db.test.ts",
+  "apps/mcp/src/**/*.db.test.ts",
+];
 
 // apps/web needs its own resolve alias and dotenv setup file, which is why it
 // can't just be folded into the globs above.

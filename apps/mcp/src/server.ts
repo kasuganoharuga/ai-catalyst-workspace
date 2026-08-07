@@ -40,7 +40,10 @@ const METHOD_NOT_ALLOWED_BODY = {
  * `req.actorContext` is set by verifyBearerToken. A fresh traceId is added
  * here to correlate service calls and audit rows for this request.
  */
-async function handleStatelessMcpRequest(req: Request, res: Response): Promise<void> {
+async function handleStatelessMcpRequest(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const baseActor = req.actorContext;
   if (!baseActor) {
     // Unreachable via the real `/mcp` route (verifyBearerToken never
@@ -54,7 +57,10 @@ async function handleStatelessMcpRequest(req: Request, res: Response): Promise<v
     });
     return;
   }
-  const actor: ActorContext = { ...baseActor, traceId: baseActor.traceId ?? randomUUID() };
+  const actor: ActorContext = {
+    ...baseActor,
+    traceId: baseActor.traceId ?? randomUUID(),
+  };
   const mcp = createMcpServerInstance(actor);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
@@ -138,7 +144,10 @@ export function createMcpApp(options: CreateMcpAppOptions): Express {
 
   app.post(
     "/mcp",
-    verifyBearerToken({ protectedResourceMetadataUrl, verify: options.verifyBearer }),
+    verifyBearerToken({
+      protectedResourceMetadataUrl,
+      verify: options.verifyBearer,
+    }),
     (req, res) => {
       void handleStatelessMcpRequest(req, res);
     },

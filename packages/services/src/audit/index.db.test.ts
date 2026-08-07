@@ -1,5 +1,14 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
@@ -48,7 +57,10 @@ function buildFixtureArtifact(artifactKey: string): FixtureArtifact {
   };
 }
 
-function buildFixtureModule(moduleKey: string, sequenceIndex: number): FixtureModule {
+function buildFixtureModule(
+  moduleKey: string,
+  sequenceIndex: number,
+): FixtureModule {
   return {
     moduleKey,
     sequenceIndex,
@@ -67,7 +79,10 @@ function buildFixtureModule(moduleKey: string, sequenceIndex: number): FixtureMo
   };
 }
 
-function buildFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+function buildFixtureContent(
+  programKey: string,
+  modules: FixtureModule[],
+): ToolkitSeedContent {
   return {
     program: {
       programKey,
@@ -146,7 +161,9 @@ describe("recordMcpToolCall — database integration", () => {
     await withTransaction((client) =>
       seedToolkitContent(
         client,
-        buildFixtureContent(PROGRAM_KEY, [buildFixtureModule("audit-module-a", 0)]),
+        buildFixtureContent(PROGRAM_KEY, [
+          buildFixtureModule("audit-module-a", 0),
+        ]),
       ),
     );
   });
@@ -155,7 +172,9 @@ describe("recordMcpToolCall — database integration", () => {
     // recordMcpToolCall logs swallowed failures to stderr by design —
     // spied on (not asserted against by default) purely so the FK/unique
     // violation tests below don't spam the real test output.
-    consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
   });
 
   afterEach(() => {
@@ -171,15 +190,21 @@ describe("recordMcpToolCall — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+    await pool.query("delete from programs where program_key = $1", [
+      PROGRAM_KEY,
+    ]);
   });
 
   it("inserts a success row with no Run/Branch/Module/Attempt context", async () => {
-    const { actor } = await createFounderWithWorkspaceAndVenture("success-no-context");
+    const { actor } =
+      await createFounderWithWorkspaceAndVenture("success-no-context");
     const requestId = randomUUID();
 
     await recordMcpToolCall({
@@ -209,7 +234,8 @@ describe("recordMcpToolCall — database integration", () => {
   });
 
   it("folds clientId/scopes/traceId from the ActorContext into request_metadata", async () => {
-    const { actor: baseActor } = await createFounderWithWorkspaceAndVenture("actor-metadata");
+    const { actor: baseActor } =
+      await createFounderWithWorkspaceAndVenture("actor-metadata");
     const actor: ActorContext = {
       ...baseActor,
       clientId: "claude-desktop",
@@ -266,7 +292,9 @@ describe("recordMcpToolCall — database integration", () => {
   });
 
   it("defaults clientId/scopes/traceId when absent from the ActorContext", async () => {
-    const { actor } = await createFounderWithWorkspaceAndVenture("actor-metadata-defaults");
+    const { actor } = await createFounderWithWorkspaceAndVenture(
+      "actor-metadata-defaults",
+    );
     const requestId = randomUUID();
 
     await recordMcpToolCall({
@@ -278,11 +306,16 @@ describe("recordMcpToolCall — database integration", () => {
     });
 
     const row = await getAuditLogRow(requestId);
-    expect(row?.request_metadata).toEqual({ clientId: null, scopes: [], traceId: null });
+    expect(row?.request_metadata).toEqual({
+      clientId: null,
+      scopes: [],
+      traceId: null,
+    });
   });
 
   it("rounds and floors duration_ms at zero for a negative value", async () => {
-    const { actor } = await createFounderWithWorkspaceAndVenture("negative-duration");
+    const { actor } =
+      await createFounderWithWorkspaceAndVenture("negative-duration");
     const requestId = randomUUID();
 
     await recordMcpToolCall({
@@ -320,15 +353,21 @@ describe("recordMcpToolCall — database integration", () => {
   it("inserts the full Run/Branch/Module/Attempt hierarchy when provided", async () => {
     const { actor, workspaceId, ventureId } =
       await createFounderWithWorkspaceAndVenture("full-hierarchy");
-    const { run } = await getOrCreateProgramRun(actor, { ventureId }, {
-      programKey: PROGRAM_KEY,
-    });
+    const { run } = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      {
+        programKey: PROGRAM_KEY,
+      },
+    );
     const modulesResult = await pool.query<{ id: string }>(
       "select id from program_run_modules where program_run_branch_id = $1 order by sequence_index limit 1",
       [run.activeBranchId],
     );
     const runModuleId = modulesResult.rows[0].id;
-    const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
+    const { attempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModuleId,
+    });
     const requestId = randomUUID();
 
     await recordMcpToolCall({
@@ -355,7 +394,9 @@ describe("recordMcpToolCall — database integration", () => {
   });
 
   it("swallows a duplicate request_id (unique violation) rather than throwing", async () => {
-    const { actor } = await createFounderWithWorkspaceAndVenture("duplicate-request-id");
+    const { actor } = await createFounderWithWorkspaceAndVenture(
+      "duplicate-request-id",
+    );
     const requestId = randomUUID();
 
     await recordMcpToolCall({

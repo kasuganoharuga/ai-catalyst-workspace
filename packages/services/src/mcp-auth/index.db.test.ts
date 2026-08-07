@@ -1304,8 +1304,7 @@ describe("mcp-auth service — database integration", () => {
       // And the reconnect-by date is the soonest of the three deadlines —
       // here the 14-day idle one, not the token's own 30-day expiry.
       const daysUntilExpiry =
-        (new Date(status.expiresAt!).getTime() - Date.now()) /
-        (24 * 3_600_000);
+        (new Date(status.expiresAt!).getTime() - Date.now()) / (24 * 3_600_000);
       expect(daysUntilExpiry).toBeGreaterThan(13);
       expect(daysUntilExpiry).toBeLessThan(15);
     });
@@ -1529,7 +1528,9 @@ describe("mcp-auth service — database integration", () => {
 
       expect(result.accessTokensRevoked).toBe(2);
       await expect(
-        getMcpConnectionStatus(createWebActorContext({ userId, role: "founder" })),
+        getMcpConnectionStatus(
+          createWebActorContext({ userId, role: "founder" }),
+        ),
       ).resolves.toMatchObject({ authorised: false });
     });
 
@@ -1573,12 +1574,12 @@ describe("mcp-auth service — database integration", () => {
       await createAccessToken(clientId, userId);
       const actor = createWebActorContext({ userId, role: "founder" });
 
-      await expect(
-        revokeMcpConnectionForUser(actor),
-      ).resolves.toMatchObject({ accessTokensRevoked: 1 });
-      await expect(
-        revokeMcpConnectionForUser(actor),
-      ).resolves.toMatchObject({ accessTokensRevoked: 0 });
+      await expect(revokeMcpConnectionForUser(actor)).resolves.toMatchObject({
+        accessTokensRevoked: 1,
+      });
+      await expect(revokeMcpConnectionForUser(actor)).resolves.toMatchObject({
+        accessTokensRevoked: 0,
+      });
     });
 
     it("records the withdrawal without making the Founder look new", async () => {

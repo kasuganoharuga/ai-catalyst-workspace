@@ -32,7 +32,10 @@ export interface ReconciledProgram {
 export function isProgramVersionContentEditable(
   row: Pick<ProgramVersionRow, "status" | "content_lock">,
 ): boolean {
-  return row.status === "draft" || (row.status === "published" && row.content_lock === "mutable");
+  return (
+    row.status === "draft" ||
+    (row.status === "published" && row.content_lock === "mutable")
+  );
 }
 
 // Cross-checks the content constant's contentLock against the database's
@@ -66,11 +69,17 @@ function assertContentLockDirectionValid(
   }
 }
 
-async function upsertProgram(client: PoolClient, content: ProgramContent): Promise<string> {
-  const existing = await client.query<{ id: string; name: string; description: string | null }>(
-    `select id, name, description from programs where program_key = $1`,
-    [content.programKey],
-  );
+async function upsertProgram(
+  client: PoolClient,
+  content: ProgramContent,
+): Promise<string> {
+  const existing = await client.query<{
+    id: string;
+    name: string;
+    description: string | null;
+  }>(`select id, name, description from programs where program_key = $1`, [
+    content.programKey,
+  ]);
 
   const row = existing.rows[0];
   if (row) {
@@ -159,7 +168,11 @@ async function upsertProgramVersion(
       description: content.versionDescription,
       release_notes: content.releaseNotes,
     },
-    { name: row.name, description: row.description, release_notes: row.release_notes },
+    {
+      name: row.name,
+      description: row.description,
+      release_notes: row.release_notes,
+    },
     ["name", "description", "release_notes"],
   );
 
@@ -180,7 +193,12 @@ async function upsertProgramVersion(
      set name = $1, description = $2, release_notes = $3
      where id = $4
      returning id, version_number, name, description, release_notes, status, content_lock`,
-    [content.versionName, content.versionDescription, content.releaseNotes, row.id],
+    [
+      content.versionName,
+      content.versionDescription,
+      content.releaseNotes,
+      row.id,
+    ],
   );
   return updated.rows[0];
 }

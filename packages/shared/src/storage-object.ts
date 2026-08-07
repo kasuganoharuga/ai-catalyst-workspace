@@ -1,11 +1,7 @@
 // Mirrors the `storage_objects.upload_status` check constraint in
 // infra/database/migrations/0001_aidb_v5_baseline.sql.
 export type StorageObjectUploadStatus =
-  | "pending"
-  | "uploaded"
-  | "verified"
-  | "failed"
-  | "deleted";
+  "pending" | "uploaded" | "verified" | "failed" | "deleted";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `ProgramRun`/`Venture`. Mapped once at the Service

@@ -5,10 +5,10 @@
 This project is in active early development. Only the latest state of the
 `main` branch is supported and receives security fixes.
 
-| Version | Supported |
-| ------- | --------- |
-| `main`  | ✅        |
-| Older commits / branches | ❌ |
+| Version                  | Supported |
+| ------------------------ | --------- |
+| `main`                   | ✅        |
+| Older commits / branches | ❌        |
 
 ## Reporting a Vulnerability
 

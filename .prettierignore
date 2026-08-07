@@ -1,0 +1,18 @@
+node_modules
+.next
+out
+dist
+coverage
+*.tsbuildinfo
+
+# pnpm owns the lockfile's layout.
+pnpm-lock.yaml
+
+# Generated base64 blobs emitted by scripts/generate-workbook-fonts.mjs.
+packages/services/src/artifact/internal/renderers/pdf/fonts/
+
+# Product content, not source: content-seed reads these files verbatim and
+# anti-drift.test.ts compares them block-by-block against the TypeScript
+# constants, so reflowing them would change what Founders receive.
+packages/toolkit-content/modules/
+packages/toolkit-content/skills/

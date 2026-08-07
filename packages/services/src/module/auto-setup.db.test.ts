@@ -259,15 +259,18 @@ describe("autoCompleteSetupModule — database integration", () => {
     await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from programs where program_key = any($1::text[])", [
-      [PROGRAM_KEY, NO_SETUP_PROGRAM_KEY],
-    ]);
+    await pool.query(
+      "delete from programs where program_key = any($1::text[])",
+      [[PROGRAM_KEY, NO_SETUP_PROGRAM_KEY]],
+    );
   });
 
   it("completes the setup module and unlocks the next one", async () => {
     const { actor, runId, branchId } = await createRun("completes");
 
-    const result = await autoCompleteSetupModule(actor, { programRunId: runId });
+    const result = await autoCompleteSetupModule(actor, {
+      programRunId: runId,
+    });
 
     expect(result.status).toBe("completed");
     if (result.status !== "completed") return;
@@ -298,7 +301,9 @@ describe("autoCompleteSetupModule — database integration", () => {
     const { actor, runId, branchId } = await createRun("idempotent");
 
     const first = await autoCompleteSetupModule(actor, { programRunId: runId });
-    const second = await autoCompleteSetupModule(actor, { programRunId: runId });
+    const second = await autoCompleteSetupModule(actor, {
+      programRunId: runId,
+    });
     const third = await autoCompleteSetupModule(actor, { programRunId: runId });
 
     expect(first.status).toBe("completed");
@@ -320,7 +325,9 @@ describe("autoCompleteSetupModule — database integration", () => {
       programRunModuleId: setupBefore.id,
     });
 
-    const result = await autoCompleteSetupModule(actor, { programRunId: runId });
+    const result = await autoCompleteSetupModule(actor, {
+      programRunId: runId,
+    });
 
     expect(result.status).toBe("completed");
     const setupAfter = await getRunModule(branchId, SETUP_MODULE_KEY);
@@ -331,7 +338,9 @@ describe("autoCompleteSetupModule — database integration", () => {
   it("reports not_applicable when the program has no setup module", async () => {
     const { actor, runId } = await createRun("no-setup", NO_SETUP_PROGRAM_KEY);
 
-    const result = await autoCompleteSetupModule(actor, { programRunId: runId });
+    const result = await autoCompleteSetupModule(actor, {
+      programRunId: runId,
+    });
 
     expect(result.status).toBe("not_applicable");
   });

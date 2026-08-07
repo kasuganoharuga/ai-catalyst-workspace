@@ -6,12 +6,17 @@ import { PROBLEM_INTERVIEW_FIELD_MANIFEST_V1 } from "../manifests/interview-v1.j
 import type { InterviewGuideModel } from "../parse/interview-guide.js";
 import { renderWorkbookPlan } from "../pdf/render-plan.js";
 import type { Provenance } from "../types.js";
-import { assertInterviewWorkbookPlan, buildInterviewWorkbookPlan } from "./interview-workbook-plan.js";
+import {
+  assertInterviewWorkbookPlan,
+  buildInterviewWorkbookPlan,
+} from "./interview-workbook-plan.js";
 
 const MODEL: InterviewGuideModel = {
   ventureName: "Kerbside",
-  interviewTarget: "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
-  whatThisInterviewTests: "Whether route supervisors lose recoverable hours to manual reconciliation.",
+  interviewTarget:
+    "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
+  whatThisInterviewTests:
+    "Whether route supervisors lose recoverable hours to manual reconciliation.",
   questions: [
     "Tell me about the last time a run sheet did not match what the trucks actually did.",
     "How often does that happen in a typical month?",
@@ -26,7 +31,8 @@ const MODEL: InterviewGuideModel = {
     "Ask for numbers they already know, never numbers they would estimate.",
   ],
   passBar: {
-    preamble: "For this five-interview validation round, the problem meets the pass bar when at least 3 of 5 interviews satisfy the conditions below:",
+    preamble:
+      "For this five-interview validation round, the problem meets the pass bar when at least 3 of 5 interviews satisfy the conditions below:",
     conditions: [
       "Described a specific reconciliation failure from the last 60 days.",
       "Named a cost in hours or dollars for that occurrence.",
@@ -42,7 +48,8 @@ const MODEL: InterviewGuideModel = {
     "Write the verbatim notes within 30 minutes.",
     "Record the customer's own words rather than a summary.",
   ],
-  whereResultsGo: "Run the five conversations and bring the notes into the next module.",
+  whereResultsGo:
+    "Run the five conversations and bring the notes into the next module.",
 };
 
 const PROVENANCE: Provenance = {
@@ -59,7 +66,8 @@ const PROVENANCE: Provenance = {
 
 async function extractText(bytes: Buffer, pageNumber: number): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) })
+    .promise;
   const page = await doc.getPage(pageNumber);
   const content = await page.getTextContent();
   return content.items
@@ -76,7 +84,9 @@ describe("buildInterviewWorkbookPlan — plan structure", () => {
   });
 
   it("produces 14 pages for a 6-section round (1 additional interview)", () => {
-    const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 6 });
+    const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE, {
+      sectionCount: 6,
+    });
     expect(plan.pages).toHaveLength(14);
   });
 
@@ -92,16 +102,27 @@ describe("buildInterviewWorkbookPlan — plan structure", () => {
   it("produces the right field set for a 4-condition Pass Bar (no missing/extra checkbox)", () => {
     const fourConditionModel: InterviewGuideModel = {
       ...MODEL,
-      passBar: { ...MODEL.passBar, conditions: [...MODEL.passBar.conditions, "A fourth condition."] },
+      passBar: {
+        ...MODEL.passBar,
+        conditions: [...MODEL.passBar.conditions, "A fourth condition."],
+      },
     };
     const plan = buildInterviewWorkbookPlan(fourConditionModel, PROVENANCE);
-    expect(plan.fields.some((f) => f.name === "interview_1.pass_bar_4")).toBe(true);
-    expect(plan.fields.some((f) => f.name === "interview_1.pass_bar_5")).toBe(false);
+    expect(plan.fields.some((f) => f.name === "interview_1.pass_bar_4")).toBe(
+      true,
+    );
+    expect(plan.fields.some((f) => f.name === "interview_1.pass_bar_5")).toBe(
+      false,
+    );
   });
 
   it("titles sections beyond the round as Additional interview, never renumbered into it", () => {
-    const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 6 });
-    const titleEntry = plan.lockedContent.find((e) => e.role === "interview_6.page_a_title");
+    const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE, {
+      sectionCount: 6,
+    });
+    const titleEntry = plan.lockedContent.find(
+      (e) => e.role === "interview_6.page_a_title",
+    );
     expect(titleEntry?.text).toBe("Additional interview 1");
   });
 
@@ -111,12 +132,12 @@ describe("buildInterviewWorkbookPlan — plan structure", () => {
   });
 
   it("rejects a section count outside the manifest's 5-10 range", () => {
-    expect(() => buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 4 })).toThrow(
-      /WORKBOOK_RENDER_FAILED/,
-    );
-    expect(() => buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 11 })).toThrow(
-      /WORKBOOK_RENDER_FAILED/,
-    );
+    expect(() =>
+      buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 4 }),
+    ).toThrow(/WORKBOOK_RENDER_FAILED/);
+    expect(() =>
+      buildInterviewWorkbookPlan(MODEL, PROVENANCE, { sectionCount: 11 }),
+    ).toThrow(/WORKBOOK_RENDER_FAILED/);
   });
 });
 
@@ -132,7 +153,9 @@ describe("buildInterviewWorkbookPlan — every locked model field is present som
 
   it("includes all 5 questions on the reference page AND restated in every section", () => {
     for (const question of MODEL.questions) {
-      const occurrences = plan.lockedContent.filter((e) => e.text.includes(question));
+      const occurrences = plan.lockedContent.filter((e) =>
+        e.text.includes(question),
+      );
       // 1 reference-page occurrence + 5 section restatements = 6.
       expect(occurrences.length).toBe(6);
     }
@@ -156,7 +179,9 @@ describe("buildInterviewWorkbookPlan — every locked model field is present som
   });
 
   it("includes the fixed observation note once per section", () => {
-    const occurrences = plan.lockedContent.filter((e) => e.role.endsWith(".observation_note"));
+    const occurrences = plan.lockedContent.filter((e) =>
+      e.role.endsWith(".observation_note"),
+    );
     expect(occurrences).toHaveLength(5);
   });
 });
@@ -169,32 +194,52 @@ describe("assertInterviewWorkbookPlan", () => {
 
   it("throws when the model disagrees with what the plan actually contains (e.g. venture name)", () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
-    const otherModel: InterviewGuideModel = { ...MODEL, ventureName: "A Completely Different Venture" };
-    expect(() => assertInterviewWorkbookPlan(plan, otherModel)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    const otherModel: InterviewGuideModel = {
+      ...MODEL,
+      ventureName: "A Completely Different Venture",
+    };
+    expect(() => assertInterviewWorkbookPlan(plan, otherModel)).toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws when a question is missing from the plan", () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
     const otherModel: InterviewGuideModel = {
       ...MODEL,
-      questions: [...MODEL.questions.slice(0, 4), "A question that was never rendered anywhere."] as InterviewGuideModel["questions"],
+      questions: [
+        ...MODEL.questions.slice(0, 4),
+        "A question that was never rendered anywhere.",
+      ] as InterviewGuideModel["questions"],
     };
-    expect(() => assertInterviewWorkbookPlan(plan, otherModel)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    expect(() => assertInterviewWorkbookPlan(plan, otherModel)).toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws when a page has no footer label, even if content otherwise matches (the overflow-page regression)", () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
-    const brokenPlan = { ...plan, pages: [{ footerLabel: null }, ...plan.pages.slice(1)] };
-    expect(() => assertInterviewWorkbookPlan(brokenPlan, MODEL)).toThrow(/footer/);
+    const brokenPlan = {
+      ...plan,
+      pages: [{ footerLabel: null }, ...plan.pages.slice(1)],
+    };
+    expect(() => assertInterviewWorkbookPlan(brokenPlan, MODEL)).toThrow(
+      /footer/,
+    );
   });
 
   it("throws when locked content is placeholder text", () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
     const brokenPlan = {
       ...plan,
-      lockedContent: [{ ...plan.lockedContent[0], text: "TBD" }, ...plan.lockedContent.slice(1)],
+      lockedContent: [
+        { ...plan.lockedContent[0], text: "TBD" },
+        ...plan.lockedContent.slice(1),
+      ],
     };
-    expect(() => assertInterviewWorkbookPlan(brokenPlan, MODEL)).toThrow(/placeholder/);
+    expect(() => assertInterviewWorkbookPlan(brokenPlan, MODEL)).toThrow(
+      /placeholder/,
+    );
   });
 });
 
@@ -219,14 +264,18 @@ describe("buildInterviewWorkbookPlan -> renderWorkbookPlan — full pipeline", (
     const bytes = await renderWorkbookPlan(plan);
     const text = await extractText(bytes, 1);
     expect(text).toContain("Kerbside");
-    expect(text).toContain("Tell me about the last time a run sheet did not match");
+    expect(text).toContain(
+      "Tell me about the last time a run sheet did not match",
+    );
   });
 
   it("draws the question restated on interview 1's page A, beside its notes field", async () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const text = await extractText(bytes, 2); // page 1 = reference, page 2 = interview_1 page A
-    expect(text).toContain("Tell me about the last time a run sheet did not match");
+    expect(text).toContain(
+      "Tell me about the last time a run sheet did not match",
+    );
   });
 
   it("draws the handoff copy on the last page", async () => {
@@ -240,23 +289,38 @@ describe("buildInterviewWorkbookPlan -> renderWorkbookPlan — full pipeline", (
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
-    expect(doc.getForm().getTextField("interview_1.verbatim_quotes").getMaxLength()).toBe(620);
+    expect(
+      doc.getForm().getTextField("interview_1.verbatim_quotes").getMaxLength(),
+    ).toBe(620);
   });
 
   it("no two fields on the same page overlap (regression: checkbox border inflation once overlapped adjacent rows)", async () => {
     const plan = buildInterviewWorkbookPlan(MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
-    const pageRefToIndex = new Map(doc.getPages().map((p, i) => [p.ref.toString(), i]));
-    const byPage = new Map<number, { name: string; x: number; y: number; w: number; h: number }[]>();
+    const pageRefToIndex = new Map(
+      doc.getPages().map((p, i) => [p.ref.toString(), i]),
+    );
+    const byPage = new Map<
+      number,
+      { name: string; x: number; y: number; w: number; h: number }[]
+    >();
     for (const field of doc.getForm().getFields()) {
       const widget = field.acroField.getWidgets()[0];
       const rect = widget.getRectangle();
       const pageRef = widget.P?.();
-      const pageIndex = pageRef ? pageRefToIndex.get(pageRef.toString()) : undefined;
+      const pageIndex = pageRef
+        ? pageRefToIndex.get(pageRef.toString())
+        : undefined;
       if (pageIndex === undefined) continue;
       const list = byPage.get(pageIndex) ?? [];
-      list.push({ name: field.getName(), x: rect.x, y: rect.y, w: rect.width, h: rect.height });
+      list.push({
+        name: field.getName(),
+        x: rect.x,
+        y: rect.y,
+        w: rect.width,
+        h: rect.height,
+      });
       byPage.set(pageIndex, list);
     }
     const overlaps: string[] = [];

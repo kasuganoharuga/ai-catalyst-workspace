@@ -43,13 +43,20 @@ function parseBearerToken(header: string | undefined): string | null {
 }
 
 function jsonRpcAuthError(message: string) {
-  return { jsonrpc: "2.0" as const, error: { code: -32001, message }, id: null };
+  return {
+    jsonrpc: "2.0" as const,
+    error: { code: -32001, message },
+    id: null,
+  };
 }
 
 // RFC 9728 discovery challenge, present on every 401/403 this middleware
 // returns — this is what lets an MCP client that only knows this server's
 // URL find the Authorization Server (apps/web) on its own.
-function resourceMetadataChallenge(protectedResourceMetadataUrl: string, extra?: string): string {
+function resourceMetadataChallenge(
+  protectedResourceMetadataUrl: string,
+  extra?: string,
+): string {
   const parts = [`resource_metadata="${protectedResourceMetadataUrl}"`];
   if (extra) parts.unshift(extra);
   return `Bearer ${parts.join(", ")}`;
@@ -59,7 +66,9 @@ function resourceMetadataChallenge(protectedResourceMetadataUrl: string, extra?:
  * Verifies the platform Bearer token and sets req.actorContext for tool handlers.
  * The only auth check on incoming MCP requests.
  */
-export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler {
+export function verifyBearerToken(
+  options: VerifyBearerOptions,
+): RequestHandler {
   const verify = options.verify ?? verifyMcpBearerToken;
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -68,7 +77,10 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
       if (!token) {
         res
           .status(401)
-          .set("WWW-Authenticate", resourceMetadataChallenge(options.protectedResourceMetadataUrl))
+          .set(
+            "WWW-Authenticate",
+            resourceMetadataChallenge(options.protectedResourceMetadataUrl),
+          )
           .json(jsonRpcAuthError("Missing bearer token."));
         return;
       }
@@ -80,7 +92,10 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
         if (error instanceof ServiceError && error.code === "UNAUTHENTICATED") {
           res
             .status(401)
-            .set("WWW-Authenticate", resourceMetadataChallenge(options.protectedResourceMetadataUrl))
+            .set(
+              "WWW-Authenticate",
+              resourceMetadataChallenge(options.protectedResourceMetadataUrl),
+            )
             .json(jsonRpcAuthError(error.message));
           return;
         }

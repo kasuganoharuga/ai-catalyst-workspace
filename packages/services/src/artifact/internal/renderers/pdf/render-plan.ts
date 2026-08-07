@@ -9,16 +9,35 @@
 // each LockedContentEntry's text with the same `wrapText` buildPlan used
 // (guaranteeing identical line breaks) and draws the result; it places each
 // field at its already-decided rect.
-import { PDFDict, PDFDocument, PDFName, PDFString, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import {
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFString,
+  rgb,
+  type PDFFont,
+  type PDFPage,
+} from "pdf-lib";
 
 import { PROVENANCE_INFO_KEYS } from "@ai-catalyst/services/artifact/internal/renderers/types";
-import { assertFontCoverage, linePitch, wrapText } from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
-import { BOLD_FONTKIT_FONT, embedWorkbookFonts, REGULAR_FONTKIT_FONT } from "@ai-catalyst/services/artifact/internal/renderers/pdf/embed-fonts";
+import {
+  assertFontCoverage,
+  linePitch,
+  wrapText,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
+import {
+  BOLD_FONTKIT_FONT,
+  embedWorkbookFonts,
+  REGULAR_FONTKIT_FONT,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/embed-fonts";
 // Same page-size and margin source LayoutBuilder computes pagination
 // against — a buildPlan() that positioned content for A4 at one margin and
 // a render step that created pages or a footer at different values would
 // silently misplace everything.
-import { A4, DEFAULT_MARGIN } from "@ai-catalyst/services/artifact/internal/renderers/pdf/layout-builder";
+import {
+  A4,
+  DEFAULT_MARGIN,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/layout-builder";
 import type { FieldPlan, WorkbookRenderPlan } from "../types.js";
 
 const FOOTER_Y = 22;
@@ -40,33 +59,61 @@ function provenanceFooterLine(plan: WorkbookRenderPlan): string {
 
 function assertAllContentWithinCoverage(plan: WorkbookRenderPlan): void {
   for (const entry of plan.lockedContent) {
-    assertFontCoverage(entry.bold ? BOLD_FONTKIT_FONT : REGULAR_FONTKIT_FONT, entry.text, entry.role);
+    assertFontCoverage(
+      entry.bold ? BOLD_FONTKIT_FONT : REGULAR_FONTKIT_FONT,
+      entry.text,
+      entry.role,
+    );
   }
-  for (const label of plan.pages.map((p) => p.footerLabel).filter((l): l is string => l !== null)) {
+  for (const label of plan.pages
+    .map((p) => p.footerLabel)
+    .filter((l): l is string => l !== null)) {
     assertFontCoverage(REGULAR_FONTKIT_FONT, label, "page footer label");
   }
-  assertFontCoverage(REGULAR_FONTKIT_FONT, provenanceFooterLine(plan), "provenance footer");
+  assertFontCoverage(
+    REGULAR_FONTKIT_FONT,
+    provenanceFooterLine(plan),
+    "provenance footer",
+  );
   for (const field of plan.fields) {
     if (field.kind === "dropdown") {
       for (const option of field.options) {
-        assertFontCoverage(REGULAR_FONTKIT_FONT, option, `${field.name} option "${option}"`);
+        assertFontCoverage(
+          REGULAR_FONTKIT_FONT,
+          option,
+          `${field.name} option "${option}"`,
+        );
       }
     }
   }
 }
 
-function drawField(page: PDFPage, form: ReturnType<PDFDocument["getForm"]>, field: FieldPlan, fonts: { regular: PDFFont; bold: PDFFont }): void {
+function drawField(
+  page: PDFPage,
+  form: ReturnType<PDFDocument["getForm"]>,
+  field: FieldPlan,
+  fonts: { regular: PDFFont; bold: PDFFont },
+): void {
   if (field.kind === "text") {
     const textField = form.createTextField(field.name);
     if (field.multiline) {
       textField.enableMultiline();
     }
     textField.setMaxLength(field.capacity);
-    page.drawRectangle({ ...field.rect, color: FIELD_BG, borderColor: FIELD_BORDER, borderWidth: 0.5 });
+    page.drawRectangle({
+      ...field.rect,
+      color: FIELD_BG,
+      borderColor: FIELD_BORDER,
+      borderWidth: 0.5,
+    });
     // addToPage first: setFontSize writes into the widget's /DA, which does
     // not exist until the widget itself does — calling it first throws
     // MissingDAEntryError.
-    textField.addToPage(page, { ...field.rect, font: fonts.regular, borderWidth: 0 });
+    textField.addToPage(page, {
+      ...field.rect,
+      font: fonts.regular,
+      borderWidth: 0,
+    });
     textField.setFontSize(FIELD_TEXT_SIZE);
     textField.updateAppearances(fonts.regular);
   } else if (field.kind === "checkbox") {
@@ -80,10 +127,20 @@ function drawField(page: PDFPage, form: ReturnType<PDFDocument["getForm"]>, fiel
   }
 }
 
-function stampFooters(pages: PDFPage[], plan: WorkbookRenderPlan, font: PDFFont): void {
+function stampFooters(
+  pages: PDFPage[],
+  plan: WorkbookRenderPlan,
+  font: PDFFont,
+): void {
   const provenanceLine = provenanceFooterLine(plan);
   pages.forEach((page, index) => {
-    page.drawText(provenanceLine, { x: DEFAULT_MARGIN, y: FOOTER_Y, size: FOOTER_SIZE, font, color: FOOTER_COLOR });
+    page.drawText(provenanceLine, {
+      x: DEFAULT_MARGIN,
+      y: FOOTER_Y,
+      size: FOOTER_SIZE,
+      font,
+      color: FOOTER_COLOR,
+    });
     const label = plan.pages[index]?.footerLabel;
     if (label) {
       const width = font.widthOfTextAtSize(label, FOOTER_SIZE);
@@ -98,7 +155,10 @@ function stampFooters(pages: PDFPage[], plan: WorkbookRenderPlan, font: PDFFont)
   });
 }
 
-function stampProvenanceInfoDict(doc: PDFDocument, plan: WorkbookRenderPlan): void {
+function stampProvenanceInfoDict(
+  doc: PDFDocument,
+  plan: WorkbookRenderPlan,
+): void {
   const { provenance } = plan;
   const values: Record<(typeof PROVENANCE_INFO_KEYS)[number], string> = {
     SourceArtifactId: provenance.sourceArtifactId,
@@ -136,7 +196,9 @@ function stampProvenanceInfoDict(doc: PDFDocument, plan: WorkbookRenderPlan): vo
  * falls outside the embedded font's coverage — checked before any drawing
  * happens, so a failure never produces a partial file.
  */
-export async function renderWorkbookPlan(plan: WorkbookRenderPlan): Promise<Buffer> {
+export async function renderWorkbookPlan(
+  plan: WorkbookRenderPlan,
+): Promise<Buffer> {
   assertAllContentWithinCoverage(plan);
 
   const doc = await PDFDocument.create();
@@ -168,10 +230,18 @@ export async function renderWorkbookPlan(plan: WorkbookRenderPlan): Promise<Buff
     const fontkitFont = entry.bold ? BOLD_FONTKIT_FONT : REGULAR_FONTKIT_FONT;
     const lines = wrapText(fontkitFont, entry.text, entry.size, entry.maxWidth);
     const pitch = linePitch(fontkitFont, entry.size);
-    const color = entry.color ? rgb(entry.color.r, entry.color.g, entry.color.b) : BODY_COLOR;
+    const color = entry.color
+      ? rgb(entry.color.r, entry.color.g, entry.color.b)
+      : BODY_COLOR;
     let y = entry.y;
     for (const line of lines) {
-      page.drawText(line, { x: entry.x, y: y - entry.size, size: entry.size, font, color });
+      page.drawText(line, {
+        x: entry.x,
+        y: y - entry.size,
+        size: entry.size,
+        font,
+        color,
+      });
       y -= pitch;
     }
   }
@@ -183,7 +253,9 @@ export async function renderWorkbookPlan(plan: WorkbookRenderPlan): Promise<Buff
   stampFooters(pdfPages, plan, fonts.regular);
   // Must run before stampProvenanceInfoDict — see that function's comment
   // on why setTitle is what creates the Info dictionary in the first place.
-  doc.setTitle(`${plan.provenance.rendererKey} — generated ${plan.provenance.generatedAt}`);
+  doc.setTitle(
+    `${plan.provenance.rendererKey} — generated ${plan.provenance.generatedAt}`,
+  );
   stampProvenanceInfoDict(doc, plan);
 
   const bytes = await doc.save();

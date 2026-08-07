@@ -9,18 +9,24 @@ import { freezeProgramVersion } from "./db/freeze.js";
 // something the operator deliberately opted into, not something that
 // happened because a script ran on the wrong database or the wrong
 // version by accident.
-function assertGates(argv: string[], env: NodeJS.ProcessEnv): { versionLabel: string; allowSharedPromptFreeze: boolean } {
+function assertGates(
+  argv: string[],
+  env: NodeJS.ProcessEnv,
+): { versionLabel: string; allowSharedPromptFreeze: boolean } {
   if (env.ALLOW_CONTENT_FREEZE !== "1") {
     throw new Error(
       "Refusing to freeze: set ALLOW_CONTENT_FREEZE=1 to confirm you intend to run this against this database.",
     );
   }
   if (!argv.includes("--confirm")) {
-    throw new Error("Refusing to freeze: pass --confirm to confirm this is a deliberate, one-way action.");
+    throw new Error(
+      "Refusing to freeze: pass --confirm to confirm this is a deliberate, one-way action.",
+    );
   }
 
   const versionLabelIndex = argv.indexOf("--version-label");
-  const versionLabel = versionLabelIndex !== -1 ? argv[versionLabelIndex + 1] : undefined;
+  const versionLabel =
+    versionLabelIndex !== -1 ? argv[versionLabelIndex + 1] : undefined;
   if (!versionLabel) {
     throw new Error(
       "Usage: ALLOW_CONTENT_FREEZE=1 pnpm db:freeze -- --version-label <label> --confirm [--allow-shared-prompt-freeze]",
@@ -38,7 +44,10 @@ function assertGates(argv: string[], env: NodeJS.ProcessEnv): { versionLabel: st
     );
   }
 
-  return { versionLabel, allowSharedPromptFreeze: argv.includes("--allow-shared-prompt-freeze") };
+  return {
+    versionLabel,
+    allowSharedPromptFreeze: argv.includes("--allow-shared-prompt-freeze"),
+  };
 }
 
 function printV2Runbook(versionLabel: string): void {
@@ -69,7 +78,10 @@ async function run(): Promise<void> {
     throw new Error("DATABASE_URL is required");
   }
 
-  const { versionLabel, allowSharedPromptFreeze } = assertGates(process.argv.slice(2), process.env);
+  const { versionLabel, allowSharedPromptFreeze } = assertGates(
+    process.argv.slice(2),
+    process.env,
+  );
 
   const pool = new Pool({ connectionString });
   const client = await pool.connect();
@@ -81,14 +93,20 @@ async function run(): Promise<void> {
     });
     await client.query("commit");
 
-    console.log(`Frozen program_version ${result.programVersionId} (${result.versionLabel}).`);
+    console.log(
+      `Frozen program_version ${result.programVersionId} (${result.versionLabel}).`,
+    );
     if (result.frozenPromptVersions.length > 0) {
-      console.log(`Frozen ${result.frozenPromptVersions.length} prompt_version(s):`);
+      console.log(
+        `Frozen ${result.frozenPromptVersions.length} prompt_version(s):`,
+      );
       for (const prompt of result.frozenPromptVersions) {
         console.log(`  ${prompt.promptKey} v${prompt.versionNumber}`);
       }
     } else {
-      console.log("No prompt_versions needed freezing (none were still mutable).");
+      console.log(
+        "No prompt_versions needed freezing (none were still mutable).",
+      );
     }
     printV2Runbook(versionLabel);
   } catch (error) {

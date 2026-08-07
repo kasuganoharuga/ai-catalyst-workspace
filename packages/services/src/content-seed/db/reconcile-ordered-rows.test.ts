@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { ContentSeedError } from "../errors.js";
-import { planOrderedRows, type ExistingOrderedRow } from "./reconcile-ordered-rows.js";
+import {
+  planOrderedRows,
+  type ExistingOrderedRow,
+} from "./reconcile-ordered-rows.js";
 
-function row(id: string, key: string, sequenceIndex: number, archived = false): ExistingOrderedRow {
+function row(
+  id: string,
+  key: string,
+  sequenceIndex: number,
+  archived = false,
+): ExistingOrderedRow {
   return { id, key, sequenceIndex, archived };
 }
 
@@ -51,7 +59,9 @@ describe("planOrderedRows", () => {
     ]);
 
     expect(plan.changed).toBe(true);
-    expect(plan.toRevive).toEqual([{ id: "id-2", key: "b", finalSequenceIndex: 5 }]);
+    expect(plan.toRevive).toEqual([
+      { id: "id-2", key: "b", finalSequenceIndex: 5 },
+    ]);
     expect(plan.toArchive).toEqual([]);
   });
 
@@ -73,7 +83,11 @@ describe("planOrderedRows", () => {
   });
 
   it("does not report a staying row whose sequence_index is already correct, even when other rows move", () => {
-    const current = [row("id-1", "a", 1), row("id-2", "b", 2), row("id-3", "c", 3)];
+    const current = [
+      row("id-1", "a", 1),
+      row("id-2", "b", 2),
+      row("id-3", "c", 3),
+    ];
     // Swap b and c; a stays put.
     const plan = planOrderedRows(current, [
       { key: "a", sequenceIndex: 1 },
@@ -81,21 +95,30 @@ describe("planOrderedRows", () => {
       { key: "c", sequenceIndex: 2 },
     ]);
 
-    expect(plan.resequenceStaying.map((r) => r.id).sort()).toEqual(["id-2", "id-3"]);
+    expect(plan.resequenceStaying.map((r) => r.id).sort()).toEqual([
+      "id-2",
+      "id-3",
+    ]);
   });
 
   it("handles archive-and-resequence together: archived row's old slot is reused immediately", () => {
     // This is the case that breaks a naive "just recompute UNIQUE keys"
     // approach: archiving M2 (seq 2) must free seq 2 for M3's promotion
     // to it, in the same reconciliation.
-    const current = [row("id-1", "m1", 1), row("id-2", "m2", 2), row("id-3", "m3", 3)];
+    const current = [
+      row("id-1", "m1", 1),
+      row("id-2", "m2", 2),
+      row("id-3", "m3", 3),
+    ];
     const plan = planOrderedRows(current, [
       { key: "m1", sequenceIndex: 1 },
       { key: "m3", sequenceIndex: 2 },
     ]);
 
     expect(plan.toArchive.map((r) => r.id)).toEqual(["id-2"]);
-    expect(plan.resequenceStaying).toEqual([{ id: "id-3", finalSequenceIndex: 2 }]);
+    expect(plan.resequenceStaying).toEqual([
+      { id: "id-3", finalSequenceIndex: 2 },
+    ]);
   });
 
   it("handles revive-into-a-slot-currently-held-by-an-active-row: revival never lands until staying rows have vacated (archived rows aren't sequence-constrained)", () => {
@@ -110,7 +133,9 @@ describe("planOrderedRows", () => {
       { key: "b", sequenceIndex: 2 },
     ]);
 
-    expect(plan.toRevive).toEqual([{ id: "id-a", key: "a", finalSequenceIndex: 3 }]);
+    expect(plan.toRevive).toEqual([
+      { id: "id-a", key: "a", finalSequenceIndex: 3 },
+    ]);
     expect(plan.resequenceStaying).toEqual([]); // b's sequence_index (2) is unchanged
   });
 
@@ -123,7 +148,9 @@ describe("planOrderedRows", () => {
 
   it("never computes an offset (or touches anything) when nothing changed, even with a huge existing sequence_index", () => {
     const current = [row("id-1", "a", 2_147_483_600)];
-    const plan = planOrderedRows(current, [{ key: "a", sequenceIndex: 2_147_483_600 }]);
+    const plan = planOrderedRows(current, [
+      { key: "a", sequenceIndex: 2_147_483_600 },
+    ]);
     expect(plan.changed).toBe(false);
     expect(plan.offset).toBe(0);
   });

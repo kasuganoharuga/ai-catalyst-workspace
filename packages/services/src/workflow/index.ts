@@ -214,7 +214,9 @@ export async function getOrCreateProgramRun(
     // workflow/internal/reconcile-run-modules.ts's lock-order doc comment
     // for why the order must never reverse (Venture -> SEED_LOCK, never
     // the other way).
-    await client.query("select pg_advisory_xact_lock_shared($1)", [RUN_MODULE_RECONCILE_LOCK_KEY]);
+    await client.query("select pg_advisory_xact_lock_shared($1)", [
+      RUN_MODULE_RECONCILE_LOCK_KEY,
+    ]);
 
     const existingResult = await client.query<ProgramRunRow>(
       `select ${PROGRAM_RUN_COLUMNS} from program_runs
@@ -376,13 +378,18 @@ export interface CurrentVentureRun {
 
 // Resolves the Founder's current Venture Run via user_active_contexts.
 // program_run_modules queries still filter by workspace_id.
-async function resolveCurrentVentureRun(actor: ActorContext): Promise<CurrentVentureRun | null> {
+async function resolveCurrentVentureRun(
+  actor: ActorContext,
+): Promise<CurrentVentureRun | null> {
   const activeContext = await getActiveContext(actor);
   if (!activeContext.workspaceId || !activeContext.ventureId) {
     return null;
   }
 
-  const result = await pool.query<{ id: string; active_branch_id: string | null }>(
+  const result = await pool.query<{
+    id: string;
+    active_branch_id: string | null;
+  }>(
     `select id, active_branch_id from program_runs
      where venture_id = $1 and workspace_id = $2 and status <> 'archived'
      limit 1`,
@@ -418,7 +425,9 @@ export interface ListRunModulesResult {
  * Venture's current Run/Branch, in sequence order. Backs the MCP
  * Module list for the list_modules MCP tool.
  */
-export async function listRunModules(actor: ActorContext): Promise<ListRunModulesResult> {
+export async function listRunModules(
+  actor: ActorContext,
+): Promise<ListRunModulesResult> {
   assertRole(actor, ["founder"]);
   const currentRun = await resolveCurrentVentureRun(actor);
   if (!currentRun) {
@@ -439,7 +448,10 @@ function normalizeModuleKeyInput(input: unknown): { moduleKey: string } {
   }
   const { moduleKey } = input as { moduleKey: unknown };
   if (typeof moduleKey !== "string" || moduleKey.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "moduleKey must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "moduleKey must be a non-blank string.",
+    );
   }
   return { moduleKey };
 }

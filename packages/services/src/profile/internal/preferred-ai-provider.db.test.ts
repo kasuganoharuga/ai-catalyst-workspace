@@ -43,7 +43,10 @@ describe("upsertPreferredAiProvider — database integration", () => {
     );
     const row = result.rows[0];
     return row
-      ? { preferredAiProvider: row.preferred_ai_provider, updatedAt: row.updated_at }
+      ? {
+          preferredAiProvider: row.preferred_ai_provider,
+          updatedAt: row.updated_at,
+        }
       : null;
   }
 

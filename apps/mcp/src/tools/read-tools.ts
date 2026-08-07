@@ -3,7 +3,11 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { getActiveContext } from "@ai-catalyst/services/workspace/active-context";
-import { getRunModuleByKey, listRunModules, resolveAttemptRunContext } from "@ai-catalyst/services/workflow";
+import {
+  getRunModuleByKey,
+  listRunModules,
+  resolveAttemptRunContext,
+} from "@ai-catalyst/services/workflow";
 import { getModuleContext } from "@ai-catalyst/services/module/context";
 import { getArtifactSubmission } from "@ai-catalyst/services/artifact";
 
@@ -26,13 +30,16 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         "Resolves the Founder's current Workspace/Venture selection. Navigation context only — never a basis for authorization.",
     },
     async () => {
-      const response = await withMcpAudit({ toolName: "get_active_context", actor }, async () => {
-        const context = await getActiveContext(actor);
-        return {
-          response: jsonToolResponse(context),
-          audit: { workspaceId: context.workspaceId },
-        };
-      });
+      const response = await withMcpAudit(
+        { toolName: "get_active_context", actor },
+        async () => {
+          const context = await getActiveContext(actor);
+          return {
+            response: jsonToolResponse(context),
+            audit: { workspaceId: context.workspaceId },
+          };
+        },
+      );
       return response;
     },
   );
@@ -45,17 +52,20 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         "Lists every Module in the Founder's current Program Run/Branch, with each Module's canonical Run-scoped status.",
     },
     async () => {
-      const response = await withMcpAudit({ toolName: "list_modules", actor }, async () => {
-        const result = await listRunModules(actor);
-        return {
-          response: jsonToolResponse(result),
-          audit: {
-            workspaceId: result.workspaceId,
-            programRunId: result.runId,
-            resultMetadata: { moduleCount: result.modules.length },
-          },
-        };
-      });
+      const response = await withMcpAudit(
+        { toolName: "list_modules", actor },
+        async () => {
+          const result = await listRunModules(actor);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: result.workspaceId,
+              programRunId: result.runId,
+              resultMetadata: { moduleCount: result.modules.length },
+            },
+          };
+        },
+      );
       return response;
     },
   );
@@ -70,7 +80,11 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     },
     async (args) => {
       const response = await withMcpAudit(
-        { toolName: "get_module_status", actor, requestMetadata: { moduleKey: args.moduleKey } },
+        {
+          toolName: "get_module_status",
+          actor,
+          requestMetadata: { moduleKey: args.moduleKey },
+        },
         async () => {
           const runModule = await getRunModuleByKey(actor, args);
           return {
@@ -81,7 +95,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
               programRunBranchId: runModule.programRunBranchId,
               programRunModuleId: runModule.id,
               moduleAttemptId: runModule.activeAttemptId,
-              resultMetadata: { moduleKey: runModule.moduleKey, status: runModule.status },
+              resultMetadata: {
+                moduleKey: runModule.moduleKey,
+                status: runModule.status,
+              },
             },
           };
         },
@@ -100,7 +117,11 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     },
     async (args) => {
       const response = await withMcpAudit(
-        { toolName: "get_module_context", actor, requestMetadata: { moduleKey: args.moduleKey } },
+        {
+          toolName: "get_module_context",
+          actor,
+          requestMetadata: { moduleKey: args.moduleKey },
+        },
         async () => {
           const context = await getModuleContext(actor, args);
           return {
@@ -136,7 +157,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         {
           toolName: "get_artifact",
           actor,
-          requestMetadata: { attemptId: args.attemptId, artifactKey: args.artifactKey },
+          requestMetadata: {
+            attemptId: args.attemptId,
+            artifactKey: args.artifactKey,
+          },
         },
         async () => {
           const result = await getArtifactSubmission(actor, args);
@@ -145,9 +169,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
           // second lookup exists purely to enrich the audit row with the
           // full Run/Branch/Module hierarchy (see resolveAttemptRunContext's
           // own comment), never to gate the tool's actual result.
-          const hierarchy = await resolveAttemptRunContext(actor, args.attemptId).catch(
-            () => null,
-          );
+          const hierarchy = await resolveAttemptRunContext(
+            actor,
+            args.attemptId,
+          ).catch(() => null);
           return {
             response: jsonToolResponse(result),
             audit: {

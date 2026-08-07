@@ -15,9 +15,19 @@
 // regular/bold, per pdf/embed-fonts.ts) — the mockup's Source Serif
 // headline and IBM Plex Mono micro-labels are both approximated in Noto
 // Sans; the layout, colour and hierarchy are the faithful part.
-import { BOLD_FONTKIT_FONT, REGULAR_FONTKIT_FONT } from "@ai-catalyst/services/artifact/internal/renderers/pdf/embed-fonts";
-import { A4, LayoutBuilder } from "@ai-catalyst/services/artifact/internal/renderers/pdf/layout-builder";
-import { assertAllPresent, assertFooterOnEveryPage, assertNoPlaceholderText } from "@ai-catalyst/services/artifact/internal/renderers/plan/shared-assertions";
+import {
+  BOLD_FONTKIT_FONT,
+  REGULAR_FONTKIT_FONT,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/embed-fonts";
+import {
+  A4,
+  LayoutBuilder,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/layout-builder";
+import {
+  assertAllPresent,
+  assertFooterOnEveryPage,
+  assertNoPlaceholderText,
+} from "@ai-catalyst/services/artifact/internal/renderers/plan/shared-assertions";
 import type { IdealCustomerAvatarModel } from "../parse/ideal-customer-avatar.js";
 import type { Provenance, WorkbookRenderPlan } from "../types.js";
 
@@ -55,19 +65,42 @@ function labelAndValue(
   textColor: RGB,
   labelColor: RGB,
 ): number {
-  layout.lockedText(`${role}.label`, label.toUpperCase(), { size: MICRO_SIZE, bold: true, color: labelColor }, { x, y: topY });
+  layout.lockedText(
+    `${role}.label`,
+    label.toUpperCase(),
+    { size: MICRO_SIZE, bold: true, color: labelColor },
+    { x, y: topY },
+  );
   const labelHeight = layout.linePitch(MICRO_SIZE, true);
   const valueTop = topY - labelHeight - 4;
-  layout.lockedText(role, text, { size: textSize, color: textColor }, { x, y: valueTop, maxWidth: width });
+  layout.lockedText(
+    role,
+    text,
+    { size: textSize, color: textColor },
+    { x, y: valueTop, maxWidth: width },
+  );
   const valueHeight = layout.measuredHeight(text, textSize, width);
   return labelHeight + 4 + valueHeight;
 }
 
 /** A section micro-label with a hairline rule beneath it. Returns the total height consumed from `topY`. */
-function sectionRule(layout: LayoutBuilder, role: string, label: string, topY: number): number {
-  layout.lockedText(`${role}.label`, label.toUpperCase(), { size: MICRO_SIZE, bold: true, color: MUTED_LABEL }, { x: layout.margin, y: topY });
+function sectionRule(
+  layout: LayoutBuilder,
+  role: string,
+  label: string,
+  topY: number,
+): number {
+  layout.lockedText(
+    `${role}.label`,
+    label.toUpperCase(),
+    { size: MICRO_SIZE, bold: true, color: MUTED_LABEL },
+    { x: layout.margin, y: topY },
+  );
   const ruleY = topY - layout.linePitch(MICRO_SIZE, true) - 5;
-  layout.rectAt({ x: layout.margin, y: ruleY, width: layout.usableWidth, height: 0.75 }, INK);
+  layout.rectAt(
+    { x: layout.margin, y: ruleY, width: layout.usableWidth, height: 0.75 },
+    INK,
+  );
   return topY - ruleY + 7;
 }
 
@@ -85,7 +118,12 @@ function bulletList(
   let y = topY;
   for (let i = 0; i < items.length; i += 1) {
     const text = `·  ${items[i]}`;
-    layout.lockedText(`${rolePrefix}.${i + 1}`, text, { size, color }, { x, y, maxWidth: width });
+    layout.lockedText(
+      `${rolePrefix}.${i + 1}`,
+      text,
+      { size, color },
+      { x, y, maxWidth: width },
+    );
     y -= layout.measuredHeight(text, size, width) + 4;
   }
   return topY - y;
@@ -103,11 +141,21 @@ function header(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
   // this file (fixed renderer chrome like "SEGMENT"/"WHO"), this one is
   // model-derived content, and assertIdealCustomerAvatarPlan checks it
   // against the confirmed venture name exactly as written.
-  layout.lockedText("header.venture", model.ventureName, { size: 8.5, bold: true, color: NAVY_MUTED_TEXT }, { x: innerX, y });
+  layout.lockedText(
+    "header.venture",
+    model.ventureName,
+    { size: 8.5, bold: true, color: NAVY_MUTED_TEXT },
+    { x: innerX, y },
+  );
   y -= layout.linePitch(8.5, true) + 8;
 
   const titleSize = 22;
-  layout.lockedText("header.title", "Ideal Customer Avatar", { size: titleSize, bold: true, color: WHITE }, { x: innerX, y, maxWidth: innerWidth });
+  layout.lockedText(
+    "header.title",
+    "Ideal Customer Avatar",
+    { size: titleSize, bold: true, color: WHITE },
+    { x: innerX, y, maxWidth: innerWidth },
+  );
   y -= layout.linePitch(titleSize, true) + 8;
 
   const segmentHeight = labelAndValue(
@@ -128,7 +176,10 @@ function header(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
   layout.y = y - 11;
 }
 
-function snapshotGrid(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function snapshotGrid(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   const cols: Array<{ label: string; value: string }> = [
     { label: "Who", value: model.snapshot.who },
     { label: "Where", value: model.snapshot.where },
@@ -138,18 +189,34 @@ function snapshotGrid(layout: LayoutBuilder, model: IdealCustomerAvatarModel): v
   const colWidth = layout.usableWidth / 4;
   const colPad = 10;
   const innerWidth = colWidth - colPad * 2;
-  const valueHeights = cols.map((col) => layout.measuredHeight(col.value, 8.5, innerWidth));
-  const bandHeight = 12 + layout.linePitch(MICRO_SIZE, true) + 4 + Math.max(...valueHeights) + 12;
+  const valueHeights = cols.map((col) =>
+    layout.measuredHeight(col.value, 8.5, innerWidth),
+  );
+  const bandHeight =
+    12 +
+    layout.linePitch(MICRO_SIZE, true) +
+    4 +
+    Math.max(...valueHeights) +
+    12;
 
   layout.ensure(bandHeight);
   const top = layout.y;
-  layout.rectAt({ x: 0, y: top - bandHeight, width: A4.width, height: bandHeight }, CARD_BG);
-  layout.rectAt({ x: 0, y: top - bandHeight, width: A4.width, height: 0.75 }, GRID_BORDER);
+  layout.rectAt(
+    { x: 0, y: top - bandHeight, width: A4.width, height: bandHeight },
+    CARD_BG,
+  );
+  layout.rectAt(
+    { x: 0, y: top - bandHeight, width: A4.width, height: 0.75 },
+    GRID_BORDER,
+  );
 
   cols.forEach((col, i) => {
     const x = layout.margin + i * colWidth;
     if (i > 0) {
-      layout.rectAt({ x, y: top - bandHeight, width: 0.75, height: bandHeight }, GRID_BORDER);
+      layout.rectAt(
+        { x, y: top - bandHeight, width: 0.75, height: bandHeight },
+        GRID_BORDER,
+      );
     }
     labelAndValue(
       layout,
@@ -168,7 +235,10 @@ function snapshotGrid(layout: LayoutBuilder, model: IdealCustomerAvatarModel): v
   layout.y = top - bandHeight - 11;
 }
 
-function situation(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function situation(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   const labelWidth = 60;
   const textX = layout.margin + 12 + labelWidth;
   const textWidth = layout.usableWidth - 12 - labelWidth;
@@ -176,16 +246,37 @@ function situation(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void
   layout.ensure(height + 12);
 
   const top = layout.y;
-  layout.rectAt({ x: layout.margin, y: top - height - 2, width: 1.5, height: height + 2 }, ACCENT);
-  layout.lockedText("situation.label", "Situation", { size: MICRO_SIZE, bold: true, color: ACCENT }, { x: layout.margin + 12, y: top });
-  layout.lockedText("situation", model.situation, { size: 9, color: INK }, { x: textX, y: top, maxWidth: textWidth });
+  layout.rectAt(
+    { x: layout.margin, y: top - height - 2, width: 1.5, height: height + 2 },
+    ACCENT,
+  );
+  layout.lockedText(
+    "situation.label",
+    "Situation",
+    { size: MICRO_SIZE, bold: true, color: ACCENT },
+    { x: layout.margin + 12, y: top },
+  );
+  layout.lockedText(
+    "situation",
+    model.situation,
+    { size: 9, color: INK },
+    { x: textX, y: top, maxWidth: textWidth },
+  );
 
   layout.y = top - height - 15;
 }
 
-function unmetNeeds(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function unmetNeeds(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   layout.ensure(60);
-  const headingHeight = sectionRule(layout, "unmet_needs", "Unmet needs", layout.y);
+  const headingHeight = sectionRule(
+    layout,
+    "unmet_needs",
+    "Unmet needs",
+    layout.y,
+  );
   const top = layout.y - headingHeight;
 
   const gutter = 18;
@@ -193,23 +284,52 @@ function unmetNeeds(layout: LayoutBuilder, model: IdealCustomerAvatarModel): voi
   const rightX = layout.margin + colWidth + gutter;
 
   const headingSize = 10.5;
-  layout.lockedText("unmet_needs.functional_heading", "Functional — what they need done", { size: headingSize, bold: true, color: NAVY }, {
-    x: layout.margin,
-    y: top,
-    maxWidth: colWidth,
-  });
+  layout.lockedText(
+    "unmet_needs.functional_heading",
+    "Functional — what they need done",
+    { size: headingSize, bold: true, color: NAVY },
+    {
+      x: layout.margin,
+      y: top,
+      maxWidth: colWidth,
+    },
+  );
   const leftListTop = top - layout.linePitch(headingSize, true) - 6;
-  const leftHeight = bulletList(layout, "unmet_needs.functional", model.unmetNeeds.functional, leftListTop, layout.margin, colWidth, 8.5, INK);
+  const leftHeight = bulletList(
+    layout,
+    "unmet_needs.functional",
+    model.unmetNeeds.functional,
+    leftListTop,
+    layout.margin,
+    colWidth,
+    8.5,
+    INK,
+  );
 
-  layout.lockedText("unmet_needs.emotional_heading", "Emotional & social — what they feel", { size: headingSize, bold: true, color: NAVY }, {
-    x: rightX,
-    y: top,
-    maxWidth: colWidth,
-  });
+  layout.lockedText(
+    "unmet_needs.emotional_heading",
+    "Emotional & social — what they feel",
+    { size: headingSize, bold: true, color: NAVY },
+    {
+      x: rightX,
+      y: top,
+      maxWidth: colWidth,
+    },
+  );
   const rightListTop = top - layout.linePitch(headingSize, true) - 6;
-  const rightHeight = bulletList(layout, "unmet_needs.emotional", model.unmetNeeds.emotional, rightListTop, rightX, colWidth, 8.5, INK);
+  const rightHeight = bulletList(
+    layout,
+    "unmet_needs.emotional",
+    model.unmetNeeds.emotional,
+    rightListTop,
+    rightX,
+    colWidth,
+    8.5,
+    INK,
+  );
 
-  const consumed = layout.linePitch(headingSize, true) + 6 + Math.max(leftHeight, rightHeight);
+  const consumed =
+    layout.linePitch(headingSize, true) + 6 + Math.max(leftHeight, rightHeight);
   layout.y = top - consumed - 11;
 }
 
@@ -228,14 +348,27 @@ function buyingSignalCard(
   const innerWidth = width - pad * 2;
   layout.rectAt({ x, y: top - cardHeight, width, height: cardHeight }, CARD_BG);
   layout.rectAt({ x, y: top, width, height: 1.5 }, accentColor);
-  layout.lockedText(`${role}.title`, title, { size: 9, bold: true, color: accentColor }, { x: x + pad, y: top - pad, maxWidth: innerWidth });
+  layout.lockedText(
+    `${role}.title`,
+    title,
+    { size: 9, bold: true, color: accentColor },
+    { x: x + pad, y: top - pad, maxWidth: innerWidth },
+  );
   const itemsTop = top - pad - layout.linePitch(9, true) - 6;
   bulletList(layout, role, items, itemsTop, x + pad, innerWidth, 8.5, INK);
 }
 
-function buyingSignals(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function buyingSignals(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   layout.ensure(60);
-  const headingHeight = sectionRule(layout, "buying_signals", "Buying signals — behaviours and actions", layout.y);
+  const headingHeight = sectionRule(
+    layout,
+    "buying_signals",
+    "Buying signals — behaviours and actions",
+    layout.y,
+  );
   const gutter = 20;
   const colWidth = (layout.usableWidth - gutter) / 2;
   const rightX = layout.margin + gutter + colWidth;
@@ -246,19 +379,49 @@ function buyingSignals(layout: LayoutBuilder, model: IdealCustomerAvatarModel): 
     pad +
     titleHeight +
     6 +
-    items.reduce((sum, item) => sum + layout.measuredHeight(`·  ${item}`, 8.5, colWidth - pad * 2) + 4, 0) +
+    items.reduce(
+      (sum, item) =>
+        sum + layout.measuredHeight(`·  ${item}`, 8.5, colWidth - pad * 2) + 4,
+      0,
+    ) +
     pad;
 
-  const cardHeight = Math.max(cardHeightFor(model.buyingSignals.tier1), cardHeightFor(model.buyingSignals.tier2));
+  const cardHeight = Math.max(
+    cardHeightFor(model.buyingSignals.tier1),
+    cardHeightFor(model.buyingSignals.tier2),
+  );
   const top = layout.y - headingHeight;
 
-  buyingSignalCard(layout, top, cardHeight, "buying_signals.tier1", layout.margin, colWidth, "Tier 1 — high intent, act within 24–48 hours", model.buyingSignals.tier1, ACCENT);
-  buyingSignalCard(layout, top, cardHeight, "buying_signals.tier2", rightX, colWidth, "Tier 2 — building intent, nurture over 4–12 weeks", model.buyingSignals.tier2, NAVY);
+  buyingSignalCard(
+    layout,
+    top,
+    cardHeight,
+    "buying_signals.tier1",
+    layout.margin,
+    colWidth,
+    "Tier 1 — high intent, act within 24–48 hours",
+    model.buyingSignals.tier1,
+    ACCENT,
+  );
+  buyingSignalCard(
+    layout,
+    top,
+    cardHeight,
+    "buying_signals.tier2",
+    rightX,
+    colWidth,
+    "Tier 2 — building intent, nurture over 4–12 weeks",
+    model.buyingSignals.tier2,
+    NAVY,
+  );
 
   layout.y = top - cardHeight - 11;
 }
 
-function disqualifiersAndPromise(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function disqualifiersAndPromise(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   const labelWidth = 88;
   const textX = layout.margin + labelWidth;
   const textWidth = layout.usableWidth - labelWidth;
@@ -267,17 +430,47 @@ function disqualifiersAndPromise(layout: LayoutBuilder, model: IdealCustomerAvat
   layout.ensure(disqualifiersHeight + 12);
 
   const disqualifiersTop = layout.y;
-  layout.lockedText("disqualifiers.label", "Disqualifiers", { size: MICRO_SIZE, bold: true, color: ACCENT }, { x: layout.margin, y: disqualifiersTop });
-  layout.lockedText("disqualifiers", line, { size: 8.5, color: MUTED_BODY }, { x: textX, y: disqualifiersTop, maxWidth: textWidth });
-  layout.y = disqualifiersTop - Math.max(layout.linePitch(MICRO_SIZE, true), disqualifiersHeight) - 10;
+  layout.lockedText(
+    "disqualifiers.label",
+    "Disqualifiers",
+    { size: MICRO_SIZE, bold: true, color: ACCENT },
+    { x: layout.margin, y: disqualifiersTop },
+  );
+  layout.lockedText(
+    "disqualifiers",
+    line,
+    { size: 8.5, color: MUTED_BODY },
+    { x: textX, y: disqualifiersTop, maxWidth: textWidth },
+  );
+  layout.y =
+    disqualifiersTop -
+    Math.max(layout.linePitch(MICRO_SIZE, true), disqualifiersHeight) -
+    10;
 
-  const promiseHeight = layout.measuredHeight(model.corePromise, 9.5, textWidth);
+  const promiseHeight = layout.measuredHeight(
+    model.corePromise,
+    9.5,
+    textWidth,
+  );
   const bandHeight = promiseHeight + 24;
   layout.ensure(bandHeight);
   const top = layout.y;
-  layout.rectAt({ x: 0, y: top - bandHeight, width: A4.width, height: bandHeight }, NAVY);
-  layout.lockedText("core_promise.label", "Core promise", { size: MICRO_SIZE, bold: true, color: NAVY_MUTED_TEXT }, { x: layout.margin, y: top - 12 });
-  layout.lockedText("core_promise", model.corePromise, { size: 9.5, color: WHITE }, { x: textX, y: top - 12, maxWidth: textWidth });
+  layout.rectAt(
+    { x: 0, y: top - bandHeight, width: A4.width, height: bandHeight },
+    NAVY,
+  );
+  layout.lockedText(
+    "core_promise.label",
+    "Core promise",
+    { size: MICRO_SIZE, bold: true, color: NAVY_MUTED_TEXT },
+    { x: layout.margin, y: top - 12 },
+  );
+  layout.lockedText(
+    "core_promise",
+    model.corePromise,
+    { size: 9.5, color: WHITE },
+    { x: textX, y: top - 12, maxWidth: textWidth },
+  );
   layout.y = top - bandHeight;
 }
 
@@ -289,9 +482,17 @@ function disqualifiersAndPromise(layout: LayoutBuilder, model: IdealCustomerAvat
  * grid and cards are built for. Rendered rather than dropped anyway (see
  * IdealCustomerAvatarModel's comment).
  */
-function validationStatus(layout: LayoutBuilder, model: IdealCustomerAvatarModel): void {
+function validationStatus(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
   layout.ensure(60);
-  const headingHeight = sectionRule(layout, "validation_status", "Validation status (internal — not a verdict)", layout.y);
+  const headingHeight = sectionRule(
+    layout,
+    "validation_status",
+    "Validation status (internal — not a verdict)",
+    layout.y,
+  );
   const top = layout.y - headingHeight;
 
   const rows: Array<[string, string]> = [
@@ -300,17 +501,25 @@ function validationStatus(layout: LayoutBuilder, model: IdealCustomerAvatarModel
     ["Founder assumptions", model.validationStatus.founderAssumptions],
     ["Important unknowns", model.validationStatus.importantUnknowns],
     ["Contradicting evidence", model.validationStatus.contradictingEvidence],
-    ["Highest-priority questions", model.validationStatus.highestPriorityQuestions],
+    [
+      "Highest-priority questions",
+      model.validationStatus.highestPriorityQuestions,
+    ],
   ];
 
   let y = top;
   rows.forEach(([label, value], i) => {
     const text = `${label}: ${value}`;
-    layout.lockedText(`validation_status.${i + 1}`, text, { size: 7.5, color: MUTED_BODY }, {
-      x: layout.margin,
-      y,
-      maxWidth: layout.usableWidth,
-    });
+    layout.lockedText(
+      `validation_status.${i + 1}`,
+      text,
+      { size: 7.5, color: MUTED_BODY },
+      {
+        x: layout.margin,
+        y,
+        maxWidth: layout.usableWidth,
+      },
+    );
     y -= layout.measuredHeight(text, 7.5, layout.usableWidth) + 3;
   });
 
@@ -321,7 +530,9 @@ export function buildIdealCustomerAvatarPlan(
   model: IdealCustomerAvatarModel,
   provenance: Provenance,
 ): WorkbookRenderPlan {
-  const layout = new LayoutBuilder(REGULAR_FONTKIT_FONT, BOLD_FONTKIT_FONT, { margin: MARGIN });
+  const layout = new LayoutBuilder(REGULAR_FONTKIT_FONT, BOLD_FONTKIT_FONT, {
+    margin: MARGIN,
+  });
   header(layout, model);
   snapshotGrid(layout, model);
   situation(layout, model);
@@ -339,7 +550,10 @@ export function buildIdealCustomerAvatarPlan(
  * IdealCustomerAvatarModel and the plan is checked — see
  * interview-workbook-plan.ts's header for the shared rationale.
  */
-export function assertIdealCustomerAvatarPlan(plan: WorkbookRenderPlan, model: IdealCustomerAvatarModel): void {
+export function assertIdealCustomerAvatarPlan(
+  plan: WorkbookRenderPlan,
+  model: IdealCustomerAvatarModel,
+): void {
   assertFooterOnEveryPage(plan);
   assertNoPlaceholderText(plan);
 
@@ -347,7 +561,12 @@ export function assertIdealCustomerAvatarPlan(plan: WorkbookRenderPlan, model: I
   assertAllPresent(plan, [model.segment], "segment");
   assertAllPresent(
     plan,
-    [model.snapshot.who, model.snapshot.where, model.snapshot.stage, model.snapshot.raise],
+    [
+      model.snapshot.who,
+      model.snapshot.where,
+      model.snapshot.stage,
+      model.snapshot.raise,
+    ],
     "snapshot field",
   );
   assertAllPresent(plan, [model.situation], "situation");

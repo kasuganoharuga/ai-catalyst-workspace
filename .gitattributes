@@ -1,1 +1,8 @@
-infra/database/migrations/*.sql text eol=lf
+# Git for Windows ships core.autocrlf=true in its system config, so a default
+# Windows clone checks text files out as CRLF while the index stays LF. Prettier
+# only ever writes LF, so without normalising here `prettier --check` fails on
+# every file locally while passing in CI (which checks out LF) — making the
+# local format check useless. Keep the working tree LF on every platform.
+* text=auto eol=lf
+
+*.png binary

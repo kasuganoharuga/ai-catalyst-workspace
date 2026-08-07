@@ -12,7 +12,12 @@ import type { FieldManifest } from "../types.js";
 // count (2 or 3), never a Founder choice.
 export const VALIDATION_ROADMAP_FIELD_MANIFEST_V1: FieldManifest = {
   sectionPrefix: "experiment",
-  sectionCount: { kind: "fromModel", source: "experiments", minimum: 2, maximum: 3 },
+  sectionCount: {
+    kind: "fromModel",
+    source: "experiments",
+    minimum: 2,
+    maximum: 3,
+  },
   fields: [
     // Page A — before the result is known
     { kind: "fixed", type: "text", suffix: "participants", capacity: 550 },
@@ -29,9 +34,19 @@ export const VALIDATION_ROADMAP_FIELD_MANIFEST_V1: FieldManifest = {
     // Options are renderer chrome from the Module 4 vocabulary, not derived
     // from the Markdown — see plan §5.1's note on why this is not a rule
     // violation despite the "never infer" discipline elsewhere.
-    { kind: "fixed", type: "dropdown", suffix: "outcome", options: ["Pass", "Fail", "Inconclusive"] },
+    {
+      kind: "fixed",
+      type: "dropdown",
+      suffix: "outcome",
+      options: ["Pass", "Fail", "Inconclusive"],
+    },
     { kind: "fixed", type: "text", suffix: "maturity_impact", capacity: 360 },
-    { kind: "fixed", type: "dropdown", suffix: "decision", options: ["Continue", "Revise", "Stop"] },
+    {
+      kind: "fixed",
+      type: "dropdown",
+      suffix: "decision",
+      options: ["Continue", "Revise", "Stop"],
+    },
     { kind: "fixed", type: "text", suffix: "next_action", capacity: 550 },
   ],
 };

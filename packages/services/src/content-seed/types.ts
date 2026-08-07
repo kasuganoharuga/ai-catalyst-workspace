@@ -44,7 +44,8 @@ export interface QuestionContent {
   conditions: QuestionCondition | Record<string, never>;
 }
 
-export type ArtifactType = "document" | "presentation" | "web" | "data" | "file";
+export type ArtifactType =
+  "document" | "presentation" | "web" | "data" | "file";
 
 export interface ArtifactContent {
   artifactKey: string;
@@ -76,10 +77,7 @@ export interface ArtifactContent {
 
 export type ModuleType = "setup" | "standard" | "review" | "completion";
 export type CompletionMode =
-  | "artifact"
-  | "confirmation"
-  | "artifact_and_confirmation"
-  | "system";
+  "artifact" | "confirmation" | "artifact_and_confirmation" | "system";
 
 export interface ModuleContent {
   moduleKey: string;

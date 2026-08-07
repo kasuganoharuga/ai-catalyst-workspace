@@ -1,14 +1,20 @@
 import { PDFDocument } from "pdf-lib";
 import { describe, expect, it } from "vitest";
 
-import { BOLD_FONTKIT_FONT, embedWorkbookFonts, REGULAR_FONTKIT_FONT } from "./embed-fonts.js";
+import {
+  BOLD_FONTKIT_FONT,
+  embedWorkbookFonts,
+  REGULAR_FONTKIT_FONT,
+} from "./embed-fonts.js";
 
 describe("embed-fonts", () => {
   it("parses two genuinely distinct faces, not the same bytes twice", () => {
     // Regression guard for the duplicate-embed bug found while building the
     // real visual layout: a fallback path once embedded the same bytes
     // under two names, adding ~89KB of pure waste per generated workbook.
-    expect(REGULAR_FONTKIT_FONT.postscriptName).not.toBe(BOLD_FONTKIT_FONT.postscriptName);
+    expect(REGULAR_FONTKIT_FONT.postscriptName).not.toBe(
+      BOLD_FONTKIT_FONT.postscriptName,
+    );
   });
 
   it("both faces expose real glyph metrics (unitsPerEm, ascent, descent)", () => {
@@ -30,6 +36,8 @@ describe("embed-fonts", () => {
   it("throws WORKBOOK_RENDER_FAILED if called before the AcroForm dict exists", async () => {
     const doc = await PDFDocument.create();
     // Deliberately no doc.getForm() call first.
-    await expect(embedWorkbookFonts(doc)).rejects.toThrow(/WORKBOOK_RENDER_FAILED/);
+    await expect(embedWorkbookFonts(doc)).rejects.toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 });

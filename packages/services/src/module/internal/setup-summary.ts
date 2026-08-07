@@ -21,12 +21,17 @@ export interface SetupSummaryRenderInput {
   nextModuleTitle: string | null;
 }
 
-export function renderSetupSummaryMarkdown(input: SetupSummaryRenderInput): string {
+export function renderSetupSummaryMarkdown(
+  input: SetupSummaryRenderInput,
+): string {
   const storageStatusLine = input.storageVerified
     ? "Verified — write, read-back, and hash checks all passed"
     : "Repair required — see the Founder Toolkit setup page";
-  const moduleZeroStatusLine = input.storageVerified ? "Completed" : "Repair required";
-  const nextModuleLine = input.nextModuleTitle ?? "None — this is the last Module in the Program";
+  const moduleZeroStatusLine = input.storageVerified
+    ? "Completed"
+    : "Repair required";
+  const nextModuleLine =
+    input.nextModuleTitle ?? "None — this is the last Module in the Program";
 
   return `# Founder Toolkit Setup Summary
 

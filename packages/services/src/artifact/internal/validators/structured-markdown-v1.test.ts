@@ -16,8 +16,16 @@ function makeContext(
   };
 }
 
-function response(questionKey: string, answerText: string): ValidationContextResponse {
-  return { questionKey, responseStatus: "answered", answerText, answerData: null };
+function response(
+  questionKey: string,
+  answerText: string,
+): ValidationContextResponse {
+  return {
+    questionKey,
+    responseStatus: "answered",
+    answerText,
+    answerData: null,
+  };
 }
 
 function draftCheck(content: string, draftRules: unknown[]) {
@@ -30,7 +38,9 @@ function officialCheck(
   submissionRules: unknown[],
   responses: ValidationContextResponse[] = [],
 ) {
-  return structuredMarkdownV1.runOfficialCheck(makeContext(content, draftRules, submissionRules, responses));
+  return structuredMarkdownV1.runOfficialCheck(
+    makeContext(content, draftRules, submissionRules, responses),
+  );
 }
 
 describe("sections_exist", () => {
@@ -68,8 +78,16 @@ describe("sections_exist", () => {
 
 describe("section_non_empty", () => {
   it("passes when the section has substantive content", () => {
-    const content = "## Segment\n\nAustralian pre-seed founders raising $500k-$1.5M.\n";
-    const result = draftCheck(content, [{ key: "segment", type: "section_non_empty", level: 2, heading: "Segment" }]);
+    const content =
+      "## Segment\n\nAustralian pre-seed founders raising $500k-$1.5M.\n";
+    const result = draftCheck(content, [
+      {
+        key: "segment",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Segment",
+      },
+    ]);
     expect(result.passed).toBe(true);
   });
 
@@ -77,7 +95,12 @@ describe("section_non_empty", () => {
     const content =
       "## Weakest gaps\n\n<Where the evidence base is thinnest. Be specific about which claim is unsupported, not which topic\nis under-researched.>\n";
     const result = draftCheck(content, [
-      { key: "weakest_gaps", type: "section_non_empty", level: 2, heading: "Weakest gaps" },
+      {
+        key: "weakest_gaps",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Weakest gaps",
+      },
     ]);
     expect(result.passed).toBe(false);
   });
@@ -85,7 +108,12 @@ describe("section_non_empty", () => {
   it("fails when the heading is missing entirely", () => {
     const content = "## Other Section\n\nSomething.\n";
     const result = draftCheck(content, [
-      { key: "segment", type: "section_non_empty", level: 2, heading: "Segment" },
+      {
+        key: "segment",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Segment",
+      },
     ]);
     expect(result.passed).toBe(false);
   });
@@ -107,7 +135,9 @@ describe("range_named_items and the orRecordedUnknown escape", () => {
   }
 
   it("passes with 3-5 substantive items", () => {
-    const content = withBody("- Search for pricing\n- Download a template\n- Ask in a forum\n");
+    const content = withBody(
+      "- Search for pricing\n- Download a template\n- Ask in a forum\n",
+    );
     expect(draftCheck(content, [RULE]).passed).toBe(true);
   });
 
@@ -117,9 +147,7 @@ describe("range_named_items and the orRecordedUnknown escape", () => {
   });
 
   it("fails with 6 items — the ceiling is enforced, not just the floor", () => {
-    const content = withBody(
-      "- one\n- two\n- three\n- four\n- five\n- six\n",
-    );
+    const content = withBody("- one\n- two\n- three\n- four\n- five\n- six\n");
     expect(draftCheck(content, [RULE]).passed).toBe(false);
   });
 
@@ -281,9 +309,14 @@ describe("Why This Is Urgent — the pre-filled Axis table must not pass on row 
   });
 
   it("the fully filled table passes every rule", () => {
-    expect(draftCheck(FILLED_TABLE, [RANGE_ROWS, AXIS_SEQUENCE, REQUIRED_CELLS, SCORE_RANGE]).passed).toBe(
-      true,
-    );
+    expect(
+      draftCheck(FILLED_TABLE, [
+        RANGE_ROWS,
+        AXIS_SEQUENCE,
+        REQUIRED_CELLS,
+        SCORE_RANGE,
+      ]).passed,
+    ).toBe(true);
   });
 
   it("fails axis sequence when a row is repeated instead of following Frequency, Cost, Urgency", () => {
@@ -326,19 +359,28 @@ describe("table_column_scored_reasoning — Evidence strength must carry reasoni
 
   it("passes an em-dash-separated score with reasoning", () => {
     expect(
-      draftCheck(withCell("3 — Matching customer described a specific past experience."), [RULE]).passed,
+      draftCheck(
+        withCell("3 — Matching customer described a specific past experience."),
+        [RULE],
+      ).passed,
     ).toBe(true);
   });
 
   it("passes a colon-separated score with reasoning", () => {
-    expect(draftCheck(withCell("3: Matching customer described a specific past experience."), [RULE]).passed).toBe(
-      true,
-    );
+    expect(
+      draftCheck(
+        withCell("3: Matching customer described a specific past experience."),
+        [RULE],
+      ).passed,
+    ).toBe(true);
   });
 
   it("passes a hyphen-separated score with a space on both sides", () => {
     expect(
-      draftCheck(withCell("3 - Matching customer described a specific past experience."), [RULE]).passed,
+      draftCheck(
+        withCell("3 - Matching customer described a specific past experience."),
+        [RULE],
+      ).passed,
     ).toBe(true);
   });
 
@@ -355,11 +397,15 @@ describe("table_column_scored_reasoning — Evidence strength must carry reasoni
   });
 
   it("rejects a score outside the range even with reasoning present", () => {
-    expect(draftCheck(withCell("6 — Strong evidence, clearly above range."), [RULE]).passed).toBe(false);
+    expect(
+      draftCheck(withCell("6 — Strong evidence, clearly above range."), [RULE])
+        .passed,
+    ).toBe(false);
   });
 
   it("passes vacuously when the table has no data rows", () => {
-    const empty = "## Evidence Inventory\n\n| Source | Type | What it says | Evidence strength (1-5) |\n|---|---|---|---|\n";
+    const empty =
+      "## Evidence Inventory\n\n| Source | Type | What it says | Evidence strength (1-5) |\n|---|---|---|---|\n";
     expect(draftCheck(empty, [RULE]).passed).toBe(true);
   });
 });
@@ -370,7 +416,12 @@ describe("escaped pipes in table cells do not misalign columns", () => {
     type: "table_required_cells",
     level: 2,
     heading: "Evidence Inventory",
-    requiredColumns: ["Source", "Type", "What it says", "Evidence strength (1-5)"],
+    requiredColumns: [
+      "Source",
+      "Type",
+      "What it says",
+      "Evidence strength (1-5)",
+    ],
   };
   const SCORE = {
     key: "score",
@@ -458,7 +509,8 @@ describe("table_column_integer_range with allowBlank", () => {
 
 describe("label_present", () => {
   it("rejects an unfilled placeholder label", () => {
-    const content = "## Validation Status\n\n**Current level:** <one of the five below>\n";
+    const content =
+      "## Validation Status\n\n**Current level:** <one of the five below>\n";
     const result = draftCheck(content, [
       {
         key: "current_level",
@@ -481,7 +533,12 @@ describe("label_present", () => {
   it("accepts the list-item label form used by every template's Venture section", () => {
     const content = "## Venture\n- Venture name: Nobel AI\n";
     const result = draftCheck(content, [
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
     ]);
     expect(result.passed).toBe(true);
   });
@@ -489,7 +546,12 @@ describe("label_present", () => {
   it("rejects an unfilled list-item label", () => {
     const content = "## Venture\n- Venture name:\n";
     const result = draftCheck(content, [
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
     ]);
     expect(result.passed).toBe(false);
   });
@@ -556,8 +618,14 @@ describe("labels_agree", () => {
   const RULE = {
     key: "levels_agree",
     type: "labels_agree",
-    labelA: { label: "Current level", scope: { level: 2, heading: "Evidence Maturity Level" } },
-    labelB: { label: "Current level", scope: { level: 2, heading: "Validation Status" } },
+    labelA: {
+      label: "Current level",
+      scope: { level: 2, heading: "Evidence Maturity Level" },
+    },
+    labelB: {
+      label: "Current level",
+      scope: { level: 2, heading: "Validation Status" },
+    },
   };
 
   it("passes when both mirrored labels agree", () => {
@@ -619,8 +687,16 @@ describe("labels_match_first_table_row — Start Here must mirror Experiments ro
     type: "labels_match_first_table_row",
     table: { level: 2, heading: "Experiments" },
     mappings: [
-      { label: "What counts as a pass", scope: { level: 2, heading: "Start Here" }, column: "Pass condition" },
-      { label: "What counts as a fail", scope: { level: 2, heading: "Start Here" }, column: "Fail condition" },
+      {
+        label: "What counts as a pass",
+        scope: { level: 2, heading: "Start Here" },
+        column: "Pass condition",
+      },
+      {
+        label: "What counts as a fail",
+        scope: { level: 2, heading: "Start Here" },
+        column: "Fail condition",
+      },
     ],
   };
 
@@ -648,7 +724,8 @@ describe("labels_match_first_table_row — Start Here must mirror Experiments ro
   });
 
   it("passes vacuously when the Experiments table has no data rows", () => {
-    const content = "## Experiments\n\n| Experiment | Pass condition | Fail condition |\n|---|---|---|\n\n## Start Here\n\n**What counts as a pass:** X\n";
+    const content =
+      "## Experiments\n\n| Experiment | Pass condition | Fail condition |\n|---|---|---|\n\n## Start Here\n\n**What counts as a pass:** X\n";
     expect(officialCheck(content, [], [RULE]).passed).toBe(true);
   });
 });
@@ -681,7 +758,8 @@ describe("range_table_rows / minimum_table_rows with orRecordedUnknown", () => {
       maximum: 3,
     };
     const twoRows = "## Experiments\n\n| Experiment |\n|---|\n| A |\n| B |\n";
-    const fourRows = "## Experiments\n\n| Experiment |\n|---|\n| A |\n| B |\n| C |\n| D |\n";
+    const fourRows =
+      "## Experiments\n\n| Experiment |\n|---|\n| A |\n| B |\n| C |\n| D |\n";
     expect(draftCheck(twoRows, [rule]).passed).toBe(true);
     expect(draftCheck(fourRows, [rule]).passed).toBe(false);
   });

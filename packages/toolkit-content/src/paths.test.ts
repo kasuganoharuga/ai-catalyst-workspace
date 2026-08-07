@@ -26,9 +26,8 @@ describe("toolkit-content paths", () => {
     const originalCwd = process.cwd();
     process.chdir(path.parse(originalCwd).root);
     try {
-      const { toolkitContentRoot: rootFromDifferentCwd } = await import(
-        "./paths.js"
-      );
+      const { toolkitContentRoot: rootFromDifferentCwd } =
+        await import("./paths.js");
       expect(rootFromDifferentCwd).toBe(toolkitContentRoot);
     } finally {
       process.chdir(originalCwd);

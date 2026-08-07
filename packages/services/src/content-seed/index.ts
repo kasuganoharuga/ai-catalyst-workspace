@@ -1,9 +1,15 @@
 import type { PoolClient } from "pg";
 
 import { DEFAULT_TOOLKIT_CONTENT } from "./content/index.js";
-import { activateReconciledContent, markProgramVersionPublished } from "./db/publish.js";
+import {
+  activateReconciledContent,
+  markProgramVersionPublished,
+} from "./db/publish.js";
 import { reconcileModules } from "./db/modules.js";
-import { reconcileModulePromptBindings, reconcilePrompts } from "./db/prompts.js";
+import {
+  reconcileModulePromptBindings,
+  reconcilePrompts,
+} from "./db/prompts.js";
 import { reconcileProgram } from "./db/program.js";
 import type { ToolkitSeedContent } from "./types.js";
 
@@ -91,7 +97,11 @@ export async function seedToolkitContent(
     content.modules,
   );
 
-  const promptVersions = await reconcilePrompts(client, content.prompts, program.contentLock);
+  const promptVersions = await reconcilePrompts(
+    client,
+    content.prompts,
+    program.contentLock,
+  );
 
   await reconcileModulePromptBindings(
     client,
@@ -129,7 +139,9 @@ export async function seedToolkitContent(
   return {
     programId: program.programId,
     programVersionId: program.programVersionId,
-    programVersionStatus: isFirstPublish ? "published" : program.programVersionStatus,
+    programVersionStatus: isFirstPublish
+      ? "published"
+      : program.programVersionStatus,
     contentLock: program.contentLock,
     modulesReconciled: modules.length,
     promptsReconciled: promptVersions.length,

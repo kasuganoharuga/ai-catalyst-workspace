@@ -13,21 +13,24 @@ module.exports = {
     {
       name: "no-circular",
       severity: "error",
-      comment: "Circular dependencies make the intended one-directional layering meaningless.",
+      comment:
+        "Circular dependencies make the intended one-directional layering meaningless.",
       from: {},
       to: { circular: true },
     },
     {
       name: "no-orphans",
       severity: "warn",
-      comment: "Scaffold-only files (e.g. package.json/tsconfig.json siblings) are expected to be orphans until implemented — warn, don't fail.",
+      comment:
+        "Scaffold-only files (e.g. package.json/tsconfig.json siblings) are expected to be orphans until implemented — warn, don't fail.",
       from: { orphan: true, pathNot: ["\\.d\\.ts$"] },
       to: {},
     },
     {
       name: "not-to-unresolvable",
       severity: "error",
-      comment: "Import points at a module dependency-cruiser can't resolve on disk.",
+      comment:
+        "Import points at a module dependency-cruiser can't resolve on disk.",
       from: {},
       to: { couldNotResolve: true },
     },
@@ -42,14 +45,16 @@ module.exports = {
     {
       name: "web-cannot-import-mcp",
       severity: "error",
-      comment: "apps/web and apps/mcp are independent deployables that must only share code via packages/*.",
+      comment:
+        "apps/web and apps/mcp are independent deployables that must only share code via packages/*.",
       from: { path: "^apps/web/" },
       to: { path: "^apps/mcp/" },
     },
     {
       name: "mcp-cannot-import-web",
       severity: "error",
-      comment: "apps/web and apps/mcp are independent deployables that must only share code via packages/*.",
+      comment:
+        "apps/web and apps/mcp are independent deployables that must only share code via packages/*.",
       from: { path: "^apps/mcp/" },
       to: { path: "^apps/web/" },
     },
@@ -57,21 +62,24 @@ module.exports = {
     {
       name: "contracts-is-a-leaf",
       severity: "error",
-      comment: "packages/contracts holds cross-cutting types only (e.g. ActorContext) and must not depend on any other workspace package.",
+      comment:
+        "packages/contracts holds cross-cutting types only (e.g. ActorContext) and must not depend on any other workspace package.",
       from: { path: "^packages/contracts/" },
       to: { path: "^(apps|packages)/", pathNot: "^packages/contracts/" },
     },
     {
       name: "db-is-a-leaf",
       severity: "error",
-      comment: "packages/db (pool + migration runner) must stay free of business logic, or the migration CLI would pull in the whole service layer.",
+      comment:
+        "packages/db (pool + migration runner) must stay free of business logic, or the migration CLI would pull in the whole service layer.",
       from: { path: "^packages/db/" },
       to: { path: "^(apps|packages)/", pathNot: "^packages/db/" },
     },
     {
       name: "clients-cannot-import-services-or-db",
       severity: "error",
-      comment: "packages/clients (outbound HTTP clients, e.g. FastAPI) may use packages/contracts but must never call back into services/db.",
+      comment:
+        "packages/clients (outbound HTTP clients, e.g. FastAPI) may use packages/contracts but must never call back into services/db.",
       from: { path: "^packages/clients/" },
       to: { path: "^packages/(services|db)/" },
     },
@@ -79,21 +87,24 @@ module.exports = {
     {
       name: "only-services-may-import-clients",
       severity: "error",
-      comment: "FastAPI is internal-only, reached exclusively through packages/services — apps/web and apps/mcp must never import packages/clients directly.",
+      comment:
+        "FastAPI is internal-only, reached exclusively through packages/services — apps/web and apps/mcp must never import packages/clients directly.",
       from: { path: "^apps/" },
       to: { path: "^packages/clients/" },
     },
     {
       name: "only-web-may-import-db-pool",
       severity: "error",
-      comment: "packages/db is consumed by packages/services, and by apps/web only for the raw pg.Pool (e.g. a Better Auth adapter). apps/mcp must go through packages/services instead of touching the database directly.",
+      comment:
+        "packages/db is consumed by packages/services, and by apps/web only for the raw pg.Pool (e.g. a Better Auth adapter). apps/mcp must go through packages/services instead of touching the database directly.",
       from: { path: "^apps/mcp/" },
       to: { path: "^packages/db/" },
     },
     {
       name: "services-cannot-import-web-or-mcp",
       severity: "error",
-      comment: "packages/services is shared business logic consumed by both apps/web and apps/mcp — it must stay app-agnostic.",
+      comment:
+        "packages/services is shared business logic consumed by both apps/web and apps/mcp — it must stay app-agnostic.",
       from: { path: "^packages/services/" },
       to: { path: "^apps/" },
     },
@@ -101,7 +112,8 @@ module.exports = {
     {
       name: "toolkit-content-and-shared-are-leaves",
       severity: "error",
-      comment: "Content and shared-type packages must not depend on business logic or app code.",
+      comment:
+        "Content and shared-type packages must not depend on business logic or app code.",
       from: { path: "^packages/(toolkit-content|shared)/" },
       to: { path: "^apps/" },
     },

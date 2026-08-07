@@ -45,12 +45,12 @@ missing-column diff.
 
 ## Field-by-field comparison
 
-| Table | Better Auth requires | `0001_aidb_v5_baseline.sql` has | Verdict |
-|---|---|---|---|
-| `users` | `id`, `name`, `email` (unique), `email_verified`, `image`, `created_at`, `updated_at`, `role` | all of the above, plus `deleted_at`, a `role` check constraint, a `default 'pending'` on `role`, and a case-insensitive unique index on `email` | ✅ compatible — extra columns/constraints don't affect Better Auth, and the `role` check values (`pending`/`founder`/`mentor`/`admin`) already match what `databaseHooks.user.create.before` writes |
-| `sessions` | `id`, `expires_at`, `token` (unique), `created_at`, `updated_at`, `ip_address`, `user_agent`, `user_id` (FK → `users.id` cascade), index on `user_id` | all of the above; index is named `idx_sessions_user` instead of `sessions_user_id_idx` | ✅ compatible — Better Auth reads/writes by column name, not index name |
-| `accounts` | `id`, `account_id`, `provider_id`, `user_id` (FK cascade), `access_token`, `refresh_token`, `id_token`, `access_token_expires_at`, `refresh_token_expires_at`, `scope`, `password`, `created_at`, `updated_at`, index on `user_id` | all of the above, plus a `unique (provider_id, account_id)` constraint and index named `idx_accounts_user` | ✅ compatible — the extra uniqueness constraint is stricter than what Better Auth requires, never violated by it |
-| `verifications` | `id`, `identifier`, `value`, `expires_at`, `created_at`, `updated_at`, index on `identifier` | all columns present; **no index on `identifier`** | ⚠️ gap — see below |
+| Table           | Better Auth requires                                                                                                                                                                                                               | `0001_aidb_v5_baseline.sql` has                                                                                                                 | Verdict                                                                                                                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | `id`, `name`, `email` (unique), `email_verified`, `image`, `created_at`, `updated_at`, `role`                                                                                                                                      | all of the above, plus `deleted_at`, a `role` check constraint, a `default 'pending'` on `role`, and a case-insensitive unique index on `email` | ✅ compatible — extra columns/constraints don't affect Better Auth, and the `role` check values (`pending`/`founder`/`mentor`/`admin`) already match what `databaseHooks.user.create.before` writes |
+| `sessions`      | `id`, `expires_at`, `token` (unique), `created_at`, `updated_at`, `ip_address`, `user_agent`, `user_id` (FK → `users.id` cascade), index on `user_id`                                                                              | all of the above; index is named `idx_sessions_user` instead of `sessions_user_id_idx`                                                          | ✅ compatible — Better Auth reads/writes by column name, not index name                                                                                                                             |
+| `accounts`      | `id`, `account_id`, `provider_id`, `user_id` (FK cascade), `access_token`, `refresh_token`, `id_token`, `access_token_expires_at`, `refresh_token_expires_at`, `scope`, `password`, `created_at`, `updated_at`, index on `user_id` | all of the above, plus a `unique (provider_id, account_id)` constraint and index named `idx_accounts_user`                                      | ✅ compatible — the extra uniqueness constraint is stricter than what Better Auth requires, never violated by it                                                                                    |
+| `verifications` | `id`, `identifier`, `value`, `expires_at`, `created_at`, `updated_at`, index on `identifier`                                                                                                                                       | all columns present; **no index on `identifier`**                                                                                               | ⚠️ gap — see below                                                                                                                                                                                  |
 
 ## Gap found and fixed
 
@@ -93,7 +93,7 @@ renames them to `mcp_oauth_applications` / `mcp_oauth_access_tokens` /
 **This rename would not work through `mcp()`'s own config.** Confirmed by
 reading `better-auth@1.6.25`'s compiled `plugins/mcp/index.mjs`: `mcp()`
 internally builds `provider = oidcProvider({...opts})` (whose own schema
-*would* correctly honor an `options.schema` override, via
+_would_ correctly honor an `options.schema` override, via
 `mergeSchema(schema, options?.schema)` — this is how `oidcProvider()` on its
 own supports renaming) but then returns the plugin object with the bare,
 un-merged `schema` import from `oidc-provider/schema.mjs` instead of
@@ -102,12 +102,12 @@ is silently ignored.
 
 The actual fix, in `apps/web/lib/mcp-oauth-compat/schema-override.ts`: a
 second, schema-only plugin object (no endpoints/hooks of its own) declaring
-the desired `modelName`/`fieldName` overrides, placed *after* `mcp()` in the
+the desired `modelName`/`fieldName` overrides, placed _after_ `mcp()` in the
 `plugins` array. Verified empirically (a throwaway script constructing a
 `betterAuth()` instance with both plugins and inspecting
 `getAuthTables(auth.options)` from `@better-auth/core/db`) that
 `getAuthTables()` merges every plugin's `.schema` by table key across the
-*entire* plugins array — independent of what `mcp()`'s own plugin object
+_entire_ plugins array — independent of what `mcp()`'s own plugin object
 carries — so a later plugin's `modelName`/`fieldName` entries for the same
 table key win. Since both the migration-diff tool (`getMigrations`, used by
 `pnpm --filter web run auth:check`) and the live Postgres adapter's

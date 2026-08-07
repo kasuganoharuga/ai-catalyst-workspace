@@ -17,11 +17,7 @@ export type ModuleAttemptType = "initial" | "retry";
 // from `module_responses.source_provider`, which has no "system" value —
 // see packages/services/src/attempt/internal/interaction-provider.ts.
 export type ModuleAttemptStartedVia =
-  | "website"
-  | "claude"
-  | "openai"
-  | "other"
-  | "system";
+  "website" | "claude" | "openai" | "other" | "system";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `ProgramRun`/`Venture`. Mapped once at the Service
@@ -53,17 +49,11 @@ export type ModuleResponseType =
 
 // Mirrors the `module_responses.response_status` check constraint.
 export type ModuleResponseStatus =
-  | "answered"
-  | "skipped"
-  | "not_applicable"
-  | "needs_follow_up";
+  "answered" | "skipped" | "not_applicable" | "needs_follow_up";
 
 // Mirrors the `module_responses.captured_via` check constraint.
 export type ModuleResponseCapturedVia =
-  | "direct_response"
-  | "ai_extraction"
-  | "website_edit"
-  | "import";
+  "direct_response" | "ai_extraction" | "website_edit" | "import";
 
 export interface ModuleResponse {
   id: string;

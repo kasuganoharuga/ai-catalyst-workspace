@@ -15,7 +15,8 @@ const MAX_SEQUENCE_VALUE = 2_147_483_647;
 // ad-hoc `select ... order by sequence_index` debugging.
 const SAFE_GAP = 1000;
 
-export type OrderedRowsTable = "module_definitions" | "module_questions" | "artifact_definitions";
+export type OrderedRowsTable =
+  "module_definitions" | "module_questions" | "artifact_definitions";
 type OrderedRowsKeyColumn = "module_key" | "question_key" | "artifact_key";
 type OrderedRowsScopeColumn = "program_version_id" | "module_definition_id";
 
@@ -87,7 +88,9 @@ export function planOrderedRows(
   current: ExistingOrderedRow[],
   desired: DesiredOrderedRow[],
 ): OrderedRowsPlan {
-  const desiredByKey = new Map(desired.map((row) => [row.key, row.sequenceIndex]));
+  const desiredByKey = new Map(
+    desired.map((row) => [row.key, row.sequenceIndex]),
+  );
   const currentByKey = new Map(current.map((row) => [row.key, row]));
 
   const nonArchived = current.filter((row) => !row.archived);
@@ -113,7 +116,9 @@ export function planOrderedRows(
     .filter((row) => row.currentSequenceIndex !== row.finalSequenceIndex)
     .map((row) => ({ id: row.id, finalSequenceIndex: row.finalSequenceIndex }));
 
-  const missingKeys = desired.map((row) => row.key).filter((key) => !currentByKey.has(key));
+  const missingKeys = desired
+    .map((row) => row.key)
+    .filter((key) => !currentByKey.has(key));
 
   const changed =
     toArchive.length > 0 ||
@@ -122,11 +127,24 @@ export function planOrderedRows(
     missingKeys.length > 0;
 
   if (!changed) {
-    return { toArchive: [], toRevive: [], resequenceStaying: [], missingKeys: [], offset: 0, changed: false };
+    return {
+      toArchive: [],
+      toRevive: [],
+      resequenceStaying: [],
+      missingKeys: [],
+      offset: 0,
+      changed: false,
+    };
   }
 
-  const currentMaxSequence = current.reduce((max, row) => Math.max(max, row.sequenceIndex), 0);
-  const desiredMaxSequence = desired.reduce((max, row) => Math.max(max, row.sequenceIndex), 0);
+  const currentMaxSequence = current.reduce(
+    (max, row) => Math.max(max, row.sequenceIndex),
+    0,
+  );
+  const desiredMaxSequence = desired.reduce(
+    (max, row) => Math.max(max, row.sequenceIndex),
+    0,
+  );
   const offset = Math.max(currentMaxSequence, desiredMaxSequence) + SAFE_GAP;
 
   if (currentMaxSequence + offset > MAX_SEQUENCE_VALUE) {
@@ -138,7 +156,14 @@ export function planOrderedRows(
     );
   }
 
-  return { toArchive, toRevive, resequenceStaying, missingKeys, offset, changed };
+  return {
+    toArchive,
+    toRevive,
+    resequenceStaying,
+    missingKeys,
+    offset,
+    changed,
+  };
 }
 
 /**
@@ -195,9 +220,10 @@ export async function applyOrderedRowsPlan(
   }
 
   if (plan.toArchive.length > 0) {
-    await client.query(`update ${table} set status = 'archived' where id = any($1::uuid[])`, [
-      plan.toArchive.map((row) => row.id),
-    ]);
+    await client.query(
+      `update ${table} set status = 'archived' where id = any($1::uuid[])`,
+      [plan.toArchive.map((row) => row.id)],
+    );
   }
 
   if (plan.resequenceStaying.length > 0) {
@@ -208,23 +234,23 @@ export async function applyOrderedRowsPlan(
   }
 
   for (const row of plan.toRevive) {
-    await client.query(`update ${table} set sequence_index = $1 where id = $2`, [
-      row.finalSequenceIndex,
-      row.id,
-    ]);
+    await client.query(
+      `update ${table} set sequence_index = $1 where id = $2`,
+      [row.finalSequenceIndex, row.id],
+    );
   }
 
   if (plan.toRevive.length > 0) {
-    await client.query(`update ${table} set status = $1 where id = any($2::uuid[])`, [
-      reviveStatus,
-      plan.toRevive.map((row) => row.id),
-    ]);
+    await client.query(
+      `update ${table} set status = $1 where id = any($2::uuid[])`,
+      [reviveStatus, plan.toRevive.map((row) => row.id)],
+    );
   }
 
   for (const row of plan.resequenceStaying) {
-    await client.query(`update ${table} set sequence_index = $1 where id = $2`, [
-      row.finalSequenceIndex,
-      row.id,
-    ]);
+    await client.query(
+      `update ${table} set sequence_index = $1 where id = $2`,
+      [row.finalSequenceIndex, row.id],
+    );
   }
 }

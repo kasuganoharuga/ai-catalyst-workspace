@@ -4,7 +4,9 @@ import { BOLD_FONTKIT_FONT, REGULAR_FONTKIT_FONT } from "./embed-fonts.js";
 import { A4, LayoutBuilder } from "./layout-builder.js";
 
 function builder(bottomReserve = 20): LayoutBuilder {
-  return new LayoutBuilder(REGULAR_FONTKIT_FONT, BOLD_FONTKIT_FONT, { bottomReserve });
+  return new LayoutBuilder(REGULAR_FONTKIT_FONT, BOLD_FONTKIT_FONT, {
+    bottomReserve,
+  });
 }
 
 describe("LayoutBuilder — page management", () => {
@@ -93,7 +95,13 @@ describe("LayoutBuilder — locked content", () => {
     l.lockedText("venture_name", "Kerbside", { size: 20, bold: true });
     const { lockedContent } = l.toPlanParts();
     expect(lockedContent).toHaveLength(1);
-    expect(lockedContent[0]).toMatchObject({ role: "venture_name", text: "Kerbside", page: 0, bold: true, size: 20 });
+    expect(lockedContent[0]).toMatchObject({
+      role: "venture_name",
+      text: "Kerbside",
+      page: 0,
+      bold: true,
+      size: 20,
+    });
   });
 
   it("advances the cursor down by the block's measured height plus gap", () => {
@@ -108,15 +116,29 @@ describe("LayoutBuilder — locked content", () => {
     l.advance(A4.height - l.margin - 25);
     l.lockedText("q1", "one two three four five", { size: 10 });
     // Should have moved to page 1 entirely, not split across 0 and 1.
-    expect(l.toPlanParts().lockedContent.every((e) => e.page === l.toPlanParts().lockedContent[0].page)).toBe(true);
+    expect(
+      l
+        .toPlanParts()
+        .lockedContent.every(
+          (e) => e.page === l.toPlanParts().lockedContent[0].page,
+        ),
+    ).toBe(true);
   });
 
   it("allowSplit: true splits a block that spans more than one page", () => {
     const l = builder();
     // Explicit `\n` breaks give a precise, guaranteed line count — far more
     // lines than one A4 page can hold at 10pt, regardless of word-wrap width.
-    const longText = Array.from({ length: 200 }, (_, i) => `explicit line ${i}`).join("\n");
-    l.lockedText("long_block", longText, { size: 10 }, { allowSplit: true, maxWidth: 500 });
+    const longText = Array.from(
+      { length: 200 },
+      (_, i) => `explicit line ${i}`,
+    ).join("\n");
+    l.lockedText(
+      "long_block",
+      longText,
+      { size: 10 },
+      { allowSplit: true, maxWidth: 500 },
+    );
     const { lockedContent } = l.toPlanParts();
     const pagesUsed = new Set(lockedContent.map((e) => e.page));
     expect(pagesUsed.size).toBeGreaterThan(1);
@@ -138,8 +160,17 @@ describe("LayoutBuilder — fields", () => {
   it("textField records a rect derived from the cursor and advances past it", () => {
     const l = builder();
     const startY = l.y;
-    const field = l.textField("interview_1.date_day", { width: 40, height: 15, capacity: 2 });
-    expect(field).toMatchObject({ kind: "text", name: "interview_1.date_day", capacity: 2, multiline: false });
+    const field = l.textField("interview_1.date_day", {
+      width: 40,
+      height: 15,
+      capacity: 2,
+    });
+    expect(field).toMatchObject({
+      kind: "text",
+      name: "interview_1.date_day",
+      capacity: 2,
+      multiline: false,
+    });
     expect(field.rect.y).toBeLessThan(startY);
     expect(l.y).toBeLessThan(startY);
   });
@@ -153,10 +184,22 @@ describe("LayoutBuilder — fields", () => {
 
   it("checkboxAt and dropdownAt record the correct field kinds", () => {
     const l = builder();
-    const checkbox = l.checkboxAt("interview_1.pass_bar_1", { x: 0, y: 0, width: 10, height: 10 });
-    const dropdown = l.dropdownAt("experiment_1.outcome", { x: 0, y: 0, width: 100, height: 15 }, ["Pass", "Fail"]);
+    const checkbox = l.checkboxAt("interview_1.pass_bar_1", {
+      x: 0,
+      y: 0,
+      width: 10,
+      height: 10,
+    });
+    const dropdown = l.dropdownAt(
+      "experiment_1.outcome",
+      { x: 0, y: 0, width: 100, height: 15 },
+      ["Pass", "Fail"],
+    );
     expect(checkbox.kind).toBe("checkbox");
-    expect(dropdown).toMatchObject({ kind: "dropdown", options: ["Pass", "Fail"] });
+    expect(dropdown).toMatchObject({
+      kind: "dropdown",
+      options: ["Pass", "Fail"],
+    });
   });
 
   it("multiple fields accumulate in order", () => {

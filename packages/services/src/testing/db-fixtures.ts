@@ -39,7 +39,9 @@ export async function withTransaction<T>(
 }
 
 /** Wraps seedToolkitContent in its own transaction — see withTransaction's own comment. */
-export async function seedFixtureProgram(content: ToolkitSeedContent): Promise<void> {
+export async function seedFixtureProgram(
+  content: ToolkitSeedContent,
+): Promise<void> {
   await withTransaction((client) => seedToolkitContent(client, content));
 }
 
@@ -110,7 +112,9 @@ export async function createFixtureVenture(params: {
 }
 
 /** Reads back a Run/Branch's program_run_modules, in sequence order — for tests that need the raw id (e.g. to drive startOrResumeAttempt) without depending on listRunModules' own Active-Context resolution. */
-export async function getFixtureRunModuleIds(activeBranchId: string): Promise<string[]> {
+export async function getFixtureRunModuleIds(
+  activeBranchId: string,
+): Promise<string[]> {
   const result = await pool.query<{ id: string }>(
     `select id from program_run_modules where program_run_branch_id = $1 order by sequence_index`,
     [activeBranchId],
@@ -148,7 +152,9 @@ export async function getLatestFixtureMcpToolAuditLogRow(
 }
 
 /** Reads back a module_attempts row's current status — for tests asserting a write Tool's side effect landed. */
-export async function getFixtureModuleAttemptStatus(attemptId: string): Promise<string> {
+export async function getFixtureModuleAttemptStatus(
+  attemptId: string,
+): Promise<string> {
   const result = await pool.query<{ status: string }>(
     "select status from module_attempts where id = $1",
     [attemptId],
@@ -170,12 +176,14 @@ export async function cleanupFixtureAccounts(params: {
   programKey: string;
 }): Promise<void> {
   const { userIds, programKey } = params;
-  await pool.query("delete from mcp_tool_audit_logs where user_id = any($1::uuid[])", [
-    userIds,
-  ]);
-  await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-    userIds,
-  ]);
+  await pool.query(
+    "delete from mcp_tool_audit_logs where user_id = any($1::uuid[])",
+    [userIds],
+  );
+  await pool.query(
+    "delete from user_active_contexts where user_id = any($1::uuid[])",
+    [userIds],
+  );
   await pool.query(
     "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [userIds],
@@ -184,7 +192,10 @@ export async function cleanupFixtureAccounts(params: {
     "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [userIds],
   );
-  await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [userIds]);
+  await pool.query(
+    "delete from workspaces where founder_user_id = any($1::uuid[])",
+    [userIds],
+  );
   await pool.query("delete from users where id = any($1::uuid[])", [userIds]);
   await pool.query("delete from programs where program_key = $1", [programKey]);
 }

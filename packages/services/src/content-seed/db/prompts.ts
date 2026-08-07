@@ -2,7 +2,11 @@ import type { PoolClient } from "pg";
 
 import { diffFields, diffKeySets } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
-import type { ContentLock, ModulePromptBindingContent, PromptContent } from "../types.js";
+import type {
+  ContentLock,
+  ModulePromptBindingContent,
+  PromptContent,
+} from "../types.js";
 import type { ReconciledModule } from "./modules.js";
 
 export interface ReconciledPromptVersion {
@@ -16,12 +20,22 @@ export interface ReconciledPromptVersion {
 // prompt_version's own status/content_lock decide whether ITS content may
 // be edited in place, independent of which program_version is currently
 // seeding it (a prompt is global and may be bound to several).
-function isPromptVersionContentEditable(row: { status: string; content_lock: ContentLock }): boolean {
-  return row.status === "draft" || (row.status === "published" && row.content_lock === "mutable");
+function isPromptVersionContentEditable(row: {
+  status: string;
+  content_lock: ContentLock;
+}): boolean {
+  return (
+    row.status === "draft" ||
+    (row.status === "published" && row.content_lock === "mutable")
+  );
 }
 
 const DEFINITION_METADATA_FIELDS = ["name", "description"] as const;
-const VERSION_FIELDS = ["content", "content_format", "variable_config"] as const;
+const VERSION_FIELDS = [
+  "content",
+  "content_format",
+  "variable_config",
+] as const;
 
 // prompt_definitions has no draft/published lifecycle of its own — its
 // status is only active/archived. Catalog metadata (name/description) may
@@ -56,7 +70,12 @@ async function reconcilePromptDefinition(
       `insert into prompt_definitions (prompt_key, name, description, prompt_type)
        values ($1, $2, $3, $4)
        returning id`,
-      [prompt.promptKey, expected.name, expected.description, expected.prompt_type],
+      [
+        prompt.promptKey,
+        expected.name,
+        expected.description,
+        expected.prompt_type,
+      ],
     );
     return inserted.rows[0].id;
   }
@@ -102,10 +121,11 @@ async function reconcilePromptVersion(
   programContentLock: ContentLock,
 ): Promise<ReconciledPromptVersion> {
   const existing = await client.query<
-    { id: string; status: "draft" | "published" | "retired"; content_lock: ContentLock } & Record<
-      (typeof VERSION_FIELDS)[number],
-      unknown
-    >
+    {
+      id: string;
+      status: "draft" | "published" | "retired";
+      content_lock: ContentLock;
+    } & Record<(typeof VERSION_FIELDS)[number], unknown>
   >(
     `select id, status, content_lock, ${VERSION_FIELDS.join(", ")}
      from prompt_versions
@@ -194,7 +214,12 @@ async function reconcilePromptVersion(
      set content = $1, content_format = $2, variable_config = $3
      where id = $4
      returning id, status, content_lock`,
-    [expected.content, expected.content_format, JSON.stringify(expected.variable_config), row.id],
+    [
+      expected.content,
+      expected.content_format,
+      JSON.stringify(expected.variable_config),
+      row.id,
+    ],
   );
   return {
     promptKey: prompt.promptKey,
@@ -217,7 +242,14 @@ export async function reconcilePrompts(
   const results: ReconciledPromptVersion[] = [];
   for (const prompt of prompts) {
     const promptDefinitionId = await reconcilePromptDefinition(client, prompt);
-    results.push(await reconcilePromptVersion(client, promptDefinitionId, prompt, programContentLock));
+    results.push(
+      await reconcilePromptVersion(
+        client,
+        promptDefinitionId,
+        prompt,
+        programContentLock,
+      ),
+    );
   }
   return results;
 }
@@ -241,9 +273,14 @@ export async function reconcileModulePromptBindings(
   promptVersions: ReconciledPromptVersion[],
   bindings: ModulePromptBindingContent[],
 ): Promise<void> {
-  const moduleIdByKey = new Map(modules.map((module) => [module.moduleKey, module.moduleId]));
+  const moduleIdByKey = new Map(
+    modules.map((module) => [module.moduleKey, module.moduleId]),
+  );
   const promptVersionIdByKey = new Map(
-    promptVersions.map((version) => [version.promptKey, version.promptVersionId]),
+    promptVersions.map((version) => [
+      version.promptKey,
+      version.promptVersionId,
+    ]),
   );
 
   const bindingsByModuleKey = new Map<string, ModulePromptBindingContent[]>();
@@ -257,12 +294,17 @@ export async function reconcileModulePromptBindings(
     const moduleId = moduleIdByKey.get(module.moduleKey);
     if (!moduleId) {
       // Cannot happen: `modules` is the reconciler's own return value.
-      throw new Error(`Internal error: module "${module.moduleKey}" was not reconciled.`);
+      throw new Error(
+        `Internal error: module "${module.moduleKey}" was not reconciled.`,
+      );
     }
 
     const expectedBindings = bindingsByModuleKey.get(module.moduleKey) ?? [];
 
-    const actual = await client.query<{ purpose: string; sequence_index: number }>(
+    const actual = await client.query<{
+      purpose: string;
+      sequence_index: number;
+    }>(
       `select purpose, sequence_index from module_prompt_bindings where module_definition_id = $1`,
       [moduleId],
     );
@@ -270,7 +312,9 @@ export async function reconcileModulePromptBindings(
     const expectedKeys = expectedBindings.map(
       (binding) => `${binding.purpose}:${binding.sequenceIndex}`,
     );
-    const actualKeys = actual.rows.map((row) => `${row.purpose}:${row.sequence_index}`);
+    const actualKeys = actual.rows.map(
+      (row) => `${row.purpose}:${row.sequence_index}`,
+    );
     const { extra } = diffKeySets(expectedKeys, actualKeys);
     if (extra.length > 0) {
       if (!isContentEditable) {
@@ -303,7 +347,11 @@ export async function reconcileModulePromptBindings(
         );
       }
 
-      const existing = await client.query<{ id: string; prompt_version_id: string; is_required: boolean }>(
+      const existing = await client.query<{
+        id: string;
+        prompt_version_id: string;
+        is_required: boolean;
+      }>(
         `select id, prompt_version_id, is_required
          from module_prompt_bindings
          where module_definition_id = $1 and purpose = $2 and sequence_index = $3`,
@@ -315,14 +363,23 @@ export async function reconcileModulePromptBindings(
         await client.query(
           `insert into module_prompt_bindings (module_definition_id, prompt_version_id, purpose, sequence_index, is_required)
            values ($1, $2, $3, $4, $5)`,
-          [moduleId, promptVersionId, binding.purpose, binding.sequenceIndex, binding.isRequired],
+          [
+            moduleId,
+            promptVersionId,
+            binding.purpose,
+            binding.sequenceIndex,
+            binding.isRequired,
+          ],
         );
         continue;
       }
 
       const differing = diffFields(
         { prompt_version_id: promptVersionId, is_required: binding.isRequired },
-        { prompt_version_id: row.prompt_version_id, is_required: row.is_required },
+        {
+          prompt_version_id: row.prompt_version_id,
+          is_required: row.is_required,
+        },
         ["prompt_version_id", "is_required"],
       );
 

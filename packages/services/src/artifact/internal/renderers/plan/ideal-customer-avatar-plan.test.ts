@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 import type { IdealCustomerAvatarModel } from "../parse/ideal-customer-avatar.js";
 import { renderWorkbookPlan } from "../pdf/render-plan.js";
 import type { Provenance } from "../types.js";
-import { assertIdealCustomerAvatarPlan, buildIdealCustomerAvatarPlan } from "./ideal-customer-avatar-plan.js";
+import {
+  assertIdealCustomerAvatarPlan,
+  buildIdealCustomerAvatarPlan,
+} from "./ideal-customer-avatar-plan.js";
 
 const MODEL: IdealCustomerAvatarModel = {
   ventureName: "Kerbside",
@@ -15,7 +18,8 @@ const MODEL: IdealCustomerAvatarModel = {
     stage: "Post-MVP, $10k–$80k ARR or strong pilots. 6–12 months runway.",
     raise: "First institutional round. SAFE, note or priced seed.",
   },
-  situation: "Has proven the product works and now needs capital to hire and scale.",
+  situation:
+    "Has proven the product works and now needs capital to hire and scale.",
   unmetNeeds: {
     functional: [
       "Close the round in a defined window, not an open-ended drift.",
@@ -40,15 +44,23 @@ const MODEL: IdealCustomerAvatarModel = {
       "Signed up to cap table tooling.",
     ],
   },
-  disqualifiers: ["Wants a broker to raise it for them.", "Already has a signed term sheet.", "Idea stage, pre-MVP."],
-  corePromise: "Run a professional seed raise in a defined window, keep control, and own the process for next time.",
+  disqualifiers: [
+    "Wants a broker to raise it for them.",
+    "Already has a signed term sheet.",
+    "Idea stage, pre-MVP.",
+  ],
+  corePromise:
+    "Run a professional seed raise in a defined window, keep control, and own the process for next time.",
   validationStatus: {
     currentLevel: "Interviewed",
-    basedOnObservation: "Three founders interviewed matched this profile closely.",
-    founderAssumptions: "Raise timeline assumption not yet tested against a live process.",
+    basedOnObservation:
+      "Three founders interviewed matched this profile closely.",
+    founderAssumptions:
+      "Raise timeline assumption not yet tested against a live process.",
     importantUnknowns: "Whether Tier 1 signals convert at the rate assumed.",
     contradictingEvidence: "None recorded yet.",
-    highestPriorityQuestions: "Does the accelerator-adjacent channel actually produce warm introductions?",
+    highestPriorityQuestions:
+      "Does the accelerator-adjacent channel actually produce warm introductions?",
   },
 };
 
@@ -66,7 +78,8 @@ const PROVENANCE: Provenance = {
 
 async function extractText(bytes: Buffer, pageNumber: number): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) })
+    .promise;
   const page = await doc.getPage(pageNumber);
   const content = await page.getTextContent();
   return content.items
@@ -115,10 +128,16 @@ describe("buildIdealCustomerAvatarPlan — every locked model field is present s
 
   it("includes the situation, every unmet need and every buying signal", () => {
     expect(allText).toContain(MODEL.situation);
-    for (const need of [...MODEL.unmetNeeds.functional, ...MODEL.unmetNeeds.emotional]) {
+    for (const need of [
+      ...MODEL.unmetNeeds.functional,
+      ...MODEL.unmetNeeds.emotional,
+    ]) {
       expect(allText).toContain(need);
     }
-    for (const signal of [...MODEL.buyingSignals.tier1, ...MODEL.buyingSignals.tier2]) {
+    for (const signal of [
+      ...MODEL.buyingSignals.tier1,
+      ...MODEL.buyingSignals.tier2,
+    ]) {
       expect(allText).toContain(signal);
     }
   });
@@ -145,23 +164,38 @@ describe("assertIdealCustomerAvatarPlan", () => {
 
   it("throws when the model disagrees with what the plan actually contains", () => {
     const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
-    const otherModel: IdealCustomerAvatarModel = { ...MODEL, ventureName: "A Different Venture" };
-    expect(() => assertIdealCustomerAvatarPlan(plan, otherModel)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    const otherModel: IdealCustomerAvatarModel = {
+      ...MODEL,
+      ventureName: "A Different Venture",
+    };
+    expect(() => assertIdealCustomerAvatarPlan(plan, otherModel)).toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws when a page has no footer label", () => {
     const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
-    const brokenPlan = { ...plan, pages: [{ footerLabel: null }, ...plan.pages.slice(1)] };
-    expect(() => assertIdealCustomerAvatarPlan(brokenPlan, MODEL)).toThrow(/footer/);
+    const brokenPlan = {
+      ...plan,
+      pages: [{ footerLabel: null }, ...plan.pages.slice(1)],
+    };
+    expect(() => assertIdealCustomerAvatarPlan(brokenPlan, MODEL)).toThrow(
+      /footer/,
+    );
   });
 
   it("throws when locked content is placeholder text", () => {
     const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
     const brokenPlan = {
       ...plan,
-      lockedContent: [{ ...plan.lockedContent[0], text: "TBD" }, ...plan.lockedContent.slice(1)],
+      lockedContent: [
+        { ...plan.lockedContent[0], text: "TBD" },
+        ...plan.lockedContent.slice(1),
+      ],
     };
-    expect(() => assertIdealCustomerAvatarPlan(brokenPlan, MODEL)).toThrow(/placeholder/);
+    expect(() => assertIdealCustomerAvatarPlan(brokenPlan, MODEL)).toThrow(
+      /placeholder/,
+    );
   });
 });
 
@@ -185,7 +219,9 @@ describe("buildIdealCustomerAvatarPlan -> renderWorkbookPlan — full pipeline",
   it("draws the core promise somewhere in the document", async () => {
     const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
-    const allText = (await Promise.all(plan.pages.map((_, i) => extractText(bytes, i + 1)))).join(" ");
+    const allText = (
+      await Promise.all(plan.pages.map((_, i) => extractText(bytes, i + 1)))
+    ).join(" ");
     expect(allText).toContain("Run a professional seed raise");
   });
 });

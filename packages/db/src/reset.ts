@@ -18,7 +18,9 @@ function parseDatabaseName(connectionString: string): string {
   const url = new URL(connectionString);
   const name = url.pathname.replace(/^\//, "");
   if (!name) {
-    throw new Error("Could not parse a database name from DATABASE_URL's path.");
+    throw new Error(
+      "Could not parse a database name from DATABASE_URL's path.",
+    );
   }
   return name;
 }
@@ -31,7 +33,9 @@ export function assertResetGates(
   // Gate 1: explicit opt-in env var, separate from any CLI flag so it
   // can't be satisfied by a copy-pasted command alone.
   if (env.ALLOW_DESTRUCTIVE_DB_RESET !== "1") {
-    throw new Error("Refusing to reset: set ALLOW_DESTRUCTIVE_DB_RESET=1 to confirm.");
+    throw new Error(
+      "Refusing to reset: set ALLOW_DESTRUCTIVE_DB_RESET=1 to confirm.",
+    );
   }
 
   const databaseName = parseDatabaseName(connectionString);
@@ -54,7 +58,8 @@ export function assertResetGates(
   // "DATABASE_URL silently changed" the same way a delete confirmation
   // dialog that requires typing the resource's name does.
   const confirmIndex = argv.indexOf("--confirm-database");
-  const confirmedName = confirmIndex !== -1 ? argv[confirmIndex + 1] : undefined;
+  const confirmedName =
+    confirmIndex !== -1 ? argv[confirmIndex + 1] : undefined;
   if (!confirmedName) {
     throw new Error(
       "Usage: ALLOW_DESTRUCTIVE_DB_RESET=1 tsx src/reset.ts -- --confirm-database <exact-database-name>",
@@ -76,12 +81,18 @@ async function run(): Promise<void> {
     throw new Error("DATABASE_URL is required");
   }
 
-  const { databaseName } = assertResetGates(process.argv.slice(2), process.env, connectionString);
+  const { databaseName } = assertResetGates(
+    process.argv.slice(2),
+    process.env,
+    connectionString,
+  );
 
   const pool = new Pool({ connectionString });
   const client = await pool.connect();
   try {
-    console.log(`Dropping and recreating schema "public" on database "${databaseName}"...`);
+    console.log(
+      `Dropping and recreating schema "public" on database "${databaseName}"...`,
+    );
     await client.query("drop schema public cascade");
     // No explicit grants follow: 0001_aidb_v5_baseline.sql itself issues
     // none, relying on the connecting role owning the schema it creates —

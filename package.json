@@ -21,9 +21,10 @@
     "test": "vitest run --project unit --project web-unit",
     "test:db": "vitest run --project db --project web-db",
     "test:all": "vitest run",
-    "test:watch": "vitest",
-    "format:check:web": "pnpm --filter web format:check",
-    "format:web": "pnpm --filter web format",
+    "test:watch": "vitest --project unit --project web-unit",
+    "test:watch:db": "vitest --project db --project web-db",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
     "build": "pnpm --filter web build",
     "depcruise": "depcruise apps/web/app apps/web/components apps/web/lib apps/mcp/src packages/clients/src packages/contracts/src packages/db/src packages/services/src packages/shared/src"
   },
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "dependency-cruiser": "^18.1.0",
+    "prettier": "^3.9.5",
     "vitest": "^4.1.10"
   }
 }

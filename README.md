@@ -92,7 +92,7 @@ pnpm lint
 pnpm typecheck:web
 pnpm typecheck:packages
 pnpm test
-pnpm format:check:web
+pnpm format:check
 pnpm build
 ```
 
@@ -105,13 +105,19 @@ pnpm test:db
 ```
 
 Both are driven by the projects in [`vitest.config.ts`](vitest.config.ts);
-`pnpm test:all` runs the two together.
+`pnpm test:all` runs the two together, and `pnpm test:watch` /
+`pnpm test:watch:db` watch the same two halves.
 
 Format locally (before commit):
 
 ```powershell
-pnpm format:web
+pnpm format
 ```
+
+`pnpm format` and `pnpm format:check` cover the whole repo from the root
+Prettier config. [`.prettierignore`](.prettierignore) excludes generated font
+blobs and the Toolkit content under `packages/toolkit-content/{modules,skills}/`,
+which `content-seed` reads verbatim.
 
 Validate the Docker Compose configuration:
 
@@ -191,12 +197,12 @@ Next.js owns the product experience and product data (pages, Toolkit reads, Skil
 
 Once fully implemented, the layering is:
 
-| Layer | Owns |
-|---|---|
-| `apps/web` | Pages, product route handlers — thin shells that call `packages/services` |
-| `apps/mcp` | Remote MCP server for AI-agent clients (e.g. Claude): tool/resource/prompt shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself |
+| Layer               | Owns                                                                                                                                                                                             |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                        |
+| `apps/mcp`          | Remote MCP server for AI-agent clients (e.g. Claude): tool/resource/prompt shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                       |
 | `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit) — both `apps/web` and `apps/mcp` call into this layer; it is the only thing that may call `apps/api` |
-| `apps/api` | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself |
+| `apps/api`          | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself               |
 
 Framework rules once this is implemented:
 

@@ -24,10 +24,22 @@
 //    explicit `y` for exactly this case.
 import type { Font as FontkitFont } from "fontkit";
 
-import { blockHeight, linePitch, wrapText } from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
-import type { FieldPlan, LockedContentEntry, PagePlan, RectFillEntry } from "../types.js";
+import {
+  blockHeight,
+  linePitch,
+  wrapText,
+} from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
+import type {
+  FieldPlan,
+  LockedContentEntry,
+  PagePlan,
+  RectFillEntry,
+} from "../types.js";
 
-export const A4: { width: number; height: number } = { width: 595, height: 842 };
+export const A4: { width: number; height: number } = {
+  width: 595,
+  height: 842,
+};
 
 /** Default page margin — exported so pdf/render-plan.ts's footer can align to the same margin content is laid out against, rather than duplicating the number. */
 export const DEFAULT_MARGIN = 38;
@@ -117,7 +129,12 @@ export class LayoutBuilder {
     return wrapText(this.fontFor({ bold }), text, size, maxWidth);
   }
 
-  measuredHeight(text: string, size: number, maxWidth: number, bold = false): number {
+  measuredHeight(
+    text: string,
+    size: number,
+    maxWidth: number,
+    bold = false,
+  ): number {
     return blockHeight(this.fontFor({ bold }), text, size, maxWidth);
   }
 
@@ -143,7 +160,13 @@ export class LayoutBuilder {
     role: string,
     text: string,
     style: TextStyle,
-    options: { maxWidth?: number; x?: number; y?: number; gap?: number; allowSplit?: boolean } = {},
+    options: {
+      maxWidth?: number;
+      x?: number;
+      y?: number;
+      gap?: number;
+      allowSplit?: boolean;
+    } = {},
   ): void {
     const maxWidth = options.maxWidth ?? this.usableWidth;
     const x = options.x ?? this.margin;
@@ -186,7 +209,10 @@ export class LayoutBuilder {
       const pitch = linePitch(font, style.size);
       let remaining = lines;
       while (remaining.length > 0) {
-        const capacity = Math.max(1, Math.floor((this.y - this.bottomLimit) / pitch));
+        const capacity = Math.max(
+          1,
+          Math.floor((this.y - this.bottomLimit) / pitch),
+        );
         if (capacity <= 0) {
           this.newPage();
           continue;
@@ -220,7 +246,10 @@ export class LayoutBuilder {
    * measuring where that content landed (e.g. a card background sized to
    * the text it ends up containing).
    */
-  rectAt(rect: { x: number; y: number; width: number; height: number }, color: { r: number; g: number; b: number }): void {
+  rectAt(
+    rect: { x: number; y: number; width: number; height: number },
+    color: { r: number; g: number; b: number },
+  ): void {
     this.rects.push({ page: this.pageIndex, rect, color });
   }
 
@@ -241,7 +270,12 @@ export class LayoutBuilder {
       kind: "text",
       name,
       page: this.pageIndex,
-      rect: { x: options.x ?? this.margin, y: this.y - options.height, width: options.width, height: options.height },
+      rect: {
+        x: options.x ?? this.margin,
+        y: this.y - options.height,
+        width: options.width,
+        height: options.height,
+      },
       multiline: Boolean(options.multiline),
       capacity: options.capacity,
     };
@@ -251,14 +285,34 @@ export class LayoutBuilder {
   }
 
   /** Places a text field at an already-decided rect without moving the cursor — for side-by-side layouts. */
-  textFieldAt(name: string, rect: { x: number; y: number; width: number; height: number }, capacity: number, multiline = false): FieldPlan {
-    const field: FieldPlan = { kind: "text", name, page: this.pageIndex, rect, multiline, capacity };
+  textFieldAt(
+    name: string,
+    rect: { x: number; y: number; width: number; height: number },
+    capacity: number,
+    multiline = false,
+  ): FieldPlan {
+    const field: FieldPlan = {
+      kind: "text",
+      name,
+      page: this.pageIndex,
+      rect,
+      multiline,
+      capacity,
+    };
     this.fields.push(field);
     return field;
   }
 
-  checkboxAt(name: string, rect: { x: number; y: number; width: number; height: number }): FieldPlan {
-    const field: FieldPlan = { kind: "checkbox", name, page: this.pageIndex, rect };
+  checkboxAt(
+    name: string,
+    rect: { x: number; y: number; width: number; height: number },
+  ): FieldPlan {
+    const field: FieldPlan = {
+      kind: "checkbox",
+      name,
+      page: this.pageIndex,
+      rect,
+    };
     this.fields.push(field);
     return field;
   }
@@ -268,12 +322,28 @@ export class LayoutBuilder {
     rect: { x: number; y: number; width: number; height: number },
     options: string[],
   ): FieldPlan {
-    const field: FieldPlan = { kind: "dropdown", name, page: this.pageIndex, rect, options };
+    const field: FieldPlan = {
+      kind: "dropdown",
+      name,
+      page: this.pageIndex,
+      rect,
+      options,
+    };
     this.fields.push(field);
     return field;
   }
 
-  toPlanParts(): { pages: PagePlan[]; fields: FieldPlan[]; lockedContent: LockedContentEntry[]; rects: RectFillEntry[] } {
-    return { pages: this.pages, fields: this.fields, lockedContent: this.lockedContent, rects: this.rects };
+  toPlanParts(): {
+    pages: PagePlan[];
+    fields: FieldPlan[];
+    lockedContent: LockedContentEntry[];
+    rects: RectFillEntry[];
+  } {
+    return {
+      pages: this.pages,
+      fields: this.fields,
+      lockedContent: this.lockedContent,
+      rects: this.rects,
+    };
   }
 }

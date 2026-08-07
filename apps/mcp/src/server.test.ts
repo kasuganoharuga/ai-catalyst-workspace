@@ -44,7 +44,9 @@ function buildApp(overrides: Partial<CreateMcpAppOptions> = {}) {
 
 describe("GET /health", () => {
   it("returns ok without touching host/origin allowlists", async () => {
-    const res = await request(buildApp()).get("/health").set("Host", "localhost");
+    const res = await request(buildApp())
+      .get("/health")
+      .set("Host", "localhost");
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ status: "ok" });
   });
@@ -97,9 +99,13 @@ describe("GET/DELETE /mcp in stateless mode", () => {
   });
 
   it("returns 405 for DELETE", async () => {
-    const res = await request(buildApp()).delete("/mcp").set("Host", "localhost");
+    const res = await request(buildApp())
+      .delete("/mcp")
+      .set("Host", "localhost");
     expect(res.status).toBe(405);
-    expect(res.body.error.message).toBe("Method not allowed in stateless mode.");
+    expect(res.body.error.message).toBe(
+      "Method not allowed in stateless mode.",
+    );
   });
 });
 
@@ -127,9 +133,9 @@ describe("POST /mcp — tools/list", () => {
     expect(res.status).toBe(200);
     expect(res.body.jsonrpc).toBe("2.0");
     expect(res.body.id).toBe(1);
-    expect(res.body.result.tools.map((tool: { name: string }) => tool.name).sort()).toEqual(
-      [...EXPECTED_TOOL_NAMES].sort(),
-    );
+    expect(
+      res.body.result.tools.map((tool: { name: string }) => tool.name).sort(),
+    ).toEqual([...EXPECTED_TOOL_NAMES].sort());
   });
 });
 
@@ -189,7 +195,10 @@ describe("POST /mcp — Bearer token verification", () => {
       buildApp({
         verifyBearer: async () => {
           const { ServiceError } = await import("@ai-catalyst/services/errors");
-          throw new ServiceError("FORBIDDEN", "Token is missing the mcp:connect scope.");
+          throw new ServiceError(
+            "FORBIDDEN",
+            "Token is missing the mcp:connect scope.",
+          );
         },
       }),
     )
@@ -199,7 +208,9 @@ describe("POST /mcp — Bearer token verification", () => {
       .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
 
     expect(res.status).toBe(403);
-    expect(res.headers["www-authenticate"]).toContain('error="insufficient_scope"');
+    expect(res.headers["www-authenticate"]).toContain(
+      'error="insufficient_scope"',
+    );
   });
 
   it("maps a FORBIDDEN ServiceError for a pending account to 403 without an insufficient_scope challenge", async () => {

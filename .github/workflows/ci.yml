@@ -47,7 +47,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check formatting
-        run: pnpm format:check:web
+        run: pnpm format:check
 
       - name: Lint frontend
         run: pnpm lint

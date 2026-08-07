@@ -131,7 +131,10 @@ function validateCreateInvitationInput(
 
   const trimmed = email.trim();
   if (trimmed.length === 0 || !trimmed.includes("@") || trimmed.length > 320) {
-    throw new ServiceError("VALIDATION_ERROR", "Email must be a valid address.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Email must be a valid address.",
+    );
   }
 
   if (

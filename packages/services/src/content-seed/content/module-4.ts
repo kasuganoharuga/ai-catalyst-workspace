@@ -1,4 +1,8 @@
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
 
 // Ported from skills/module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md
 // (§1 field ownership, §3 question rows, §5 artifact generator) and the
@@ -197,7 +201,8 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
     questionKey: "evidence_level",
     sequenceIndex: 2,
     questionGroup: "evidence_maturity",
-    questionText: "What is the highest evidence level reached for this customer and problem?",
+    questionText:
+      "What is the highest evidence level reached for this customer and problem?",
     helpText: null,
     placeholderText: null,
     responseType: "single_choice",
@@ -210,7 +215,8 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
     questionKey: "evidence_level_reasoning",
     sequenceIndex: 3,
     questionGroup: "evidence_maturity",
-    questionText: "What specifically supports that level, and what is missing from the level above?",
+    questionText:
+      "What specifically supports that level, and what is missing from the level above?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -251,7 +257,8 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
     questionKey: "counterargument_defence",
     sequenceIndex: 6,
     questionGroup: "falsifiability",
-    questionText: "What evidence answers that case, and where does the defence run out?",
+    questionText:
+      "What evidence answers that case, and where does the defence run out?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -264,7 +271,8 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
     questionKey: "validation_constraints",
     sequenceIndex: 7,
     questionGroup: "roadmap",
-    questionText: "Over the next 30 days, what time, budget and customer access is genuinely available?",
+    questionText:
+      "Over the next 30 days, what time, budget and customer access is genuinely available?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -312,7 +320,12 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Validation Status" },
         ],
       },
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
       {
         key: "inventory_row_count",
         type: "minimum_table_rows",
@@ -326,7 +339,12 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         type: "table_required_cells",
         level: 2,
         heading: "Evidence Inventory",
-        requiredColumns: ["Source", "Type", "What it says", "Evidence strength (1–5)"],
+        requiredColumns: [
+          "Source",
+          "Type",
+          "What it says",
+          "Evidence strength (1–5)",
+        ],
       },
       {
         key: "inventory_type_enum",
@@ -358,7 +376,11 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         type: "table_required_cells",
         level: 2,
         heading: "Behavioural Evidence Log",
-        requiredColumns: ["Behaviour", "What it proves", "Evidence strength (1–5)"],
+        requiredColumns: [
+          "Behaviour",
+          "What it proves",
+          "Evidence strength (1–5)",
+        ],
       },
       {
         key: "behavioural_strength_scored",
@@ -369,15 +391,30 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         minimum: 1,
         maximum: 5,
       },
-      { key: "strongest_signal_present", type: "section_non_empty", level: 3, heading: "Strongest signal" },
-      { key: "weakest_gaps_present", type: "section_non_empty", level: 3, heading: "Weakest gaps" },
+      {
+        key: "strongest_signal_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Strongest signal",
+      },
+      {
+        key: "weakest_gaps_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Weakest gaps",
+      },
       {
         key: "highest_leverage_present",
         type: "section_non_empty",
         level: 3,
         heading: "Highest-leverage information to gather next",
       },
-      { key: "why_this_level_present", type: "section_non_empty", level: 3, heading: "Why this level" },
+      {
+        key: "why_this_level_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Why this level",
+      },
       {
         key: "next_level_present",
         type: "section_non_empty",
@@ -396,7 +433,12 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         level: 3,
         heading: "Evidence-backed defence",
       },
-      { key: "falsifiability_verdict_present", type: "section_non_empty", level: 3, heading: "Verdict" },
+      {
+        key: "falsifiability_verdict_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Verdict",
+      },
       {
         key: "watertight_present",
         type: "section_non_empty",
@@ -438,7 +480,13 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         type: "label_enum",
         label: "Current level",
         scope: { level: 2, heading: "Evidence Maturity Level" },
-        allowed: ["assumption", "secondary_research", "primary_research", "demand_signal", "paying"],
+        allowed: [
+          "assumption",
+          "secondary_research",
+          "primary_research",
+          "demand_signal",
+          "paying",
+        ],
       },
       {
         key: "maturity_scaffolding_row_count",
@@ -474,8 +522,14 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
       {
         key: "maturity_and_validation_status_agree",
         type: "labels_agree",
-        labelA: { label: "Current level", scope: { level: 2, heading: "Evidence Maturity Level" } },
-        labelB: { label: "Current level", scope: { level: 2, heading: "Validation Status" } },
+        labelA: {
+          label: "Current level",
+          scope: { level: 2, heading: "Evidence Maturity Level" },
+        },
+        labelB: {
+          label: "Current level",
+          scope: { level: 2, heading: "Validation Status" },
+        },
       },
     ],
   },
@@ -518,9 +572,24 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "How to Record Results" },
         ],
       },
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
-      { key: "time_available", type: "label_present", label: "Time available", scope: { level: 2, heading: "Constraints" } },
-      { key: "budget", type: "label_present", label: "Budget", scope: { level: 2, heading: "Constraints" } },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "time_available",
+        type: "label_present",
+        label: "Time available",
+        scope: { level: 2, heading: "Constraints" },
+      },
+      {
+        key: "budget",
+        type: "label_present",
+        label: "Budget",
+        scope: { level: 2, heading: "Constraints" },
+      },
       {
         key: "customer_access",
         type: "label_present",
@@ -677,7 +746,8 @@ export const MODULE_4_CONTENT: ModuleContent = {
   moduleKey: "module-04-evidence-of-unmet-need",
   sequenceIndex: 4,
   title: "Proof",
-  subtitle: "Grade what you actually know against what you believe, and plan the next 30 days",
+  subtitle:
+    "Grade what you actually know against what you believe, and plan the next 30 days",
   description:
     "Seven confirmed structured answers saved field by field, an Evidence of Unmet Need assessment (including Module 3's interview notes), and a 30-Day Validation Roadmap. Upstream validation statuses are historical snapshots, never a cap.",
   objective:

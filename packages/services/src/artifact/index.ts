@@ -33,7 +33,10 @@ import {
   resolveValidationTriggeredVia,
 } from "@ai-catalyst/services/artifact/internal/triggered-via";
 
-import type { ValidationRunResult, Validator } from "./internal/validators/types.js";
+import type {
+  ValidationRunResult,
+  Validator,
+} from "./internal/validators/types.js";
 import type {
   Provenance,
   RegisteredWorkbookRenderer,
@@ -123,7 +126,9 @@ interface LatestSubmissionRow {
   content_sha256: string | null;
 }
 
-function mapArtifactSubmissionRow(row: LatestSubmissionRow): ArtifactSubmission {
+function mapArtifactSubmissionRow(
+  row: LatestSubmissionRow,
+): ArtifactSubmission {
   return {
     id: row.id,
     moduleAttemptId: row.module_attempt_id,
@@ -154,7 +159,9 @@ interface ArtifactValidationRow {
   created_at: Date;
 }
 
-function mapArtifactValidationRow(row: ArtifactValidationRow): ArtifactValidation {
+function mapArtifactValidationRow(
+  row: ArtifactValidationRow,
+): ArtifactValidation {
   return {
     id: row.id,
     artifactSubmissionId: row.artifact_submission_id,
@@ -164,7 +171,9 @@ function mapArtifactValidationRow(row: ArtifactValidationRow): ArtifactValidatio
     validatorKey: row.validator_key,
     validatorVersion: row.validator_version,
     triggeredVia: row.triggered_via,
-    checks: Array.isArray(row.checks) ? (row.checks as ArtifactValidationCheck[]) : [],
+    checks: Array.isArray(row.checks)
+      ? (row.checks as ArtifactValidationCheck[])
+      : [],
     issues: Array.isArray(row.issues) ? (row.issues as string[]) : [],
     warnings: Array.isArray(row.warnings) ? (row.warnings as string[]) : [],
     summary: row.summary,
@@ -232,7 +241,11 @@ async function resolveAttemptContextForFounder(
   attemptId: string,
   executor: QueryExecutor,
   options: { forUpdate: boolean },
-): Promise<{ workspaceId: string; runModule: RunModuleRow; attempt: AttemptRow }> {
+): Promise<{
+  workspaceId: string;
+  runModule: RunModuleRow;
+  attempt: AttemptRow;
+}> {
   const workspace = await resolveFounderWorkspace(actor, executor);
   const { runModule, attempt } = await resolveAttemptContext(
     workspace.id,
@@ -252,7 +265,11 @@ async function resolveAttemptContextTrusted(
   attemptId: string,
   executor: QueryExecutor,
   options: { forUpdate: boolean },
-): Promise<{ workspaceId: string; runModule: RunModuleRow; attempt: AttemptRow }> {
+): Promise<{
+  workspaceId: string;
+  runModule: RunModuleRow;
+  attempt: AttemptRow;
+}> {
   const lookupResult = await executor.query<{ workspace_id: string }>(
     `select workspace_id from module_attempts where id = $1`,
     [attemptId],
@@ -426,9 +443,10 @@ async function insertArtifactValidation(
   // concurrent draft checks against the same submission would otherwise
   // both compute the same max()+1 and collide on
   // artifact_validations_number_unique.
-  await client.query(`select id from artifact_submissions where id = $1 for update`, [
-    input.artifactSubmissionId,
-  ]);
+  await client.query(
+    `select id from artifact_submissions where id = $1 for update`,
+    [input.artifactSubmissionId],
+  );
 
   const numberResult = await client.query<{ next: number }>(
     `select coalesce(max(validation_number), 0) + 1 as next
@@ -436,7 +454,9 @@ async function insertArtifactValidation(
     [input.artifactSubmissionId],
   );
   const validationNumber = numberResult.rows[0].next;
-  const status: ArtifactValidationStatus = input.result.passed ? "passed" : "failed";
+  const status: ArtifactValidationStatus = input.result.passed
+    ? "passed"
+    : "failed";
 
   const result = await client.query<ArtifactValidationRow>(
     `insert into artifact_validations (
@@ -468,7 +488,9 @@ async function insertArtifactValidation(
   return result.rows[0];
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+async function withTransaction<T>(
+  fn: (client: PoolClient) => Promise<T>,
+): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query("begin");
@@ -484,7 +506,11 @@ async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promi
 }
 
 function assertEditableAttempt(status: ModuleAttemptStatus): void {
-  if (!(EDITABLE_ATTEMPT_STATUSES as readonly ModuleAttemptStatus[]).includes(status)) {
+  if (
+    !(EDITABLE_ATTEMPT_STATUSES as readonly ModuleAttemptStatus[]).includes(
+      status,
+    )
+  ) {
     throw new ServiceError(
       "ATTEMPT_NOT_EDITABLE",
       `Attempt is "${status}" and can no longer be edited.`,
@@ -513,10 +539,16 @@ function normalizeSaveArtifactSubmissionInput(input: unknown): {
     content?: unknown;
   };
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   if (typeof artifactKey !== "string" || artifactKey.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "artifactKey must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "artifactKey must be a non-blank string.",
+    );
   }
   if (typeof content !== "string") {
     throw new ServiceError("VALIDATION_ERROR", "content must be a string.");
@@ -544,8 +576,11 @@ export async function saveArtifactSubmission(
   deps: ArtifactServiceDependencies = {},
 ): Promise<ArtifactSubmission> {
   assertRole(actor, ["founder"]);
-  const { attemptId: rawAttemptId, artifactKey, content } =
-    normalizeSaveArtifactSubmissionInput(input);
+  const {
+    attemptId: rawAttemptId,
+    artifactKey,
+    content,
+  } = normalizeSaveArtifactSubmissionInput(input);
   const attemptId = parseEntityIdOrNotFound(rawAttemptId, "Attempt not found.");
   const contentHash = sha256(Buffer.from(content, "utf8"));
 
@@ -553,24 +588,37 @@ export async function saveArtifactSubmission(
   // artifactKey/status, and short-circuit the whole operation if this is
   // an identical resubmission — the common MCP-transport-retry case this
   // idempotency rule exists for.
-  const precheckContext = await resolveAttemptContextForFounder(actor, attemptId, pool, {
-    forUpdate: false,
-  });
+  const precheckContext = await resolveAttemptContextForFounder(
+    actor,
+    attemptId,
+    pool,
+    {
+      forUpdate: false,
+    },
+  );
   assertEditableAttempt(precheckContext.attempt.status);
   const artifactDefinition = await loadArtifactDefinitionByKey(
     pool,
     precheckContext.runModule.module_definition_id,
     artifactKey,
   );
-  const precheckExisting = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
-    forUpdate: false,
-  });
+  const precheckExisting = await loadLatestSubmission(
+    pool,
+    attemptId,
+    artifactDefinition.id,
+    {
+      forUpdate: false,
+    },
+  );
   if (precheckExisting && precheckExisting.content_sha256 === contentHash) {
     return mapArtifactSubmissionRow(precheckExisting);
   }
 
   if (artifactDefinition.validator_key) {
-    const validator = resolveValidator(artifactDefinition.validator_key, deps.validators);
+    const validator = resolveValidator(
+      artifactDefinition.validator_key,
+      deps.validators,
+    );
     const responses = await loadResponses(pool, attemptId);
     const draftResult = validator.runDraftCheck({
       content,
@@ -613,12 +661,10 @@ export async function saveArtifactSubmission(
   // window opened by phase 2's I/O), then commit the actual version
   // change.
   return withTransaction(async (client) => {
-    const { workspaceId, runModule, attempt } = await resolveAttemptContextForFounder(
-      actor,
-      attemptId,
-      client,
-      { forUpdate: true },
-    );
+    const { workspaceId, runModule, attempt } =
+      await resolveAttemptContextForFounder(actor, attemptId, client, {
+        forUpdate: true,
+      });
     assertEditableAttempt(attempt.status);
 
     const lockedArtifactDefinition = await loadArtifactDefinitionByKey(
@@ -626,9 +672,14 @@ export async function saveArtifactSubmission(
       runModule.module_definition_id,
       artifactKey,
     );
-    const existing = await loadLatestSubmission(client, attemptId, lockedArtifactDefinition.id, {
-      forUpdate: true,
-    });
+    const existing = await loadLatestSubmission(
+      client,
+      attemptId,
+      lockedArtifactDefinition.id,
+      {
+        forUpdate: true,
+      },
+    );
     if (existing && existing.content_sha256 === contentHash) {
       // A concurrent call already saved this exact content while we were
       // doing Storage I/O — idempotent no-op, matching the phase-1 check.
@@ -678,7 +729,12 @@ export async function saveArtifactSubmission(
          sequence_index, is_primary
        )
        values ($1, $2, $3, 'source', $4, 1, true)`,
-      [workspaceId, submissionId, storageObject.id, lockedArtifactDefinition.output_format],
+      [
+        workspaceId,
+        submissionId,
+        storageObject.id,
+        lockedArtifactDefinition.output_format,
+      ],
     );
 
     await insertArtifactModuleEvent(client, {
@@ -728,20 +784,31 @@ export async function getArtifactSubmission(
   input: unknown,
 ): Promise<ArtifactSubmissionWithContent | null> {
   assertRole(actor, ["founder"]);
-  const { attemptId: rawAttemptId, artifactKey } = normalizeArtifactKeyInput(input);
+  const { attemptId: rawAttemptId, artifactKey } =
+    normalizeArtifactKeyInput(input);
   const attemptId = parseEntityIdOrNotFound(rawAttemptId, "Attempt not found.");
 
-  const context = await resolveAttemptContextForFounder(actor, attemptId, pool, {
-    forUpdate: false,
-  });
+  const context = await resolveAttemptContextForFounder(
+    actor,
+    attemptId,
+    pool,
+    {
+      forUpdate: false,
+    },
+  );
   const artifactDefinition = await loadArtifactDefinitionByKey(
     pool,
     context.runModule.module_definition_id,
     artifactKey,
   );
-  const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
-    forUpdate: false,
-  });
+  const submission = await loadLatestSubmission(
+    pool,
+    attemptId,
+    artifactDefinition.id,
+    {
+      forUpdate: false,
+    },
+  );
   if (!submission) {
     return null;
   }
@@ -807,17 +874,30 @@ export async function renderArtifactWorkbook(
   deps: ArtifactServiceDependencies = {},
 ): Promise<RenderedWorkbook> {
   assertRole(actor, ["founder"]);
-  const attemptId = parseEntityIdOrNotFound(input.attemptId, "Attempt not found.");
+  const attemptId = parseEntityIdOrNotFound(
+    input.attemptId,
+    "Attempt not found.",
+  );
   if (
     input.sectionCount !== undefined &&
-    (!Number.isInteger(input.sectionCount) || input.sectionCount < 5 || input.sectionCount > 10)
+    (!Number.isInteger(input.sectionCount) ||
+      input.sectionCount < 5 ||
+      input.sectionCount > 10)
   ) {
-    throw new ServiceError("VALIDATION_ERROR", "sectionCount must be an integer between 5 and 10.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "sectionCount must be an integer between 5 and 10.",
+    );
   }
 
-  const context = await resolveAttemptContextForFounder(actor, attemptId, pool, {
-    forUpdate: false,
-  });
+  const context = await resolveAttemptContextForFounder(
+    actor,
+    attemptId,
+    pool,
+    {
+      forUpdate: false,
+    },
+  );
   const artifactDefinition = await loadArtifactDefinitionByKey(
     pool,
     context.runModule.module_definition_id,
@@ -830,9 +910,14 @@ export async function renderArtifactWorkbook(
     );
   }
 
-  const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
-    forUpdate: false,
-  });
+  const submission = await loadLatestSubmission(
+    pool,
+    attemptId,
+    artifactDefinition.id,
+    {
+      forUpdate: false,
+    },
+  );
   if (
     !submission ||
     submission.status !== "submitted" ||
@@ -845,7 +930,10 @@ export async function renderArtifactWorkbook(
     );
   }
 
-  const markdown = await getGeneratedTextContent(actor, submission.primary_storage_object_id);
+  const markdown = await getGeneratedTextContent(
+    actor,
+    submission.primary_storage_object_id,
+  );
   const computedHash = sha256(Buffer.from(markdown, "utf8"));
   if (computedHash !== submission.content_sha256) {
     throw new ServiceError(
@@ -857,11 +945,16 @@ export async function renderArtifactWorkbook(
   // Dynamic import keeps pdf-lib / fontkit / embedded fonts out of the
   // @ai-catalyst/services/artifact barrel — getArtifactSubmission,
   // runDraftCheck, and completion paths must not pay for workbook rendering.
-  const { resolveWorkbookRenderer } = await import(
-    "@ai-catalyst/services/artifact/internal/renderers/registry"
+  const { resolveWorkbookRenderer } =
+    await import("@ai-catalyst/services/artifact/internal/renderers/registry");
+  const renderer = resolveWorkbookRenderer(
+    artifactDefinition.renderer_key,
+    deps.renderers,
   );
-  const renderer = resolveWorkbookRenderer(artifactDefinition.renderer_key, deps.renderers);
-  const programVersionNumber = await loadProgramVersionNumber(pool, context.runModule.program_run_id);
+  const programVersionNumber = await loadProgramVersionNumber(
+    pool,
+    context.runModule.program_run_id,
+  );
 
   const provenance: Provenance = {
     sourceArtifactId: artifactDefinition.artifact_key,
@@ -875,7 +968,9 @@ export async function renderArtifactWorkbook(
     programVersionNumber,
   };
   const options: WorkbookRenderOptions | undefined =
-    input.sectionCount !== undefined ? { sectionCount: input.sectionCount } : undefined;
+    input.sectionCount !== undefined
+      ? { sectionCount: input.sectionCount }
+      : undefined;
 
   // Parse/plan/assertion/render/structural-assertion failures all surface
   // as WORKBOOK_RENDER_FAILED — never the caller's fault, but distinct from
@@ -883,7 +978,11 @@ export async function renderArtifactWorkbook(
   // ready yet" conflicts above.
   try {
     const { buffer } = await renderer.build(markdown, provenance, options);
-    return { buffer, mimeType: renderer.mimeType, filename: renderer.downloadFilename };
+    return {
+      buffer,
+      mimeType: renderer.mimeType,
+      filename: renderer.downloadFilename,
+    };
   } catch (error) {
     if (error instanceof ServiceError) throw error;
     const message = error instanceof Error ? error.message : String(error);
@@ -895,22 +994,41 @@ export async function renderArtifactWorkbook(
 // runDraftCheck
 // ---------------------------------------------------------------------
 
-function normalizeArtifactKeyInput(input: unknown): { attemptId: string; artifactKey: string } {
+function normalizeArtifactKeyInput(input: unknown): {
+  attemptId: string;
+  artifactKey: string;
+} {
   if (typeof input !== "object" || input === null) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId and artifactKey are required.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId and artifactKey are required.",
+    );
   }
-  const { attemptId, artifactKey } = input as { attemptId?: unknown; artifactKey?: unknown };
+  const { attemptId, artifactKey } = input as {
+    attemptId?: unknown;
+    artifactKey?: unknown;
+  };
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   if (typeof artifactKey !== "string" || artifactKey.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "artifactKey must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "artifactKey must be a non-blank string.",
+    );
   }
   return { attemptId, artifactKey };
 }
 
-function draftRuleSnapshot(validationConfig: Record<string, unknown>): Record<string, unknown> {
-  return { draftRules: (validationConfig as { draftRules?: unknown }).draftRules ?? [] };
+function draftRuleSnapshot(
+  validationConfig: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    draftRules: (validationConfig as { draftRules?: unknown }).draftRules ?? [],
+  };
 }
 
 /**
@@ -926,24 +1044,38 @@ export async function runDraftCheck(
   deps: ArtifactServiceDependencies = {},
 ): Promise<ArtifactValidation> {
   assertRole(actor, ["founder"]);
-  const { attemptId: rawAttemptId, artifactKey } = normalizeArtifactKeyInput(input);
+  const { attemptId: rawAttemptId, artifactKey } =
+    normalizeArtifactKeyInput(input);
   const attemptId = parseEntityIdOrNotFound(rawAttemptId, "Attempt not found.");
 
   // Phase 1 (no lock): resolve everything needed to run the Validator.
-  const context = await resolveAttemptContextForFounder(actor, attemptId, pool, {
-    forUpdate: false,
-  });
+  const context = await resolveAttemptContextForFounder(
+    actor,
+    attemptId,
+    pool,
+    {
+      forUpdate: false,
+    },
+  );
   assertEditableAttempt(context.attempt.status);
   const artifactDefinition = await loadArtifactDefinitionByKey(
     pool,
     context.runModule.module_definition_id,
     artifactKey,
   );
-  const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
-    forUpdate: false,
-  });
+  const submission = await loadLatestSubmission(
+    pool,
+    attemptId,
+    artifactDefinition.id,
+    {
+      forUpdate: false,
+    },
+  );
   if (!submission || !submission.primary_storage_object_id) {
-    throw new ServiceError("NOT_FOUND", "No Artifact submission found to check.");
+    throw new ServiceError(
+      "NOT_FOUND",
+      "No Artifact submission found to check.",
+    );
   }
   if (!artifactDefinition.validator_key) {
     throw new ServiceError(
@@ -951,10 +1083,16 @@ export async function runDraftCheck(
       `Artifact "${artifactKey}" has no validator_key configured.`,
     );
   }
-  const validator = resolveValidator(artifactDefinition.validator_key, deps.validators);
+  const validator = resolveValidator(
+    artifactDefinition.validator_key,
+    deps.validators,
+  );
 
   // Phase 2 (I/O, no transaction held open).
-  const content = await getGeneratedTextContent(actor, submission.primary_storage_object_id);
+  const content = await getGeneratedTextContent(
+    actor,
+    submission.primary_storage_object_id,
+  );
   const responses = await loadResponses(pool, attemptId);
   const result = validator.runDraftCheck({
     content,
@@ -970,12 +1108,10 @@ export async function runDraftCheck(
   // Phase 3 (short transaction): re-verify under lock, write the event +
   // validation history row.
   return withTransaction(async (client) => {
-    const { workspaceId, runModule, attempt } = await resolveAttemptContextForFounder(
-      actor,
-      attemptId,
-      client,
-      { forUpdate: true },
-    );
+    const { workspaceId, runModule, attempt } =
+      await resolveAttemptContextForFounder(actor, attemptId, client, {
+        forUpdate: true,
+      });
     assertEditableAttempt(attempt.status);
 
     await insertArtifactModuleEvent(client, {
@@ -1024,7 +1160,10 @@ function normalizeAttemptIdInput(input: unknown): { attemptId: string } {
   }
   const { attemptId } = input as { attemptId: unknown };
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   return { attemptId };
 }
@@ -1041,7 +1180,10 @@ function assertOfficialValidationAuthority(actor: ActorContext): void {
   if (actor.source === "system" || actor.role === "admin") {
     return;
   }
-  throw new ServiceError("FORBIDDEN", "You do not have permission to perform this action.");
+  throw new ServiceError(
+    "FORBIDDEN",
+    "You do not have permission to perform this action.",
+  );
 }
 
 export interface RunOfficialValidationResult {
@@ -1093,8 +1235,13 @@ export async function runOfficialValidation(
 
   // Phase 1 (no lock): idempotent short-circuit / precondition check,
   // and gather everything needed to run every required Validator.
-  const precheck = await resolveAttemptContextTrusted(attemptId, pool, { forUpdate: false });
-  if (precheck.attempt.status === "ready_for_review" || precheck.attempt.status === "validation_failed") {
+  const precheck = await resolveAttemptContextTrusted(attemptId, pool, {
+    forUpdate: false,
+  });
+  if (
+    precheck.attempt.status === "ready_for_review" ||
+    precheck.attempt.status === "validation_failed"
+  ) {
     return {
       attemptId,
       status: precheck.attempt.status,
@@ -1126,9 +1273,14 @@ export async function runOfficialValidation(
   // Artifact's saved content and run its Validator's official check.
   const outcomes: ArtifactRunOutcome[] = [];
   for (const artifactDefinition of requiredArtifacts) {
-    const submission = await loadLatestSubmission(pool, attemptId, artifactDefinition.id, {
-      forUpdate: false,
-    });
+    const submission = await loadLatestSubmission(
+      pool,
+      attemptId,
+      artifactDefinition.id,
+      {
+        forUpdate: false,
+      },
+    );
     if (!submission || !submission.primary_storage_object_id) {
       outcomes.push({ artifactDefinition, submission: null, result: null });
       continue;
@@ -1142,7 +1294,13 @@ export async function runOfficialValidation(
         outcomes.push({
           artifactDefinition,
           submission,
-          result: { checks: [], issues: [], warnings: [], passed: true, score: 100 },
+          result: {
+            checks: [],
+            issues: [],
+            warnings: [],
+            passed: true,
+            score: 100,
+          },
         });
         continue;
       }
@@ -1151,8 +1309,14 @@ export async function runOfficialValidation(
         `Artifact "${artifactDefinition.artifact_key}" has no validator_key configured.`,
       );
     }
-    const validator = resolveValidator(artifactDefinition.validator_key, deps.validators);
-    const content = await getGeneratedTextContent(actor, submission.primary_storage_object_id);
+    const validator = resolveValidator(
+      artifactDefinition.validator_key,
+      deps.validators,
+    );
+    const content = await getGeneratedTextContent(
+      actor,
+      submission.primary_storage_object_id,
+    );
     const result = validator.runOfficialCheck({
       content,
       responses,
@@ -1165,14 +1329,20 @@ export async function runOfficialValidation(
     .filter((outcome) => outcome.submission === null)
     .map((outcome) => outcome.artifactDefinition.artifact_key);
   const allPassed =
-    missingArtifactKeys.length === 0 && outcomes.every((outcome) => outcome.result?.passed === true);
+    missingArtifactKeys.length === 0 &&
+    outcomes.every((outcome) => outcome.result?.passed === true);
 
   // Phase 3 (short transaction): re-verify under lock, then commit the
   // Attempt/Submission state transition + validation history rows.
   return withTransaction(async (client) => {
-    const locked = await resolveAttemptContextTrusted(attemptId, client, { forUpdate: true });
+    const locked = await resolveAttemptContextTrusted(attemptId, client, {
+      forUpdate: true,
+    });
 
-    if (locked.attempt.status === "ready_for_review" || locked.attempt.status === "validation_failed") {
+    if (
+      locked.attempt.status === "ready_for_review" ||
+      locked.attempt.status === "validation_failed"
+    ) {
       // Raced with another official validation call between phase 1 and
       // here — idempotent short-circuit, no new writes.
       return {
@@ -1206,10 +1376,17 @@ export async function runOfficialValidation(
 
     const validations: ArtifactValidation[] = [];
     for (const outcome of outcomes) {
-      if (!outcome.submission || !outcome.result || !outcome.artifactDefinition.validator_key) {
+      if (
+        !outcome.submission ||
+        !outcome.result ||
+        !outcome.artifactDefinition.validator_key
+      ) {
         continue;
       }
-      const validator = resolveValidator(outcome.artifactDefinition.validator_key, deps.validators);
+      const validator = resolveValidator(
+        outcome.artifactDefinition.validator_key,
+        deps.validators,
+      );
       const row = await insertArtifactValidation(client, {
         workspaceId: locked.workspaceId,
         artifactSubmissionId: outcome.submission.id,
@@ -1259,7 +1436,8 @@ export async function runOfficialValidation(
       await insertArtifactModuleEvent(client, {
         ...runModuleEventBase,
         eventType: "validation_failed",
-        metadata: missingArtifactKeys.length > 0 ? { missingArtifactKeys } : undefined,
+        metadata:
+          missingArtifactKeys.length > 0 ? { missingArtifactKeys } : undefined,
       });
     }
 
@@ -1282,10 +1460,17 @@ export async function runOfficialValidation(
 // role) — kept as its own local assertion rather than a cross-module
 // import for the same "don't share across Service modules" reason.
 function assertValidationReader(actor: ActorContext): void {
-  if (actor.role === "founder" || actor.role === "admin" || actor.source === "system") {
+  if (
+    actor.role === "founder" ||
+    actor.role === "admin" ||
+    actor.source === "system"
+  ) {
     return;
   }
-  throw new ServiceError("FORBIDDEN", "You do not have permission to perform this action.");
+  throw new ServiceError(
+    "FORBIDDEN",
+    "You do not have permission to perform this action.",
+  );
 }
 
 /**
@@ -1297,10 +1482,14 @@ export async function getLatestValidation(
   input: unknown,
 ): Promise<ArtifactValidation | null> {
   assertValidationReader(actor);
-  const { attemptId: rawAttemptId, artifactKey } = normalizeArtifactKeyInput(input);
+  const { attemptId: rawAttemptId, artifactKey } =
+    normalizeArtifactKeyInput(input);
   const attemptId = parseEntityIdOrNotFound(rawAttemptId, "Attempt not found.");
 
-  const attemptLookup = await pool.query<{ workspace_id: string; program_run_module_id: string }>(
+  const attemptLookup = await pool.query<{
+    workspace_id: string;
+    program_run_module_id: string;
+  }>(
     `select workspace_id, program_run_module_id from module_attempts where id = $1`,
     [attemptId],
   );

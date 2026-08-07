@@ -6,7 +6,10 @@ import { VALIDATION_ROADMAP_FIELD_MANIFEST_V1 } from "../manifests/roadmap-v1.js
 import type { ValidationRoadmapModel } from "../parse/validation-roadmap.js";
 import { renderWorkbookPlan } from "../pdf/render-plan.js";
 import type { Provenance } from "../types.js";
-import { assertValidationRoadmapPlan, buildValidationRoadmapPlan } from "./validation-roadmap-plan.js";
+import {
+  assertValidationRoadmapPlan,
+  buildValidationRoadmapPlan,
+} from "./validation-roadmap-plan.js";
 
 const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
   ventureName: "Kerbside",
@@ -15,11 +18,13 @@ const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
     budget: "$500",
     customerAccess: "12 warm introductions from the Melbourne depot network",
   },
-  whatTheseExperimentsTest: "Whether operations leads will take a concrete step toward solving reconciliation.",
+  whatTheseExperimentsTest:
+    "Whether operations leads will take a concrete step toward solving reconciliation.",
   experiments: [
     {
       name: "Concierge pilot",
-      claimTested: "Leads will hand over a real run sheet for manual reconciliation",
+      claimTested:
+        "Leads will hand over a real run sheet for manual reconciliation",
       passCondition: "3 of 8 leads send a run sheet within 48 hours",
       failCondition: "Fewer than 2 of 8 respond within a week",
       time: "4 hours/week",
@@ -46,12 +51,14 @@ const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
     "5 — can produce a binding commercial commitment or payment",
   ],
   startHere: {
-    whatToDo: "Send the concierge pilot offer to all 8 warm introductions this week.",
+    whatToDo:
+      "Send the concierge pilot offer to all 8 warm introductions this week.",
     whoToContact: "The 8 Melbourne depot contacts, by direct message.",
     pass: "3 of 8 leads send a run sheet within 48 hours",
     fail: "Fewer than 2 of 8 respond within a week",
   },
-  howToRecordResults: "Keep the results with you and bring them into the review that follows.",
+  howToRecordResults:
+    "Keep the results with you and bring them into the review that follows.",
 };
 
 const THREE_EXPERIMENT_MODEL: ValidationRoadmapModel = {
@@ -85,7 +92,8 @@ const PROVENANCE: Provenance = {
 
 async function extractText(bytes: Buffer, pageNumber: number): Promise<string> {
   const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) }).promise;
+  const doc = await pdfjsLib.getDocument({ data: new Uint8Array(bytes) })
+    .promise;
   const page = await doc.getPage(pageNumber);
   const content = await page.getTextContent();
   return content.items
@@ -104,8 +112,12 @@ describe("buildValidationRoadmapPlan — plan structure", () => {
   it("produces 1 cover + 3 experiments * 2 pages = 7 pages for a 3-experiment model, and never a blank page", () => {
     const plan = buildValidationRoadmapPlan(THREE_EXPERIMENT_MODEL, PROVENANCE);
     expect(plan.pages).toHaveLength(7);
-    expect(plan.lockedContent.some((e) => e.role.startsWith("experiment_3."))).toBe(true);
-    expect(plan.lockedContent.some((e) => e.role.startsWith("experiment_4."))).toBe(false);
+    expect(
+      plan.lockedContent.some((e) => e.role.startsWith("experiment_3.")),
+    ).toBe(true);
+    expect(
+      plan.lockedContent.some((e) => e.role.startsWith("experiment_4.")),
+    ).toBe(false);
   });
 
   it("produces exactly the field set the manifest declares for 2 experiments", () => {
@@ -124,8 +136,16 @@ describe("buildValidationRoadmapPlan — plan structure", () => {
 
   it("only experiment 1 carries Start Here's execution guidance", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
-    expect(plan.lockedContent.some((e) => e.role === "experiment_1.start_here_what_to_do")).toBe(true);
-    expect(plan.lockedContent.some((e) => e.role === "experiment_2.start_here_what_to_do")).toBe(false);
+    expect(
+      plan.lockedContent.some(
+        (e) => e.role === "experiment_1.start_here_what_to_do",
+      ),
+    ).toBe(true);
+    expect(
+      plan.lockedContent.some(
+        (e) => e.role === "experiment_2.start_here_what_to_do",
+      ),
+    ).toBe(false);
   });
 });
 
@@ -141,8 +161,12 @@ describe("buildValidationRoadmapPlan — every locked model field is present som
 
   it("includes every experiment's pass and fail condition, on the cover AND its own page", () => {
     TWO_EXPERIMENT_MODEL.experiments.forEach((experiment, index) => {
-      const passOccurrences = plan.lockedContent.filter((e) => e.text.includes(experiment.passCondition));
-      const failOccurrences = plan.lockedContent.filter((e) => e.text.includes(experiment.failCondition));
+      const passOccurrences = plan.lockedContent.filter((e) =>
+        e.text.includes(experiment.passCondition),
+      );
+      const failOccurrences = plan.lockedContent.filter((e) =>
+        e.text.includes(experiment.failCondition),
+      );
       // Cover overview + the experiment's own page A, always. Experiment 1
       // gets a 3rd occurrence: Start Here's own "What counts as a
       // pass/fail" line on the cover, which is required to match
@@ -168,13 +192,20 @@ describe("buildValidationRoadmapPlan — every locked model field is present som
 describe("assertValidationRoadmapPlan", () => {
   it("does not throw for a plan honestly built from the model", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
-    expect(() => assertValidationRoadmapPlan(plan, TWO_EXPERIMENT_MODEL)).not.toThrow();
+    expect(() =>
+      assertValidationRoadmapPlan(plan, TWO_EXPERIMENT_MODEL),
+    ).not.toThrow();
   });
 
   it("throws when the model disagrees with what the plan actually contains (e.g. venture name)", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
-    const otherModel: ValidationRoadmapModel = { ...TWO_EXPERIMENT_MODEL, ventureName: "A Different Venture" };
-    expect(() => assertValidationRoadmapPlan(plan, otherModel)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    const otherModel: ValidationRoadmapModel = {
+      ...TWO_EXPERIMENT_MODEL,
+      ventureName: "A Different Venture",
+    };
+    expect(() => assertValidationRoadmapPlan(plan, otherModel)).toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws when an experiment's pass condition is missing from the plan", () => {
@@ -182,26 +213,41 @@ describe("assertValidationRoadmapPlan", () => {
     const otherModel: ValidationRoadmapModel = {
       ...TWO_EXPERIMENT_MODEL,
       experiments: [
-        { ...TWO_EXPERIMENT_MODEL.experiments[0], passCondition: "A pass condition that was never rendered." },
+        {
+          ...TWO_EXPERIMENT_MODEL.experiments[0],
+          passCondition: "A pass condition that was never rendered.",
+        },
         TWO_EXPERIMENT_MODEL.experiments[1],
       ],
     };
-    expect(() => assertValidationRoadmapPlan(plan, otherModel)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    expect(() => assertValidationRoadmapPlan(plan, otherModel)).toThrow(
+      /WORKBOOK_RENDER_FAILED/,
+    );
   });
 
   it("throws when a page has no footer label", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
-    const brokenPlan = { ...plan, pages: [{ footerLabel: null }, ...plan.pages.slice(1)] };
-    expect(() => assertValidationRoadmapPlan(brokenPlan, TWO_EXPERIMENT_MODEL)).toThrow(/footer/);
+    const brokenPlan = {
+      ...plan,
+      pages: [{ footerLabel: null }, ...plan.pages.slice(1)],
+    };
+    expect(() =>
+      assertValidationRoadmapPlan(brokenPlan, TWO_EXPERIMENT_MODEL),
+    ).toThrow(/footer/);
   });
 
   it("throws when locked content is placeholder text", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
     const brokenPlan = {
       ...plan,
-      lockedContent: [{ ...plan.lockedContent[0], text: "TBD" }, ...plan.lockedContent.slice(1)],
+      lockedContent: [
+        { ...plan.lockedContent[0], text: "TBD" },
+        ...plan.lockedContent.slice(1),
+      ],
     };
-    expect(() => assertValidationRoadmapPlan(brokenPlan, TWO_EXPERIMENT_MODEL)).toThrow(/placeholder/);
+    expect(() =>
+      assertValidationRoadmapPlan(brokenPlan, TWO_EXPERIMENT_MODEL),
+    ).toThrow(/placeholder/);
   });
 });
 
@@ -231,32 +277,41 @@ describe("buildValidationRoadmapPlan -> renderWorkbookPlan — full pipeline", (
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
-    expect(doc.getForm().getDropdown("experiment_1.outcome").getOptions()).toEqual([
-      "Pass",
-      "Fail",
-      "Inconclusive",
-    ]);
-    expect(doc.getForm().getDropdown("experiment_1.decision").getOptions()).toEqual([
-      "Continue",
-      "Revise",
-      "Stop",
-    ]);
+    expect(
+      doc.getForm().getDropdown("experiment_1.outcome").getOptions(),
+    ).toEqual(["Pass", "Fail", "Inconclusive"]);
+    expect(
+      doc.getForm().getDropdown("experiment_1.decision").getOptions(),
+    ).toEqual(["Continue", "Revise", "Stop"]);
   });
 
   it("no two fields on the same page overlap", async () => {
     const plan = buildValidationRoadmapPlan(THREE_EXPERIMENT_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
-    const pageRefToIndex = new Map(doc.getPages().map((p, i) => [p.ref.toString(), i]));
-    const byPage = new Map<number, { name: string; x: number; y: number; w: number; h: number }[]>();
+    const pageRefToIndex = new Map(
+      doc.getPages().map((p, i) => [p.ref.toString(), i]),
+    );
+    const byPage = new Map<
+      number,
+      { name: string; x: number; y: number; w: number; h: number }[]
+    >();
     for (const field of doc.getForm().getFields()) {
       const widget = field.acroField.getWidgets()[0];
       const rect = widget.getRectangle();
       const pageRef = widget.P?.();
-      const pageIndex = pageRef ? pageRefToIndex.get(pageRef.toString()) : undefined;
+      const pageIndex = pageRef
+        ? pageRefToIndex.get(pageRef.toString())
+        : undefined;
       if (pageIndex === undefined) continue;
       const list = byPage.get(pageIndex) ?? [];
-      list.push({ name: field.getName(), x: rect.x, y: rect.y, w: rect.width, h: rect.height });
+      list.push({
+        name: field.getName(),
+        x: rect.x,
+        y: rect.y,
+        w: rect.width,
+        h: rect.height,
+      });
       byPage.set(pageIndex, list);
     }
     const overlaps: string[] = [];

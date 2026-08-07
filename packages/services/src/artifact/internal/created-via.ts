@@ -14,7 +14,9 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 // other two columns' domains, but this function only needs to produce
 // the values actually reachable through saveArtifactSubmission's
 // `assertRole(actor, ["founder"])` gate.
-export function resolveSubmissionCreatedVia(actor: ActorContext): ArtifactSubmissionCreatedVia {
+export function resolveSubmissionCreatedVia(
+  actor: ActorContext,
+): ArtifactSubmissionCreatedVia {
   if (actor.source === "mcp") {
     return resolveMcpProviderTag(actor);
   }

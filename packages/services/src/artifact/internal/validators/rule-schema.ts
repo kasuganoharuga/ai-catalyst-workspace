@@ -231,7 +231,9 @@ export const LegacyValidationConfigSchema = z.object({
   submissionRules: z.array(LegacyRuleSchema).optional(),
 });
 
-export type LegacyValidationConfig = z.infer<typeof LegacyValidationConfigSchema>;
+export type LegacyValidationConfig = z.infer<
+  typeof LegacyValidationConfigSchema
+>;
 
 const EmptyConfigSchema = z.object({}).strict();
 
@@ -261,7 +263,10 @@ export function validateConfigForValidator(
   }
 
   const legacy = LegacyValidationConfigSchema.parse(validationConfig);
-  if (legacy.validatorKey !== undefined && legacy.validatorKey !== validatorKey) {
+  if (
+    legacy.validatorKey !== undefined &&
+    legacy.validatorKey !== validatorKey
+  ) {
     throw new Error(
       `validationConfig.validatorKey ("${legacy.validatorKey}") does not match this artifact's ` +
         `validator_key ("${validatorKey}").`,

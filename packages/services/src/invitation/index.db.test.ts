@@ -393,7 +393,10 @@ describe("invitation service — database integration", () => {
       const actor: ActorContext = { userId: user.id, role: "pending" };
 
       await expect(
-        acceptFounderInvitation(actor, randomUUID().replace(/-/g, "").padEnd(43, "a")),
+        acceptFounderInvitation(
+          actor,
+          randomUUID().replace(/-/g, "").padEnd(43, "a"),
+        ),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
@@ -404,9 +407,9 @@ describe("invitation service — database integration", () => {
       await expect(
         acceptFounderInvitation(actor, "too-short"),
       ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-      await expect(
-        acceptFounderInvitation(actor, 12345),
-      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      await expect(acceptFounderInvitation(actor, 12345)).rejects.toMatchObject(
+        { code: "VALIDATION_ERROR" },
+      );
     });
 
     it("trims incidental whitespace from a pasted token before hashing", async () => {
@@ -416,10 +419,7 @@ describe("invitation service — database integration", () => {
       });
       const actor: ActorContext = { userId: user.id, role: "pending" };
 
-      const result = await acceptFounderInvitation(
-        actor,
-        `  ${rawToken}\n`,
-      );
+      const result = await acceptFounderInvitation(actor, `  ${rawToken}\n`);
       expect(result.invitation.status).toBe("accepted");
     });
 
@@ -580,9 +580,9 @@ describe("invitation service — database integration", () => {
       const rejected = results.filter((r) => r.status === "rejected");
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect(
-        (rejected[0] as PromiseRejectedResult).reason,
-      ).toMatchObject({ code: "INVITATION_NOT_PENDING" });
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        code: "INVITATION_NOT_PENDING",
+      });
 
       const { rows: wsRows } = await pool.query<{ count: string }>(
         "select count(*)::text as count from workspaces where founder_user_id = $1",
@@ -1004,9 +1004,9 @@ describe("invitation service — database integration", () => {
         email: testEmail("mentor-list-guard-target"),
       });
 
-      await expect(
-        listMentorInvitations(mentor.actor),
-      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+      await expect(listMentorInvitations(mentor.actor)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
       await expect(
         revokeMentorInvitation(mentor.actor, invitation.id),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });

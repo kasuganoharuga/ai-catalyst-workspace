@@ -226,7 +226,10 @@ export async function getMentorFounderDetail(
   rawWorkspaceId: string,
 ): Promise<MentorFounderDetail> {
   assertRole(actor, ["mentor"]);
-  const workspaceId = parseEntityIdOrNotFound(rawWorkspaceId, "Founder not found.");
+  const workspaceId = parseEntityIdOrNotFound(
+    rawWorkspaceId,
+    "Founder not found.",
+  );
   await assertMentorOwnsWorkspace(actor, workspaceId);
 
   const founderResult = await pool.query<FounderSummaryRow>(
@@ -307,7 +310,10 @@ export async function getMentorArtefactDocument(
   artifactKey: string,
 ): Promise<MentorArtefactDocument | null> {
   assertRole(actor, ["mentor"]);
-  const workspaceId = parseEntityIdOrNotFound(rawWorkspaceId, "Founder not found.");
+  const workspaceId = parseEntityIdOrNotFound(
+    rawWorkspaceId,
+    "Founder not found.",
+  );
   await assertMentorOwnsWorkspace(actor, workspaceId);
 
   const run = await resolveWorkspaceRunContext(workspaceId);

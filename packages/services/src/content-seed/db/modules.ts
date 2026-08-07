@@ -3,7 +3,11 @@ import type { PoolClient } from "pg";
 import { validateConfigForValidator } from "../../artifact/internal/validators/rule-schema.js";
 import { diffFields } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
 import {
   applyOrderedRowsPlan,
   loadExistingOrderedRows,
@@ -82,7 +86,9 @@ function moduleContentRow(module: ModuleContent): Record<string, unknown> {
   };
 }
 
-function questionContentRow(question: QuestionContent): Record<string, unknown> {
+function questionContentRow(
+  question: QuestionContent,
+): Record<string, unknown> {
   return {
     sequence_index: question.sequenceIndex,
     question_group: question.questionGroup,
@@ -97,7 +103,9 @@ function questionContentRow(question: QuestionContent): Record<string, unknown> 
   };
 }
 
-function artifactContentRow(artifact: ArtifactContent): Record<string, unknown> {
+function artifactContentRow(
+  artifact: ArtifactContent,
+): Record<string, unknown> {
   return {
     sequence_index: artifact.sequenceIndex,
     name: artifact.name,
@@ -125,7 +133,11 @@ function artifactContentRow(artifact: ArtifactContent): Record<string, unknown> 
 // a plain field diff would (PUBLISHED_CONTENT_MISMATCH) — sequence_index
 // used to be diffed as an ordinary field before it moved into this plan.
 function isGraphShapeChange(plan: OrderedRowsPlan): boolean {
-  return plan.toArchive.length > 0 || plan.toRevive.length > 0 || plan.missingKeys.length > 0;
+  return (
+    plan.toArchive.length > 0 ||
+    plan.toRevive.length > 0 ||
+    plan.missingKeys.length > 0
+  );
 }
 
 function assertPlanAllowed(
@@ -139,7 +151,9 @@ function assertPlanAllowed(
   }
   if (!isContentEditable) {
     throw new ContentSeedError(
-      isGraphShapeChange(plan) ? "CONTENT_GRAPH_MISMATCH" : "PUBLISHED_CONTENT_MISMATCH",
+      isGraphShapeChange(plan)
+        ? "CONTENT_GRAPH_MISMATCH"
+        : "PUBLISHED_CONTENT_MISMATCH",
       `${describeTarget} no longer match the content constants, and this program_version is not ` +
         "content-editable. Publish a new program_version, or move this one to a living " +
         "(content_lock='mutable') state, instead of editing published content in place.",
@@ -168,7 +182,10 @@ async function reconcileModuleDefinitionContent(
   module: ModuleContent,
 ): Promise<string> {
   const existing = await client.query<
-    { id: string; status: string } & Record<(typeof MODULE_FIELDS)[number], unknown>
+    { id: string; status: string } & Record<
+      (typeof MODULE_FIELDS)[number],
+      unknown
+    >
   >(
     `select id, status, ${MODULE_FIELDS.join(", ")}
      from module_definitions
@@ -271,7 +288,10 @@ async function reconcileModuleQuestions(
   );
   const plan = planOrderedRows(
     current,
-    questions.map((question) => ({ key: question.questionKey, sequenceIndex: question.sequenceIndex })),
+    questions.map((question) => ({
+      key: question.questionKey,
+      sequenceIndex: question.sequenceIndex,
+    })),
   );
   assertPlanAllowed(
     plan,
@@ -370,7 +390,10 @@ async function reconcileArtifactDefinitions(
   );
   const plan = planOrderedRows(
     current,
-    artifacts.map((artifact) => ({ key: artifact.artifactKey, sequenceIndex: artifact.sequenceIndex })),
+    artifacts.map((artifact) => ({
+      key: artifact.artifactKey,
+      sequenceIndex: artifact.sequenceIndex,
+    })),
   );
   assertPlanAllowed(
     plan,
@@ -382,7 +405,10 @@ async function reconcileArtifactDefinitions(
 
   for (const artifact of artifacts) {
     try {
-      validateConfigForValidator(artifact.validatorKey, artifact.validationConfig);
+      validateConfigForValidator(
+        artifact.validatorKey,
+        artifact.validationConfig,
+      );
     } catch (error) {
       throw new ContentSeedError(
         "INVALID_VALIDATION_CONFIG",
@@ -492,7 +518,10 @@ async function reconcileArtifactDefinitions(
 // otherwise still be joined by module/context.ts's unfiltered prompt
 // lookup); Questions/Artifacts are archived, not deleted, since Artifact
 // Definitions are an artifact_submissions foreign-key target.
-async function cascadeArchiveModules(client: PoolClient, archivedModuleIds: string[]): Promise<void> {
+async function cascadeArchiveModules(
+  client: PoolClient,
+  archivedModuleIds: string[],
+): Promise<void> {
   if (archivedModuleIds.length === 0) {
     return;
   }
@@ -506,9 +535,10 @@ async function cascadeArchiveModules(client: PoolClient, archivedModuleIds: stri
      where module_definition_id = any($1::uuid[]) and status <> 'archived'`,
     [archivedModuleIds],
   );
-  await client.query(`delete from module_prompt_bindings where module_definition_id = any($1::uuid[])`, [
-    archivedModuleIds,
-  ]);
+  await client.query(
+    `delete from module_prompt_bindings where module_definition_id = any($1::uuid[])`,
+    [archivedModuleIds],
+  );
 }
 
 /**
@@ -537,7 +567,10 @@ export async function reconcileModules(
   );
   const plan = planOrderedRows(
     current,
-    modules.map((module) => ({ key: module.moduleKey, sequenceIndex: module.sequenceIndex })),
+    modules.map((module) => ({
+      key: module.moduleKey,
+      sequenceIndex: module.sequenceIndex,
+    })),
   );
   assertPlanAllowed(
     plan,
@@ -559,9 +592,25 @@ export async function reconcileModules(
       isContentEditable,
       module,
     );
-    await reconcileModuleQuestions(client, moduleId, isContentEditable, allowArchive, module.questions);
-    await reconcileArtifactDefinitions(client, moduleId, isContentEditable, allowArchive, module.artifacts);
-    results.push({ moduleId, moduleKey: module.moduleKey, isPublishable: module.isPublishable });
+    await reconcileModuleQuestions(
+      client,
+      moduleId,
+      isContentEditable,
+      allowArchive,
+      module.questions,
+    );
+    await reconcileArtifactDefinitions(
+      client,
+      moduleId,
+      isContentEditable,
+      allowArchive,
+      module.artifacts,
+    );
+    results.push({
+      moduleId,
+      moduleKey: module.moduleKey,
+      isPublishable: module.isPublishable,
+    });
   }
   return results;
 }

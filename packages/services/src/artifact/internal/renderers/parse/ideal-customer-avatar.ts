@@ -44,7 +44,11 @@ function fail(message: string): never {
   throw new Error(`WORKBOOK_RENDER_FAILED: ${SOURCE_FILE} ${message}`);
 }
 
-function requiredSection(markdown: string, level: number, heading: string): string {
+function requiredSection(
+  markdown: string,
+  level: number,
+  heading: string,
+): string {
   const body = getSection(markdown, level, heading);
   if (body === null || !isSubstantiveText(body)) {
     fail(`is missing a non-empty "${heading}" section.`);
@@ -52,7 +56,11 @@ function requiredSection(markdown: string, level: number, heading: string): stri
   return stripMarkdownEmphasis(body).trim();
 }
 
-function requiredLabel(markdown: string, label: string, scope: { level: number; heading: string }): string {
+function requiredLabel(
+  markdown: string,
+  label: string,
+  scope: { level: number; heading: string },
+): string {
   const scoped = getSection(markdown, scope.level, scope.heading);
   if (scoped === null) {
     fail(`is missing a "${scope.heading}" section.`);
@@ -82,7 +90,9 @@ function requiredItemsOrUnknown(
   if (body === null) {
     fail(`is missing a "${heading}" section.`);
   }
-  const items = substantiveListItems(body).map((item) => stripMarkdownEmphasis(item).trim());
+  const items = substantiveListItems(body).map((item) =>
+    stripMarkdownEmphasis(item).trim(),
+  );
   if (items.length === 0) {
     const prose = stripMarkdownEmphasis(body).trim();
     if (!isSubstantiveText(prose) || !matchesRecordedUnknown(prose)) {
@@ -100,7 +110,9 @@ function requiredItemsOrUnknown(
   return items;
 }
 
-export function parseIdealCustomerAvatar(markdown: string): IdealCustomerAvatarModel {
+export function parseIdealCustomerAvatar(
+  markdown: string,
+): IdealCustomerAvatarModel {
   const ventureName = extractLabelValue(markdown, "Venture name");
   if (ventureName === null || !isSubstantiveText(ventureName)) {
     fail('is missing "Venture name" under Venture.');
@@ -112,43 +124,80 @@ export function parseIdealCustomerAvatar(markdown: string): IdealCustomerAvatarM
     who: requiredLabel(markdown, "WHO", { level: 2, heading: "Snapshot" }),
     where: requiredLabel(markdown, "WHERE", { level: 2, heading: "Snapshot" }),
     stage: requiredLabel(markdown, "STAGE", { level: 2, heading: "Snapshot" }),
-    raise: requiredLabel(markdown, "RAISE / CURRENT COMMERCIAL MOMENT", { level: 2, heading: "Snapshot" }),
+    raise: requiredLabel(markdown, "RAISE / CURRENT COMMERCIAL MOMENT", {
+      level: 2,
+      heading: "Snapshot",
+    }),
   };
 
   const situation = requiredSection(markdown, 2, "Situation");
 
   const unmetNeeds = {
-    functional: requiredItemsOrUnknown(markdown, 3, "Functional — what they need done", {
-      minimum: 3,
-      maximum: 6,
-    }),
-    emotional: requiredItemsOrUnknown(markdown, 3, "Emotional and social — what they feel", {
-      minimum: 3,
-      maximum: 6,
-    }),
+    functional: requiredItemsOrUnknown(
+      markdown,
+      3,
+      "Functional — what they need done",
+      {
+        minimum: 3,
+        maximum: 6,
+      },
+    ),
+    emotional: requiredItemsOrUnknown(
+      markdown,
+      3,
+      "Emotional and social — what they feel",
+      {
+        minimum: 3,
+        maximum: 6,
+      },
+    ),
   };
 
   const buyingSignals = {
-    tier1: requiredItemsOrUnknown(markdown, 3, "Tier 1 — high intent, act within 24–48 hours", {
-      minimum: 3,
-      maximum: 5,
-    }),
-    tier2: requiredItemsOrUnknown(markdown, 3, "Tier 2 — building intent, nurture over 4–12 weeks", {
-      minimum: 3,
-      maximum: 5,
-    }),
+    tier1: requiredItemsOrUnknown(
+      markdown,
+      3,
+      "Tier 1 — high intent, act within 24–48 hours",
+      {
+        minimum: 3,
+        maximum: 5,
+      },
+    ),
+    tier2: requiredItemsOrUnknown(
+      markdown,
+      3,
+      "Tier 2 — building intent, nurture over 4–12 weeks",
+      {
+        minimum: 3,
+        maximum: 5,
+      },
+    ),
   };
 
-  const disqualifiers = requiredItemsOrUnknown(markdown, 2, "Disqualifiers", { minimum: 3, maximum: 20 });
+  const disqualifiers = requiredItemsOrUnknown(markdown, 2, "Disqualifiers", {
+    minimum: 3,
+    maximum: 20,
+  });
   const corePromise = requiredSection(markdown, 2, "Core Promise");
 
   const validationStatus = {
-    currentLevel: requiredLabel(markdown, "Current level", { level: 2, heading: "Validation Status" }),
+    currentLevel: requiredLabel(markdown, "Current level", {
+      level: 2,
+      heading: "Validation Status",
+    }),
     basedOnObservation: requiredSection(markdown, 3, "Based on observation"),
     founderAssumptions: requiredSection(markdown, 3, "Founder assumptions"),
     importantUnknowns: requiredSection(markdown, 3, "Important unknowns"),
-    contradictingEvidence: requiredSection(markdown, 3, "Contradicting evidence"),
-    highestPriorityQuestions: requiredSection(markdown, 3, "Highest-priority validation questions"),
+    contradictingEvidence: requiredSection(
+      markdown,
+      3,
+      "Contradicting evidence",
+    ),
+    highestPriorityQuestions: requiredSection(
+      markdown,
+      3,
+      "Highest-priority validation questions",
+    ),
   };
 
   return {

@@ -96,9 +96,7 @@ export async function resolveSafeStoragePath(
   objectKey: string,
   options: ResolveSafeStoragePathOptions,
 ): Promise<string> {
-  const segments = objectKey
-    .split("/")
-    .filter((segment) => segment.length > 0);
+  const segments = objectKey.split("/").filter((segment) => segment.length > 0);
 
   if (
     segments.length === 0 ||

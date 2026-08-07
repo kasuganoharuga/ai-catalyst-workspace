@@ -124,18 +124,25 @@ describe("freezeProgramVersion — database integration", () => {
   }
 
   afterAll(async () => {
-    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
     await pool.query(
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = any($1::text[])", [createdProgramKeys]);
+    await pool.query(
+      "delete from programs where program_key = any($1::text[])",
+      [createdProgramKeys],
+    );
   });
 
   it("freezes a mutable program_version and cascades to its reachable prompt_versions", async () => {
@@ -143,12 +150,24 @@ describe("freezeProgramVersion — database integration", () => {
     const promptKey = `freeze-basic-prompt-${RUN_SUFFIX}`;
     const content = buildContent(programKey, [buildModule("m1", 1)], {
       promptKey,
-      bindings: [{ moduleKey: "m1", promptKey, purpose: "facilitator", sequenceIndex: 1, isRequired: true }],
+      bindings: [
+        {
+          moduleKey: "m1",
+          promptKey,
+          purpose: "facilitator",
+          sequenceIndex: 1,
+          isRequired: true,
+        },
+      ],
     });
     await withTransaction((client) => seedToolkitContent(client, content));
 
-    const result = await withTransaction((client) => freezeProgramVersion(client, { content }));
-    expect(result.frozenPromptVersions).toEqual([{ promptKey, versionNumber: 1 }]);
+    const result = await withTransaction((client) =>
+      freezeProgramVersion(client, { content }),
+    );
+    expect(result.frozenPromptVersions).toEqual([
+      { promptKey, versionNumber: 1 },
+    ]);
 
     const programRow = await pool.query<{ content_lock: string }>(
       `select pv.content_lock from program_versions pv join programs p on p.id = pv.program_id where p.program_key = $1`,
@@ -167,11 +186,16 @@ describe("freezeProgramVersion — database integration", () => {
     const programKey = `freeze-twice-${RUN_SUFFIX}`;
     const content = buildContent(programKey, [buildModule("m1", 1)]);
     await withTransaction((client) => seedToolkitContent(client, content));
-    await withTransaction((client) => freezeProgramVersion(client, { content }));
+    await withTransaction((client) =>
+      freezeProgramVersion(client, { content }),
+    );
 
     await expect(
       withTransaction((client) => freezeProgramVersion(client, { content })),
-    ).rejects.toMatchObject({ name: "ContentSeedError", code: "PROGRAM_VERSION_NOT_MUTABLE" });
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "PROGRAM_VERSION_NOT_MUTABLE",
+    });
   });
 
   it("rejects freezing when a Program Run has a pending reconciliation", async () => {
@@ -184,16 +208,26 @@ describe("freezeProgramVersion — database integration", () => {
 
     // Add a Module after the Run was created, WITHOUT reconciling it —
     // this Run is now behind.
-    const grown = buildContent(programKey, [buildModule("m1", 1), buildModule("m2", 2)]);
+    const grown = buildContent(programKey, [
+      buildModule("m1", 1),
+      buildModule("m2", 2),
+    ]);
     await withTransaction((client) => seedToolkitContent(client, grown));
 
     await expect(
-      withTransaction((client) => freezeProgramVersion(client, { content: grown })),
-    ).rejects.toMatchObject({ name: "ContentSeedError", code: "RUN_RECONCILIATION_PENDING" });
+      withTransaction((client) =>
+        freezeProgramVersion(client, { content: grown }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "RUN_RECONCILIATION_PENDING",
+    });
 
     // Reconciling first, then freezing, must succeed.
     await getOrCreateProgramRun(actor, { ventureId }, { programKey });
-    const result = await withTransaction((client) => freezeProgramVersion(client, { content: grown }));
+    const result = await withTransaction((client) =>
+      freezeProgramVersion(client, { content: grown }),
+    );
     expect(result.programVersionId).toBeTruthy();
   });
 
@@ -203,7 +237,13 @@ describe("freezeProgramVersion — database integration", () => {
     const programBKey = `freeze-shared-b-${RUN_SUFFIX}`;
 
     const bindingFor = (moduleKey: string): FixtureBinding[] => [
-      { moduleKey, promptKey: sharedPromptKey, purpose: "facilitator", sequenceIndex: 1, isRequired: true },
+      {
+        moduleKey,
+        promptKey: sharedPromptKey,
+        purpose: "facilitator",
+        sequenceIndex: 1,
+        isRequired: true,
+      },
     ];
 
     const contentA = buildContent(programAKey, [buildModule("m1", 1)], {
@@ -223,8 +263,13 @@ describe("freezeProgramVersion — database integration", () => {
     await withTransaction((client) => seedToolkitContent(client, contentB));
 
     await expect(
-      withTransaction((client) => freezeProgramVersion(client, { content: contentA })),
-    ).rejects.toMatchObject({ name: "ContentSeedError", code: "SHARED_MUTABLE_PROMPT_DEPENDENCY" });
+      withTransaction((client) =>
+        freezeProgramVersion(client, { content: contentA }),
+      ),
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "SHARED_MUTABLE_PROMPT_DEPENDENCY",
+    });
 
     // Program A itself must remain untouched (still mutable) after the
     // rejected attempt — the whole transaction rolled back.
@@ -235,9 +280,14 @@ describe("freezeProgramVersion — database integration", () => {
     expect(stillMutable.rows[0].content_lock).toBe("mutable");
 
     const result = await withTransaction((client) =>
-      freezeProgramVersion(client, { content: contentA, allowSharedPromptFreeze: true }),
+      freezeProgramVersion(client, {
+        content: contentA,
+        allowSharedPromptFreeze: true,
+      }),
     );
-    expect(result.frozenPromptVersions).toEqual([{ promptKey: sharedPromptKey, versionNumber: 1 }]);
+    expect(result.frozenPromptVersions).toEqual([
+      { promptKey: sharedPromptKey, versionNumber: 1 },
+    ]);
 
     // Program B's seed must still succeed unchanged (no-op) reusing the
     // now-frozen prompt_version...
@@ -247,10 +297,16 @@ describe("freezeProgramVersion — database integration", () => {
     // now be rejected — freeze took away its editing rights.
     const changedB: ToolkitSeedContent = {
       ...contentB,
-      prompts: contentB.prompts.map((prompt) => ({ ...prompt, content: "changed after freeze" })),
+      prompts: contentB.prompts.map((prompt) => ({
+        ...prompt,
+        content: "changed after freeze",
+      })),
     };
     await expect(
       withTransaction((client) => seedToolkitContent(client, changedB)),
-    ).rejects.toMatchObject({ name: "ContentSeedError", code: "PUBLISHED_CONTENT_MISMATCH" });
+    ).rejects.toMatchObject({
+      name: "ContentSeedError",
+      code: "PUBLISHED_CONTENT_MISMATCH",
+    });
   });
 });

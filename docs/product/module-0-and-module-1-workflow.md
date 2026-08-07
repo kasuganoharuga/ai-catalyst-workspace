@@ -60,15 +60,15 @@ The Founder connects the AI client once. The Founder does not connect a storage 
 
 The Founder Toolkit website manages the journey. The connected AI client provides the conversational experience. Remote MCP connects the AI client to the platform's authorised business capabilities.
 
-| Component | Responsibility |
-|---|---|
-| **Founder Toolkit website** | Login, Venture selection, setup guidance, module overview, progress, status, resume, review checkpoints, and module unlocking |
-| **AI client** | Conversational workspace where the Founder completes module activities; V1 supports Claude and ChatGPT, each connected as a Remote MCP client |
-| **Remote MCP server** | Authenticates the client, exposes controlled Tools/Resources/Prompts, loads module context, and calls the shared Service layer |
-| **Service layer** | Enforces permissions, state transitions, idempotency, validation, artefact rules, and completion requirements |
-| **Platform database** | Stores identity, Workspace/Venture ownership, Run/Branch/Module/Attempt state, confirmed responses, artefact metadata, decisions, and audit references |
-| **StorageService** | Stores and retrieves artefact bytes through the configured Local or S3-compatible provider |
-| **S3-compatible storage** | Durable private object storage for Staging and Production artefacts; not exposed directly to the AI client |
+| Component                   | Responsibility                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Founder Toolkit website** | Login, Venture selection, setup guidance, module overview, progress, status, resume, review checkpoints, and module unlocking                          |
+| **AI client**               | Conversational workspace where the Founder completes module activities; V1 supports Claude and ChatGPT, each connected as a Remote MCP client          |
+| **Remote MCP server**       | Authenticates the client, exposes controlled Tools/Resources/Prompts, loads module context, and calls the shared Service layer                         |
+| **Service layer**           | Enforces permissions, state transitions, idempotency, validation, artefact rules, and completion requirements                                          |
+| **Platform database**       | Stores identity, Workspace/Venture ownership, Run/Branch/Module/Attempt state, confirmed responses, artefact metadata, decisions, and audit references |
+| **StorageService**          | Stores and retrieves artefact bytes through the configured Local or S3-compatible provider                                                             |
+| **S3-compatible storage**   | Durable private object storage for Staging and Production artefacts; not exposed directly to the AI client                                             |
 
 ### 2.2 Dependency and trust boundary
 
@@ -318,28 +318,33 @@ Recommended content:
 # Founder Toolkit Setup Summary
 
 ## Founder Context
+
 - Workspace:
 - Venture:
 - Program Run:
 - Active Branch:
 
 ## Connection
+
 - AI client:
 - Remote MCP:
 - OAuth status:
 - Last checked at:
 
 ## Platform Storage
+
 - Storage status:
 - Artefact version:
 - Verification status:
 - Content SHA-256:
 
 ## Module Status
+
 - Module 0:
 - Next available module:
 
 ## Notes
+
 - None
 ```
 
@@ -439,16 +444,16 @@ sequenceDiagram
 
 The exact database states remain governed by the shared Run/Module/Attempt state machines. The UI may present these simplified setup states:
 
-| UI state | Meaning |
-|---|---|
-| `not_started` | Module 0 has not started |
-| `connection_required` | Assistant/MCP OAuth is not ready |
-| `checking` | Setup check is running |
-| `repair_required` | One or more checks failed |
-| `ready_for_generation` | Connection and storage checks passed |
-| `saving` | Setup Summary is being stored and verified |
-| `completed` | Module 0 passed required validation and was completed automatically (V1: `completion_mode = 'system'`, no review queue) |
-| `history` | Read-only state for an archived Venture or historical branch |
+| UI state               | Meaning                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `not_started`          | Module 0 has not started                                                                                                |
+| `connection_required`  | Assistant/MCP OAuth is not ready                                                                                        |
+| `checking`             | Setup check is running                                                                                                  |
+| `repair_required`      | One or more checks failed                                                                                               |
+| `ready_for_generation` | Connection and storage checks passed                                                                                    |
+| `saving`               | Setup Summary is being stored and verified                                                                              |
+| `completed`            | Module 0 passed required validation and was completed automatically (V1: `completion_mode = 'system'`, no review queue) |
+| `history`              | Read-only state for an archived Venture or historical branch                                                            |
 
 The UI must not invent a state transition that contradicts the canonical Service/database state machine.
 
@@ -812,6 +817,7 @@ These checkpoints must not bypass canonical state transitions.
 # Pressure-Test Verdict
 
 ## Venture
+
 - Venture name:
 
 ## Confirmed Q&A
@@ -863,6 +869,7 @@ These checkpoints must not bypass canonical state transitions.
 ## Founder's Decision
 
 ### Decision
+
 Proceed / Pivot / Kill
 
 ### Pivot detail, if applicable
@@ -926,23 +933,23 @@ Suggested idempotency inputs:
 
 ## 20. Error Handling
 
-| Failure | Expected behaviour |
-|---|---|
-| MCP connection unavailable | Preserve platform progress and show a reconnect action |
-| OAuth token invalid or expired | Return 401 with correct authentication metadata; request reconnection |
-| User connected with the wrong account | Reject context loading and expose no Venture data |
-| Venture belongs to another Workspace | Return NOT_FOUND/FORBIDDEN according to the Service contract; never rely on active context |
-| Venture becomes archived | Prevent new writable progression and allow read-only history |
-| Storage provider unavailable | Preserve structured responses; keep the Attempt non-complete; retry only the storage step |
-| Storage write times out | Reconcile using idempotency key and object metadata before attempting another version |
-| Hash or MIME verification fails | Mark the artefact unverified; do not advance the Attempt |
-| Object exists but database callback failed | Reconcile the controlled object key/hash and complete idempotently |
-| Database metadata exists but object is missing | Mark storage repair required; do not report completion |
-| Artefact version already submitted | Return current immutable submission state |
-| Draft validation fails | Preserve confirmed responses and repair only the failed sections |
-| Founder leaves mid-question | Resume at the same unconfirmed question |
-| Website displays stale state | Refresh from the Service; do not rerun the workflow |
-| Current-source research is unavailable | Label findings as incomplete/general knowledge; do not fabricate evidence |
+| Failure                                        | Expected behaviour                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| MCP connection unavailable                     | Preserve platform progress and show a reconnect action                                     |
+| OAuth token invalid or expired                 | Return 401 with correct authentication metadata; request reconnection                      |
+| User connected with the wrong account          | Reject context loading and expose no Venture data                                          |
+| Venture belongs to another Workspace           | Return NOT_FOUND/FORBIDDEN according to the Service contract; never rely on active context |
+| Venture becomes archived                       | Prevent new writable progression and allow read-only history                               |
+| Storage provider unavailable                   | Preserve structured responses; keep the Attempt non-complete; retry only the storage step  |
+| Storage write times out                        | Reconcile using idempotency key and object metadata before attempting another version      |
+| Hash or MIME verification fails                | Mark the artefact unverified; do not advance the Attempt                                   |
+| Object exists but database callback failed     | Reconcile the controlled object key/hash and complete idempotently                         |
+| Database metadata exists but object is missing | Mark storage repair required; do not report completion                                     |
+| Artefact version already submitted             | Return current immutable submission state                                                  |
+| Draft validation fails                         | Preserve confirmed responses and repair only the failed sections                           |
+| Founder leaves mid-question                    | Resume at the same unconfirmed question                                                    |
+| Website displays stale state                   | Refresh from the Service; do not rerun the workflow                                        |
+| Current-source research is unavailable         | Label findings as incomplete/general knowledge; do not fabricate evidence                  |
 
 ---
 
@@ -950,16 +957,16 @@ Suggested idempotency inputs:
 
 Suggested V1 capabilities:
 
-| MCP capability | Service responsibility |
-|---|---|
-| `get_active_context` | Resolve safe navigation context; never treat it as authorisation |
-| `list_modules` | Return authorised modules and canonical status |
-| `get_module_status` | Return current Run/Branch/Module/Attempt state |
+| MCP capability       | Service responsibility                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_active_context` | Resolve safe navigation context; never treat it as authorisation                                        |
+| `list_modules`       | Return authorised modules and canonical status                                                          |
+| `get_module_status`  | Return current Run/Branch/Module/Attempt state                                                          |
 | `get_module_context` | Load authorised definition, prompt, questions, confirmed Responses, resume point, and artefact metadata |
-| `save_founder_input` | Validate and persist confirmed structured Responses idempotently |
-| `get_artifact` | Read an authorised artefact through `StorageService` |
-| `save_artifact` | Validate Artifact Definition, store content, verify metadata, and create a versioned submission |
-| `complete_module` | Check completion requirements and request only the state transition the Actor is permitted to perform |
+| `save_founder_input` | Validate and persist confirmed structured Responses idempotently                                        |
+| `get_artifact`       | Read an authorised artefact through `StorageService`                                                    |
+| `save_artifact`      | Validate Artifact Definition, store content, verify metadata, and create a versioned submission         |
+| `complete_module`    | Check completion requirements and request only the state transition the Actor is permitted to perform   |
 
 Restrictions:
 

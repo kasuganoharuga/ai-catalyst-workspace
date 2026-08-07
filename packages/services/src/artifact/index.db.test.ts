@@ -2,11 +2,18 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
-import type { ActorContext, McpProvider } from "@ai-catalyst/contracts/actor-context";
+import type {
+  ActorContext,
+  McpProvider,
+} from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
-import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "@ai-catalyst/services/attempt";
+import {
+  saveFounderResponse,
+  startOrResumeAttempt,
+  submitAttempt,
+} from "@ai-catalyst/services/attempt";
 import {
   createFixtureFounderAccount,
   createFixtureVenture,
@@ -72,8 +79,12 @@ const fixtureValidator: Validator = {
   },
   runOfficialCheck(ctx) {
     const markerCheck = fixtureValidator.runDraftCheck(ctx);
-    const decision = ctx.responses.find((response) => response.questionKey === "final_decision");
-    const decisionPassed = decision?.responseStatus === "answered" && decision.answerText === "proceed";
+    const decision = ctx.responses.find(
+      (response) => response.questionKey === "final_decision",
+    );
+    const decisionPassed =
+      decision?.responseStatus === "answered" &&
+      decision.answerText === "proceed";
     const checks = [
       ...markerCheck.checks,
       { key: "final_decision_is_proceed", passed: decisionPassed },
@@ -89,7 +100,9 @@ const fixtureValidator: Validator = {
   },
 };
 
-const FIXTURE_DEPS = { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } };
+const FIXTURE_DEPS = {
+  validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator },
+};
 const PASSING_FIXTURE_CONTENT = `# Verdict\n\n${REQUIRED_MARKER}\n`;
 
 // A minimal but real WorkbookRenderer — its `render` step reuses the real
@@ -134,7 +147,18 @@ const fixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
     return {
       pages: [{ footerLabel: "Fixture" }],
       fields: [],
-      lockedContent: [{ role: "raw", text, page: 0, x: 40, y: 760, maxWidth: 500, size: 9, bold: false }],
+      lockedContent: [
+        {
+          role: "raw",
+          text,
+          page: 0,
+          x: 40,
+          y: 760,
+          maxWidth: 500,
+          size: 9,
+          bold: false,
+        },
+      ],
       rects: [],
       provenance,
     };
@@ -142,7 +166,9 @@ const fixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
   assertPlanMatchesModel(plan, model) {
     const text = model.raw.replace(/\s+/g, " ").trim();
     if (!plan.lockedContent.some((entry) => entry.text.includes(text))) {
-      throw new Error("WORKBOOK_RENDER_FAILED: fixture content missing from plan.");
+      throw new Error(
+        "WORKBOOK_RENDER_FAILED: fixture content missing from plan.",
+      );
     }
   },
   render: renderWorkbookPlan,
@@ -161,11 +187,15 @@ const brokenFixtureRenderer: WorkbookRenderer<FixtureWorkbookModel> = {
 
 const FIXTURE_WORKBOOK_DEPS = {
   ...FIXTURE_DEPS,
-  renderers: { [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(fixtureRenderer) },
+  renderers: {
+    [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(fixtureRenderer),
+  },
 };
 const BROKEN_FIXTURE_WORKBOOK_DEPS = {
   ...FIXTURE_DEPS,
-  renderers: { [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(brokenFixtureRenderer) },
+  renderers: {
+    [FIXTURE_RENDERER_KEY]: registerWorkbookRenderer(brokenFixtureRenderer),
+  },
 };
 
 function saveVerdict(
@@ -283,7 +313,10 @@ function buildFixtureModule(
   };
 }
 
-function buildFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+function buildFixtureContent(
+  programKey: string,
+  modules: FixtureModule[],
+): ToolkitSeedContent {
   return {
     program: {
       programKey,
@@ -357,8 +390,13 @@ describe("artifact service — database integration", () => {
     availableModuleId: string;
     lockedModuleId?: string;
   }> {
-    const { actor, workspaceId, ventureId } = await createFounderWithWorkspaceAndVenture(label);
-    const result = await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const { actor, workspaceId, ventureId } =
+      await createFounderWithWorkspaceAndVenture(label);
+    const result = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey },
+    );
 
     const modulesResult = await pool.query<{ id: string; module_key: string }>(
       `select id, module_key from program_run_modules
@@ -370,7 +408,9 @@ describe("artifact service — database integration", () => {
       (row) => row.module_key === moduleKeys.available,
     );
     if (!availableModule) {
-      throw new Error("Fixture program_run_modules were not seeded as expected.");
+      throw new Error(
+        "Fixture program_run_modules were not seeded as expected.",
+      );
     }
     const lockedModule = moduleKeys.locked
       ? modulesResult.rows.find((row) => row.module_key === moduleKeys.locked)
@@ -390,9 +430,10 @@ describe("artifact service — database integration", () => {
       id: string;
       status: string;
       active_attempt_id: string | null;
-    }>(`select id, status, active_attempt_id from program_run_modules where id = $1`, [
-      runModuleId,
-    ]);
+    }>(
+      `select id, status, active_attempt_id from program_run_modules where id = $1`,
+      [runModuleId],
+    );
     return result.rows[0];
   }
 
@@ -461,7 +502,10 @@ describe("artifact service — database integration", () => {
     return { ...context, attemptId: created.attempt.id };
   }
 
-  async function createSubmittedAttempt(label: string, decision: "proceed" | "pivot" = "proceed") {
+  async function createSubmittedAttempt(
+    label: string,
+    decision: "proceed" | "pivot" = "proceed",
+  ) {
     const context = await createDraftAttempt(label);
     await saveVerdict(context.actor, context.attemptId);
     await saveFounderResponse(context.actor, {
@@ -473,8 +517,16 @@ describe("artifact service — database integration", () => {
     return context;
   }
 
-  function saveWorkbookDoc(actor: ActorContext, attemptId: string, content: string = PASSING_FIXTURE_CONTENT) {
-    return saveArtifactSubmission(actor, { attemptId, artifactKey: "workbook-doc", content }, FIXTURE_DEPS);
+  function saveWorkbookDoc(
+    actor: ActorContext,
+    attemptId: string,
+    content: string = PASSING_FIXTURE_CONTENT,
+  ) {
+    return saveArtifactSubmission(
+      actor,
+      { attemptId, artifactKey: "workbook-doc", content },
+      FIXTURE_DEPS,
+    );
   }
 
   async function createDraftWorkbookAttempt(label: string) {
@@ -491,7 +543,10 @@ describe("artifact service — database integration", () => {
   // way production does: submit the Attempt, then run official validation
   // (module-workbook has exactly one required artifact, so it alone
   // passing is enough for `allPassed`).
-  async function createSubmittedWorkbookAttempt(label: string, content: string = PASSING_FIXTURE_CONTENT) {
+  async function createSubmittedWorkbookAttempt(
+    label: string,
+    content: string = PASSING_FIXTURE_CONTENT,
+  ) {
     const context = await createDraftWorkbookAttempt(label);
     await saveWorkbookDoc(context.actor, context.attemptId, content);
     // module-workbook, like every fixture module, seeds the "final_decision"
@@ -504,7 +559,11 @@ describe("artifact service — database integration", () => {
     });
     await submitAttempt(context.actor, { attemptId: context.attemptId });
     const systemUserId = await createTrustedUser(`${label}-system`);
-    await runOfficialValidation(systemActor(systemUserId), { attemptId: context.attemptId }, FIXTURE_DEPS);
+    await runOfficialValidation(
+      systemActor(systemUserId),
+      { attemptId: context.attemptId },
+      FIXTURE_DEPS,
+    );
     return context;
   }
 
@@ -598,13 +657,17 @@ describe("artifact service — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = any($1::text[])", [
-      [PROGRAM_KEY, PROGRAM_KEY_MULTI, PROGRAM_KEY_WORKBOOK],
-    ]);
+    await pool.query(
+      "delete from programs where program_key = any($1::text[])",
+      [[PROGRAM_KEY, PROGRAM_KEY_MULTI, PROGRAM_KEY_WORKBOOK]],
+    );
   });
 
   describe("saveArtifactSubmission", () => {
@@ -696,7 +759,8 @@ describe("artifact service — database integration", () => {
     });
 
     it("rejects an artifactKey belonging to a different Module as NOT_FOUND", async () => {
-      const { actor, attemptId } = await createDraftAttempt("save-cross-module");
+      const { actor, attemptId } =
+        await createDraftAttempt("save-cross-module");
 
       await expect(
         saveArtifactSubmission(actor, {
@@ -708,13 +772,21 @@ describe("artifact service — database integration", () => {
     });
 
     it("rejects saving once the Attempt is no longer editable", async () => {
-      const { actor, attemptId } = await createDraftAttempt("save-not-editable");
+      const { actor, attemptId } =
+        await createDraftAttempt("save-not-editable");
       await saveVerdict(actor, attemptId);
       await submitAttempt(actor, { attemptId });
 
       await expect(
-        saveVerdict(actor, attemptId, `# Verdict\n\nToo late.\n\n${REQUIRED_MARKER}\n`),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_EDITABLE" });
+        saveVerdict(
+          actor,
+          attemptId,
+          `# Verdict\n\nToo late.\n\n${REQUIRED_MARKER}\n`,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "ATTEMPT_NOT_EDITABLE",
+      });
     });
 
     it("rejects content that fails the locked-schema draft check before writing Storage", async () => {
@@ -746,18 +818,28 @@ describe("artifact service — database integration", () => {
 
   describe("getArtifactSubmission", () => {
     it("returns null when the Artifact has never been saved", async () => {
-      const { actor, attemptId } = await createDraftAttempt("get-artifact-never-saved");
+      const { actor, attemptId } = await createDraftAttempt(
+        "get-artifact-never-saved",
+      );
 
-      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+      const result = await getArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+      });
       expect(result).toBeNull();
     });
 
     it("returns the submission metadata together with its stored content", async () => {
-      const { actor, attemptId } = await createDraftAttempt("get-artifact-content");
+      const { actor, attemptId } = await createDraftAttempt(
+        "get-artifact-content",
+      );
       const content = `# Verdict\n\nHello from the fixture.\n\n${REQUIRED_MARKER}\n`;
       await saveVerdict(actor, attemptId, content);
 
-      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+      const result = await getArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+      });
 
       expect(result).not.toBeNull();
       expect(result?.submission.versionNumber).toBe(1);
@@ -766,7 +848,9 @@ describe("artifact service — database integration", () => {
     });
 
     it("returns only the latest (non-superseded) version's content", async () => {
-      const { actor, attemptId } = await createDraftAttempt("get-artifact-latest");
+      const { actor, attemptId } = await createDraftAttempt(
+        "get-artifact-latest",
+      );
       await saveVerdict(
         actor,
         attemptId,
@@ -775,28 +859,41 @@ describe("artifact service — database integration", () => {
       const latest = `# Verdict\n\nVersion two.\n\n${REQUIRED_MARKER}\n`;
       await saveVerdict(actor, attemptId, latest);
 
-      const result = await getArtifactSubmission(actor, { attemptId, artifactKey: "verdict" });
+      const result = await getArtifactSubmission(actor, {
+        attemptId,
+        artifactKey: "verdict",
+      });
 
       expect(result?.submission.versionNumber).toBe(2);
       expect(result?.content).toBe(latest);
     });
 
     it("rejects an artifactKey belonging to a different Module as NOT_FOUND", async () => {
-      const { actor, attemptId } = await createDraftAttempt("get-artifact-cross-module");
+      const { actor, attemptId } = await createDraftAttempt(
+        "get-artifact-cross-module",
+      );
 
       await expect(
-        getArtifactSubmission(actor, { attemptId, artifactKey: "cross-module-artifact" }),
+        getArtifactSubmission(actor, {
+          attemptId,
+          artifactKey: "cross-module-artifact",
+        }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
 
     it("rejects a cross-Workspace founder actor as NOT_FOUND", async () => {
-      const { attemptId } = await createDraftAttempt("get-artifact-cross-workspace-target");
+      const { attemptId } = await createDraftAttempt(
+        "get-artifact-cross-workspace-target",
+      );
       const { actor: otherActor } = await createDraftAttempt(
         "get-artifact-cross-workspace-caller",
       );
 
       await expect(
-        getArtifactSubmission(otherActor, { attemptId, artifactKey: "verdict" }),
+        getArtifactSubmission(otherActor, {
+          attemptId,
+          artifactKey: "verdict",
+        }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
   });
@@ -817,7 +914,9 @@ describe("artifact service — database integration", () => {
     });
 
     it("throws VALIDATOR_NOT_CONFIGURED when the Artifact has no validator_key", async () => {
-      const { actor, attemptId } = await createDraftAttempt("draft-check-no-validator");
+      const { actor, attemptId } = await createDraftAttempt(
+        "draft-check-no-validator",
+      );
       await saveArtifactSubmission(actor, {
         attemptId,
         artifactKey: "no-validator",
@@ -825,23 +924,45 @@ describe("artifact service — database integration", () => {
       });
 
       await expect(
-        runDraftCheck(actor, { attemptId, artifactKey: "no-validator" }, FIXTURE_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATOR_NOT_CONFIGURED" });
+        runDraftCheck(
+          actor,
+          { attemptId, artifactKey: "no-validator" },
+          FIXTURE_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATOR_NOT_CONFIGURED",
+      });
     });
 
     it("throws ATTEMPT_NOT_EDITABLE once the Attempt has been submitted", async () => {
-      const { actor, attemptId } = await createSubmittedAttempt("draft-check-submitted");
+      const { actor, attemptId } = await createSubmittedAttempt(
+        "draft-check-submitted",
+      );
 
       await expect(
-        runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_EDITABLE" });
+        runDraftCheck(
+          actor,
+          { attemptId, artifactKey: "verdict" },
+          FIXTURE_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "ATTEMPT_NOT_EDITABLE",
+      });
     });
 
     it("writes a complete artifact_validations row (rule_snapshot, terminal status, timestamps)", async () => {
-      const { actor, attemptId } = await createDraftAttempt("draft-check-row-integrity");
+      const { actor, attemptId } = await createDraftAttempt(
+        "draft-check-row-integrity",
+      );
       const submission = await saveVerdict(actor, attemptId);
 
-      await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
+      await runDraftCheck(
+        actor,
+        { attemptId, artifactKey: "verdict" },
+        FIXTURE_DEPS,
+      );
 
       const rows = await getValidationRows(submission.id);
       expect(rows).toHaveLength(1);
@@ -853,11 +974,20 @@ describe("artifact service — database integration", () => {
     });
 
     it("appends a new history row on every call, with no status side effects", async () => {
-      const { actor, attemptId } = await createDraftAttempt("draft-check-repeat");
+      const { actor, attemptId } =
+        await createDraftAttempt("draft-check-repeat");
       const submission = await saveVerdict(actor, attemptId);
 
-      await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
-      await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
+      await runDraftCheck(
+        actor,
+        { attemptId, artifactKey: "verdict" },
+        FIXTURE_DEPS,
+      );
+      await runDraftCheck(
+        actor,
+        { attemptId, artifactKey: "verdict" },
+        FIXTURE_DEPS,
+      );
 
       const rows = await getValidationRows(submission.id);
       expect(rows.map((row) => row.validation_number)).toEqual([1, 2]);
@@ -871,12 +1001,22 @@ describe("artifact service — database integration", () => {
     });
 
     it("serializes two concurrent draft checks into sequential validation_number values", async () => {
-      const { actor, attemptId } = await createDraftAttempt("draft-check-concurrent");
+      const { actor, attemptId } = await createDraftAttempt(
+        "draft-check-concurrent",
+      );
       const submission = await saveVerdict(actor, attemptId);
 
       await Promise.all([
-        runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS),
-        runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS),
+        runDraftCheck(
+          actor,
+          { attemptId, artifactKey: "verdict" },
+          FIXTURE_DEPS,
+        ),
+        runDraftCheck(
+          actor,
+          { attemptId, artifactKey: "verdict" },
+          FIXTURE_DEPS,
+        ),
       ]);
 
       const rows = await getValidationRows(submission.id);
@@ -889,9 +1029,16 @@ describe("artifact service — database integration", () => {
     it("returns the most recent validation result for (attempt, artifactKey)", async () => {
       const { actor, attemptId } = await createDraftAttempt("get-latest");
       await saveVerdict(actor, attemptId);
-      await runDraftCheck(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_DEPS);
+      await runDraftCheck(
+        actor,
+        { attemptId, artifactKey: "verdict" },
+        FIXTURE_DEPS,
+      );
 
-      const latest = await getLatestValidation(actor, { attemptId, artifactKey: "verdict" });
+      const latest = await getLatestValidation(actor, {
+        attemptId,
+        artifactKey: "verdict",
+      });
 
       expect(latest).not.toBeNull();
       expect(latest?.status).toBe("passed");
@@ -901,13 +1048,20 @@ describe("artifact service — database integration", () => {
       const { actor, attemptId } = await createDraftAttempt("get-latest-none");
       await saveVerdict(actor, attemptId);
 
-      const latest = await getLatestValidation(actor, { attemptId, artifactKey: "verdict" });
+      const latest = await getLatestValidation(actor, {
+        attemptId,
+        artifactKey: "verdict",
+      });
       expect(latest).toBeNull();
     });
 
     it("rejects a cross-Workspace founder actor as NOT_FOUND", async () => {
-      const { attemptId } = await createDraftAttempt("get-latest-cross-workspace-target");
-      const { actor: otherActor } = await createDraftAttempt("get-latest-cross-workspace-caller");
+      const { attemptId } = await createDraftAttempt(
+        "get-latest-cross-workspace-target",
+      );
+      const { actor: otherActor } = await createDraftAttempt(
+        "get-latest-cross-workspace-caller",
+      );
 
       await expect(
         getLatestValidation(otherActor, { attemptId, artifactKey: "verdict" }),
@@ -917,7 +1071,9 @@ describe("artifact service — database integration", () => {
 
   describe("renderArtifactWorkbook", () => {
     it("builds a PDF once the source submission is confirmed", async () => {
-      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-happy-path");
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt(
+        "workbook-happy-path",
+      );
 
       const result = await renderArtifactWorkbook(
         actor,
@@ -931,40 +1087,78 @@ describe("artifact service — database integration", () => {
     });
 
     it("throws WORKBOOK_RENDERER_NOT_CONFIGURED when the Artifact Definition has no renderer_key", async () => {
-      const { actor, attemptId } = await createSubmittedAttempt("workbook-no-renderer");
+      const { actor, attemptId } = await createSubmittedAttempt(
+        "workbook-no-renderer",
+      );
 
       await expect(
-        renderArtifactWorkbook(actor, { attemptId, artifactKey: "verdict" }, FIXTURE_WORKBOOK_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_RENDERER_NOT_CONFIGURED" });
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "verdict" },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "WORKBOOK_RENDERER_NOT_CONFIGURED",
+      });
     });
 
     it("throws WORKBOOK_SOURCE_NOT_CONFIRMED when no submission exists yet", async () => {
-      const { actor, attemptId } = await createDraftWorkbookAttempt("workbook-no-submission");
+      const { actor, attemptId } = await createDraftWorkbookAttempt(
+        "workbook-no-submission",
+      );
 
       await expect(
-        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_NOT_CONFIRMED" });
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc" },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "WORKBOOK_SOURCE_NOT_CONFIRMED",
+      });
     });
 
     it("throws WORKBOOK_SOURCE_NOT_CONFIRMED when the submission is still a draft", async () => {
-      const { actor, attemptId } = await createDraftWorkbookAttempt("workbook-draft-only");
+      const { actor, attemptId } = await createDraftWorkbookAttempt(
+        "workbook-draft-only",
+      );
       await saveWorkbookDoc(actor, attemptId);
 
       await expect(
-        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_NOT_CONFIRMED" });
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc" },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "WORKBOOK_SOURCE_NOT_CONFIRMED",
+      });
     });
 
     it("throws INTERNAL_INVARIANT_ERROR when renderer_key is set but nothing is registered for it", async () => {
-      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-unregistered");
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt(
+        "workbook-unregistered",
+      );
 
       await expect(
-        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "INTERNAL_INVARIANT_ERROR" });
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc" },
+          FIXTURE_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "INTERNAL_INVARIANT_ERROR",
+      });
     });
 
     it("wraps a renderer pipeline failure as WORKBOOK_RENDER_FAILED", async () => {
-      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-render-failed");
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt(
+        "workbook-render-failed",
+      );
 
       await expect(
         renderArtifactWorkbook(
@@ -972,11 +1166,15 @@ describe("artifact service — database integration", () => {
           { attemptId, artifactKey: "workbook-doc" },
           BROKEN_FIXTURE_WORKBOOK_DEPS,
         ),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_RENDER_FAILED" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "WORKBOOK_RENDER_FAILED",
+      });
     });
 
     it("throws WORKBOOK_SOURCE_INTEGRITY_FAILED when the stored bytes no longer match the recorded checksum", async () => {
-      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-integrity");
+      const { actor, attemptId } =
+        await createSubmittedWorkbookAttempt("workbook-integrity");
       await pool.query(
         `update storage_objects so
          set checksum_sha256 = '0000000000000000000000000000000000000000000000000000000000000'
@@ -991,12 +1189,21 @@ describe("artifact service — database integration", () => {
       );
 
       await expect(
-        renderArtifactWorkbook(actor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "WORKBOOK_SOURCE_INTEGRITY_FAILED" });
+        renderArtifactWorkbook(
+          actor,
+          { attemptId, artifactKey: "workbook-doc" },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "WORKBOOK_SOURCE_INTEGRITY_FAILED",
+      });
     });
 
     it("rejects an out-of-range sectionCount as VALIDATION_ERROR, before the renderer is ever invoked", async () => {
-      const { actor, attemptId } = await createSubmittedWorkbookAttempt("workbook-section-count");
+      const { actor, attemptId } = await createSubmittedWorkbookAttempt(
+        "workbook-section-count",
+      );
 
       await expect(
         renderArtifactWorkbook(
@@ -1004,15 +1211,26 @@ describe("artifact service — database integration", () => {
           { attemptId, artifactKey: "workbook-doc", sectionCount: 3 },
           FIXTURE_WORKBOOK_DEPS,
         ),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("rejects a cross-Workspace founder actor as NOT_FOUND", async () => {
-      const { attemptId } = await createSubmittedWorkbookAttempt("workbook-cross-workspace-target");
-      const { actor: otherActor } = await createDraftWorkbookAttempt("workbook-cross-workspace-caller");
+      const { attemptId } = await createSubmittedWorkbookAttempt(
+        "workbook-cross-workspace-target",
+      );
+      const { actor: otherActor } = await createDraftWorkbookAttempt(
+        "workbook-cross-workspace-caller",
+      );
 
       await expect(
-        renderArtifactWorkbook(otherActor, { attemptId, artifactKey: "workbook-doc" }, FIXTURE_WORKBOOK_DEPS),
+        renderArtifactWorkbook(
+          otherActor,
+          { attemptId, artifactKey: "workbook-doc" },
+          FIXTURE_WORKBOOK_DEPS,
+        ),
       ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
   });
@@ -1020,23 +1238,36 @@ describe("artifact service — database integration", () => {
   describe("runOfficialValidation", () => {
     it("rejects a web-sourced founder actor as FORBIDDEN", async () => {
       await expect(
-        runOfficialValidation(webFounderActor(randomUUID()), { attemptId: randomUUID() }),
+        runOfficialValidation(webFounderActor(randomUUID()), {
+          attemptId: randomUUID(),
+        }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
     });
 
     it("rejects an mcp-sourced founder actor as FORBIDDEN", async () => {
       await expect(
-        runOfficialValidation(mcpFounderActor(randomUUID()), { attemptId: randomUUID() }),
+        runOfficialValidation(mcpFounderActor(randomUUID()), {
+          attemptId: randomUUID(),
+        }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
     });
 
     it("throws ATTEMPT_NOT_AWAITING_VALIDATION for a non-submitted Attempt", async () => {
       const { attemptId } = await createDraftAttempt("official-not-submitted");
-      const systemUserId = await createTrustedUser("official-not-submitted-system");
+      const systemUserId = await createTrustedUser(
+        "official-not-submitted-system",
+      );
 
       await expect(
-        runOfficialValidation(systemActor(systemUserId), { attemptId }, FIXTURE_DEPS),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_AWAITING_VALIDATION" });
+        runOfficialValidation(
+          systemActor(systemUserId),
+          { attemptId },
+          FIXTURE_DEPS,
+        ),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "ATTEMPT_NOT_AWAITING_VALIDATION",
+      });
     });
 
     it("passes for a system actor, moving the Attempt to ready_for_review without touching program_run_modules", async () => {
@@ -1044,7 +1275,9 @@ describe("artifact service — database integration", () => {
         "official-pass-system",
         "proceed",
       );
-      const systemUserId = await createTrustedUser("official-pass-system-actor");
+      const systemUserId = await createTrustedUser(
+        "official-pass-system-actor",
+      );
       const runModuleBefore = await getRunModuleRow(availableModuleId);
 
       const result = await runOfficialValidation(
@@ -1069,7 +1302,9 @@ describe("artifact service — database integration", () => {
         `select status from artifact_submissions where module_attempt_id = $1`,
         [attemptId],
       );
-      expect(submissionsResult.rows.every((row) => row.status === "submitted")).toBe(true);
+      expect(
+        submissionsResult.rows.every((row) => row.status === "submitted"),
+      ).toBe(true);
 
       expect(await getEventTypes(attemptId)).toEqual([
         "attempt_started",
@@ -1082,13 +1317,22 @@ describe("artifact service — database integration", () => {
     });
 
     it("passes for an admin actor", async () => {
-      const { attemptId } = await createSubmittedAttempt("official-pass-admin", "proceed");
+      const { attemptId } = await createSubmittedAttempt(
+        "official-pass-admin",
+        "proceed",
+      );
       const adminUserId = await createTrustedUser("official-pass-admin-actor");
 
-      const result = await runOfficialValidation(adminActor(adminUserId), { attemptId }, FIXTURE_DEPS);
+      const result = await runOfficialValidation(
+        adminActor(adminUserId),
+        { attemptId },
+        FIXTURE_DEPS,
+      );
 
       expect(result.passed).toBe(true);
-      const rows = await getValidationRows(result.validations[0].artifactSubmissionId);
+      const rows = await getValidationRows(
+        result.validations[0].artifactSubmissionId,
+      );
       expect(rows[0].triggered_by_user_id).toBe(adminUserId);
     });
 
@@ -1118,7 +1362,9 @@ describe("artifact service — database integration", () => {
         `select status from artifact_submissions where module_attempt_id = $1`,
         [attemptId],
       );
-      expect(submissionsResult.rows.every((row) => row.status === "draft")).toBe(true);
+      expect(
+        submissionsResult.rows.every((row) => row.status === "draft"),
+      ).toBe(true);
 
       expect(await getEventTypes(attemptId)).toEqual([
         "attempt_started",
@@ -1131,9 +1377,13 @@ describe("artifact service — database integration", () => {
     });
 
     it("fails with a missingArtifactKeys entry when a required Artifact was never saved", async () => {
-      const context = await createRunWithModules("official-missing-artifact", PROGRAM_KEY_MULTI, {
-        available: "artifact-module-multi",
-      });
+      const context = await createRunWithModules(
+        "official-missing-artifact",
+        PROGRAM_KEY_MULTI,
+        {
+          available: "artifact-module-multi",
+        },
+      );
       const created = await startOrResumeAttempt(context.actor, {
         programRunModuleId: context.availableModuleId,
       });
@@ -1152,7 +1402,9 @@ describe("artifact service — database integration", () => {
         value: "proceed",
       });
       await submitAttempt(context.actor, { attemptId: created.attempt.id });
-      const systemUserId = await createTrustedUser("official-missing-artifact-actor");
+      const systemUserId = await createTrustedUser(
+        "official-missing-artifact-actor",
+      );
 
       const result = await runOfficialValidation(
         systemActor(systemUserId),
@@ -1168,10 +1420,19 @@ describe("artifact service — database integration", () => {
     });
 
     it("is idempotent once ready_for_review — a second call performs no new writes", async () => {
-      const { attemptId } = await createSubmittedAttempt("official-idempotent-pass", "proceed");
-      const systemUserId = await createTrustedUser("official-idempotent-pass-actor");
+      const { attemptId } = await createSubmittedAttempt(
+        "official-idempotent-pass",
+        "proceed",
+      );
+      const systemUserId = await createTrustedUser(
+        "official-idempotent-pass-actor",
+      );
 
-      await runOfficialValidation(systemActor(systemUserId), { attemptId }, FIXTURE_DEPS);
+      await runOfficialValidation(
+        systemActor(systemUserId),
+        { attemptId },
+        FIXTURE_DEPS,
+      );
       const eventsBefore = await getEventTypes(attemptId);
 
       const second = await runOfficialValidation(
@@ -1186,10 +1447,19 @@ describe("artifact service — database integration", () => {
     });
 
     it("is idempotent once validation_failed — a second call performs no new writes", async () => {
-      const { attemptId } = await createSubmittedAttempt("official-idempotent-fail", "pivot");
-      const systemUserId = await createTrustedUser("official-idempotent-fail-actor");
+      const { attemptId } = await createSubmittedAttempt(
+        "official-idempotent-fail",
+        "pivot",
+      );
+      const systemUserId = await createTrustedUser(
+        "official-idempotent-fail-actor",
+      );
 
-      await runOfficialValidation(systemActor(systemUserId), { attemptId }, FIXTURE_DEPS);
+      await runOfficialValidation(
+        systemActor(systemUserId),
+        { attemptId },
+        FIXTURE_DEPS,
+      );
       const eventsBefore = await getEventTypes(attemptId);
 
       const second = await runOfficialValidation(
@@ -1206,10 +1476,8 @@ describe("artifact service — database integration", () => {
 
   describe("Retry regression (validation_failed clears active_attempt_id)", () => {
     it("allows startOrResumeAttempt({ basedOnAttemptId }) to create a Retry after an official failure", async () => {
-      const { actor, attemptId, availableModuleId } = await createSubmittedAttempt(
-        "retry-regression",
-        "pivot",
-      );
+      const { actor, attemptId, availableModuleId } =
+        await createSubmittedAttempt("retry-regression", "pivot");
       const systemUserId = await createTrustedUser("retry-regression-actor");
 
       const validationResult = await runOfficialValidation(

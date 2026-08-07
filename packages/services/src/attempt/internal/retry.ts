@@ -7,12 +7,19 @@ import type { ModuleAttemptStatus } from "@ai-catalyst/shared";
 // Named export so Pivot/retry logic can extend this set without inlining.
 // Pivot moves the prior Attempt to 'cancelled' (not 'rejected') so Founders
 // can start a retry via startOrResumeAttempt.
-export const RETRYABLE_ATTEMPT_STATUSES = ["validation_failed", "rejected", "cancelled"] as const;
+export const RETRYABLE_ATTEMPT_STATUSES = [
+  "validation_failed",
+  "rejected",
+  "cancelled",
+] as const;
 
-export type RetryableAttemptStatus = (typeof RETRYABLE_ATTEMPT_STATUSES)[number];
+export type RetryableAttemptStatus =
+  (typeof RETRYABLE_ATTEMPT_STATUSES)[number];
 
 export function isRetryableAttemptStatus(
   status: ModuleAttemptStatus,
 ): status is RetryableAttemptStatus {
-  return (RETRYABLE_ATTEMPT_STATUSES as readonly ModuleAttemptStatus[]).includes(status);
+  return (
+    RETRYABLE_ATTEMPT_STATUSES as readonly ModuleAttemptStatus[]
+  ).includes(status);
 }

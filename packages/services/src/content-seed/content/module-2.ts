@@ -1,4 +1,8 @@
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
 
 // Ported from the reviewed skills/module-02-customer-avatar/prompts/module-02-prompt-set.md
 // (§1 field ownership, §3 question rows, §5 artifact generator). That
@@ -182,7 +186,8 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     questionKey: "functional_needs",
     sequenceIndex: 7,
     questionGroup: "unmet_needs",
-    questionText: "What outcomes does this customer need but cannot reliably achieve today?",
+    questionText:
+      "What outcomes does this customer need but cannot reliably achieve today?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -195,7 +200,8 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     questionKey: "emotional_needs",
     sequenceIndex: 8,
     questionGroup: "unmet_needs",
-    questionText: "What is emotionally and socially at stake for this customer in this problem?",
+    questionText:
+      "What is emotionally and socially at stake for this customer in this problem?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -236,7 +242,8 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     questionKey: "disqualifiers",
     sequenceIndex: 11,
     questionGroup: "disqualifiers",
-    questionText: "Who looks like this customer but should be excluded, and why?",
+    questionText:
+      "Who looks like this customer but should be excluded, and why?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -263,7 +270,8 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     questionKey: "validation_status",
     sequenceIndex: 13,
     questionGroup: "validation",
-    questionText: "What is the highest evidence level reached for this exact customer profile?",
+    questionText:
+      "What is the highest evidence level reached for this exact customer profile?",
     helpText: null,
     placeholderText: null,
     responseType: "single_choice",
@@ -313,13 +321,48 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Validation Status" },
         ],
       },
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
-      { key: "segment_present", type: "section_non_empty", level: 2, heading: "Segment" },
-      { key: "situation_present", type: "section_non_empty", level: 2, heading: "Situation" },
-      { key: "core_promise_present", type: "section_non_empty", level: 2, heading: "Core Promise" },
-      { key: "snapshot_who", type: "label_present", label: "WHO", scope: { level: 2, heading: "Snapshot" } },
-      { key: "snapshot_where", type: "label_present", label: "WHERE", scope: { level: 2, heading: "Snapshot" } },
-      { key: "snapshot_stage", type: "label_present", label: "STAGE", scope: { level: 2, heading: "Snapshot" } },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "segment_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Segment",
+      },
+      {
+        key: "situation_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Situation",
+      },
+      {
+        key: "core_promise_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Core Promise",
+      },
+      {
+        key: "snapshot_who",
+        type: "label_present",
+        label: "WHO",
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
+        key: "snapshot_where",
+        type: "label_present",
+        label: "WHERE",
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
+        key: "snapshot_stage",
+        type: "label_present",
+        label: "STAGE",
+        scope: { level: 2, heading: "Snapshot" },
+      },
       {
         key: "snapshot_commercial_moment",
         type: "label_present",

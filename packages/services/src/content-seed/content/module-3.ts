@@ -1,4 +1,8 @@
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
 
 // Ported from skills/module-03-problem-statement/prompts/module-03-prompt-set.md
 // (§1 field ownership, §3 question rows, §5 artifact generator) and the two
@@ -165,7 +169,8 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     questionKey: "five_whys_ladder",
     sequenceIndex: 3,
     questionGroup: "five_whys",
-    questionText: "Asked in sequence, each building on the last: why does this problem exist?",
+    questionText:
+      "Asked in sequence, each building on the last: why does this problem exist?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -234,7 +239,8 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     questionKey: "validation_status",
     sequenceIndex: 8,
     questionGroup: "validation",
-    questionText: "What is the highest evidence level reached for this exact problem?",
+    questionText:
+      "What is the highest evidence level reached for this exact problem?",
     helpText: null,
     placeholderText: null,
     responseType: "single_choice",
@@ -282,10 +288,30 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Validation Status" },
         ],
       },
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
-      { key: "root_cause_version_present", type: "section_non_empty", level: 3, heading: "Root-cause version" },
-      { key: "draft_version_present", type: "section_non_empty", level: 3, heading: "Draft version" },
-      { key: "root_cause_present", type: "section_non_empty", level: 2, heading: "Root Cause" },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "root_cause_version_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Root-cause version",
+      },
+      {
+        key: "draft_version_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Draft version",
+      },
+      {
+        key: "root_cause_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Root Cause",
+      },
       {
         key: "five_whys_range",
         type: "range_named_items",
@@ -350,7 +376,11 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
         type: "table_required_cells",
         level: 2,
         heading: "What Customers Do Today",
-        requiredColumns: ["Tool or workaround", "What it does", "Where it falls short"],
+        requiredColumns: [
+          "Tool or workaround",
+          "What it does",
+          "Where it falls short",
+        ],
       },
       {
         key: "based_on_observation_present",
@@ -441,8 +471,18 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Where Results Go" },
         ],
       },
-      { key: "venture_name", type: "label_present", label: "Venture name", scope: { level: 2, heading: "Venture" } },
-      { key: "interview_target_present", type: "section_non_empty", level: 2, heading: "Interview Target" },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "interview_target_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Interview Target",
+      },
       {
         key: "what_this_tests_present",
         type: "section_non_empty",
@@ -481,8 +521,18 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
         minimum: 3,
         maximum: 3,
       },
-      { key: "after_each_call_present", type: "section_non_empty", level: 2, heading: "After Each Call" },
-      { key: "where_results_go_present", type: "section_non_empty", level: 2, heading: "Where Results Go" },
+      {
+        key: "after_each_call_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "After Each Call",
+      },
+      {
+        key: "where_results_go_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Where Results Go",
+      },
     ],
     submissionRules: [],
   },

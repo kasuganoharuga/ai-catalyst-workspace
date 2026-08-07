@@ -28,10 +28,10 @@ Browser → GET /artifacts/:id/download → ArtifactService (authz)
 
 ## Environments
 
-| Git branch | Environment | Terraform root |
-|------------|-------------|----------------|
-| `develop` | Staging | [`terraform/envs/staging`](terraform/envs/staging) |
-| `main` | Production | [`terraform/envs/production`](terraform/envs/production) |
+| Git branch | Environment | Terraform root                                           |
+| ---------- | ----------- | -------------------------------------------------------- |
+| `develop`  | Staging     | [`terraform/envs/staging`](terraform/envs/staging)       |
+| `main`     | Production  | [`terraform/envs/production`](terraform/envs/production) |
 
 Region default: `ap-southeast-2`.
 
@@ -43,28 +43,28 @@ Region default: `ap-southeast-2`.
 
 ## Modules
 
-| Module | README |
-|--------|--------|
-| vpc | [modules/vpc](terraform/modules/vpc/README.md) |
-| alb | [modules/alb](terraform/modules/alb/README.md) |
-| ecr | [modules/ecr](terraform/modules/ecr/README.md) |
-| ecs_cluster | [modules/ecs_cluster](terraform/modules/ecs_cluster/README.md) |
-| ecs_service | [modules/ecs_service](terraform/modules/ecs_service/README.md) (parameterized) |
-| rds | [modules/rds](terraform/modules/rds/README.md) |
-| s3 | [modules/s3](terraform/modules/s3/README.md) |
-| iam | [modules/iam](terraform/modules/iam/README.md) (separate Task/Execution roles) |
-| ses | [modules/ses](terraform/modules/ses/README.md) |
-| secrets | [modules/secrets](terraform/modules/secrets/README.md) |
-| observability | [modules/observability](terraform/modules/observability/README.md) |
+| Module        | README                                                                         |
+| ------------- | ------------------------------------------------------------------------------ |
+| vpc           | [modules/vpc](terraform/modules/vpc/README.md)                                 |
+| alb           | [modules/alb](terraform/modules/alb/README.md)                                 |
+| ecr           | [modules/ecr](terraform/modules/ecr/README.md)                                 |
+| ecs_cluster   | [modules/ecs_cluster](terraform/modules/ecs_cluster/README.md)                 |
+| ecs_service   | [modules/ecs_service](terraform/modules/ecs_service/README.md) (parameterized) |
+| rds           | [modules/rds](terraform/modules/rds/README.md)                                 |
+| s3            | [modules/s3](terraform/modules/s3/README.md)                                   |
+| iam           | [modules/iam](terraform/modules/iam/README.md) (separate Task/Execution roles) |
+| ses           | [modules/ses](terraform/modules/ses/README.md)                                 |
+| secrets       | [modules/secrets](terraform/modules/secrets/README.md)                         |
+| observability | [modules/observability](terraform/modules/observability/README.md)             |
 
 ## Secrets & rotation
 
-| Secret | Rotation |
-|--------|----------|
+| Secret               | Rotation                                                |
+| -------------------- | ------------------------------------------------------- |
 | RDS / `database-url` | Store in Secrets Manager; RDS-integrated rotation later |
-| `BETTER_AUTH_SECRET` | Manual rotate + redeploy web/mcp |
-| OAuth extras | Manual |
-| SES | Task role credentials; identity is not a secret |
+| `BETTER_AUTH_SECRET` | Manual rotate + redeploy web/mcp                        |
+| OAuth extras         | Manual                                                  |
+| SES                  | Task role credentials; identity is not a secret         |
 
 ## App configuration
 
@@ -73,15 +73,15 @@ Providers never read `process.env` themselves. App wiring builds:
 - `StorageConfig` via `loadStorageConfigFromEnv` → `resolveProvider(config)`
 - `EmailConfig` via `loadEmailConfigFromEnv` → `createEmailSenderFromConfig`
 
-| Variable | Staging | Production | Local default |
-|----------|---------|------------|---------------|
-| `STORAGE_PROVIDER` | `s3` | `s3` | `local` |
-| `STORAGE_CONTAINER` | staging bucket | prod bucket | n/a (`local-development`) |
-| `EMAIL_PROVIDER` | `ses` | `ses` | `noop` |
-| `EMAIL_FROM` | staging identity | prod identity | — |
-| `AUTH_ISSUER_URL` | `https://staging-web…` | `https://web…` | `http://localhost:3000` |
-| `MCP_RESOURCE_URL` | `https://staging-mcp…/mcp` | `https://mcp…/mcp` | `http://localhost:8787/mcp` |
-| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true` | `true` | unset |
+| Variable                        | Staging                    | Production         | Local default               |
+| ------------------------------- | -------------------------- | ------------------ | --------------------------- |
+| `STORAGE_PROVIDER`              | `s3`                       | `s3`               | `local`                     |
+| `STORAGE_CONTAINER`             | staging bucket             | prod bucket        | n/a (`local-development`)   |
+| `EMAIL_PROVIDER`                | `ses`                      | `ses`              | `noop`                      |
+| `EMAIL_FROM`                    | staging identity           | prod identity      | —                           |
+| `AUTH_ISSUER_URL`               | `https://staging-web…`     | `https://web…`     | `http://localhost:3000`     |
+| `MCP_RESOURCE_URL`              | `https://staging-mcp…/mcp` | `https://mcp…/mcp` | `http://localhost:8787/mcp` |
+| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                     | `true`             | unset                       |
 
 ## Validate without applying
 

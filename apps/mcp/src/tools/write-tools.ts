@@ -3,7 +3,10 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { resolveAttemptRunContext } from "@ai-catalyst/services/workflow";
-import { saveFounderResponse, startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import {
+  saveFounderResponse,
+  startOrResumeAttempt,
+} from "@ai-catalyst/services/attempt";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
 
@@ -11,7 +14,12 @@ import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
 // Registers write MCP tools — thin shells over packages/services only.
 
-const RESPONSE_STATUS_VALUES = ["answered", "skipped", "not_applicable", "needs_follow_up"] as const;
+const RESPONSE_STATUS_VALUES = [
+  "answered",
+  "skipped",
+  "not_applicable",
+  "needs_follow_up",
+] as const;
 
 const SAVE_FOUNDER_INPUT_SHAPE = {
   attemptId: z.string().min(1),
@@ -63,7 +71,10 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
         },
         async () => {
           const result = await startOrResumeAttempt(actor, args);
-          const hierarchy = await resolveAuditHierarchy(actor, result.attempt.id);
+          const hierarchy = await resolveAuditHierarchy(
+            actor,
+            result.attempt.id,
+          );
           return {
             response: jsonToolResponse(result),
             audit: {
@@ -72,7 +83,10 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
               programRunBranchId: hierarchy?.programRunBranchId ?? null,
               programRunModuleId: hierarchy?.programRunModuleId ?? null,
               moduleAttemptId: result.attempt.id,
-              resultMetadata: { status: result.attempt.status, created: result.created },
+              resultMetadata: {
+                status: result.attempt.status,
+                created: result.created,
+              },
             },
           };
         },
@@ -94,11 +108,17 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
         {
           toolName: "save_founder_input",
           actor,
-          requestMetadata: { attemptId: args.attemptId, questionKey: args.questionKey },
+          requestMetadata: {
+            attemptId: args.attemptId,
+            questionKey: args.questionKey,
+          },
         },
         async () => {
           const result = await saveFounderResponse(actor, args);
-          const hierarchy = await resolveAuditHierarchy(actor, result.moduleAttemptId);
+          const hierarchy = await resolveAuditHierarchy(
+            actor,
+            result.moduleAttemptId,
+          );
           return {
             response: jsonToolResponse(result),
             audit: {
@@ -132,11 +152,17 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
         {
           toolName: "save_artifact",
           actor,
-          requestMetadata: { attemptId: args.attemptId, artifactKey: args.artifactKey },
+          requestMetadata: {
+            attemptId: args.attemptId,
+            artifactKey: args.artifactKey,
+          },
         },
         async () => {
           const result = await saveArtifactSubmission(actor, args);
-          const hierarchy = await resolveAuditHierarchy(actor, result.moduleAttemptId);
+          const hierarchy = await resolveAuditHierarchy(
+            actor,
+            result.moduleAttemptId,
+          );
           return {
             response: jsonToolResponse(result),
             audit: {
@@ -168,10 +194,17 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     },
     async (args) => {
       const response = await withMcpAudit(
-        { toolName: "complete_module", actor, requestMetadata: { attemptId: args.attemptId } },
+        {
+          toolName: "complete_module",
+          actor,
+          requestMetadata: { attemptId: args.attemptId },
+        },
         async () => {
           const result = await completeModuleAttempt(actor, args);
-          const hierarchy = await resolveAuditHierarchy(actor, result.attempt.id);
+          const hierarchy = await resolveAuditHierarchy(
+            actor,
+            result.attempt.id,
+          );
           return {
             response: jsonToolResponse(result),
             audit: {
@@ -186,7 +219,8 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
                 moduleCompleted: result.moduleCompleted,
                 awaitingConfirmation: result.awaitingConfirmation,
                 validationErrorCount: result.validationErrors.length,
-                nextModuleUnlocked: result.nextModuleUnlocked?.moduleKey ?? null,
+                nextModuleUnlocked:
+                  result.nextModuleUnlocked?.moduleKey ?? null,
               },
             },
           };

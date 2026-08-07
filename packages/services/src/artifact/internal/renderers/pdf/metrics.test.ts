@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { REGULAR_FONTKIT_FONT } from "./embed-fonts.js";
-import { assertFontCoverage, blockHeight, heightAtSize, linePitch, measureTextWidth, wrapText } from "./metrics.js";
+import {
+  assertFontCoverage,
+  blockHeight,
+  heightAtSize,
+  linePitch,
+  measureTextWidth,
+  wrapText,
+} from "./metrics.js";
 
 const FONT = REGULAR_FONTKIT_FONT;
 
@@ -15,9 +22,12 @@ describe("linePitch", () => {
     [8, 13.0734],
     [9, 14.7076],
     [10, 16.3418],
-  ])("matches pdf-lib's real multiline pitch at %spt (%spt)", (size, expected) => {
-    expect(linePitch(FONT, size)).toBeCloseTo(expected, 3);
-  });
+  ])(
+    "matches pdf-lib's real multiline pitch at %spt (%spt)",
+    (size, expected) => {
+      expect(linePitch(FONT, size)).toBeCloseTo(expected, 3);
+    },
+  );
 
   it("is NOT fontSize * 1.25 — the bug this formula replaced", () => {
     const wrongAssumption = 9 * 1.25;
@@ -59,7 +69,12 @@ describe("wrapText", () => {
   });
 
   it("wraps at word boundaries, never mid-word", () => {
-    const lines = wrapText(FONT, "one two three four five six seven eight", 10, 60);
+    const lines = wrapText(
+      FONT,
+      "one two three four five six seven eight",
+      10,
+      60,
+    );
     expect(lines.length).toBeGreaterThan(1);
     for (const line of lines) {
       expect(line.trim()).not.toBe("");
@@ -80,7 +95,8 @@ describe("wrapText", () => {
   });
 
   it("wrapping the same text twice is deterministic (buildPlan and render must agree)", () => {
-    const text = "A long sentence that will need to wrap across several lines for this test.";
+    const text =
+      "A long sentence that will need to wrap across several lines for this test.";
     expect(wrapText(FONT, text, 9, 150)).toEqual(wrapText(FONT, text, 9, 150));
   });
 });
@@ -91,24 +107,33 @@ describe("blockHeight", () => {
     const size = 10;
     const maxWidth = 60;
     const lines = wrapText(FONT, text, size, maxWidth);
-    expect(blockHeight(FONT, text, size, maxWidth)).toBeCloseTo(lines.length * linePitch(FONT, size), 6);
+    expect(blockHeight(FONT, text, size, maxWidth)).toBeCloseTo(
+      lines.length * linePitch(FONT, size),
+      6,
+    );
   });
 });
 
 describe("assertFontCoverage", () => {
   it("does not throw for the confirmed Latin/punctuation coverage set", () => {
     expect(() =>
-      assertFontCoverage(FONT, "é ü ñ Å “smart quotes” – — en/em dash A$ € £", "test_field"),
+      assertFontCoverage(
+        FONT,
+        "é ü ñ Å “smart quotes” – — en/em dash A$ € £",
+        "test_field",
+      ),
     ).not.toThrow();
   });
 
   it("throws, naming the field, for characters outside coverage", () => {
-    expect(() => assertFontCoverage(FONT, "中文客户名称", "venture_name")).toThrow(
-      /WORKBOOK_RENDER_FAILED.*venture_name/,
-    );
+    expect(() =>
+      assertFontCoverage(FONT, "中文客户名称", "venture_name"),
+    ).toThrow(/WORKBOOK_RENDER_FAILED.*venture_name/);
   });
 
   it("throws for a single uncovered character mixed into otherwise-covered text", () => {
-    expect(() => assertFontCoverage(FONT, "Kerbside 中", "venture_name")).toThrow(/WORKBOOK_RENDER_FAILED/);
+    expect(() =>
+      assertFontCoverage(FONT, "Kerbside 中", "venture_name"),
+    ).toThrow(/WORKBOOK_RENDER_FAILED/);
   });
 });

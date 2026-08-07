@@ -136,11 +136,21 @@ describe("parseIdealCustomerAvatar — happy path", () => {
 
   it("extracts the internal Validation Status fields", () => {
     expect(model.validationStatus.currentLevel).toBe("Interviewed");
-    expect(model.validationStatus.basedOnObservation).toContain("Three founders interviewed");
-    expect(model.validationStatus.founderAssumptions).toContain("Raise timeline assumption");
-    expect(model.validationStatus.importantUnknowns).toContain("Tier 1 signals convert");
-    expect(model.validationStatus.contradictingEvidence).toBe("None recorded yet.");
-    expect(model.validationStatus.highestPriorityQuestions).toContain("accelerator-adjacent channel");
+    expect(model.validationStatus.basedOnObservation).toContain(
+      "Three founders interviewed",
+    );
+    expect(model.validationStatus.founderAssumptions).toContain(
+      "Raise timeline assumption",
+    );
+    expect(model.validationStatus.importantUnknowns).toContain(
+      "Tier 1 signals convert",
+    );
+    expect(model.validationStatus.contradictingEvidence).toBe(
+      "None recorded yet.",
+    );
+    expect(model.validationStatus.highestPriorityQuestions).toContain(
+      "accelerator-adjacent channel",
+    );
   });
 });
 
@@ -151,7 +161,9 @@ describe("parseIdealCustomerAvatar — orRecordedUnknown escape", () => {
       "### Emotional and social — what they feel\n\nNot yet known — no interviews run on this axis.\n",
     );
     const model = parseIdealCustomerAvatar(withUnknown);
-    expect(model.unmetNeeds.emotional).toEqual(["Not yet known — no interviews run on this axis."]);
+    expect(model.unmetNeeds.emotional).toEqual([
+      "Not yet known — no interviews run on this axis.",
+    ]);
   });
 
   it("rejects prose that doesn't name the gap explicitly (not a recognised unknown phrasing)", () => {
@@ -159,19 +171,31 @@ describe("parseIdealCustomerAvatar — orRecordedUnknown escape", () => {
       /### Emotional and social — what they feel\n\n1\. Stop feeling like an outsider in a game nobody has explained\.\n2\. Certainty over vibes — wants a checklist and a system\.\n3\. Protect their credibility with their best investor relationships\.\n/,
       "### Emotional and social — what they feel\n\nThey probably feel some things about this.\n",
     );
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Emotional/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Emotional/,
+    );
   });
 });
 
 describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_RENDER_FAILED)", () => {
   it("throws when Venture name is blank", () => {
-    const bad = fixture().replace("- Venture name: Kerbside", "- Venture name:");
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Venture name/);
+    const bad = fixture().replace(
+      "- Venture name: Kerbside",
+      "- Venture name:",
+    );
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Venture name/,
+    );
   });
 
   it("throws when Segment is empty", () => {
-    const bad = fixture().replace("Australian pre-seed / seed founders raising $500k–$3M.", "");
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Segment/);
+    const bad = fixture().replace(
+      "Australian pre-seed / seed founders raising $500k–$3M.",
+      "",
+    );
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Segment/,
+    );
   });
 
   it("throws when Snapshot is missing the RAISE label", () => {
@@ -179,7 +203,9 @@ describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_
       "**RAISE / CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed.\n",
       "",
     );
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*RAISE/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*RAISE/,
+    );
   });
 
   it("throws when there are only 2 functional unmet needs", () => {
@@ -187,12 +213,16 @@ describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_
       "3. Know who to actually talk to — a qualified list of angels and funds in their sector.\n",
       "",
     );
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Functional/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Functional/,
+    );
   });
 
   it("throws when there are only 2 disqualifiers", () => {
     const bad = fixture().replace("- Idea stage, pre-MVP.\n", "");
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Disqualifiers/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Disqualifiers/,
+    );
   });
 
   it("throws when Core Promise is missing entirely", () => {
@@ -200,7 +230,9 @@ describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_
       /## Core Promise\n\nRun a professional seed raise in a defined window, keep control of your company, and own the process for next time\.\n\n/,
       "",
     );
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Core Promise/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Core Promise/,
+    );
   });
 
   it("throws when Contradicting evidence is empty", () => {
@@ -208,6 +240,8 @@ describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_
       "### Contradicting evidence\n\nNone recorded yet.\n",
       "### Contradicting evidence\n\n",
     );
-    expect(() => parseIdealCustomerAvatar(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Contradicting evidence/);
+    expect(() => parseIdealCustomerAvatar(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Contradicting evidence/,
+    );
   });
 });

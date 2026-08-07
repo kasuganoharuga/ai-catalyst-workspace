@@ -31,7 +31,11 @@ function fail(message: string): never {
   throw new Error(`WORKBOOK_RENDER_FAILED: ${SOURCE_FILE} ${message}`);
 }
 
-function requiredSection(markdown: string, level: number, heading: string): string {
+function requiredSection(
+  markdown: string,
+  level: number,
+  heading: string,
+): string {
   const body = getSection(markdown, level, heading);
   if (body === null || !isSubstantiveText(body)) {
     fail(`is missing a non-empty "${heading}" section.`);
@@ -48,11 +52,15 @@ function requiredList(
   if (body === null) {
     fail(`is missing a "${heading}" section.`);
   }
-  const items = substantiveListItems(body).map((item) => stripMarkdownEmphasis(item).trim());
+  const items = substantiveListItems(body).map((item) =>
+    stripMarkdownEmphasis(item).trim(),
+  );
   if (items.length < bounds.minimum || items.length > bounds.maximum) {
     fail(
       `'s "${heading}" section must contain ${
-        bounds.minimum === bounds.maximum ? bounds.minimum : `${bounds.minimum}-${bounds.maximum}`
+        bounds.minimum === bounds.maximum
+          ? bounds.minimum
+          : `${bounds.minimum}-${bounds.maximum}`
       } item(s), found ${items.length}.`,
     );
   }
@@ -83,23 +91,42 @@ export function parseInterviewGuide(markdown: string): InterviewGuideModel {
   }
 
   const interviewTarget = requiredSection(markdown, 2, "Interview Target");
-  const whatThisInterviewTests = requiredSection(markdown, 2, "What This Interview Tests");
+  const whatThisInterviewTests = requiredSection(
+    markdown,
+    2,
+    "What This Interview Tests",
+  );
 
-  const questions = requiredList(markdown, "Five Interview Questions", { minimum: 5, maximum: 5 });
-  const momTestRules = requiredList(markdown, "Mom Test Rules", { minimum: 4, maximum: 5 });
+  const questions = requiredList(markdown, "Five Interview Questions", {
+    minimum: 5,
+    maximum: 5,
+  });
+  const momTestRules = requiredList(markdown, "Mom Test Rules", {
+    minimum: 4,
+    maximum: 5,
+  });
 
   const passBarBody = getSection(markdown, 2, "Pass Bar");
   if (passBarBody === null) {
     fail('is missing a "Pass Bar" section.');
   }
-  const passBarConditions = requiredList(markdown, "Pass Bar", { minimum: 3, maximum: 4 });
+  const passBarConditions = requiredList(markdown, "Pass Bar", {
+    minimum: 3,
+    maximum: 4,
+  });
   const passBarPreamble = leadingProse(passBarBody);
   if (!isSubstantiveText(passBarPreamble)) {
     fail('\'s "Pass Bar" section is missing its introductory sentence.');
   }
 
-  const killCriteria = requiredList(markdown, "Kill Criteria", { minimum: 3, maximum: 3 });
-  const afterEachCall = requiredList(markdown, "After Each Call", { minimum: 1, maximum: 20 });
+  const killCriteria = requiredList(markdown, "Kill Criteria", {
+    minimum: 3,
+    maximum: 3,
+  });
+  const afterEachCall = requiredList(markdown, "After Each Call", {
+    minimum: 1,
+    maximum: 20,
+  });
   const whereResultsGo = requiredSection(markdown, 2, "Where Results Go");
 
   return {

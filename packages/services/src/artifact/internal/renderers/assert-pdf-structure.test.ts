@@ -15,8 +15,10 @@ import type { Provenance } from "./types.js";
 
 const INTERVIEW_MODEL: InterviewGuideModel = {
   ventureName: "Kerbside",
-  interviewTarget: "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
-  whatThisInterviewTests: "Whether route supervisors lose recoverable hours to manual reconciliation.",
+  interviewTarget:
+    "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
+  whatThisInterviewTests:
+    "Whether route supervisors lose recoverable hours to manual reconciliation.",
   questions: [
     "Tell me about the last time a run sheet did not match what the trucks actually did.",
     "How often does that happen in a typical month?",
@@ -31,7 +33,8 @@ const INTERVIEW_MODEL: InterviewGuideModel = {
     "Ask for numbers they already know, never numbers they would estimate.",
   ],
   passBar: {
-    preamble: "For this five-interview validation round, the problem meets the pass bar when at least 3 of 5 interviews satisfy the conditions below:",
+    preamble:
+      "For this five-interview validation round, the problem meets the pass bar when at least 3 of 5 interviews satisfy the conditions below:",
     conditions: [
       "Described a specific reconciliation failure from the last 60 days.",
       "Named a cost in hours or dollars for that occurrence.",
@@ -47,7 +50,8 @@ const INTERVIEW_MODEL: InterviewGuideModel = {
     "Write the verbatim notes within 30 minutes.",
     "Record the customer's own words rather than a summary.",
   ],
-  whereResultsGo: "Run the five conversations and bring the notes into the next module.",
+  whereResultsGo:
+    "Run the five conversations and bring the notes into the next module.",
 };
 
 const ROADMAP_MODEL: ValidationRoadmapModel = {
@@ -57,11 +61,13 @@ const ROADMAP_MODEL: ValidationRoadmapModel = {
     budget: "$500",
     customerAccess: "12 warm introductions from the Melbourne depot network",
   },
-  whatTheseExperimentsTest: "Whether operations leads will take a concrete step toward solving reconciliation.",
+  whatTheseExperimentsTest:
+    "Whether operations leads will take a concrete step toward solving reconciliation.",
   experiments: [
     {
       name: "Concierge pilot",
-      claimTested: "Leads will hand over a real run sheet for manual reconciliation",
+      claimTested:
+        "Leads will hand over a real run sheet for manual reconciliation",
       passCondition: "3 of 8 leads send a run sheet within 48 hours",
       failCondition: "Fewer than 2 of 8 respond within a week",
       time: "4 hours/week",
@@ -88,12 +94,14 @@ const ROADMAP_MODEL: ValidationRoadmapModel = {
     "5 — can produce a binding commercial commitment or payment",
   ],
   startHere: {
-    whatToDo: "Send the concierge pilot offer to all 8 warm introductions this week.",
+    whatToDo:
+      "Send the concierge pilot offer to all 8 warm introductions this week.",
     whoToContact: "The 8 Melbourne depot contacts, by direct message.",
     pass: "3 of 8 leads send a run sheet within 48 hours",
     fail: "Fewer than 2 of 8 respond within a week",
   },
-  howToRecordResults: "Keep the results with you and bring them into the review that follows.",
+  howToRecordResults:
+    "Keep the results with you and bring them into the review that follows.",
 };
 
 const PROVENANCE: Provenance = {
@@ -112,7 +120,9 @@ describe("assertPdfStructure — problem_interview_workbook_v1", () => {
   it("passes for a plan and PDF that honestly agree", async () => {
     const plan = buildInterviewWorkbookPlan(INTERVIEW_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
-    await expect(assertPdfStructure(bytes, plan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1)).resolves.toBeUndefined();
+    await expect(
+      assertPdfStructure(bytes, plan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1),
+    ).resolves.toBeUndefined();
   });
 
   it("throws when a field in the plan has no matching manifest entry", async () => {
@@ -120,38 +130,63 @@ describe("assertPdfStructure — problem_interview_workbook_v1", () => {
     const bytes = await renderWorkbookPlan(plan);
     const brokenPlan = {
       ...plan,
-      fields: [{ ...plan.fields[0], name: "interview_1.not_a_real_field" }, ...plan.fields.slice(1)],
+      fields: [
+        { ...plan.fields[0], name: "interview_1.not_a_real_field" },
+        ...plan.fields.slice(1),
+      ],
     };
-    await expect(assertPdfStructure(bytes, brokenPlan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1)).rejects.toThrow(
-      /no matching entry in the field manifest/,
-    );
+    await expect(
+      assertPdfStructure(
+        bytes,
+        brokenPlan,
+        PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
+      ),
+    ).rejects.toThrow(/no matching entry in the field manifest/);
   });
 
   it("throws when the plan and the actual PDF disagree on the field set", async () => {
     const plan = buildInterviewWorkbookPlan(INTERVIEW_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const brokenPlan = { ...plan, fields: plan.fields.slice(1) };
-    await expect(assertPdfStructure(bytes, brokenPlan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1)).rejects.toThrow(
-      /the plan never declared/,
-    );
+    await expect(
+      assertPdfStructure(
+        bytes,
+        brokenPlan,
+        PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
+      ),
+    ).rejects.toThrow(/the plan never declared/);
   });
 
   it("throws when the plan's page count disagrees with the rendered PDF", async () => {
     const plan = buildInterviewWorkbookPlan(INTERVIEW_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
     const brokenPlan = { ...plan, pages: plan.pages.slice(0, -1) };
-    await expect(assertPdfStructure(bytes, brokenPlan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1)).rejects.toThrow(
-      /pages but the plan expected/,
-    );
+    await expect(
+      assertPdfStructure(
+        bytes,
+        brokenPlan,
+        PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
+      ),
+    ).rejects.toThrow(/pages but the plan expected/);
   });
 
   it("throws when the plan's provenance disagrees with the PDF's Info dictionary", async () => {
     const plan = buildInterviewWorkbookPlan(INTERVIEW_MODEL, PROVENANCE);
     const bytes = await renderWorkbookPlan(plan);
-    const brokenPlan = { ...plan, provenance: { ...plan.provenance, sourceArtifactId: "a-different-artifact" } };
-    await expect(assertPdfStructure(bytes, brokenPlan, PROBLEM_INTERVIEW_FIELD_MANIFEST_V1)).rejects.toThrow(
-      /SourceArtifactId/,
-    );
+    const brokenPlan = {
+      ...plan,
+      provenance: {
+        ...plan.provenance,
+        sourceArtifactId: "a-different-artifact",
+      },
+    };
+    await expect(
+      assertPdfStructure(
+        bytes,
+        brokenPlan,
+        PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
+      ),
+    ).rejects.toThrow(/SourceArtifactId/);
   });
 });
 
@@ -162,7 +197,9 @@ describe("assertPdfStructure — validation_roadmap_workbook_v1", () => {
       rendererKey: "validation_roadmap_workbook_v1",
     });
     const bytes = await renderWorkbookPlan(plan);
-    await expect(assertPdfStructure(bytes, plan, VALIDATION_ROADMAP_FIELD_MANIFEST_V1)).resolves.toBeUndefined();
+    await expect(
+      assertPdfStructure(bytes, plan, VALIDATION_ROADMAP_FIELD_MANIFEST_V1),
+    ).resolves.toBeUndefined();
   });
 
   it("throws when the plan's dropdown options disagree with the manifest", async () => {
@@ -171,9 +208,12 @@ describe("assertPdfStructure — validation_roadmap_workbook_v1", () => {
       rendererKey: "validation_roadmap_workbook_v1",
     });
     const bytes = await renderWorkbookPlan(plan);
-    const dropdownIndex = plan.fields.findIndex((f) => f.kind === "dropdown" && f.name === "experiment_1.outcome");
+    const dropdownIndex = plan.fields.findIndex(
+      (f) => f.kind === "dropdown" && f.name === "experiment_1.outcome",
+    );
     const dropdownField = plan.fields[dropdownIndex];
-    if (dropdownField.kind !== "dropdown") throw new Error("fixture field is not a dropdown");
+    if (dropdownField.kind !== "dropdown")
+      throw new Error("fixture field is not a dropdown");
     const brokenPlan = {
       ...plan,
       fields: [
@@ -182,9 +222,13 @@ describe("assertPdfStructure — validation_roadmap_workbook_v1", () => {
         ...plan.fields.slice(dropdownIndex + 1),
       ],
     };
-    await expect(assertPdfStructure(bytes, brokenPlan, VALIDATION_ROADMAP_FIELD_MANIFEST_V1)).rejects.toThrow(
-      /manifest declares/,
-    );
+    await expect(
+      assertPdfStructure(
+        bytes,
+        brokenPlan,
+        VALIDATION_ROADMAP_FIELD_MANIFEST_V1,
+      ),
+    ).rejects.toThrow(/manifest declares/);
   });
 });
 
@@ -197,24 +241,48 @@ const AVATAR_MODEL: IdealCustomerAvatarModel = {
     stage: "Post-MVP, $10k–$80k ARR or strong pilots.",
     raise: "First institutional round. SAFE, note or priced seed.",
   },
-  situation: "Has proven the product works and now needs capital to hire and scale.",
+  situation:
+    "Has proven the product works and now needs capital to hire and scale.",
   unmetNeeds: {
-    functional: ["Close the round in a defined window.", "Avoid mistakes that cost them control.", "Know who to talk to."],
-    emotional: ["Stop feeling like an outsider.", "Certainty over vibes.", "Protect their credibility."],
+    functional: [
+      "Close the round in a defined window.",
+      "Avoid mistakes that cost them control.",
+      "Know who to talk to.",
+    ],
+    emotional: [
+      "Stop feeling like an outsider.",
+      "Certainty over vibes.",
+      "Protect their credibility.",
+    ],
   },
   buyingSignals: {
-    tier1: ["Searches how to raise a seed round.", "Downloads a capital-raising guide.", "Grabs a term sheet template."],
-    tier2: ["First paying customers.", "Accepted into an accelerator.", "Signed up to cap table tooling."],
+    tier1: [
+      "Searches how to raise a seed round.",
+      "Downloads a capital-raising guide.",
+      "Grabs a term sheet template.",
+    ],
+    tier2: [
+      "First paying customers.",
+      "Accepted into an accelerator.",
+      "Signed up to cap table tooling.",
+    ],
   },
-  disqualifiers: ["Wants a broker to raise it for them.", "Already has a signed term sheet.", "Idea stage, pre-MVP."],
-  corePromise: "Run a professional seed raise in a defined window, keep control, and own the process for next time.",
+  disqualifiers: [
+    "Wants a broker to raise it for them.",
+    "Already has a signed term sheet.",
+    "Idea stage, pre-MVP.",
+  ],
+  corePromise:
+    "Run a professional seed raise in a defined window, keep control, and own the process for next time.",
   validationStatus: {
     currentLevel: "Interviewed",
-    basedOnObservation: "Three founders interviewed matched this profile closely.",
+    basedOnObservation:
+      "Three founders interviewed matched this profile closely.",
     founderAssumptions: "Raise timeline assumption not yet tested.",
     importantUnknowns: "Whether Tier 1 signals convert at the rate assumed.",
     contradictingEvidence: "None recorded yet.",
-    highestPriorityQuestions: "Does the accelerator-adjacent channel actually produce warm introductions?",
+    highestPriorityQuestions:
+      "Does the accelerator-adjacent channel actually produce warm introductions?",
   },
 };
 
@@ -225,6 +293,8 @@ describe("assertPdfStructure — ideal_customer_avatar_export_v1", () => {
       rendererKey: "ideal_customer_avatar_export_v1",
     });
     const bytes = await renderWorkbookPlan(plan);
-    await expect(assertPdfStructure(bytes, plan, IDEAL_CUSTOMER_AVATAR_FIELD_MANIFEST_V1)).resolves.toBeUndefined();
+    await expect(
+      assertPdfStructure(bytes, plan, IDEAL_CUSTOMER_AVATAR_FIELD_MANIFEST_V1),
+    ).resolves.toBeUndefined();
   });
 });

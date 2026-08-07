@@ -24,17 +24,41 @@ type SectionLookup = HeadingLookup | LabelLookup;
 
 const SECTION_LOOKUPS: Record<string, SectionLookup> = {
   confirmed_qa: { kind: "heading", level: 2, heading: "Confirmed Q&A" },
-  ai_recommendation: { kind: "heading", level: 2, heading: "AI Recommendation" },
-  failure_reasons: { kind: "heading", level: 2, heading: "Five Failure Reasons" },
+  ai_recommendation: {
+    kind: "heading",
+    level: 2,
+    heading: "AI Recommendation",
+  },
+  failure_reasons: {
+    kind: "heading",
+    level: 2,
+    heading: "Five Failure Reasons",
+  },
   competitors_alternatives: {
     kind: "heading",
     level: 2,
     heading: "Competitors / Alternatives",
   },
-  success_conditions: { kind: "heading", level: 2, heading: "Success Conditions" },
-  investor_decision_section: { kind: "heading", level: 2, heading: "Investor Decision" },
-  recommended_next_step: { kind: "heading", level: 2, heading: "Recommended Next Step" },
-  founders_decision: { kind: "heading", level: 2, heading: "Founder's Decision" },
+  success_conditions: {
+    kind: "heading",
+    level: 2,
+    heading: "Success Conditions",
+  },
+  investor_decision_section: {
+    kind: "heading",
+    level: 2,
+    heading: "Investor Decision",
+  },
+  recommended_next_step: {
+    kind: "heading",
+    level: 2,
+    heading: "Recommended Next Step",
+  },
+  founders_decision: {
+    kind: "heading",
+    level: 2,
+    heading: "Founder's Decision",
+  },
   single_biggest_reason: { kind: "label", label: "Single biggest reason" },
   evidence_note: { kind: "label", label: "Evidence note" },
   ai_recommendation_reason: { kind: "label", label: "Reason" },
@@ -69,7 +93,9 @@ function sectionIsNonEmpty(content: string, sectionKey: string): boolean {
 
 function sectionHeadingExists(sectionKey: string, content: string): boolean {
   const lookup = SECTION_LOOKUPS[sectionKey];
-  return lookup?.kind === "heading" ? sectionExists(content, lookup.level, lookup.heading) : false;
+  return lookup?.kind === "heading"
+    ? sectionExists(content, lookup.level, lookup.heading)
+    : false;
 }
 
 interface RuleCheck {
@@ -94,7 +120,9 @@ function asRuleArray(value: unknown): RawRule[] {
   }
   return value.filter(
     (item): item is RawRule =>
-      typeof item === "object" && item !== null && typeof (item as RawRule).key === "string",
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as RawRule).key === "string",
   );
 }
 
@@ -115,7 +143,9 @@ function isAnswered(response: ValidationContextResponse | undefined): boolean {
 
 function checkResponseCount(rule: RawRule, ctx: ValidationContext): RuleCheck {
   const expected = rule.expected ?? 0;
-  const answeredCount = ctx.responses.filter((response) => isAnswered(response)).length;
+  const answeredCount = ctx.responses.filter((response) =>
+    isAnswered(response),
+  ).length;
   return {
     key: rule.key,
     passed: answeredCount >= expected,
@@ -141,7 +171,10 @@ function checkListLength(rule: RawRule, ctx: ValidationContext): RuleCheck {
   };
 }
 
-function checkMinimumNamedItems(rule: RawRule, ctx: ValidationContext): RuleCheck {
+function checkMinimumNamedItems(
+  rule: RawRule,
+  ctx: ValidationContext,
+): RuleCheck {
   const section = rule.section ?? "";
   const minimum = rule.minimum ?? 0;
   const body = sectionBody(ctx.content, section) ?? "";
@@ -156,7 +189,10 @@ function checkMinimumNamedItems(rule: RawRule, ctx: ValidationContext): RuleChec
   };
 }
 
-function checkSectionNonEmpty(rule: RawRule, ctx: ValidationContext): RuleCheck {
+function checkSectionNonEmpty(
+  rule: RawRule,
+  ctx: ValidationContext,
+): RuleCheck {
   const section = rule.section ?? "";
   const passed = sectionIsNonEmpty(ctx.content, section);
   return {
@@ -175,7 +211,9 @@ function checkEnum(rule: RawRule, ctx: ValidationContext): RuleCheck {
   // first allowed token present, or an exact single allowed value.
   const passed =
     allowed.includes(normalized) ||
-    allowed.some((option) => normalized === option || normalized.startsWith(`${option} `));
+    allowed.some(
+      (option) => normalized === option || normalized.startsWith(`${option} `),
+    );
   return {
     key: rule.key,
     passed,
@@ -187,12 +225,16 @@ function checkEnum(rule: RawRule, ctx: ValidationContext): RuleCheck {
 
 function checkSectionsExist(rule: RawRule, ctx: ValidationContext): RuleCheck {
   const sections = rule.sections ?? [];
-  const missing = sections.filter((section) => !sectionHeadingExists(section, ctx.content));
+  const missing = sections.filter(
+    (section) => !sectionHeadingExists(section, ctx.content),
+  );
   return {
     key: rule.key,
     passed: missing.length === 0,
     message:
-      missing.length === 0 ? undefined : `Missing required sections: ${missing.join(", ")}.`,
+      missing.length === 0
+        ? undefined
+        : `Missing required sections: ${missing.join(", ")}.`,
   };
 }
 
@@ -231,7 +273,9 @@ function runSubmissionRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
     }
     case "pivot_detail_when_pivot": {
       const founderDecision = getResponse(ctx, "founder_decision");
-      if ((founderDecision?.answerText ?? "").trim().toLowerCase() !== "pivot") {
+      if (
+        (founderDecision?.answerText ?? "").trim().toLowerCase() !== "pivot"
+      ) {
         return { key: rule.key, passed: true };
       }
       const passed = isAnswered(getResponse(ctx, "pivot_detail"));
@@ -260,7 +304,9 @@ function combineResults(checks: RuleCheck[]): ValidationRunResult {
   const score =
     checks.length === 0
       ? 100
-      : Math.round((checks.filter((check) => check.passed).length / checks.length) * 100);
+      : Math.round(
+          (checks.filter((check) => check.passed).length / checks.length) * 100,
+        );
   return { checks, issues, warnings: [], passed, score };
 }
 
@@ -271,8 +317,13 @@ function runDraftCheck(ctx: ValidationContext): ValidationRunResult {
 }
 
 function runOfficialCheck(ctx: ValidationContext): ValidationRunResult {
-  const config = ctx.validationConfig as { draftRules?: unknown; submissionRules?: unknown };
-  const draftChecks = asRuleArray(config.draftRules).map((rule) => runDraftRule(rule, ctx));
+  const config = ctx.validationConfig as {
+    draftRules?: unknown;
+    submissionRules?: unknown;
+  };
+  const draftChecks = asRuleArray(config.draftRules).map((rule) =>
+    runDraftRule(rule, ctx),
+  );
   const submissionChecks = asRuleArray(config.submissionRules).map((rule) =>
     runSubmissionRule(rule, ctx),
   );

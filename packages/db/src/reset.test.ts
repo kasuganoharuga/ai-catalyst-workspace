@@ -8,7 +8,8 @@ import { assertResetGates } from "./reset.js";
 // exporting assertResetGates separately is so these gates can be proven
 // correct without ever connecting to a real database, let alone wiping one.
 
-const STAGING_URL = "postgresql://ai_catalyst:secret@staging-db.example.com:5432/ai_catalyst";
+const STAGING_URL =
+  "postgresql://ai_catalyst:secret@staging-db.example.com:5432/ai_catalyst";
 
 describe("assertResetGates", () => {
   it("refuses without ALLOW_DESTRUCTIVE_DB_RESET=1", () => {
@@ -48,9 +49,9 @@ describe("assertResetGates", () => {
   });
 
   it("refuses without --confirm-database", () => {
-    expect(() => assertResetGates([], { ALLOW_DESTRUCTIVE_DB_RESET: "1" }, STAGING_URL)).toThrow(
-      /confirm-database/,
-    );
+    expect(() =>
+      assertResetGates([], { ALLOW_DESTRUCTIVE_DB_RESET: "1" }, STAGING_URL),
+    ).toThrow(/confirm-database/);
   });
 
   it("refuses when --confirm-database does not exactly match the parsed database name", () => {

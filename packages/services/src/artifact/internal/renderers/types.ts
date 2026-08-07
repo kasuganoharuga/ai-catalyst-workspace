@@ -244,7 +244,11 @@ export interface WorkbookRenderer<TModel> {
   requiredSections: RequiredSection[];
   fieldManifest: FieldManifest;
   parse(markdown: string): TModel;
-  buildPlan(model: TModel, provenance: Provenance, options?: WorkbookRenderOptions): WorkbookRenderPlan;
+  buildPlan(
+    model: TModel,
+    provenance: Provenance,
+    options?: WorkbookRenderOptions,
+  ): WorkbookRenderPlan;
   assertPlanMatchesModel(plan: WorkbookRenderPlan, model: TModel): void;
   render(plan: WorkbookRenderPlan): Promise<Buffer>;
 }

@@ -20,13 +20,13 @@ save path rather than degrading quietly.
 Founders do not read or fill Markdown. But Markdown is what every downstream module reads. Both
 things are true, and the resolution is that some artefacts are records and some are instruments.
 
-| | Canonical Artifact | Operational Workbook |
-|---|---|---|
-| **What it is** | The system's record | The Founder's tool |
-| **Format** | Markdown, in S3 | DOCX, generated on request |
-| **Stored?** | Yes — versioned, hashed, validated, confirmed | **No** — built at download, streamed, discarded |
-| **Read by** | Later modules and the AI | A person, with a pen or a keyboard |
-| **Changes when** | The Founder revises and re-confirms | Never — it is derived |
+|                  | Canonical Artifact                            | Operational Workbook                            |
+| ---------------- | --------------------------------------------- | ----------------------------------------------- |
+| **What it is**   | The system's record                           | The Founder's tool                              |
+| **Format**       | Markdown, in S3                               | DOCX, generated on request                      |
+| **Stored?**      | Yes — versioned, hashed, validated, confirmed | **No** — built at download, streamed, discarded |
+| **Read by**      | Later modules and the AI                      | A person, with a pen or a keyboard              |
+| **Changes when** | The Founder revises and re-confirms           | Never — it is derived                           |
 
 A Workbook is **an operational expansion of a Canonical Artifact, not another version of it.**
 Downloading, filling or editing a Workbook has no effect on the Artifact. Nothing about the Workbook
@@ -35,15 +35,15 @@ enters `artifact_versions`.
 ### Classification
 
 Every artefact in the table below is a Canonical Artifact — a confirmed Markdown record in S3. The
-"Has a workbook" column says whether that record can *also* be rendered on demand as an operational
+"Has a workbook" column says whether that record can _also_ be rendered on demand as an operational
 DOCX. The Markdown never stops being the record; the DOCX is the instrument.
 
-| Artefact | Has a workbook | `rendererKey` | Founder's default action |
-|---|---|---|---|
-| `Problem-Statement.md` | No — read, not worked in | `null` | View online / download source |
-| `Problem-Interview-Guide.md` | Yes | `problem_interview_workbook_v1` | Download editable workbook |
-| `Evidence-Of-Unmet-Need.md` | No — read, not worked in | `null` | View online / download source |
-| `Validation-Roadmap-30-Day.md` | Yes | `validation_roadmap_workbook_v1` | Download editable workbook |
+| Artefact                       | Has a workbook           | `rendererKey`                    | Founder's default action      |
+| ------------------------------ | ------------------------ | -------------------------------- | ----------------------------- |
+| `Problem-Statement.md`         | No — read, not worked in | `null`                           | View online / download source |
+| `Problem-Interview-Guide.md`   | Yes                      | `problem_interview_workbook_v1`  | Download editable workbook    |
+| `Evidence-Of-Unmet-Need.md`    | No — read, not worked in | `null`                           | View online / download source |
+| `Validation-Roadmap-30-Day.md` | Yes                      | `validation_roadmap_workbook_v1` | Download editable workbook    |
 
 Renderer keys are artefact-specific because **this is not format conversion.** A generic `docx_v1`
 would imply a Markdown-to-Word converter; what these renderers do is expand one record into a
@@ -113,7 +113,7 @@ file they cannot use and no signal that anything is wrong. Same discipline as `v
 
 The current route already resolves the artefact with Founder auth and streams Markdown, so this is a
 format parameter on
-[an existing route](../../apps/web/app/(app)/artefacts/[moduleKey]/[artifactKey]/download/route.ts),
+[an existing route](<../../apps/web/app/(app)/artefacts/[moduleKey]/[artifactKey]/download/route.ts>),
 not a new one. Decide the default for a bare `/download` with no `format` before implementing —
 keeping it `source` preserves existing links.
 
@@ -185,7 +185,7 @@ Source: `Validation-Roadmap-30-Day.md`.
 **Page 1 — 30-Day Overview:** Constraints · claims being tested · experiment overview · the 30-day
 schedule.
 
-**One page per experiment**, pre-filled *only* from fields explicitly present in the confirmed
+**One page per experiment**, pre-filled _only_ from fields explicitly present in the confirmed
 Markdown.
 
 Pre-filled for every experiment: experiment · claim tested · scheduled window · time · cost ·
@@ -256,20 +256,20 @@ how its contents map back to fields without re-parsing prose.
 
 **`problem_interview_workbook_v1`**
 
-*Locked:* Venture · Interview Target · What This Interview Tests · the five questions · Mom Test
+_Locked:_ Venture · Interview Target · What This Interview Tests · the five questions · Mom Test
 Rules · Pass Bar · Kill Criteria · every fixed field label.
 
-*Editable:* interview date · participant identifier · role and organisation · recruitment channel ·
+_Editable:_ interview date · participant identifier · role and organisation · recruitment channel ·
 beachhead match · notes against each of the five questions · verbatim quotes · observed behaviour ·
 existing workaround · money or time spent · contradicting evidence · Pass Bar checkboxes · Kill
 Criteria observed · interview result · evidence-bearing extracts.
 
 **`validation_roadmap_workbook_v1`**
 
-*Locked:* Constraints · claims being tested · experiment name · claim tested · scheduled window ·
+_Locked:_ Constraints · claims being tested · experiment name · claim tested · scheduled window ·
 time · cost · expected evidence signal strength · **pass condition** · **fail condition**.
 
-*Editable:* participants · contact route · actions completed · observable result · verbatim
+_Editable:_ participants · contact route · actions completed · observable result · verbatim
 evidence · contradicting evidence · Pass / Fail / Inconclusive · effect on evidence maturity ·
 continue / revise / stop · next action.
 
@@ -309,9 +309,9 @@ top level. A subheading left out is a subheading the renderer may silently drop 
 
 - `problem_interview_workbook_v1` requires: Venture · Interview Target · What This Interview Tests ·
   Five Interview Questions · Mom Test Rules · Pass Bar · Kill Criteria · After Each Call ·
-  Where Results Go. *(All `##`; this template has no `###`.)*
+  Where Results Go. _(All `##`; this template has no `###`.)_
 - `validation_roadmap_workbook_v1` requires: Venture · Constraints · What These Experiments Test ·
-  Experiments · **Expected evidence signal strength** *(`###`)* · Start Here ·
+  Experiments · **Expected evidence signal strength** _(`###`)_ · Start Here ·
   How to Record Results.
 
 A section left out of `requiredSections` is a section the renderer may silently drop. Three were
@@ -344,7 +344,7 @@ section→source mapping tables.
 renderer asserts against its own output before returning it, and fails rather than shipping a
 partial or unprotected file.
 
-*Interview Workbook*
+_Interview Workbook_
 
 - exactly five Interview Sections, plus the one Additional Interview Section;
 - five questions in every section, matching the Markdown verbatim;
@@ -354,7 +354,7 @@ partial or unprotected file.
 - no source-derived fixed text sitting inside an editable control;
 - document protection enabled.
 
-*Roadmap Workbook*
+_Roadmap Workbook_
 
 - one experiment page per experiment in the Markdown, two or three, and no blank page;
 - every page carries pass, fail, window, time and cost, each matching the Markdown exactly;
@@ -414,7 +414,7 @@ later review / solution-validation input
 ```
 
 Module 3 explicitly does not read interview results; the module after it does. The filled Workbook
-is therefore input to the *next* stage, not a revision of the artefact that produced it.
+is therefore input to the _next_ stage, not a revision of the artefact that produced it.
 
 Today the filled Workbook reaches the platform by the Founder attaching or pasting it into the AI
 conversation — the client extracts the text, and the receiving module persists evidence-bearing

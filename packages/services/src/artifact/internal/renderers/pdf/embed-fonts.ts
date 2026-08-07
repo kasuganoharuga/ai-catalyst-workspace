@@ -17,7 +17,13 @@ import fontkit from "@pdf-lib/fontkit";
 // Node with `type: module`), since there is nothing to synthesise a default
 // from. Import the function by name instead.
 import { create as createFontkitFont, type Font as FontkitFont } from "fontkit";
-import { PDFDict, PDFDocument, PDFName, PDFString, type PDFFont } from "pdf-lib";
+import {
+  PDFDict,
+  PDFDocument,
+  PDFName,
+  PDFString,
+  type PDFFont,
+} from "pdf-lib";
 
 import { NOTO_SANS_REGULAR_TTF_BASE64 } from "@ai-catalyst/services/artifact/internal/renderers/pdf/fonts/noto-sans-regular";
 import { NOTO_SANS_BOLD_TTF_BASE64 } from "@ai-catalyst/services/artifact/internal/renderers/pdf/fonts/noto-sans-bold";
@@ -28,8 +34,12 @@ const BOLD_TTF_BYTES = Buffer.from(NOTO_SANS_BOLD_TTF_BASE64, "base64");
 // The bare fontkit-parsed fonts, for coverage/measurement (pdf/metrics.ts)
 // against the identical bytes that get embedded — parsed once per module
 // load, not per render.
-export const REGULAR_FONTKIT_FONT: FontkitFont = createFontkitFont(REGULAR_TTF_BYTES) as FontkitFont;
-export const BOLD_FONTKIT_FONT: FontkitFont = createFontkitFont(BOLD_TTF_BYTES) as FontkitFont;
+export const REGULAR_FONTKIT_FONT: FontkitFont = createFontkitFont(
+  REGULAR_TTF_BYTES,
+) as FontkitFont;
+export const BOLD_FONTKIT_FONT: FontkitFont = createFontkitFont(
+  BOLD_TTF_BYTES,
+) as FontkitFont;
 
 export interface EmbeddedFonts {
   regular: PDFFont;
@@ -55,7 +65,9 @@ const BOLD_RESOURCE_NAME = "WorkbookSansBold";
  * shifting rendering responsibility onto the viewer would trade a proven
  * path for one with inconsistent, unverifiable cross-viewer support.
  */
-export async function embedWorkbookFonts(doc: PDFDocument): Promise<EmbeddedFonts> {
+export async function embedWorkbookFonts(
+  doc: PDFDocument,
+): Promise<EmbeddedFonts> {
   doc.registerFontkit(fontkit);
   // { subset: false } is required, not optional: AcroForm field input is
   // arbitrary Founder text unknowable at generation time, and a subset
@@ -85,7 +97,10 @@ export async function embedWorkbookFonts(doc: PDFDocument): Promise<EmbeddedFont
   // The AcroForm-level default: individual fields still get their own /DA
   // (see pdf/render-plan.ts) so each can pick its own size, but every field
   // needs a fallback that resolves through /DR.
-  acroForm.set(PDFName.of("DA"), PDFString.of(`/${REGULAR_RESOURCE_NAME} 10 Tf 0 g`));
+  acroForm.set(
+    PDFName.of("DA"),
+    PDFString.of(`/${REGULAR_RESOURCE_NAME} 10 Tf 0 g`),
+  );
 
   return { regular, bold };
 }

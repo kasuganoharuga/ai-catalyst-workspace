@@ -374,7 +374,10 @@ describe("mentor service — database integration", () => {
   describe("getMentorArtefactDocument", () => {
     it("returns the saved artefact body", async () => {
       const mentor = await createUser("doc", "mentor");
-      const founder = await createFounderWithSavedArtefact("doc-founder", mentor);
+      const founder = await createFounderWithSavedArtefact(
+        "doc-founder",
+        mentor,
+      );
 
       const document = await getMentorArtefactDocument(
         mentorActor(mentor),
@@ -408,7 +411,10 @@ describe("mentor service — database integration", () => {
     it("hides another mentor's artefact as not found", async () => {
       const mentorA = await createUser("doc-a", "mentor");
       const mentorB = await createUser("doc-b", "mentor");
-      const founder = await createFounderWithSavedArtefact("doc-cross", mentorA);
+      const founder = await createFounderWithSavedArtefact(
+        "doc-cross",
+        mentorA,
+      );
 
       await expect(
         getMentorArtefactDocument(

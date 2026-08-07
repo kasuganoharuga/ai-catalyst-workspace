@@ -118,9 +118,7 @@ describe("storage service — database integration", () => {
     });
 
     it("allowlists characters, replacing everything else with a dash", () => {
-      const result = sanitizeFilename(
-        "file name with spaces & (parens).md",
-      );
+      const result = sanitizeFilename("file name with spaces & (parens).md");
       expect(result).toMatch(/^[a-zA-Z0-9._-]+$/);
     });
 
@@ -185,8 +183,7 @@ describe("storage service — database integration", () => {
 
   describe("createPendingGeneratedObject / writeGeneratedTextContent", () => {
     it("computes correct size/hash for multi-byte UTF-8 content and reaches verified", async () => {
-      const { actor, workspaceId } =
-        await createFounderWithWorkspace("utf8");
+      const { actor, workspaceId } = await createFounderWithWorkspace("utf8");
       const pending = await createPendingGeneratedObject(actor, {
         workspaceId,
         filename: "unicode.md",
@@ -432,9 +429,8 @@ describe("storage service — database integration", () => {
 
     it("rejects createPendingGeneratedObject for a workspaceId the Founder cannot reach", async () => {
       const { actor } = await createFounderWithWorkspace("cross-create");
-      const { workspaceId: otherWorkspaceId } = await createFounderWithWorkspace(
-        "cross-create-other",
-      );
+      const { workspaceId: otherWorkspaceId } =
+        await createFounderWithWorkspace("cross-create-other");
 
       await expect(
         createPendingGeneratedObject(actor, {

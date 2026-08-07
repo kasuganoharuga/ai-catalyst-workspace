@@ -7,7 +7,10 @@ import {
   seedToolkitContent,
 } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
-import { founderActor, withTransaction } from "@ai-catalyst/services/testing/db-fixtures";
+import {
+  founderActor,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
 import { getModuleCatalogEntry, listModuleCatalog } from "./catalog.js";
 
@@ -112,7 +115,9 @@ describe("listModuleCatalog", () => {
     ]);
     expect(entries.every((entry) => entry.catalogStatus === "live")).toBe(true);
 
-    const module0 = entries.find((entry) => entry.moduleKey === "module-00-setup")!;
+    const module0 = entries.find(
+      (entry) => entry.moduleKey === "module-00-setup",
+    )!;
     expect(module0.expectedArtifacts).toEqual([
       {
         artifactKey: "setup_summary",
@@ -131,13 +136,17 @@ describe("listModuleCatalog", () => {
       },
     ]);
 
-    const module1 = entries.find((entry) => entry.moduleKey === "module-01-pressure-test")!;
+    const module1 = entries.find(
+      (entry) => entry.moduleKey === "module-01-pressure-test",
+    )!;
     expect(module1.expectedArtifacts[0]).toMatchObject({
       artifactKey: "pressure_test_verdict",
       name: "Pressure-Test Verdict",
       requiredFilename: "Pressure-Test-Verdict.md",
     });
-    expect(module1.expectedArtifacts[0].outline.map((section) => section.heading)).toEqual([
+    expect(
+      module1.expectedArtifacts[0].outline.map((section) => section.heading),
+    ).toEqual([
       "Venture",
       "Confirmed Q&A",
       "AI Recommendation",
@@ -188,7 +197,10 @@ describe("listModuleCatalog", () => {
 
 describe("getModuleCatalogEntry", () => {
   it("returns a single Module's catalog entry", async () => {
-    const entry = await getModuleCatalogEntry(founderActor(), "module-01-pressure-test");
+    const entry = await getModuleCatalogEntry(
+      founderActor(),
+      "module-01-pressure-test",
+    );
     expect(entry.title).toBe("Pressure-Test My Idea");
     expect(entry.catalogStatus).toBe("live");
   });
@@ -208,9 +220,10 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
   const DRAFT_KEY = `catalog-draft-test-${RUN_SUFFIX}`;
 
   afterAll(async () => {
-    await pool.query("delete from programs where program_key = any($1::text[])", [
-      [ISOLATION_KEY, VERSIONING_KEY, ARTIFACT_KEY, DRAFT_KEY],
-    ]);
+    await pool.query(
+      "delete from programs where program_key = any($1::text[])",
+      [[ISOLATION_KEY, VERSIONING_KEY, ARTIFACT_KEY, DRAFT_KEY]],
+    );
   });
 
   // The real V1 catalog is all-live now that Modules 5/6 are no longer
@@ -220,13 +233,23 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
   it("reports a draft Module as coming_soon", async () => {
     const content = buildFixtureContent(DRAFT_KEY, 1, `v1-${RUN_SUFFIX}`, [
       buildFixtureModule("draft-fixture-live-module", 0, [
-        buildFixtureArtifact("draft_fixture_artifact", 1, "Draft Fixture Artifact", "live.md"),
+        buildFixtureArtifact(
+          "draft_fixture_artifact",
+          1,
+          "Draft Fixture Artifact",
+          "live.md",
+        ),
       ]),
-      { ...buildFixtureModule("draft-fixture-upcoming-module", 1, []), isPublishable: false },
+      {
+        ...buildFixtureModule("draft-fixture-upcoming-module", 1, []),
+        isPublishable: false,
+      },
     ]);
     await withTransaction((client) => seedToolkitContent(client, content));
 
-    const entries = await listModuleCatalog(founderActor(), { programKey: DRAFT_KEY });
+    const entries = await listModuleCatalog(founderActor(), {
+      programKey: DRAFT_KEY,
+    });
     expect(
       entries.map((entry) => [entry.moduleKey, entry.catalogStatus]),
     ).toEqual([
@@ -238,7 +261,12 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
   it("only returns Modules for the requested program_key, never another Program's published Modules", async () => {
     const content = buildFixtureContent(ISOLATION_KEY, 1, `v1-${RUN_SUFFIX}`, [
       buildFixtureModule("isolated-fixture-module", 0, [
-        buildFixtureArtifact("isolated_artifact", 1, "Isolated Artifact", "isolated.md"),
+        buildFixtureArtifact(
+          "isolated_artifact",
+          1,
+          "Isolated Artifact",
+          "isolated.md",
+        ),
       ]),
     ]);
     await withTransaction((client) => seedToolkitContent(client, content));
@@ -251,40 +279,78 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
     ]);
 
     const realEntries = await listModuleCatalog(founderActor());
-    expect(realEntries.some((entry) => entry.moduleKey === "isolated-fixture-module")).toBe(
-      false,
-    );
+    expect(
+      realEntries.some(
+        (entry) => entry.moduleKey === "isolated-fixture-module",
+      ),
+    ).toBe(false);
   });
 
   it("selects the highest version_number when a program_key has more than one published version", async () => {
-    const v1Content = buildFixtureContent(VERSIONING_KEY, 1, `v1-${RUN_SUFFIX}`, [
-      buildFixtureModule("versioning-fixture-module-a", 0, [
-        buildFixtureArtifact("fixture_a_artifact", 1, "Fixture A Artifact", "a.md"),
-      ]),
-    ]);
-    const v2Content = buildFixtureContent(VERSIONING_KEY, 2, `v2-${RUN_SUFFIX}`, [
-      buildFixtureModule("versioning-fixture-module-b", 0, [
-        buildFixtureArtifact("fixture_b_artifact", 1, "Fixture B Artifact", "b.md"),
-      ]),
-    ]);
+    const v1Content = buildFixtureContent(
+      VERSIONING_KEY,
+      1,
+      `v1-${RUN_SUFFIX}`,
+      [
+        buildFixtureModule("versioning-fixture-module-a", 0, [
+          buildFixtureArtifact(
+            "fixture_a_artifact",
+            1,
+            "Fixture A Artifact",
+            "a.md",
+          ),
+        ]),
+      ],
+    );
+    const v2Content = buildFixtureContent(
+      VERSIONING_KEY,
+      2,
+      `v2-${RUN_SUFFIX}`,
+      [
+        buildFixtureModule("versioning-fixture-module-b", 0, [
+          buildFixtureArtifact(
+            "fixture_b_artifact",
+            1,
+            "Fixture B Artifact",
+            "b.md",
+          ),
+        ]),
+      ],
+    );
 
     await withTransaction((client) => seedToolkitContent(client, v1Content));
     await withTransaction((client) => seedToolkitContent(client, v2Content));
 
-    const entries = await listModuleCatalog(founderActor(), { programKey: VERSIONING_KEY });
-    expect(entries.map((entry) => entry.moduleKey)).toEqual(["versioning-fixture-module-b"]);
+    const entries = await listModuleCatalog(founderActor(), {
+      programKey: VERSIONING_KEY,
+    });
+    expect(entries.map((entry) => entry.moduleKey)).toEqual([
+      "versioning-fixture-module-b",
+    ]);
   });
 
   it("aggregates multiple artifact_definitions into expectedArtifacts without duplicating the Module row", async () => {
     const content = buildFixtureContent(ARTIFACT_KEY, 1, `v1-${RUN_SUFFIX}`, [
       buildFixtureModule("multi-artifact-fixture-module", 0, [
-        buildFixtureArtifact("fixture_artifact_one", 1, "Fixture Artifact One", "one.md"),
-        buildFixtureArtifact("fixture_artifact_two", 2, "Fixture Artifact Two", "two.md"),
+        buildFixtureArtifact(
+          "fixture_artifact_one",
+          1,
+          "Fixture Artifact One",
+          "one.md",
+        ),
+        buildFixtureArtifact(
+          "fixture_artifact_two",
+          2,
+          "Fixture Artifact Two",
+          "two.md",
+        ),
       ]),
     ]);
     await withTransaction((client) => seedToolkitContent(client, content));
 
-    const entries = await listModuleCatalog(founderActor(), { programKey: ARTIFACT_KEY });
+    const entries = await listModuleCatalog(founderActor(), {
+      programKey: ARTIFACT_KEY,
+    });
     expect(entries).toHaveLength(1);
     expect(entries[0].expectedArtifacts).toEqual([
       {

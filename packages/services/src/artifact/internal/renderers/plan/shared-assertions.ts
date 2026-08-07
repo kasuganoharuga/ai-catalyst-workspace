@@ -28,13 +28,19 @@ export function assertFooterOnEveryPage(plan: WorkbookRenderPlan): void {
 export function assertNoPlaceholderText(plan: WorkbookRenderPlan): void {
   for (const entry of plan.lockedContent) {
     if (isPlaceholderText(entry.text)) {
-      fail(`locked content "${entry.role}" is placeholder text: "${entry.text}".`);
+      fail(
+        `locked content "${entry.role}" is placeholder text: "${entry.text}".`,
+      );
     }
   }
 }
 
 /** Every value in `expected` must appear verbatim somewhere in the plan's locked content. */
-export function assertAllPresent(plan: WorkbookRenderPlan, expected: readonly string[], label: string): void {
+export function assertAllPresent(
+  plan: WorkbookRenderPlan,
+  expected: readonly string[],
+  label: string,
+): void {
   const haystack = plan.lockedContent.map((entry) => entry.text);
   for (const value of expected) {
     if (!haystack.some((text) => text.includes(value))) {

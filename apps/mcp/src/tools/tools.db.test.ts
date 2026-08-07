@@ -93,7 +93,10 @@ function buildFixtureArtifact(artifactKey: string): FixtureArtifact {
   };
 }
 
-function buildFixtureModule(moduleKey: string, sequenceIndex: number): FixtureModule {
+function buildFixtureModule(
+  moduleKey: string,
+  sequenceIndex: number,
+): FixtureModule {
   return {
     moduleKey,
     sequenceIndex,
@@ -119,7 +122,10 @@ function buildFixtureModule(moduleKey: string, sequenceIndex: number): FixtureMo
 // Tool, without needing a fixture Validator (there is no DI seam threaded
 // through the MCP layer — `write-tools.ts` always calls
 // `completeModuleAttempt` with the real Validator registry).
-function buildFixtureSetupModule(moduleKey: string, sequenceIndex: number): FixtureModule {
+function buildFixtureSetupModule(
+  moduleKey: string,
+  sequenceIndex: number,
+): FixtureModule {
   return {
     moduleKey,
     sequenceIndex,
@@ -138,7 +144,10 @@ function buildFixtureSetupModule(moduleKey: string, sequenceIndex: number): Fixt
   };
 }
 
-function buildFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+function buildFixtureContent(
+  programKey: string,
+  modules: FixtureModule[],
+): ToolkitSeedContent {
   return {
     program: {
       programKey,
@@ -159,7 +168,10 @@ function buildFixtureContent(programKey: string, modules: FixtureModule[]): Tool
 
 const VALID_TOKEN = "valid-fixture-token";
 
-function buildAppForActor(actor: ActorContext, overrides: Partial<CreateMcpAppOptions> = {}) {
+function buildAppForActor(
+  actor: ActorContext,
+  overrides: Partial<CreateMcpAppOptions> = {},
+) {
   return createMcpApp({
     allowedHosts: ALLOWED_HOSTS,
     allowedOrigins: ALLOWED_ORIGINS,
@@ -199,7 +211,9 @@ async function callTool(
       params: { name: toolName, arguments: args },
     });
 
-  const result = res.body.result as { content: { type: string; text: string }[]; isError?: boolean } | undefined;
+  const result = res.body.result as
+    | { content: { type: string; text: string }[]; isError?: boolean }
+    | undefined;
   const text = result?.content?.[0]?.text;
   let data: unknown = undefined;
   if (typeof text === "string") {
@@ -258,7 +272,10 @@ describe("MCP write tools — database integration", () => {
     setupModuleId: string;
     moduleAId: string;
   }> {
-    const { userId, workspaceId } = await createFixtureFounderAccount({ label, emailPrefix });
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+    });
     createdUserIds.push(userId);
     const ventureId = await createFixtureVenture({
       workspaceId,
@@ -266,7 +283,11 @@ describe("MCP write tools — database integration", () => {
       label,
     });
 
-    const websiteActor: ActorContext = { userId, role: "founder", source: "web" };
+    const websiteActor: ActorContext = {
+      userId,
+      role: "founder",
+      source: "web",
+    };
     await setActiveVenture(websiteActor, ventureId);
     const { run } = await getOrCreateProgramRun(
       websiteActor,
@@ -274,7 +295,9 @@ describe("MCP write tools — database integration", () => {
       { programKey: PROGRAM_KEY },
     );
 
-    const [setupModuleId, moduleAId] = await getFixtureRunModuleIds(run.activeBranchId!);
+    const [setupModuleId, moduleAId] = await getFixtureRunModuleIds(
+      run.activeBranchId!,
+    );
 
     const mcpActor: ActorContext = {
       userId,
@@ -284,7 +307,13 @@ describe("MCP write tools — database integration", () => {
       clientId: "test-client-id",
     };
 
-    return { actor: mcpActor, workspaceId, ventureId, setupModuleId, moduleAId };
+    return {
+      actor: mcpActor,
+      workspaceId,
+      ventureId,
+      setupModuleId,
+      moduleAId,
+    };
   }
 
   beforeAll(async () => {
@@ -297,12 +326,16 @@ describe("MCP write tools — database integration", () => {
   });
 
   afterAll(async () => {
-    await cleanupFixtureAccounts({ userIds: createdUserIds, programKey: PROGRAM_KEY });
+    await cleanupFixtureAccounts({
+      userIds: createdUserIds,
+      programKey: PROGRAM_KEY,
+    });
   });
 
   describe("read tools", () => {
     it("get_active_context resolves the Founder's Workspace/Venture and records a success audit row", async () => {
-      const { actor, workspaceId, ventureId } = await createFounderWithActiveRun("active-context");
+      const { actor, workspaceId, ventureId } =
+        await createFounderWithActiveRun("active-context");
 
       const result = await callTool(actor, "get_active_context");
 
@@ -310,7 +343,10 @@ describe("MCP write tools — database integration", () => {
       expect(result.isError).toBe(false);
       expect(result.data).toEqual({ workspaceId, ventureId });
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "get_active_context");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "get_active_context",
+      );
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.workspace_id).toBe(workspaceId);
       expect(auditRow?.request_metadata).toMatchObject({
@@ -320,14 +356,21 @@ describe("MCP write tools — database integration", () => {
     });
 
     it("list_modules lists the Founder's current Run Modules and records a success audit row", async () => {
-      const { actor, workspaceId } = await createFounderWithActiveRun("list-modules");
+      const { actor, workspaceId } =
+        await createFounderWithActiveRun("list-modules");
 
       const result = await callTool(actor, "list_modules");
 
       expect(result.isError).toBe(false);
-      const data = result.data as { workspaceId: string; modules: { moduleKey: string }[] };
+      const data = result.data as {
+        workspaceId: string;
+        modules: { moduleKey: string }[];
+      };
       expect(data.workspaceId).toBe(workspaceId);
-      expect(data.modules.map((m) => m.moduleKey)).toEqual(["mcp-module-setup", "mcp-module-a"]);
+      expect(data.modules.map((m) => m.moduleKey)).toEqual([
+        "mcp-module-setup",
+        "mcp-module-a",
+      ]);
 
       const auditRow = await getLatestAuditLogRow(actor.userId, "list_modules");
       expect(auditRow?.outcome).toBe("success");
@@ -335,46 +378,70 @@ describe("MCP write tools — database integration", () => {
     });
 
     it("get_module_status returns the Run-scoped Module summary and records the full hierarchy", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("module-status");
+      const { actor, runModuleId } =
+        await createFounderWithActiveRun("module-status");
 
-      const result = await callTool(actor, "get_module_status", { moduleKey: "mcp-module-a" });
+      const result = await callTool(actor, "get_module_status", {
+        moduleKey: "mcp-module-a",
+      });
 
       expect(result.isError).toBe(false);
-      const data = result.data as { moduleKey: string; id: string; status: string };
+      const data = result.data as {
+        moduleKey: string;
+        id: string;
+        status: string;
+      };
       expect(data.moduleKey).toBe("mcp-module-a");
       expect(data.id).toBe(runModuleId);
       expect(data.status).toBe("available");
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "get_module_status");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "get_module_status",
+      );
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.program_run_module_id).toBe(runModuleId);
     });
 
     it("get_module_status returns an isError result for a missing moduleKey, rejected by the MCP SDK's own inputSchema before the handler (and its audit write) ever runs", async () => {
-      const { actor } = await createFounderWithActiveRun("module-status-invalid");
+      const { actor } = await createFounderWithActiveRun(
+        "module-status-invalid",
+      );
 
       const result = await callTool(actor, "get_module_status", {});
 
       expect(result.isError).toBe(true);
-      expect(await getLatestAuditLogRow(actor.userId, "get_module_status")).toBeNull();
+      expect(
+        await getLatestAuditLogRow(actor.userId, "get_module_status"),
+      ).toBeNull();
     });
 
     it("get_module_status returns a denied/NOT_FOUND isError result for an unknown moduleKey", async () => {
-      const { actor } = await createFounderWithActiveRun("module-status-not-found");
+      const { actor } = await createFounderWithActiveRun(
+        "module-status-not-found",
+      );
 
-      const result = await callTool(actor, "get_module_status", { moduleKey: "does-not-exist" });
+      const result = await callTool(actor, "get_module_status", {
+        moduleKey: "does-not-exist",
+      });
 
       expect(result.isError).toBe(true);
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "get_module_status");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "get_module_status",
+      );
       expect(auditRow?.outcome).toBe("denied");
       expect(auditRow?.error_code).toBe("NOT_FOUND");
     });
 
     it("get_module_context returns Questions with a resumeQuestionKey and records the Module hierarchy", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("module-context");
+      const { actor, runModuleId } =
+        await createFounderWithActiveRun("module-context");
 
-      const result = await callTool(actor, "get_module_context", { moduleKey: "mcp-module-a" });
+      const result = await callTool(actor, "get_module_context", {
+        moduleKey: "mcp-module-a",
+      });
 
       expect(result.isError).toBe(false);
       const data = result.data as {
@@ -386,16 +453,25 @@ describe("MCP write tools — database integration", () => {
       expect(data.resumeQuestionKey).toBe("q1");
       expect(data.questions.map((q) => q.questionKey)).toEqual(["q1"]);
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "get_module_context");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "get_module_context",
+      );
       expect(auditRow?.program_run_module_id).toBe(runModuleId);
-      expect(auditRow?.result_metadata).toEqual({ moduleKey: "mcp-module-a", resumeQuestionKey: "q1" });
+      expect(auditRow?.result_metadata).toEqual({
+        moduleKey: "mcp-module-a",
+        resumeQuestionKey: "q1",
+      });
     });
   });
 
   describe("write tools + get_artifact", () => {
     it("save_founder_input persists an answer and records the full Attempt hierarchy", async () => {
-      const { actor, runModuleId, workspaceId } = await createFounderWithActiveRun("save-input");
-      const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
+      const { actor, runModuleId, workspaceId } =
+        await createFounderWithActiveRun("save-input");
+      const { attempt } = await startOrResumeAttempt(actor, {
+        programRunModuleId: runModuleId,
+      });
 
       const result = await callTool(actor, "save_founder_input", {
         attemptId: attempt.id,
@@ -404,23 +480,38 @@ describe("MCP write tools — database integration", () => {
       });
 
       expect(result.isError).toBe(false);
-      const data = result.data as { questionKey: string; responseStatus: string; answerText: string };
+      const data = result.data as {
+        questionKey: string;
+        responseStatus: string;
+        answerText: string;
+      };
       expect(data.questionKey).toBe("q1");
       expect(data.responseStatus).toBe("answered");
       expect(data.answerText).toBe("My answer via MCP.");
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "save_founder_input");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "save_founder_input",
+      );
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.workspace_id).toBe(workspaceId);
       expect(auditRow?.program_run_module_id).toBe(runModuleId);
       expect(auditRow?.module_attempt_id).toBe(attempt.id);
-      expect(auditRow?.result_metadata).toEqual({ questionKey: "q1", responseStatus: "answered" });
+      expect(auditRow?.result_metadata).toEqual({
+        questionKey: "q1",
+        responseStatus: "answered",
+      });
     });
 
     it("save_artifact stores content via StorageService and get_artifact reads the same content back", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("save-and-get-artifact");
-      const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
-      const content = "# Verdict\n\nSaved through the MCP save_artifact Tool.\n";
+      const { actor, runModuleId } = await createFounderWithActiveRun(
+        "save-and-get-artifact",
+      );
+      const { attempt } = await startOrResumeAttempt(actor, {
+        programRunModuleId: runModuleId,
+      });
+      const content =
+        "# Verdict\n\nSaved through the MCP save_artifact Tool.\n";
 
       const saveResult = await callTool(actor, "save_artifact", {
         attemptId: attempt.id,
@@ -429,11 +520,17 @@ describe("MCP write tools — database integration", () => {
       });
 
       expect(saveResult.isError).toBe(false);
-      const saveData = saveResult.data as { versionNumber: number; status: string };
+      const saveData = saveResult.data as {
+        versionNumber: number;
+        status: string;
+      };
       expect(saveData.versionNumber).toBe(1);
       expect(saveData.status).toBe("draft");
 
-      const saveAuditRow = await getLatestAuditLogRow(actor.userId, "save_artifact");
+      const saveAuditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "save_artifact",
+      );
       expect(saveAuditRow?.outcome).toBe("success");
       expect(saveAuditRow?.module_attempt_id).toBe(attempt.id);
       expect(saveAuditRow?.result_metadata).toEqual({
@@ -448,11 +545,17 @@ describe("MCP write tools — database integration", () => {
       });
 
       expect(getResult.isError).toBe(false);
-      const getData = getResult.data as { submission: { versionNumber: number }; content: string };
+      const getData = getResult.data as {
+        submission: { versionNumber: number };
+        content: string;
+      };
       expect(getData.content).toBe(content);
       expect(getData.submission.versionNumber).toBe(1);
 
-      const getAuditRow = await getLatestAuditLogRow(actor.userId, "get_artifact");
+      const getAuditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "get_artifact",
+      );
       expect(getAuditRow?.module_attempt_id).toBe(attempt.id);
       expect(getAuditRow?.result_metadata).toEqual({
         artifactKey: "verdict",
@@ -462,8 +565,12 @@ describe("MCP write tools — database integration", () => {
     });
 
     it("get_artifact returns a null result (not an error) when the Artifact was never saved", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("get-artifact-never-saved");
-      const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
+      const { actor, runModuleId } = await createFounderWithActiveRun(
+        "get-artifact-never-saved",
+      );
+      const { attempt } = await startOrResumeAttempt(actor, {
+        programRunModuleId: runModuleId,
+      });
 
       const result = await callTool(actor, "get_artifact", {
         attemptId: attempt.id,
@@ -483,10 +590,16 @@ describe("MCP write tools — database integration", () => {
     });
 
     it("complete_module runs Official Validation and reports a validation failure via passed/missingArtifactKeys, not an isError", async () => {
-      const { actor, runModuleId } = await createFounderWithActiveRun("complete-module-missing-artifact");
-      const { attempt } = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
+      const { actor, runModuleId } = await createFounderWithActiveRun(
+        "complete-module-missing-artifact",
+      );
+      const { attempt } = await startOrResumeAttempt(actor, {
+        programRunModuleId: runModuleId,
+      });
 
-      const result = await callTool(actor, "complete_module", { attemptId: attempt.id });
+      const result = await callTool(actor, "complete_module", {
+        attemptId: attempt.id,
+      });
 
       expect(result.isError).toBe(false);
       const data = result.data as {
@@ -503,9 +616,14 @@ describe("MCP write tools — database integration", () => {
       expect(data.validationErrors.length).toBeGreaterThan(0);
       expect(data.moduleCompleted).toBe(false);
 
-      expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe("validation_failed");
+      expect(await getFixtureModuleAttemptStatus(attempt.id)).toBe(
+        "validation_failed",
+      );
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "complete_module",
+      );
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.module_attempt_id).toBe(attempt.id);
       expect(auditRow?.result_metadata).toEqual({
@@ -519,37 +637,53 @@ describe("MCP write tools — database integration", () => {
     });
 
     it("start_module_attempt starts a fresh Attempt, then resumes the same one on a second call", async () => {
-      const { actor, setupModuleId } = await createFounderWithFreshRun("start-module-attempt");
+      const { actor, setupModuleId } = await createFounderWithFreshRun(
+        "start-module-attempt",
+      );
 
       const first = await callTool(actor, "start_module_attempt", {
         programRunModuleId: setupModuleId,
       });
       expect(first.isError).toBe(false);
-      const firstData = first.data as { attempt: { id: string; status: string }; created: boolean };
+      const firstData = first.data as {
+        attempt: { id: string; status: string };
+        created: boolean;
+      };
       expect(firstData.created).toBe(true);
       expect(firstData.attempt.status).toBe("draft");
 
-      const firstAuditRow = await getLatestAuditLogRow(actor.userId, "start_module_attempt");
+      const firstAuditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "start_module_attempt",
+      );
       expect(firstAuditRow?.outcome).toBe("success");
       expect(firstAuditRow?.program_run_module_id).toBe(setupModuleId);
       expect(firstAuditRow?.module_attempt_id).toBe(firstData.attempt.id);
-      expect(firstAuditRow?.result_metadata).toEqual({ status: "draft", created: true });
+      expect(firstAuditRow?.result_metadata).toEqual({
+        status: "draft",
+        created: true,
+      });
 
       const second = await callTool(actor, "start_module_attempt", {
         programRunModuleId: setupModuleId,
       });
       expect(second.isError).toBe(false);
-      const secondData = second.data as { attempt: { id: string }; created: boolean };
+      const secondData = second.data as {
+        attempt: { id: string };
+        created: boolean;
+      };
       expect(secondData.attempt.id).toBe(firstData.attempt.id);
       expect(secondData.created).toBe(false);
     });
 
     it("complete_module on a completion_mode='system' Module stops at ready_for_review awaiting website confirmation", async () => {
-      const { actor, setupModuleId } = await createFounderWithFreshRun("system-complete");
+      const { actor, setupModuleId } =
+        await createFounderWithFreshRun("system-complete");
       const startResult = await callTool(actor, "start_module_attempt", {
         programRunModuleId: setupModuleId,
       });
-      const attemptId = (startResult.data as { attempt: { id: string } }).attempt.id;
+      const attemptId = (startResult.data as { attempt: { id: string } })
+        .attempt.id;
 
       const result = await callTool(actor, "complete_module", { attemptId });
 
@@ -569,7 +703,10 @@ describe("MCP write tools — database integration", () => {
       expect(data.awaitingConfirmation).toBe(true);
       expect(data.nextModuleUnlocked).toBeNull();
 
-      const auditRow = await getLatestAuditLogRow(actor.userId, "complete_module");
+      const auditRow = await getLatestAuditLogRow(
+        actor.userId,
+        "complete_module",
+      );
       expect(auditRow?.outcome).toBe("success");
       expect(auditRow?.result_metadata).toMatchObject({
         status: "ready_for_review",
@@ -579,18 +716,21 @@ describe("MCP write tools — database integration", () => {
         nextModuleUnlocked: null,
       });
 
-      const statusResult = await callTool(actor, "get_module_status", { moduleKey: "mcp-module-a" });
+      const statusResult = await callTool(actor, "get_module_status", {
+        moduleKey: "mcp-module-a",
+      });
       expect((statusResult.data as { status: string }).status).toBe("locked");
     });
 
     it("save_founder_input on a cross-Workspace attemptId returns a denied/NOT_FOUND isError result", async () => {
-      const { actor: ownerActor, runModuleId } = await createFounderWithActiveRun(
-        "cross-workspace-owner",
-      );
+      const { actor: ownerActor, runModuleId } =
+        await createFounderWithActiveRun("cross-workspace-owner");
       const { attempt } = await startOrResumeAttempt(ownerActor, {
         programRunModuleId: runModuleId,
       });
-      const { actor: otherActor } = await createFounderWithActiveRun("cross-workspace-caller");
+      const { actor: otherActor } = await createFounderWithActiveRun(
+        "cross-workspace-caller",
+      );
 
       const result = await callTool(otherActor, "save_founder_input", {
         attemptId: attempt.id,
@@ -600,7 +740,10 @@ describe("MCP write tools — database integration", () => {
 
       expect(result.isError).toBe(true);
 
-      const auditRow = await getLatestAuditLogRow(otherActor.userId, "save_founder_input");
+      const auditRow = await getLatestAuditLogRow(
+        otherActor.userId,
+        "save_founder_input",
+      );
       expect(auditRow?.outcome).toBe("denied");
       expect(auditRow?.error_code).toBe("NOT_FOUND");
       expect(auditRow?.workspace_id).toBeNull();

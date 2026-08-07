@@ -1,7 +1,10 @@
 // Wires parse + buildPlan + assertPlanMatchesModel + render into one
 // WorkbookRenderer for Validation-Roadmap-30-Day.md — see
 // problem-interview-workbook-v1.ts's header for the shared rationale.
-import { assertValidationRoadmapPlan, buildValidationRoadmapPlan } from "@ai-catalyst/services/artifact/internal/renderers/plan/validation-roadmap-plan";
+import {
+  assertValidationRoadmapPlan,
+  buildValidationRoadmapPlan,
+} from "@ai-catalyst/services/artifact/internal/renderers/plan/validation-roadmap-plan";
 import { VALIDATION_ROADMAP_FIELD_MANIFEST_V1 } from "@ai-catalyst/services/artifact/internal/renderers/manifests/roadmap-v1";
 import { parseValidationRoadmap } from "@ai-catalyst/services/artifact/internal/renderers/parse/validation-roadmap";
 import { renderWorkbookPlan } from "@ai-catalyst/services/artifact/internal/renderers/pdf/render-plan";
@@ -21,16 +24,17 @@ const REQUIRED_SECTIONS: RequiredSection[] = [
   "How to Record Results",
 ];
 
-export const validationRoadmapWorkbookV1: WorkbookRenderer<ValidationRoadmapModel> = {
-  rendererKey: "validation_roadmap_workbook_v1",
-  rendererVersion: "1",
-  mimeType: "application/pdf",
-  extension: "pdf",
-  downloadFilename: "Validation-Roadmap-Workbook.pdf",
-  requiredSections: REQUIRED_SECTIONS,
-  fieldManifest: VALIDATION_ROADMAP_FIELD_MANIFEST_V1,
-  parse: parseValidationRoadmap,
-  buildPlan: buildValidationRoadmapPlan,
-  assertPlanMatchesModel: assertValidationRoadmapPlan,
-  render: renderWorkbookPlan,
-};
+export const validationRoadmapWorkbookV1: WorkbookRenderer<ValidationRoadmapModel> =
+  {
+    rendererKey: "validation_roadmap_workbook_v1",
+    rendererVersion: "1",
+    mimeType: "application/pdf",
+    extension: "pdf",
+    downloadFilename: "Validation-Roadmap-Workbook.pdf",
+    requiredSections: REQUIRED_SECTIONS,
+    fieldManifest: VALIDATION_ROADMAP_FIELD_MANIFEST_V1,
+    parse: parseValidationRoadmap,
+    buildPlan: buildValidationRoadmapPlan,
+    assertPlanMatchesModel: assertValidationRoadmapPlan,
+    render: renderWorkbookPlan,
+  };

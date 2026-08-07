@@ -8,7 +8,10 @@ import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 import { setActiveVenture } from "@ai-catalyst/services/workspace/active-context";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
-import { saveFounderResponse, startOrResumeAttempt } from "@ai-catalyst/services/attempt";
+import {
+  saveFounderResponse,
+  startOrResumeAttempt,
+} from "@ai-catalyst/services/attempt";
 import {
   createFixtureFounderAccount,
   createFixtureVenture,
@@ -67,7 +70,10 @@ function buildFixtureQuestions(): FixtureQuestion[] {
   ];
 }
 
-function buildFixtureArtifact(artifactKey: string, sequenceIndex: number): FixtureArtifact {
+function buildFixtureArtifact(
+  artifactKey: string,
+  sequenceIndex: number,
+): FixtureArtifact {
   return {
     artifactKey,
     sequenceIndex,
@@ -112,7 +118,10 @@ function buildFixtureModule(
   };
 }
 
-function buildFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+function buildFixtureContent(
+  programKey: string,
+  modules: FixtureModule[],
+): ToolkitSeedContent {
   return {
     program: {
       programKey,
@@ -156,7 +165,11 @@ describe("getModuleContext — database integration", () => {
     });
 
     await setActiveVenture(actor, ventureId);
-    await getOrCreateProgramRun(actor, { ventureId }, { programKey: PROGRAM_KEY });
+    await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey: PROGRAM_KEY },
+    );
 
     return { actor, workspaceId, ventureId };
   }
@@ -166,12 +179,9 @@ describe("getModuleContext — database integration", () => {
       seedToolkitContent(
         client,
         buildFixtureContent(PROGRAM_KEY, [
-          buildFixtureModule(
-            "context-module-a",
-            0,
-            buildFixtureQuestions(),
-            [buildFixtureArtifact("verdict", 1)],
-          ),
+          buildFixtureModule("context-module-a", 0, buildFixtureQuestions(), [
+            buildFixtureArtifact("verdict", 1),
+          ]),
           // isPublishable requires at least one child row
           // (publishProgramVersion's own completeness check) — a single
           // fixture Artifact (never referenced by this suite's own
@@ -192,9 +202,10 @@ describe("getModuleContext — database integration", () => {
     // Deleted explicitly, ahead of the venture cascade below —
     // user_active_contexts_venture_fk has no "on delete cascade" of its
     // own (every fixture Founder here calls setActiveVenture).
-    await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-      createdUserIds,
-    ]);
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
     // Deleted explicitly too — artifact_submissions_run_module_definition_fk
     // (program_run_module_id, module_definition_id) -> program_run_modules
     // has no "on delete cascade" of its own (same as
@@ -207,11 +218,16 @@ describe("getModuleContext — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+    await pool.query("delete from programs where program_key = $1", [
+      PROGRAM_KEY,
+    ]);
   });
 
   it("rejects a non-founder actor", async () => {
@@ -234,7 +250,9 @@ describe("getModuleContext — database integration", () => {
   it("returns every active Question with a null responseStatus and resumes at the first Question when no Attempt has started", async () => {
     const { actor } = await createFounderWithActiveVenture("no-attempt");
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
 
     expect(context.runModule.moduleKey).toBe("context-module-a");
     expect(context.activeAttempt).toBeNull();
@@ -245,7 +263,9 @@ describe("getModuleContext — database integration", () => {
       "first_question",
       "final_decision",
     ]);
-    expect(context.questions.every((q) => q.responseStatus === null)).toBe(true);
+    expect(context.questions.every((q) => q.responseStatus === null)).toBe(
+      true,
+    );
     expect(context.questions.every((q) => q.answerText === null)).toBe(true);
     expect(context.artifacts).toEqual([
       {
@@ -263,12 +283,16 @@ describe("getModuleContext — database integration", () => {
 
   it("returns the active Attempt once one has started", async () => {
     const { actor } = await createFounderWithActiveVenture("with-attempt");
-    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     const { attempt } = await startOrResumeAttempt(actor, {
       programRunModuleId: runModule.runModule.id,
     });
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
 
     expect(context.activeAttempt).not.toBeNull();
     expect(context.activeAttempt?.id).toBe(attempt.id);
@@ -278,7 +302,9 @@ describe("getModuleContext — database integration", () => {
 
   it("reflects a saved Response's answer and advances resumeQuestionKey to the next unanswered Question", async () => {
     const { actor } = await createFounderWithActiveVenture("with-response");
-    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     const { attempt } = await startOrResumeAttempt(actor, {
       programRunModuleId: runModule.runModule.id,
     });
@@ -288,9 +314,13 @@ describe("getModuleContext — database integration", () => {
       value: "My answer.",
     });
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
 
-    const firstQuestion = context.questions.find((q) => q.questionKey === "first_question");
+    const firstQuestion = context.questions.find(
+      (q) => q.questionKey === "first_question",
+    );
     expect(firstQuestion?.responseStatus).toBe("answered");
     expect(firstQuestion?.answerText).toBe("My answer.");
     expect(context.resumeQuestionKey).toBe("final_decision");
@@ -298,7 +328,9 @@ describe("getModuleContext — database integration", () => {
 
   it("returns null resumeQuestionKey once every Question has been answered", async () => {
     const { actor } = await createFounderWithActiveVenture("all-answered");
-    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     const { attempt } = await startOrResumeAttempt(actor, {
       programRunModuleId: runModule.runModule.id,
     });
@@ -313,13 +345,17 @@ describe("getModuleContext — database integration", () => {
       value: "proceed",
     });
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     expect(context.resumeQuestionKey).toBeNull();
   });
 
   it("reflects a saved Artifact Submission's latest version", async () => {
     const { actor } = await createFounderWithActiveVenture("with-artifact");
-    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     const { attempt } = await startOrResumeAttempt(actor, {
       programRunModuleId: runModule.runModule.id,
     });
@@ -329,7 +365,9 @@ describe("getModuleContext — database integration", () => {
       content: "# Verdict\n\nFixture content.\n",
     });
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
 
     const artifact = context.artifacts.find((a) => a.artifactKey === "verdict");
     expect(artifact?.latestSubmission).toMatchObject({
@@ -337,28 +375,34 @@ describe("getModuleContext — database integration", () => {
       status: "draft",
       submittedAt: null,
     });
-    expect(artifact?.latestSubmission?.updatedAt).toEqual(
-      expect.any(String),
-    );
+    expect(artifact?.latestSubmission?.updatedAt).toEqual(expect.any(String));
   });
 
   it("scopes Questions/Artifacts strictly to the requested Module (a locked sibling Module sees only its own)", async () => {
     const { actor } = await createFounderWithActiveVenture("sibling-module");
 
-    const context = await getModuleContext(actor, { moduleKey: "context-module-b" });
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-b",
+    });
 
     expect(context.runModule.moduleKey).toBe("context-module-b");
     expect(context.runModule.status).toBe("locked");
     expect(context.questions).toEqual([]);
-    expect(context.artifacts.map((a) => a.artifactKey)).toEqual(["sibling-artifact"]);
+    expect(context.artifacts.map((a) => a.artifactKey)).toEqual([
+      "sibling-artifact",
+    ]);
     expect(context.artifacts[0].latestSubmission).toBeNull();
     expect(context.activeAttempt).toBeNull();
     expect(context.resumeQuestionKey).toBeNull();
   });
 
   it("after validation_failed, startOrResumeAttempt auto-retries and context still surfaces prior answers", async () => {
-    const { actor } = await createFounderWithActiveVenture("retry-keeps-answers");
-    const runModule = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const { actor } = await createFounderWithActiveVenture(
+      "retry-keeps-answers",
+    );
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     const { attempt: failedAttempt } = await startOrResumeAttempt(actor, {
       programRunModuleId: runModule.runModule.id,
     });
@@ -379,7 +423,9 @@ describe("getModuleContext — database integration", () => {
       [runModule.runModule.id],
     );
 
-    const beforeRetry = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const beforeRetry = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     expect(beforeRetry.activeAttempt).toBeNull();
     expect(beforeRetry.displayAttempt?.id).toBe(failedAttempt.id);
     // Same key as `afterRetry` asserts below, because the Retry that is
@@ -388,20 +434,27 @@ describe("getModuleContext — database integration", () => {
     // the Retry and then save straight past first_question.
     expect(beforeRetry.resumeQuestionKey).toBe("first_question");
     expect(
-      beforeRetry.questions.find((q) => q.questionKey === "first_question")?.answerText,
+      beforeRetry.questions.find((q) => q.questionKey === "first_question")
+        ?.answerText,
     ).toBe("Kept after failure.");
 
-    const { attempt: retryAttempt, created } = await startOrResumeAttempt(actor, {
-      programRunModuleId: runModule.runModule.id,
-    });
+    const { attempt: retryAttempt, created } = await startOrResumeAttempt(
+      actor,
+      {
+        programRunModuleId: runModule.runModule.id,
+      },
+    );
     expect(created).toBe(true);
     expect(retryAttempt.basedOnAttemptId).toBe(failedAttempt.id);
 
-    const afterRetry = await getModuleContext(actor, { moduleKey: "context-module-a" });
+    const afterRetry = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
     expect(afterRetry.activeAttempt?.id).toBe(retryAttempt.id);
     expect(afterRetry.displayAttempt?.id).toBe(failedAttempt.id);
     expect(
-      afterRetry.questions.find((q) => q.questionKey === "first_question")?.answerText,
+      afterRetry.questions.find((q) => q.questionKey === "first_question")
+        ?.answerText,
     ).toBe("Kept after failure.");
     // Write target is the empty Retry — resume at the first unanswered Question there.
     expect(afterRetry.resumeQuestionKey).toBe("first_question");

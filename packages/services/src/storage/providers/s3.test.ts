@@ -45,9 +45,11 @@ describe("S3StorageProvider", () => {
       bucket: "b",
       region: "ap-southeast-2",
       client: {
-        send: vi.fn().mockRejectedValue(
-          Object.assign(new Error("missing"), { name: "NoSuchKey" }),
-        ),
+        send: vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("missing"), { name: "NoSuchKey" }),
+          ),
       } as never,
     });
     await expect(

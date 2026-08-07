@@ -7,10 +7,7 @@ export type ModuleCatalogStatus = "live" | "coming_soon";
 export type ModuleType = "setup" | "standard" | "review" | "completion";
 
 export type ModuleCompletionMode =
-  | "artifact"
-  | "confirmation"
-  | "artifact_and_confirmation"
-  | "system";
+  "artifact" | "confirmation" | "artifact_and_confirmation" | "system";
 
 /**
  * Section checklist for an expected artefact, derived from ## headings in

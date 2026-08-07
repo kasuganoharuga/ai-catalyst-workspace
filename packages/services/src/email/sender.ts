@@ -1,4 +1,9 @@
-import type { EmailConfig, EmailMessage, EmailSender, EmailTransport } from "./types.js";
+import type {
+  EmailConfig,
+  EmailMessage,
+  EmailSender,
+  EmailTransport,
+} from "./types.js";
 import { NoopEmailTransport } from "./transports/noop.js";
 import { SesEmailTransport } from "./transports/ses.js";
 

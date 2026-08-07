@@ -4,7 +4,10 @@ import type { Pool, PoolClient } from "pg";
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
-import type { StorageObject, StorageObjectUploadStatus } from "@ai-catalyst/shared";
+import type {
+  StorageObject,
+  StorageObjectUploadStatus,
+} from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
@@ -287,7 +290,10 @@ async function loadAuthorizedStorageObject(
   executor: QueryExecutor,
   options: { forUpdate: boolean },
 ): Promise<StorageObjectRow> {
-  const id = parseEntityIdOrNotFound(storageObjectId, "Storage object not found.");
+  const id = parseEntityIdOrNotFound(
+    storageObjectId,
+    "Storage object not found.",
+  );
   const row = await fetchStorageObjectRow(executor, id, options);
   if (!row) {
     throw new ServiceError("NOT_FOUND", "Storage object not found.");
@@ -349,7 +355,10 @@ export async function getGeneratedTextContent(
   deps: StorageServiceDependencies = {},
 ): Promise<string> {
   assertGeneratedContentReader(actor);
-  const id = parseEntityIdOrNotFound(storageObjectId, "Storage object not found.");
+  const id = parseEntityIdOrNotFound(
+    storageObjectId,
+    "Storage object not found.",
+  );
   const row = await fetchStorageObjectRow(pool, id, { forUpdate: false });
   if (!row) {
     throw new ServiceError("NOT_FOUND", "Storage object not found.");

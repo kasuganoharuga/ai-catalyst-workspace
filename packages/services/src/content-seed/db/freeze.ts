@@ -60,16 +60,25 @@ async function assertNoPendingRunReconciliation(
       [run.id],
     );
     for (const branch of branchesResult.rows) {
-      const plan = await planBranchReconciliation(client, { branchId: branch.id, programVersionId });
+      const plan = await planBranchReconciliation(client, {
+        branchId: branch.id,
+        programVersionId,
+      });
       if (plan.isEmpty) {
         continue;
       }
       const parts: string[] = [];
-      if (plan.missing.length > 0) parts.push(`${plan.missing.length} missing Module(s)`);
-      if (plan.titleUpdates.length > 0) parts.push(`${plan.titleUpdates.length} title update(s)`);
-      if (plan.sequenceUpdates.length > 0) parts.push(`${plan.sequenceUpdates.length} sequence update(s)`);
-      if (plan.promotions.length > 0) parts.push(`${plan.promotions.length} promotion(s)`);
-      pending.push(`  Run ${run.id} / Branch ${branch.id}: ${parts.join(", ")}`);
+      if (plan.missing.length > 0)
+        parts.push(`${plan.missing.length} missing Module(s)`);
+      if (plan.titleUpdates.length > 0)
+        parts.push(`${plan.titleUpdates.length} title update(s)`);
+      if (plan.sequenceUpdates.length > 0)
+        parts.push(`${plan.sequenceUpdates.length} sequence update(s)`);
+      if (plan.promotions.length > 0)
+        parts.push(`${plan.promotions.length} promotion(s)`);
+      pending.push(
+        `  Run ${run.id} / Branch ${branch.id}: ${parts.join(", ")}`,
+      );
     }
   }
 
@@ -161,7 +170,9 @@ export async function freezeProgramVersion(
   // permanent", so the DB must match `content` exactly first. If content
   // has drifted (or this program_version was never actually mutable),
   // seedToolkitContent itself raises the appropriate ContentSeedError.
-  const seedResult = await seedToolkitContent(client, content, { allowArchive: false });
+  const seedResult = await seedToolkitContent(client, content, {
+    allowArchive: false,
+  });
 
   if (seedResult.contentLock !== "mutable") {
     throw new ContentSeedError(
@@ -199,7 +210,10 @@ export async function freezeProgramVersion(
   // program_version's Modules, frozen in one statement — content_lock is
   // the ONLY column this touches, per prompt_versions_freeze()'s "changed
   // on its own" trigger rule (0012_content_lock.sql).
-  const frozenPromptsResult = await client.query<{ prompt_key: string; version_number: number }>(
+  const frozenPromptsResult = await client.query<{
+    prompt_key: string;
+    version_number: number;
+  }>(
     `with reachable as (
        select distinct pv.id
        from module_prompt_bindings mpb
@@ -219,9 +233,10 @@ export async function freezeProgramVersion(
 
   // Freeze the program_version itself — content_lock is the ONLY column
   // this touches, same trigger rule as above.
-  await client.query(`update program_versions set content_lock = 'frozen' where id = $1`, [
-    seedResult.programVersionId,
-  ]);
+  await client.query(
+    `update program_versions set content_lock = 'frozen' where id = $1`,
+    [seedResult.programVersionId],
+  );
 
   return {
     programVersionId: seedResult.programVersionId,

@@ -141,7 +141,11 @@ async function insertModuleEvent(
     programRunBranchId: string;
     programRunModuleId: string;
     moduleAttemptId: string;
-    eventType: "attempt_started" | "retry_started" | "response_saved" | "attempt_submitted";
+    eventType:
+      | "attempt_started"
+      | "retry_started"
+      | "response_saved"
+      | "attempt_submitted";
     actor: ActorContext;
   },
 ): Promise<void> {
@@ -180,7 +184,10 @@ function normalizeStartOrResumeAttemptInput(input: unknown): {
     input === null ||
     !("programRunModuleId" in input)
   ) {
-    throw new ServiceError("VALIDATION_ERROR", "programRunModuleId is required.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "programRunModuleId is required.",
+    );
   }
 
   const { programRunModuleId, basedOnAttemptId } = input as {
@@ -188,7 +195,10 @@ function normalizeStartOrResumeAttemptInput(input: unknown): {
     basedOnAttemptId?: unknown;
   };
 
-  if (typeof programRunModuleId !== "string" || programRunModuleId.trim().length === 0) {
+  if (
+    typeof programRunModuleId !== "string" ||
+    programRunModuleId.trim().length === 0
+  ) {
     throw new ServiceError(
       "VALIDATION_ERROR",
       "programRunModuleId must be a non-blank string.",
@@ -198,7 +208,10 @@ function normalizeStartOrResumeAttemptInput(input: unknown): {
   if (basedOnAttemptId === undefined || basedOnAttemptId === null) {
     return { programRunModuleId, basedOnAttemptId: null };
   }
-  if (typeof basedOnAttemptId !== "string" || basedOnAttemptId.trim().length === 0) {
+  if (
+    typeof basedOnAttemptId !== "string" ||
+    basedOnAttemptId.trim().length === 0
+  ) {
     throw new ServiceError(
       "VALIDATION_ERROR",
       "basedOnAttemptId must be a non-blank string.",
@@ -221,7 +234,12 @@ async function insertInitialAttempt(
      )
      values ($1, $2, 1, 'initial', 'draft', null, $3, $4)
      returning ${ATTEMPT_COLUMNS}`,
-    [workspaceId, programRunModuleId, actor.userId, resolveInteractionProvider(actor)],
+    [
+      workspaceId,
+      programRunModuleId,
+      actor.userId,
+      resolveInteractionProvider(actor),
+    ],
   );
   return result.rows[0];
 }
@@ -241,7 +259,10 @@ async function insertRetryAttempt(
   basedOnAttemptId: string,
   actor: ActorContext,
 ): Promise<AttemptRow> {
-  const sourceResult = await client.query<{ id: string; status: ModuleAttemptStatus }>(
+  const sourceResult = await client.query<{
+    id: string;
+    status: ModuleAttemptStatus;
+  }>(
     `select id, status from module_attempts
      where id = $1 and program_run_module_id = $2
      for update`,
@@ -379,7 +400,10 @@ export async function startOrResumeAttempt(
   const requestedBasedOnAttemptId =
     normalized.basedOnAttemptId === null
       ? null
-      : parseEntityIdOrNotFound(normalized.basedOnAttemptId, "Attempt not found.");
+      : parseEntityIdOrNotFound(
+          normalized.basedOnAttemptId,
+          "Attempt not found.",
+        );
 
   const client = await pool.connect();
   try {
@@ -442,7 +466,10 @@ export async function startOrResumeAttempt(
         return { attempt: mapAttemptRow(active), created: false };
       }
 
-      if (active.status === "submitted" || active.status === "ready_for_review") {
+      if (
+        active.status === "submitted" ||
+        active.status === "ready_for_review"
+      ) {
         throw new ServiceError(
           "ATTEMPT_PENDING_REVIEW",
           `Attempt ${active.id} is "${active.status}" and is awaiting review.`,
@@ -475,7 +502,12 @@ export async function startOrResumeAttempt(
           "basedOnAttemptId was provided, but this Module has no prior Attempts to retry.",
         );
       }
-      newAttempt = await insertInitialAttempt(client, workspace.id, runModule.id, actor);
+      newAttempt = await insertInitialAttempt(
+        client,
+        workspace.id,
+        runModule.id,
+        actor,
+      );
       eventType = "attempt_started";
     } else {
       const basedOnAttemptId =
@@ -545,7 +577,9 @@ interface ParsedQuestionCondition {
 // An empty `{}` (module_questions.conditions' default) is not a condition
 // at all — only a well-formed `{ depends_on, operator: "equals", value }`
 // object counts as "this question has conditions".
-function parseNonEmptyConditions(conditions: unknown): ParsedQuestionCondition | null {
+function parseNonEmptyConditions(
+  conditions: unknown,
+): ParsedQuestionCondition | null {
   if (typeof conditions !== "object" || conditions === null) {
     return null;
   }
@@ -613,7 +647,10 @@ async function resolveAnswerText(
 ): Promise<string | null> {
   switch (responseStatus) {
     case "answered": {
-      if (question.response_type === "short_text" || question.response_type === "long_text") {
+      if (
+        question.response_type === "short_text" ||
+        question.response_type === "long_text"
+      ) {
         if (typeof value !== "string" || value.trim().length === 0) {
           throw new ServiceError(
             "VALIDATION_ERROR",
@@ -623,7 +660,10 @@ async function resolveAnswerText(
         return value;
       }
       if (question.response_type === "single_choice") {
-        if (typeof value !== "string" || !optionsInclude(question.options, value)) {
+        if (
+          typeof value !== "string" ||
+          !optionsInclude(question.options, value)
+        ) {
           throw new ServiceError(
             "VALIDATION_ERROR",
             `Question "${question.question_key}" requires a value matching one of its options.`,
@@ -653,7 +693,11 @@ async function resolveAnswerText(
           `Question "${question.question_key}" has no conditions, so it cannot be marked not_applicable.`,
         );
       }
-      const currentlyHolds = await evaluateConditionCurrentlyHolds(client, attemptId, condition);
+      const currentlyHolds = await evaluateConditionCurrentlyHolds(
+        client,
+        attemptId,
+        condition,
+      );
       if (currentlyHolds) {
         throw new ServiceError(
           "VALIDATION_ERROR",
@@ -686,7 +730,10 @@ function normalizeSaveFounderResponseInput(input: unknown): {
     !("attemptId" in input) ||
     !("questionKey" in input)
   ) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId and questionKey are required.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId and questionKey are required.",
+    );
   }
 
   const { attemptId, questionKey, responseStatus, value } = input as {
@@ -697,13 +744,20 @@ function normalizeSaveFounderResponseInput(input: unknown): {
   };
 
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   if (typeof questionKey !== "string" || questionKey.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "questionKey must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "questionKey must be a non-blank string.",
+    );
   }
 
-  const normalizedStatus = responseStatus === undefined ? "answered" : responseStatus;
+  const normalizedStatus =
+    responseStatus === undefined ? "answered" : responseStatus;
   if (
     normalizedStatus !== "answered" &&
     normalizedStatus !== "skipped" &&
@@ -732,7 +786,10 @@ export async function saveFounderResponse(
 ): Promise<ModuleResponse> {
   assertRole(actor, ["founder"]);
   const normalized = normalizeSaveFounderResponseInput(input);
-  const attemptId = parseEntityIdOrNotFound(normalized.attemptId, "Attempt not found.");
+  const attemptId = parseEntityIdOrNotFound(
+    normalized.attemptId,
+    "Attempt not found.",
+  );
 
   const client = await pool.connect();
   try {
@@ -883,7 +940,10 @@ function normalizeSubmitAttemptInput(input: unknown): { attemptId: string } {
   }
   const { attemptId } = input as { attemptId: unknown };
   if (typeof attemptId !== "string" || attemptId.trim().length === 0) {
-    throw new ServiceError("VALIDATION_ERROR", "attemptId must be a non-blank string.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "attemptId must be a non-blank string.",
+    );
   }
   return { attemptId };
 }
@@ -908,7 +968,10 @@ export async function submitAttempt(
 ): Promise<ModuleAttempt> {
   assertRole(actor, ["founder"]);
   const normalized = normalizeSubmitAttemptInput(input);
-  const attemptId = parseEntityIdOrNotFound(normalized.attemptId, "Attempt not found.");
+  const attemptId = parseEntityIdOrNotFound(
+    normalized.attemptId,
+    "Attempt not found.",
+  );
 
   const client = await pool.connect();
   try {
@@ -958,7 +1021,10 @@ export async function submitAttempt(
       throw new ServiceError("NOT_FOUND", "Attempt not found.");
     }
 
-    if (attempt.status === "submitted" || attempt.status === "ready_for_review") {
+    if (
+      attempt.status === "submitted" ||
+      attempt.status === "ready_for_review"
+    ) {
       await client.query("commit");
       return mapAttemptRow(attempt);
     }

@@ -15,16 +15,23 @@ import { reconcileProgramRun } from "./internal/reconcile-run-modules.js";
 //   2. `pnpm db:freeze`'s preflight requires EVERY Run's reconciliation
 //      plan to already be empty before it will freeze — this is what you
 //      run first to make that true.
-function parseArgs(argv: string[]): { programKey: string; versionLabel: string } {
+function parseArgs(argv: string[]): {
+  programKey: string;
+  versionLabel: string;
+} {
   const versionLabelIndex = argv.indexOf("--version-label");
-  const versionLabel = versionLabelIndex !== -1 ? argv[versionLabelIndex + 1] : undefined;
+  const versionLabel =
+    versionLabelIndex !== -1 ? argv[versionLabelIndex + 1] : undefined;
   if (!versionLabel) {
-    throw new Error("Usage: pnpm db:reconcile-runs -- --version-label <label> [--program-key <key>]");
+    throw new Error(
+      "Usage: pnpm db:reconcile-runs -- --version-label <label> [--program-key <key>]",
+    );
   }
 
   const programKeyIndex = argv.indexOf("--program-key");
   const programKey =
-    (programKeyIndex !== -1 ? argv[programKeyIndex + 1] : undefined) ?? PROGRAM_CONTENT.programKey;
+    (programKeyIndex !== -1 ? argv[programKeyIndex + 1] : undefined) ??
+    PROGRAM_CONTENT.programKey;
 
   return { programKey, versionLabel };
 }
@@ -32,7 +39,10 @@ function parseArgs(argv: string[]): { programKey: string; versionLabel: string }
 async function run(): Promise<void> {
   const { programKey, versionLabel } = parseArgs(process.argv.slice(2));
 
-  const versionResult = await pool.query<{ id: string; content_lock: "mutable" | "frozen" }>(
+  const versionResult = await pool.query<{
+    id: string;
+    content_lock: "mutable" | "frozen";
+  }>(
     `select pv.id, pv.content_lock
      from program_versions pv
      join programs p on p.id = pv.program_id
@@ -58,13 +68,18 @@ async function run(): Promise<void> {
     [version.id],
   );
 
-  console.log(`Reconciling ${runsResult.rows.length} Program Run(s) against program_version ${version.id}...`);
+  console.log(
+    `Reconciling ${runsResult.rows.length} Program Run(s) against program_version ${version.id}...`,
+  );
 
   let touched = 0;
   for (const row of runsResult.rows) {
     const summary = await reconcileProgramRun(row.id);
     const changed =
-      summary.missingInserted + summary.titlesUpdated + summary.sequencesUpdated + summary.promoted;
+      summary.missingInserted +
+      summary.titlesUpdated +
+      summary.sequencesUpdated +
+      summary.promoted;
     if (changed > 0) {
       touched += 1;
       console.log(
@@ -75,7 +90,9 @@ async function run(): Promise<void> {
     }
   }
 
-  console.log(`Done. ${touched}/${runsResult.rows.length} Run(s) needed reconciliation.`);
+  console.log(
+    `Done. ${touched}/${runsResult.rows.length} Run(s) needed reconciliation.`,
+  );
 }
 
 run()

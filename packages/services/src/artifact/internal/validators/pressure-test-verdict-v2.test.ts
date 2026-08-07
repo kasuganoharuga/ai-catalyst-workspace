@@ -99,15 +99,23 @@ function buildResponse(
 const VALID_RESPONSES: ValidationContextResponse[] = [
   buildResponse("idea_one_sentence", "A marketplace for freelance welders."),
   buildResponse("target_customer", "Small fabrication shops."),
-  buildResponse("customer_problem", "Finding qualified welders on short notice."),
+  buildResponse(
+    "customer_problem",
+    "Finding qualified welders on short notice.",
+  ),
   buildResponse("business_model", "Take rate on completed jobs."),
   buildResponse("current_stage", "idea_only"),
-  buildResponse("competitors_alternatives", "Generic job boards, word of mouth."),
+  buildResponse(
+    "competitors_alternatives",
+    "Generic job boards, word of mouth.",
+  ),
   buildResponse("founder_decision", "proceed"),
   buildResponse("pivot_detail", null, "not_applicable"),
 ];
 
-function buildContext(overrides: Partial<ValidationContext> = {}): ValidationContext {
+function buildContext(
+  overrides: Partial<ValidationContext> = {},
+): ValidationContext {
   return {
     content: VALID_CONTENT,
     responses: VALID_RESPONSES,
@@ -137,9 +145,10 @@ describe("pressure_test_verdict_v2", () => {
 
   it("allows AI Recommendation to differ from Founder Decision", () => {
     expect(VALID_CONTENT).toContain("**Recommendation:** Pivot");
-    expect(VALID_RESPONSES.find((r) => r.questionKey === "founder_decision")?.answerText).toBe(
-      "proceed",
-    );
+    expect(
+      VALID_RESPONSES.find((r) => r.questionKey === "founder_decision")
+        ?.answerText,
+    ).toBe("proceed");
     const result = pressureTestVerdictV2.runOfficialCheck(buildContext());
     expect(findCheck(result, "ai_recommendation").passed).toBe(true);
     expect(findCheck(result, "founder_decision_present").passed).toBe(true);
@@ -149,7 +158,9 @@ describe("pressure_test_verdict_v2", () => {
     const responses = VALID_RESPONSES.filter(
       (response) => response.questionKey !== "founder_decision",
     );
-    const result = pressureTestVerdictV2.runOfficialCheck(buildContext({ responses }));
+    const result = pressureTestVerdictV2.runOfficialCheck(
+      buildContext({ responses }),
+    );
     expect(findCheck(result, "founder_decision_present").passed).toBe(false);
   });
 
@@ -159,13 +170,20 @@ describe("pressure_test_verdict_v2", () => {
         ? buildResponse("founder_decision", "pivot")
         : response,
     );
-    const result = pressureTestVerdictV2.runOfficialCheck(buildContext({ responses }));
+    const result = pressureTestVerdictV2.runOfficialCheck(
+      buildContext({ responses }),
+    );
     expect(findCheck(result, "pivot_detail_when_pivot").passed).toBe(false);
   });
 
   it("fails required_markdown_sections when AI Recommendation heading is missing", () => {
-    const content = VALID_CONTENT.replace("## AI Recommendation", "## Something Else");
-    const result = pressureTestVerdictV2.runDraftCheck(buildContext({ content }));
+    const content = VALID_CONTENT.replace(
+      "## AI Recommendation",
+      "## Something Else",
+    );
+    const result = pressureTestVerdictV2.runDraftCheck(
+      buildContext({ content }),
+    );
     const check = findCheck(result, "required_markdown_sections");
     expect(check.passed).toBe(false);
     expect(check.message).toContain("ai_recommendation");

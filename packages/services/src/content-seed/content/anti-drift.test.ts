@@ -17,14 +17,20 @@ import { PROMPTS_CONTENT } from "./prompts.js";
 // content from the source files on every run.
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const TOOLKIT_CONTENT_ROOT = join(__dirname, "../../../../toolkit-content/skills");
+const TOOLKIT_CONTENT_ROOT = join(
+  __dirname,
+  "../../../../toolkit-content/skills",
+);
 
 // Normalises CRLF to LF: these source files are read on whatever line
 // endings the working tree checked them out with (this repo has files on
 // both), while the seeded TypeScript constants they're compared against
 // were authored with plain `\n` throughout.
 function readSourceFile(relativePath: string): string {
-  return readFileSync(join(TOOLKIT_CONTENT_ROOT, relativePath), "utf-8").replace(/\r\n/g, "\n");
+  return readFileSync(
+    join(TOOLKIT_CONTENT_ROOT, relativePath),
+    "utf-8",
+  ).replace(/\r\n/g, "\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +185,10 @@ function stripTemplateHints(raw: string): string {
       return;
     }
     const previous = kept[index - 1];
-    const separator = isBareListMarkerBlock(previous) && isBareListMarkerBlock(block) ? "\n" : "\n\n";
+    const separator =
+      isBareListMarkerBlock(previous) && isBareListMarkerBlock(block)
+        ? "\n"
+        : "\n\n";
     result += separator + block;
   });
 
@@ -206,17 +215,20 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
   {
     moduleKey: "module-03-problem-statement",
     artifactKey: "problem_interview_guide",
-    sourcePath: "module-03-problem-statement/templates/Problem-Interview-Guide.md",
+    sourcePath:
+      "module-03-problem-statement/templates/Problem-Interview-Guide.md",
   },
   {
     moduleKey: "module-04-evidence-of-unmet-need",
     artifactKey: "evidence_of_unmet_need",
-    sourcePath: "module-04-evidence-of-unmet-need/templates/Evidence-Of-Unmet-Need.md",
+    sourcePath:
+      "module-04-evidence-of-unmet-need/templates/Evidence-Of-Unmet-Need.md",
   },
   {
     moduleKey: "module-04-evidence-of-unmet-need",
     artifactKey: "validation_roadmap_30_day",
-    sourcePath: "module-04-evidence-of-unmet-need/templates/Validation-Roadmap-30-Day.md",
+    sourcePath:
+      "module-04-evidence-of-unmet-need/templates/Validation-Roadmap-30-Day.md",
   },
 ];
 
@@ -235,19 +247,29 @@ const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
 ];
 
 function findArtifact(moduleKey: string, artifactKey: string) {
-  const module = DEFAULT_TOOLKIT_CONTENT.modules.find((m) => m.moduleKey === moduleKey);
+  const module = DEFAULT_TOOLKIT_CONTENT.modules.find(
+    (m) => m.moduleKey === moduleKey,
+  );
   if (!module) throw new Error(`no such module: ${moduleKey}`);
   const artifact = module.artifacts.find((a) => a.artifactKey === artifactKey);
-  if (!artifact) throw new Error(`no such artifact: ${artifactKey} in ${moduleKey}`);
+  if (!artifact)
+    throw new Error(`no such artifact: ${artifactKey} in ${moduleKey}`);
   return artifact;
 }
 
 describe("seeded templateMarkdown matches the authoring template with hints stripped", () => {
-  for (const fixture of [...TEMPLATE_FIXTURES, ...UNVALIDATED_TEMPLATE_FIXTURES]) {
+  for (const fixture of [
+    ...TEMPLATE_FIXTURES,
+    ...UNVALIDATED_TEMPLATE_FIXTURES,
+  ]) {
     it(`${fixture.moduleKey} / ${fixture.artifactKey}`, () => {
       const artifact = findArtifact(fixture.moduleKey, fixture.artifactKey);
-      const seededTemplate = (artifact.outputConfig as { templateMarkdown: string }).templateMarkdown;
-      const derivedTemplate = stripTemplateHints(readSourceFile(fixture.sourcePath));
+      const seededTemplate = (
+        artifact.outputConfig as { templateMarkdown: string }
+      ).templateMarkdown;
+      const derivedTemplate = stripTemplateHints(
+        readSourceFile(fixture.sourcePath),
+      );
       expect(seededTemplate).toBe(derivedTemplate);
     });
   }
@@ -257,7 +279,9 @@ describe("the raw skeleton template fails its own artifact's draft validation", 
   for (const fixture of TEMPLATE_FIXTURES) {
     it(`${fixture.moduleKey} / ${fixture.artifactKey}`, () => {
       const artifact = findArtifact(fixture.moduleKey, fixture.artifactKey);
-      const templateMarkdown = (artifact.outputConfig as { templateMarkdown: string }).templateMarkdown;
+      const templateMarkdown = (
+        artifact.outputConfig as { templateMarkdown: string }
+      ).templateMarkdown;
       const context: ValidationContext = {
         content: templateMarkdown,
         responses: [],
@@ -278,7 +302,10 @@ describe("the raw skeleton template fails its own artifact's draft validation", 
 // a one-time transcription step.
 // ---------------------------------------------------------------------------
 
-function extractFencedBlockAfter(source: string, headingPrefix: string): string {
+function extractFencedBlockAfter(
+  source: string,
+  headingPrefix: string,
+): string {
   const headingIndex = source.indexOf(headingPrefix);
   if (headingIndex === -1) {
     throw new Error(`heading "${headingPrefix}" not found`);
@@ -286,7 +313,9 @@ function extractFencedBlockAfter(source: string, headingPrefix: string): string 
   const after = source.slice(headingIndex);
   const match = /```markdown\n([\s\S]*?)\n```/.exec(after);
   if (!match) {
-    throw new Error(`no fenced markdown block found after heading "${headingPrefix}"`);
+    throw new Error(
+      `no fenced markdown block found after heading "${headingPrefix}"`,
+    );
   }
   return match[1];
 }
@@ -326,12 +355,14 @@ const PROMPT_FIXTURES: PromptFixture[] = [
   },
   {
     promptKey: "evidence_facilitator",
-    sourcePath: "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
+    sourcePath:
+      "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
     headingPrefix: "## 4. Facilitator prompt",
   },
   {
     promptKey: "evidence_artifact_generator",
-    sourcePath: "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
+    sourcePath:
+      "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
     headingPrefix: "## 5. Artifact generator prompt",
   },
 ];
@@ -339,7 +370,10 @@ const PROMPT_FIXTURES: PromptFixture[] = [
 describe("seeded prompt content matches the reviewed prompt set", () => {
   for (const fixture of PROMPT_FIXTURES) {
     it(fixture.promptKey, () => {
-      const expected = extractFencedBlockAfter(readSourceFile(fixture.sourcePath), fixture.headingPrefix);
+      const expected = extractFencedBlockAfter(
+        readSourceFile(fixture.sourcePath),
+        fixture.headingPrefix,
+      );
       expect(promptContentByKey(fixture.promptKey)).toBe(expected);
     });
   }

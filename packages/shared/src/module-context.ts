@@ -1,6 +1,10 @@
 import type { ArtifactSubmissionStatus } from "./artifact-submission.js";
 import type { WorkbookFormat } from "./module-catalog.js";
-import type { ModuleAttempt, ModuleResponseStatus, ModuleResponseType } from "./module-attempt.js";
+import type {
+  ModuleAttempt,
+  ModuleResponseStatus,
+  ModuleResponseType,
+} from "./module-attempt.js";
 import type { RunModuleSummary } from "./run-module.js";
 
 // Question definition plus the current Attempt's Response (if any) for

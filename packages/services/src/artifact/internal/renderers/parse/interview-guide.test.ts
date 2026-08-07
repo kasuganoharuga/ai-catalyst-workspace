@@ -87,7 +87,9 @@ describe("parseInterviewGuide — happy path", () => {
     expect(model.passBar.preamble).toContain("at least 3 of 5");
     expect(model.passBar.preamble).not.toContain("**"); // emphasis stripped
     expect(model.passBar.conditions).toHaveLength(3);
-    expect(model.passBar.conditions[0]).toContain("specific reconciliation failure");
+    expect(model.passBar.conditions[0]).toContain(
+      "specific reconciliation failure",
+    );
   });
 
   it("extracts exactly 3 kill criteria", () => {
@@ -112,7 +114,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "5. Where does this sit against everything else on your plate this quarter?\n",
       "",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Five Interview Questions/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Five Interview Questions/,
+    );
   });
 
   it("throws when there are 6 questions", () => {
@@ -120,7 +124,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "## Mom Test Rules",
       "6. One extra question that should not be here.\n\n## Mom Test Rules",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Five Interview Questions/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Five Interview Questions/,
+    );
   });
 
   it("throws when Kill Criteria has only 2 patterns", () => {
@@ -128,7 +134,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "3. An existing tool would solve it if configured.\n",
       "",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Kill Criteria/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Kill Criteria/,
+    );
   });
 
   it("throws when Kill Criteria has 4 patterns", () => {
@@ -136,7 +144,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "## After Each Call",
       "4. A fourth kill pattern that should not exist.\n\n## After Each Call",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Kill Criteria/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Kill Criteria/,
+    );
   });
 
   it("throws when After Each Call is missing entirely", () => {
@@ -144,12 +154,19 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       /## After Each Call\n\n- Write the verbatim notes within 30 minutes\.\n- Record the customer's own words rather than a summary\.\n- Record anything that contradicted the problem statement\.\n\n/,
       "",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*After Each Call/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*After Each Call/,
+    );
   });
 
   it("throws when Venture name is blank", () => {
-    const bad = fixture().replace("- Venture name: Kerbside", "- Venture name:");
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Venture name/);
+    const bad = fixture().replace(
+      "- Venture name: Kerbside",
+      "- Venture name:",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Venture name/,
+    );
   });
 
   it("throws when Pass Bar has only 2 conditions", () => {
@@ -157,7 +174,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "- Has already spent money, staff time or tooling on the problem.\n",
       "",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Pass Bar/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Pass Bar/,
+    );
   });
 
   it("throws when Interview Target is empty", () => {
@@ -165,6 +184,8 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
       "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
       "",
     );
-    expect(() => parseInterviewGuide(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Interview Target/);
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Interview Target/,
+    );
   });
 });

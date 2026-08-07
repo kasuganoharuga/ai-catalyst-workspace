@@ -5,7 +5,8 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 // transactions — a failure here must not change the tool call outcome for
 // the caller.
 
-export type McpToolCallOutcome = "success" | "denied" | "validation_error" | "system_error";
+export type McpToolCallOutcome =
+  "success" | "denied" | "validation_error" | "system_error";
 
 // Which AI client made the call, carried on the ActorContext that
 // verifyMcpBearerToken built (derived there from the OAuth client's
@@ -61,7 +62,9 @@ export interface RecordMcpToolCallInput {
  * is the one Service function in this package that is allowed to fail
  * silently, and only for this reason.
  */
-export async function recordMcpToolCall(input: RecordMcpToolCallInput): Promise<void> {
+export async function recordMcpToolCall(
+  input: RecordMcpToolCallInput,
+): Promise<void> {
   try {
     // clientId/scopes/traceId have no dedicated columns on this table
     // (the real, already-merged 0001 baseline schema — this table
@@ -101,6 +104,9 @@ export async function recordMcpToolCall(input: RecordMcpToolCallInput): Promise<
       ],
     );
   } catch (error) {
-    console.error(`Failed to record MCP tool audit log for "${input.toolName}":`, error);
+    console.error(
+      `Failed to record MCP tool audit log for "${input.toolName}":`,
+      error,
+    );
   }
 }

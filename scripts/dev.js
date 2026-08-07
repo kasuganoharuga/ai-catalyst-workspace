@@ -26,7 +26,12 @@ const readline = require("node:readline");
 const path = require("node:path");
 
 const repoRoot = path.join(__dirname, "..");
-const composeFile = path.join(repoRoot, "infra", "docker", "docker-compose.yml");
+const composeFile = path.join(
+  repoRoot,
+  "infra",
+  "docker",
+  "docker-compose.yml",
+);
 const apiDir = path.join(repoRoot, "apps", "api");
 const isWindows = process.platform === "win32";
 
@@ -63,7 +68,12 @@ function spawnLabeled(label, command, args, options = {}) {
 }
 
 function dockerCompose(args) {
-  return spawnLabeled("docker", "docker", ["compose", "-f", composeFile, ...args]);
+  return spawnLabeled("docker", "docker", [
+    "compose",
+    "-f",
+    composeFile,
+    ...args,
+  ]);
 }
 
 // Promise-based, for the one-shot setup steps (start db, migrate) that must
@@ -81,7 +91,9 @@ function run(command, args, options = {}) {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+        reject(
+          new Error(`${command} ${args.join(" ")} exited with code ${code}`),
+        );
       }
     });
 
@@ -91,13 +103,24 @@ function run(command, args, options = {}) {
 
 async function main() {
   console.log("[dev] starting db...");
-  await run("docker", ["compose", "-f", composeFile, "up", "-d", "--wait", "db"]);
+  await run("docker", [
+    "compose",
+    "-f",
+    composeFile,
+    "up",
+    "-d",
+    "--wait",
+    "db",
+  ]);
 
   console.log("[dev] running migrations...");
   // Same migration runner and invocation as scripts/docker-up.js and CI —
   // packages/db/src/migrate.ts is the only place schema changes happen.
   await run("pnpm", ["--filter", "@ai-catalyst/db", "run", "migrate"], {
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL },
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL,
+    },
   });
 
   console.log("[dev] starting web + api...");
@@ -105,7 +128,16 @@ async function main() {
   const api = spawnLabeled(
     "api",
     "python",
-    ["-m", "uvicorn", "app.main:app", "--reload", "--host", "0.0.0.0", "--port", "8000"],
+    [
+      "-m",
+      "uvicorn",
+      "app.main:app",
+      "--reload",
+      "--host",
+      "0.0.0.0",
+      "--port",
+      "8000",
+    ],
     { cwd: apiDir },
   );
 

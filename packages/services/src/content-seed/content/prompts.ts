@@ -2335,7 +2335,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     versionNumber: 1,
     content: ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
-    variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },
+    variableConfig: {
+      variables: ["confirmed_responses", "artifact_definition"],
+    },
   },
   {
     promptKey: "customer_avatar_facilitator",
@@ -2351,12 +2353,15 @@ export const PROMPTS_CONTENT: PromptContent[] = [
   {
     promptKey: "customer_avatar_artifact_generator",
     name: "Ideal Customer Avatar Artifact Generator",
-    description: "Generates the single Ideal Customer Avatar artefact from the 13 confirmed Responses.",
+    description:
+      "Generates the single Ideal Customer Avatar artefact from the 13 confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
     content: CUSTOMER_AVATAR_ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
-    variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },
+    variableConfig: {
+      variables: ["confirmed_responses", "artifact_definition"],
+    },
   },
   {
     promptKey: "problem_statement_facilitator",
@@ -2378,7 +2383,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     versionNumber: 1,
     content: PROBLEM_STATEMENT_ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
-    variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },
+    variableConfig: {
+      variables: ["confirmed_responses", "artifact_definition"],
+    },
   },
   {
     promptKey: "evidence_facilitator",
@@ -2414,7 +2421,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     versionNumber: 1,
     content: EVIDENCE_ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
-    variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },
+    variableConfig: {
+      variables: ["confirmed_responses", "artifact_definition"],
+    },
   },
 ];
 

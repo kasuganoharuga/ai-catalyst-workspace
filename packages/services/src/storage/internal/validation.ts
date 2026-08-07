@@ -19,7 +19,9 @@ export const GENERATED_TEXT_CONTENT_TYPE = "text/markdown; charset=utf-8";
 // well under MAX_GENERATED_TEXT_BYTES characters but over the limit in
 // bytes, or vice versa is impossible, but the reverse mistake (trusting
 // .length) is not.
-export function assertGeneratedTextSizeWithinLimit(contentBuffer: Buffer): void {
+export function assertGeneratedTextSizeWithinLimit(
+  contentBuffer: Buffer,
+): void {
   if (contentBuffer.byteLength > MAX_GENERATED_TEXT_BYTES) {
     throw new ServiceError(
       "VALIDATION_ERROR",

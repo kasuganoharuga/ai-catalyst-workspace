@@ -57,8 +57,15 @@ function normalizeClaudeProjectId(value: unknown): string | null {
 }
 
 function normalizeUpdateClaudeProjectInput(input: unknown): string | null {
-  if (typeof input !== "object" || input === null || !("claudeProjectId" in input)) {
-    throw new ServiceError("VALIDATION_ERROR", "Claude project ID is required.");
+  if (
+    typeof input !== "object" ||
+    input === null ||
+    !("claudeProjectId" in input)
+  ) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Claude project ID is required.",
+    );
   }
 
   return normalizeClaudeProjectId(
@@ -165,7 +172,11 @@ function normalizeCreateVentureInput(input: unknown): NormalizedVentureInput {
 
   return {
     name: trimmedName,
-    oneLiner: normalizeOptionalText(oneLiner, ONE_LINER_MAX_LENGTH, "One-liner"),
+    oneLiner: normalizeOptionalText(
+      oneLiner,
+      ONE_LINER_MAX_LENGTH,
+      "One-liner",
+    ),
     summary: normalizeOptionalText(summary, SUMMARY_MAX_LENGTH, "Summary"),
   };
 }

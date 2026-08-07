@@ -34,7 +34,11 @@ export function linePitch(font: FontkitFont, size: number): number {
 export const FIELD_TOP_PADDING = 1;
 
 /** Sum of glyph advance widths for `text` at `size`, in the same units pdf-lib's `widthOfTextAtSize` returns. */
-export function measureTextWidth(font: FontkitFont, text: string, size: number): number {
+export function measureTextWidth(
+  font: FontkitFont,
+  text: string,
+  size: number,
+): number {
   let total = 0;
   for (const glyphRun of font.layout(text).glyphs) {
     total += ((glyphRun.advanceWidth ?? 0) / font.unitsPerEm) * size;
@@ -78,7 +82,12 @@ export function wrapText(
 }
 
 /** How tall a block of `text` will be once wrapped to `maxWidth` at `size` — what buildPlan uses to decide page breaks. */
-export function blockHeight(font: FontkitFont, text: string, size: number, maxWidth: number): number {
+export function blockHeight(
+  font: FontkitFont,
+  text: string,
+  size: number,
+  maxWidth: number,
+): number {
   return wrapText(font, text, size, maxWidth).length * linePitch(font, size);
 }
 
@@ -90,7 +99,11 @@ export function blockHeight(font: FontkitFont, text: string, size: number, maxWi
  * `widthOfTextAtSize` return a width with no error at all. Coverage must
  * therefore be checked explicitly, per character, before anything is drawn.
  */
-export function assertFontCoverage(font: FontkitFont, text: string, fieldName: string): void {
+export function assertFontCoverage(
+  font: FontkitFont,
+  text: string,
+  fieldName: string,
+): void {
   const missing = new Set<string>();
   for (const char of text) {
     const codePoint = char.codePointAt(0);

@@ -18,7 +18,12 @@ const { existsSync } = require("node:fs");
 const path = require("node:path");
 
 const repoRoot = path.join(__dirname, "..");
-const composeFile = path.join(repoRoot, "infra", "docker", "docker-compose.yml");
+const composeFile = path.join(
+  repoRoot,
+  "infra",
+  "docker",
+  "docker-compose.yml",
+);
 const envFile = path.join(repoRoot, ".env");
 const isWindows = process.platform === "win32";
 
@@ -38,7 +43,9 @@ function run(command, args, options = {}) {
       if (code === 0) {
         resolve();
       } else {
-        reject(new Error(`${command} ${args.join(" ")} exited with code ${code}`));
+        reject(
+          new Error(`${command} ${args.join(" ")} exited with code ${code}`),
+        );
       }
     });
 
@@ -54,7 +61,14 @@ function dockerCompose(args) {
   // like `context: ../..` resolve against, from "relative to the compose
   // file" to "relative to the project directory" — pointing it at the repo
   // root would turn `../..` into two levels above the repo root instead.)
-  return run("docker", ["compose", "--env-file", envFile, "-f", composeFile, ...args]);
+  return run("docker", [
+    "compose",
+    "--env-file",
+    envFile,
+    "-f",
+    composeFile,
+    ...args,
+  ]);
 }
 
 async function main() {
@@ -70,12 +84,18 @@ async function main() {
 
   console.log("[docker-up] running migrations...");
   await run("pnpm", ["--filter", "@ai-catalyst/db", "run", "migrate"], {
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL },
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL,
+    },
   });
 
   console.log("[docker-up] seeding founder-toolkit content...");
   await run("pnpm", ["--filter", "@ai-catalyst/services", "run", "seed"], {
-    env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL },
+    env: {
+      ...process.env,
+      DATABASE_URL: process.env.DATABASE_URL ?? LOCAL_DATABASE_URL,
+    },
   });
 
   console.log("[docker-up] starting remaining services...");

@@ -24,7 +24,7 @@ Describe the desired behavior or workflow.
 
 ### Success Criteria
 
-- 
+-
 
 ### Notes
 

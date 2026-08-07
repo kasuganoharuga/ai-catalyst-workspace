@@ -3,7 +3,10 @@ import { Pool } from "pg";
 import { seedToolkitContent } from "./index.js";
 
 function parseAllowArchive(argv: string[], env: NodeJS.ProcessEnv): boolean {
-  return argv.includes("--allow-archive") || env.ALLOW_DESTRUCTIVE_CONTENT_CHANGE === "1";
+  return (
+    argv.includes("--allow-archive") ||
+    env.ALLOW_DESTRUCTIVE_CONTENT_CHANGE === "1"
+  );
 }
 
 async function run(): Promise<void> {
@@ -23,7 +26,9 @@ async function run(): Promise<void> {
 
   try {
     await client.query("begin");
-    const result = await seedToolkitContent(client, undefined, { allowArchive });
+    const result = await seedToolkitContent(client, undefined, {
+      allowArchive,
+    });
     await client.query("commit");
 
     if (result.published) {
@@ -31,7 +36,10 @@ async function run(): Promise<void> {
         `Published program_version ${result.programVersionId} ` +
           `(${result.modulesReconciled} modules, ${result.promptsReconciled} prompt versions).`,
       );
-    } else if (result.modulesActivated > 0 || result.promptVersionsActivated > 0) {
+    } else if (
+      result.modulesActivated > 0 ||
+      result.promptVersionsActivated > 0
+    ) {
       console.log(
         `program_version ${result.programVersionId} (content_lock=${result.contentLock}) reconciled in place: ` +
           `${result.modulesActivated} module(s) newly activated, ` +

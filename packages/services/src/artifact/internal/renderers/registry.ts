@@ -33,7 +33,9 @@ export type {
   WorkbookRenderer,
 } from "./types.js";
 
-export function registerWorkbookRenderer<TModel>(renderer: WorkbookRenderer<TModel>): RegisteredWorkbookRenderer {
+export function registerWorkbookRenderer<TModel>(
+  renderer: WorkbookRenderer<TModel>,
+): RegisteredWorkbookRenderer {
   return {
     rendererKey: renderer.rendererKey,
     rendererVersion: renderer.rendererVersion,
@@ -54,9 +56,15 @@ export function registerWorkbookRenderer<TModel>(renderer: WorkbookRenderer<TMod
 }
 
 const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
-  [problemInterviewWorkbookV1.rendererKey]: registerWorkbookRenderer(problemInterviewWorkbookV1),
-  [validationRoadmapWorkbookV1.rendererKey]: registerWorkbookRenderer(validationRoadmapWorkbookV1),
-  [idealCustomerAvatarWorkbookV1.rendererKey]: registerWorkbookRenderer(idealCustomerAvatarWorkbookV1),
+  [problemInterviewWorkbookV1.rendererKey]: registerWorkbookRenderer(
+    problemInterviewWorkbookV1,
+  ),
+  [validationRoadmapWorkbookV1.rendererKey]: registerWorkbookRenderer(
+    validationRoadmapWorkbookV1,
+  ),
+  [idealCustomerAvatarWorkbookV1.rendererKey]: registerWorkbookRenderer(
+    idealCustomerAvatarWorkbookV1,
+  ),
 };
 
 /**

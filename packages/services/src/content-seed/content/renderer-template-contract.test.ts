@@ -16,7 +16,10 @@ function headingsIn(template: string): string[] {
   return [...template.matchAll(HEADING_PATTERN)].map((match) => match[2]);
 }
 
-function workbookArtifacts(): Array<{ moduleKey: string; artifact: ArtifactContent }> {
+function workbookArtifacts(): Array<{
+  moduleKey: string;
+  artifact: ArtifactContent;
+}> {
   const result: Array<{ moduleKey: string; artifact: ArtifactContent }> = [];
   for (const module of DEFAULT_TOOLKIT_CONTENT.modules) {
     for (const artifact of module.artifacts) {
@@ -38,7 +41,8 @@ describe("workbook renderer requiredSections-to-template contract", () => {
   for (const { moduleKey, artifact } of artifacts) {
     it(`${moduleKey} / ${artifact.artifactKey}: requiredSections and the template's headings agree exactly`, () => {
       const renderer = resolveWorkbookRenderer(artifact.rendererKey as string);
-      const template = (artifact.outputConfig as { templateMarkdown: string }).templateMarkdown;
+      const template = (artifact.outputConfig as { templateMarkdown: string })
+        .templateMarkdown;
       const templateHeadings = headingsIn(template);
 
       // Forward: catches a renderer referencing a heading the template no

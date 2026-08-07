@@ -5,10 +5,10 @@ ExecutionRole / policies stay reviewable.
 
 ## Roles
 
-| Role | Purpose |
-|------|---------|
-| ExecutionRole | ECR pull, CloudWatch logs, Secrets Manager inject |
-| TaskRole (per service) | App runtime: S3 R/W, SES send, Secrets read |
+| Role                   | Purpose                                           |
+| ---------------------- | ------------------------------------------------- |
+| ExecutionRole          | ECR pull, CloudWatch logs, Secrets Manager inject |
+| TaskRole (per service) | App runtime: S3 R/W, SES send, Secrets read       |
 
 ## Inputs
 

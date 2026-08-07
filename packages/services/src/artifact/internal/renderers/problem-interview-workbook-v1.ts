@@ -3,7 +3,10 @@
 // registry.ts. See plan/interview-workbook-plan.ts and
 // parse/interview-guide.ts for the actual logic — this file only combines
 // them per the contract in registry.ts.
-import { assertInterviewWorkbookPlan, buildInterviewWorkbookPlan } from "@ai-catalyst/services/artifact/internal/renderers/plan/interview-workbook-plan";
+import {
+  assertInterviewWorkbookPlan,
+  buildInterviewWorkbookPlan,
+} from "@ai-catalyst/services/artifact/internal/renderers/plan/interview-workbook-plan";
 import { PROBLEM_INTERVIEW_FIELD_MANIFEST_V1 } from "@ai-catalyst/services/artifact/internal/renderers/manifests/interview-v1";
 import { parseInterviewGuide } from "@ai-catalyst/services/artifact/internal/renderers/parse/interview-guide";
 import { renderWorkbookPlan } from "@ai-catalyst/services/artifact/internal/renderers/pdf/render-plan";
@@ -25,16 +28,17 @@ const REQUIRED_SECTIONS: RequiredSection[] = [
   "Where Results Go",
 ];
 
-export const problemInterviewWorkbookV1: WorkbookRenderer<InterviewGuideModel> = {
-  rendererKey: "problem_interview_workbook_v1",
-  rendererVersion: "1",
-  mimeType: "application/pdf",
-  extension: "pdf",
-  downloadFilename: "Problem-Interview-Workbook.pdf",
-  requiredSections: REQUIRED_SECTIONS,
-  fieldManifest: PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
-  parse: parseInterviewGuide,
-  buildPlan: buildInterviewWorkbookPlan,
-  assertPlanMatchesModel: assertInterviewWorkbookPlan,
-  render: renderWorkbookPlan,
-};
+export const problemInterviewWorkbookV1: WorkbookRenderer<InterviewGuideModel> =
+  {
+    rendererKey: "problem_interview_workbook_v1",
+    rendererVersion: "1",
+    mimeType: "application/pdf",
+    extension: "pdf",
+    downloadFilename: "Problem-Interview-Workbook.pdf",
+    requiredSections: REQUIRED_SECTIONS,
+    fieldManifest: PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
+    parse: parseInterviewGuide,
+    buildPlan: buildInterviewWorkbookPlan,
+    assertPlanMatchesModel: assertInterviewWorkbookPlan,
+    render: renderWorkbookPlan,
+  };

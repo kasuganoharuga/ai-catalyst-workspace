@@ -3,10 +3,7 @@
 export type VentureStatus = "active" | "paused" | "abandoned" | "archived";
 
 export type VentureLifecycleStage =
-  | "idea"
-  | "validating"
-  | "validated"
-  | "company_formed";
+  "idea" | "validating" | "validated" | "company_formed";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `Invitation`. Mapped once at the Service boundary.

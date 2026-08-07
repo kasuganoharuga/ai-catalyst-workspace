@@ -30,7 +30,10 @@ function escapeForRegex(value: string): string {
 function countLabelOccurrences(content: string, label: string): number {
   const escaped = escapeForRegex(label);
   const boldPattern = new RegExp(`^\\s*\\*\\*${escaped}:\\*\\*`, "gim");
-  const listItemPattern = new RegExp(`^\\s*[-*](?!\\*)\\s+${escaped}:\\s*`, "gim");
+  const listItemPattern = new RegExp(
+    `^\\s*[-*](?!\\*)\\s+${escaped}:\\s*`,
+    "gim",
+  );
   const boldMatches = content.match(boldPattern) ?? [];
   const listMatches = content.match(listItemPattern) ?? [];
   return boldMatches.length + listMatches.length;
@@ -42,22 +45,39 @@ function scopedContent(
 ): string {
   if (!scope) return template;
   const section = getSection(template, scope.level, scope.heading);
-  expect(section, `scope ${scope.level}:${scope.heading} must exist in the template`).not.toBeNull();
+  expect(
+    section,
+    `scope ${scope.level}:${scope.heading} must exist in the template`,
+  ).not.toBeNull();
   return section!;
 }
 
-function checkHeadingRef(template: string, level: number, heading: string, ruleKey: string) {
+function checkHeadingRef(
+  template: string,
+  level: number,
+  heading: string,
+  ruleKey: string,
+) {
   expect(
     sectionExists(template, level, heading),
     `rule "${ruleKey}" references heading "${heading}" at level ${level}, which does not exist in the template`,
   ).toBe(true);
 }
 
-function checkTableColumn(template: string, level: number, heading: string, column: string, ruleKey: string) {
+function checkTableColumn(
+  template: string,
+  level: number,
+  heading: string,
+  column: string,
+  ruleKey: string,
+) {
   checkHeadingRef(template, level, heading, ruleKey);
   const body = getSection(template, level, heading)!;
   const table = parseTable(body);
-  expect(table, `rule "${ruleKey}"'s heading "${heading}" must contain a Markdown table`).not.toBeNull();
+  expect(
+    table,
+    `rule "${ruleKey}"'s heading "${heading}" must contain a Markdown table`,
+  ).not.toBeNull();
   expect(
     tableColumnIndex(table!.headers, column),
     `rule "${ruleKey}" references column "${column}", which is not one of [${table!.headers.join(", ")}] under "${heading}"`,
@@ -112,7 +132,13 @@ function checkDraftRule(template: string, rule: DraftRule) {
     case "table_column_integer_range":
     case "table_column_enum":
     case "table_column_scored_reasoning":
-      checkTableColumn(template, rule.level, rule.heading, rule.column, rule.key);
+      checkTableColumn(
+        template,
+        rule.level,
+        rule.heading,
+        rule.column,
+        rule.key,
+      );
       return;
     case "label_present":
     case "label_enum":
@@ -134,7 +160,13 @@ function checkSubmissionRule(template: string, rule: SubmissionRule) {
       checkHeadingRef(template, rule.table.level, rule.table.heading, rule.key);
       for (const mapping of rule.mappings) {
         checkLabel(template, mapping.label, mapping.scope, rule.key);
-        checkTableColumn(template, rule.table.level, rule.table.heading, mapping.column, rule.key);
+        checkTableColumn(
+          template,
+          rule.table.level,
+          rule.table.heading,
+          mapping.column,
+          rule.key,
+        );
       }
       return;
   }
@@ -151,7 +183,10 @@ function isStructuredMarkdownConfig(
   );
 }
 
-function structuredMarkdownArtifacts(): Array<{ moduleKey: string; artifact: ArtifactContent }> {
+function structuredMarkdownArtifacts(): Array<{
+  moduleKey: string;
+  artifact: ArtifactContent;
+}> {
   const result: Array<{ moduleKey: string; artifact: ArtifactContent }> = [];
   for (const module of DEFAULT_TOOLKIT_CONTENT.modules) {
     for (const artifact of module.artifacts) {
@@ -174,12 +209,17 @@ describe("structured_markdown_v1 config-to-template contract", () => {
     describe(`${moduleKey} / ${artifact.artifactKey}`, () => {
       const config = artifact.validationConfig;
       if (!isStructuredMarkdownConfig(config)) {
-        throw new Error(`${artifact.artifactKey}: expected a structured_markdown_v1 config`);
+        throw new Error(
+          `${artifact.artifactKey}: expected a structured_markdown_v1 config`,
+        );
       }
-      const template = (artifact.outputConfig as { templateMarkdown: string }).templateMarkdown;
+      const template = (artifact.outputConfig as { templateMarkdown: string })
+        .templateMarkdown;
 
       it("has no duplicate rule keys", () => {
-        const keys = [...config.draftRules, ...config.submissionRules].map((rule) => rule.key);
+        const keys = [...config.draftRules, ...config.submissionRules].map(
+          (rule) => rule.key,
+        );
         expect(new Set(keys).size).toBe(keys.length);
       });
 

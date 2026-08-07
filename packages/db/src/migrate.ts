@@ -70,7 +70,10 @@ function validateAppliedChecksums(
 ): void {
   for (const migration of migrations) {
     const appliedChecksum = applied.get(migration.version);
-    if (appliedChecksum !== undefined && appliedChecksum !== migration.checksum) {
+    if (
+      appliedChecksum !== undefined &&
+      appliedChecksum !== migration.checksum
+    ) {
       throw new Error(
         `Migration ${migration.version} has already been applied but its checksum has changed. ` +
           "Applied migrations must never be edited — create a new migration file instead.",
@@ -124,7 +127,9 @@ async function run(): Promise<void> {
 
     validateAppliedChecksums(migrations, applied);
 
-    const pending = migrations.filter((migration) => !applied.has(migration.version));
+    const pending = migrations.filter(
+      (migration) => !applied.has(migration.version),
+    );
 
     if (pending.length === 0) {
       console.log("No pending migrations.");

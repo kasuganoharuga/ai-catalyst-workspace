@@ -90,9 +90,8 @@ describe("active-context service — database integration", () => {
   it("self-heals a stale active_workspace_id and clears the incompatible Venture", async () => {
     const { actor, workspaceId } =
       await createFounderWithWorkspace("self-heal");
-    const { workspaceId: otherWorkspaceId } = await createFounderWithWorkspace(
-      "self-heal-other",
-    );
+    const { workspaceId: otherWorkspaceId } =
+      await createFounderWithWorkspace("self-heal-other");
     const staleVentureId = await createVenture(
       otherWorkspaceId,
       actor.userId,
@@ -182,8 +181,8 @@ describe("active-context service — database integration", () => {
 
   it("rejects a malformed Venture id before it reaches Postgres", async () => {
     const { actor } = await createFounderWithWorkspace("malformed-id");
-    await expect(
-      setActiveVenture(actor, "not-a-uuid"),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(setActiveVenture(actor, "not-a-uuid")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });

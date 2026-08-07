@@ -1,4 +1,8 @@
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
 
 const PRESSURE_TEST_VERDICT_TEMPLATE = `# Pressure-Test Verdict
 
@@ -168,7 +172,8 @@ const DECISION_QUESTIONS: QuestionContent[] = [
     questionKey: "founder_decision",
     sequenceIndex: 7,
     questionGroup: "founder_decision",
-    questionText: "Your decision after reviewing the verdict: Proceed, Pivot, or Kill?",
+    questionText:
+      "Your decision after reviewing the verdict: Proceed, Pivot, or Kill?",
     helpText: null,
     placeholderText: null,
     responseType: "single_choice",
@@ -188,7 +193,11 @@ const DECISION_QUESTIONS: QuestionContent[] = [
     isRequired: false,
     allowSkip: true,
     options: [],
-    conditions: { depends_on: "founder_decision", operator: "equals", value: "pivot" },
+    conditions: {
+      depends_on: "founder_decision",
+      operator: "equals",
+      value: "pivot",
+    },
   },
 ];
 
@@ -287,7 +296,8 @@ export const MODULE_1_CONTENT: ModuleContent = {
   moduleKey: "module-01-pressure-test",
   sequenceIndex: 1,
   title: "Pressure-Test My Idea",
-  subtitle: "Test whether the current idea is clear and credible enough to continue",
+  subtitle:
+    "Test whether the current idea is clear and credible enough to continue",
   description:
     "Six confirmed structured answers (batch-saved after summary confirm), a locked-schema Pressure-Test Verdict with AI Recommendation, and a Founder Proceed/Pivot/Kill decision. Completeness unlocks the next module regardless of the decision.",
   objective:

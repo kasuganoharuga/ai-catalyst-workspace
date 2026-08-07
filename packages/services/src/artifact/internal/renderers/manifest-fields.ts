@@ -19,7 +19,11 @@ function resolveFamilyCount(
 ): number {
   if (spec.kind === "fixed") return spec.value;
   const resolved = context.familyCount(spec.source, sectionIndex);
-  if (!Number.isInteger(resolved) || resolved < spec.minimum || resolved > spec.maximum) {
+  if (
+    !Number.isInteger(resolved) ||
+    resolved < spec.minimum ||
+    resolved > spec.maximum
+  ) {
     throw new Error(
       `WORKBOOK_RENDER_FAILED: resolved count ${resolved} for "${spec.source}" is outside the manifest's ` +
         `declared range ${spec.minimum}-${spec.maximum}.`,
@@ -28,16 +32,25 @@ function resolveFamilyCount(
   return resolved;
 }
 
-function fieldNamesForSpec(field: FieldSpec, context: ManifestResolutionContext, sectionIndex: number): string[] {
+function fieldNamesForSpec(
+  field: FieldSpec,
+  context: ManifestResolutionContext,
+  sectionIndex: number,
+): string[] {
   if (field.kind === "fixed") {
     return [field.suffix];
   }
   const count = resolveFamilyCount(field.count, context, sectionIndex);
-  return Array.from({ length: count }, (_, i) => field.suffixTemplate.replace("{n}", String(i + 1)));
+  return Array.from({ length: count }, (_, i) =>
+    field.suffixTemplate.replace("{n}", String(i + 1)),
+  );
 }
 
 /** Every fully-qualified field name (`interview_1.date_day`, `interview_1.pass_bar_2`, ...) this manifest produces, given `context`. */
-export function expectedFieldNames(manifest: FieldManifest, context: ManifestResolutionContext): string[] {
+export function expectedFieldNames(
+  manifest: FieldManifest,
+  context: ManifestResolutionContext,
+): string[] {
   const names: string[] = [];
   for (let section = 1; section <= context.sectionCount; section += 1) {
     for (const field of manifest.fields) {
@@ -50,11 +63,21 @@ export function expectedFieldNames(manifest: FieldManifest, context: ManifestRes
 }
 
 /** Resolves the manifest's own `sectionCount` spec against a value the caller has already decided (a Founder's choice, or a model-derived count). */
-export function resolveSectionCount(manifest: FieldManifest, requested: number): number {
+export function resolveSectionCount(
+  manifest: FieldManifest,
+  requested: number,
+): number {
   const spec = manifest.sectionCount;
   if (spec.kind === "fixed") return spec.value;
-  const bounds = spec.kind === "option" ? { minimum: spec.minimum, maximum: spec.maximum } : spec;
-  if (!Number.isInteger(requested) || requested < bounds.minimum || requested > bounds.maximum) {
+  const bounds =
+    spec.kind === "option"
+      ? { minimum: spec.minimum, maximum: spec.maximum }
+      : spec;
+  if (
+    !Number.isInteger(requested) ||
+    requested < bounds.minimum ||
+    requested > bounds.maximum
+  ) {
     throw new Error(
       `WORKBOOK_RENDER_FAILED: requested section count ${requested} is outside the manifest's declared range ` +
         `${bounds.minimum}-${bounds.maximum}.`,

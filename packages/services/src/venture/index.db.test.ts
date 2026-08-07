@@ -114,9 +114,9 @@ describe("venture service — database integration", () => {
   it("rejects a name that is only whitespace", async () => {
     const { actor } = await createFounderWithWorkspace("blank-name");
 
-    await expect(createVenture(actor, { name: "   " })).rejects.toMatchObject(
-      { code: "VALIDATION_ERROR" },
-    );
+    await expect(createVenture(actor, { name: "   " })).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
   });
 
   it("normalizes an empty-string oneLiner/summary to null", async () => {
@@ -141,9 +141,8 @@ describe("venture service — database integration", () => {
   });
 
   it("rejects create when the Workspace is not active", async () => {
-    const { actor, workspaceId } = await createFounderWithWorkspace(
-      "suspended-create",
-    );
+    const { actor, workspaceId } =
+      await createFounderWithWorkspace("suspended-create");
     await pool.query(
       "update workspaces set status = 'suspended' where id = $1",
       [workspaceId],
@@ -245,7 +244,9 @@ describe("venture service — database integration", () => {
 
   it("rejects Claude project updates on an archived Venture", async () => {
     const { actor } = await createFounderWithWorkspace("archived-claude-id");
-    const venture = await createVenture(actor, { name: "Archived Claude Target" });
+    const venture = await createVenture(actor, {
+      name: "Archived Claude Target",
+    });
     await archiveVenture(actor, venture.id);
 
     await expect(
@@ -269,9 +270,8 @@ describe("venture service — database integration", () => {
   });
 
   it("rejects archive when the Workspace is not active", async () => {
-    const { actor, workspaceId } = await createFounderWithWorkspace(
-      "suspended-archive",
-    );
+    const { actor, workspaceId } =
+      await createFounderWithWorkspace("suspended-archive");
     const venture = await createVenture(actor, { name: "Suspend Target" });
     await pool.query(
       "update workspaces set status = 'suspended' where id = $1",

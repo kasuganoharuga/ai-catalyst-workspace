@@ -10,7 +10,12 @@ import {
 const BRANCH_ID = "branch-1";
 const PROGRAM_VERSION_ID = "program-version-1";
 
-function def(id: string, sequenceIndex: number, moduleKey = id, title = `Title ${id}`): ActiveDefinitionRow {
+function def(
+  id: string,
+  sequenceIndex: number,
+  moduleKey = id,
+  title = `Title ${id}`,
+): ActiveDefinitionRow {
   return { id, moduleKey, title, sequenceIndex };
 }
 
@@ -24,14 +29,25 @@ function existing(
   return { id, moduleDefinitionId, titleSnapshot, sequenceIndex, status };
 }
 
-function plan(activeDefs: ActiveDefinitionRow[], current: ExistingRunModuleRow[]) {
-  return computeBranchReconciliationPlan(BRANCH_ID, PROGRAM_VERSION_ID, activeDefs, current);
+function plan(
+  activeDefs: ActiveDefinitionRow[],
+  current: ExistingRunModuleRow[],
+) {
+  return computeBranchReconciliationPlan(
+    BRANCH_ID,
+    PROGRAM_VERSION_ID,
+    activeDefs,
+    current,
+  );
 }
 
 describe("computeBranchReconciliationPlan", () => {
   it("is empty when the Run already matches the active chain exactly", () => {
     const activeDefs = [def("d1", 1), def("d2", 2)];
-    const current = [existing("r1", "d1", 1, "completed"), existing("r2", "d2", 2, "available")];
+    const current = [
+      existing("r1", "d1", 1, "completed"),
+      existing("r2", "d2", 2, "available"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.isEmpty).toBe(true);
     expect(result.missing).toEqual([]);
@@ -44,7 +60,13 @@ describe("computeBranchReconciliationPlan", () => {
     const result = plan(activeDefs, current);
     expect(result.isEmpty).toBe(false);
     expect(result.missing).toEqual([
-      { moduleDefinitionId: "d2", moduleKey: "d2", title: "Title d2", finalSequenceIndex: 2, status: "available" },
+      {
+        moduleDefinitionId: "d2",
+        moduleKey: "d2",
+        title: "Title d2",
+        finalSequenceIndex: 2,
+        status: "available",
+      },
     ]);
   });
 
@@ -59,13 +81,22 @@ describe("computeBranchReconciliationPlan", () => {
     const activeDefs = [def("d1", 1)];
     const result = plan(activeDefs, []);
     expect(result.missing).toEqual([
-      { moduleDefinitionId: "d1", moduleKey: "d1", title: "Title d1", finalSequenceIndex: 1, status: "available" },
+      {
+        moduleDefinitionId: "d1",
+        moduleKey: "d1",
+        title: "Title d1",
+        finalSequenceIndex: 1,
+        status: "available",
+      },
     ]);
   });
 
   it("two consecutive missing Modules: first available, second locked — computed in a single pass", () => {
     const activeDefs = [def("d1", 1), def("d2", 2), def("d3", 3), def("d4", 4)];
-    const current = [existing("r1", "d1", 1, "completed"), existing("r4", "d4", 4, "locked")];
+    const current = [
+      existing("r1", "d1", 1, "completed"),
+      existing("r4", "d4", 4, "locked"),
+    ];
     const result = plan(activeDefs, current);
 
     const m2 = result.missing.find((row) => row.moduleDefinitionId === "d2")!;
@@ -79,14 +110,20 @@ describe("computeBranchReconciliationPlan", () => {
 
   it("promotes a locked Module whose predecessor is completed (repair)", () => {
     const activeDefs = [def("d1", 1), def("d2", 2)];
-    const current = [existing("r1", "d1", 1, "completed"), existing("r2", "d2", 2, "locked")];
+    const current = [
+      existing("r1", "d1", 1, "completed"),
+      existing("r2", "d2", 2, "locked"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.promotions).toEqual(["r2"]);
   });
 
   it("promotes a locked Module whose predecessor is inherited (repair)", () => {
     const activeDefs = [def("d1", 1), def("d2", 2)];
-    const current = [existing("r1", "d1", 1, "inherited"), existing("r2", "d2", 2, "locked")];
+    const current = [
+      existing("r1", "d1", 1, "inherited"),
+      existing("r2", "d2", 2, "locked"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.promotions).toEqual(["r2"]);
   });
@@ -96,7 +133,10 @@ describe("computeBranchReconciliationPlan", () => {
     // active chain now starts at d2. The Run still has a row for the old
     // d1 (now an orphan) and d2 was previously locked behind it.
     const activeDefs = [def("d2", 2)];
-    const current = [existing("r1", "orphan-def", 1, "locked"), existing("r2", "d2", 2, "locked")];
+    const current = [
+      existing("r1", "orphan-def", 1, "locked"),
+      existing("r2", "d2", 2, "locked"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.promotions).toEqual(["r2"]);
     expect(result.orphanedIds).toEqual(["r1"]);
@@ -105,9 +145,17 @@ describe("computeBranchReconciliationPlan", () => {
   it("never relocks an existing non-locked row, regardless of predecessor (monotonic access)", () => {
     // Insert a brand new Module between d1 (completed) and d2, which was
     // already available/in_progress/completed from before the insertion.
-    for (const priorStatus of ["available", "in_progress", "ready_to_unlock", "completed"] as const) {
+    for (const priorStatus of [
+      "available",
+      "in_progress",
+      "ready_to_unlock",
+      "completed",
+    ] as const) {
       const activeDefs = [def("d1", 1), def("dNew", 2), def("d2", 3)];
-      const current = [existing("r1", "d1", 1, "completed"), existing("r2", "d2", 3, priorStatus)];
+      const current = [
+        existing("r1", "d1", 1, "completed"),
+        existing("r2", "d2", 3, priorStatus),
+      ];
       const result = plan(activeDefs, current);
       // dNew is inserted locked (predecessor d1 completed -> actually d1
       // is completed so dNew becomes available); regardless, r2's status
@@ -153,7 +201,9 @@ describe("computeBranchReconciliationPlan", () => {
     const result = plan(activeDefs, current);
     expect(result.isEmpty).toBe(false);
 
-    const seqById = new Map(result.sequenceUpdates.map((row) => [row.id, row.finalSequenceIndex]));
+    const seqById = new Map(
+      result.sequenceUpdates.map((row) => [row.id, row.finalSequenceIndex]),
+    );
     expect(seqById.get("r1")).toBe(5); // d1 moves to its real desired position
     expect(seqById.get("rA")).toBe(6); // activeMax(5) + 1
     expect(seqById.get("rB")).toBe(7); // activeMax(5) + 2 — still after rA
@@ -166,16 +216,24 @@ describe("computeBranchReconciliationPlan", () => {
     // simple and independent of how far out of the way an orphan
     // happened to already be.
     const activeDefs = [def("d1", 1)];
-    const current = [existing("r1", "d1", 1, "completed"), existing("rO", "orphan", 5, "locked")];
+    const current = [
+      existing("r1", "d1", 1, "completed"),
+      existing("rO", "orphan", 5, "locked"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.isEmpty).toBe(false);
     expect(result.orphanedIds).toEqual(["rO"]);
-    expect(result.sequenceUpdates).toEqual([{ id: "rO", finalSequenceIndex: 2 }]);
+    expect(result.sequenceUpdates).toEqual([
+      { id: "rO", finalSequenceIndex: 2 },
+    ]);
   });
 
   it("computes an offset that clears every desired final sequence_index", () => {
     const activeDefs = [def("d1", 2), def("d2", 1)]; // swapped vs. current
-    const current = [existing("r1", "d1", 1, "completed"), existing("r2", "d2", 2, "available")];
+    const current = [
+      existing("r1", "d1", 1, "completed"),
+      existing("r2", "d2", 2, "available"),
+    ];
     const result = plan(activeDefs, current);
     expect(result.offset).toBeGreaterThan(2);
   });

@@ -49,14 +49,18 @@ export async function activateReconciledContent(
   // archiving every child of a still-publishable Module correctly fails
   // here instead of silently leaving an empty shell active.
   for (const module of publishableModules) {
-    const counts = await client.query<{ question_count: string; artifact_count: string }>(
+    const counts = await client.query<{
+      question_count: string;
+      artifact_count: string;
+    }>(
       `select
          (select count(*) from module_questions where module_definition_id = $1 and status = 'active') as question_count,
          (select count(*) from artifact_definitions where module_definition_id = $1 and status = 'active') as artifact_count`,
       [module.moduleId],
     );
     const row = counts.rows[0];
-    const totalChildren = Number(row?.question_count ?? 0) + Number(row?.artifact_count ?? 0);
+    const totalChildren =
+      Number(row?.question_count ?? 0) + Number(row?.artifact_count ?? 0);
     if (totalChildren === 0) {
       fail(
         `Module "${module.moduleKey}" is marked publishable but has no active module_questions or artifact_definitions rows.`,
@@ -71,7 +75,11 @@ export async function activateReconciledContent(
   // reconcile-ordered-rows.ts's applyOrderedRowsPlan revive-status for
   // module_definitions), which still satisfies this.
   if (placeholderModules.length > 0) {
-    const statuses = await client.query<{ id: string; status: string; module_key: string }>(
+    const statuses = await client.query<{
+      id: string;
+      status: string;
+      module_key: string;
+    }>(
       `select id, module_key, status from module_definitions where id = any($1::uuid[])`,
       [placeholderModules.map((module) => module.moduleId)],
     );
@@ -86,9 +94,13 @@ export async function activateReconciledContent(
   // Step 4 — required Prompt Definitions/Versions must exist for every
   // Module that expects bindings.
   for (const [moduleKey, expectedCount] of expectedModulePromptBindingCounts) {
-    const module = modules.find((candidate) => candidate.moduleKey === moduleKey);
+    const module = modules.find(
+      (candidate) => candidate.moduleKey === moduleKey,
+    );
     if (!module) {
-      fail(`Module "${moduleKey}" has expected prompt bindings but was not reconciled.`);
+      fail(
+        `Module "${moduleKey}" has expected prompt bindings but was not reconciled.`,
+      );
     }
     const bindingCount = await client.query<{ count: string }>(
       `select count(*) as count from module_prompt_bindings where module_definition_id = $1`,
@@ -156,7 +168,9 @@ export async function activateReconciledContent(
   // archived-then-revived one, which reconcile-ordered-rows.ts's
   // applyOrderedRowsPlan always revives to 'draft' specifically so it
   // lands back here). Idempotent for the same reason as Step 7 above.
-  const publishableModuleIds = publishableModules.map((module) => module.moduleId);
+  const publishableModuleIds = publishableModules.map(
+    (module) => module.moduleId,
+  );
   let modulesActivated = 0;
   if (publishableModuleIds.length > 0) {
     const activated = await client.query<{ id: string }>(
@@ -218,6 +232,8 @@ export async function markProgramVersionPublished(
     [programVersionId],
   );
   if (published.rowCount !== 1) {
-    fail(`Expected to publish program_version ${programVersionId}, updated ${published.rowCount} rows.`);
+    fail(
+      `Expected to publish program_version ${programVersionId}, updated ${published.rowCount} rows.`,
+    );
   }
 }

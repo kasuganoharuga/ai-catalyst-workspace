@@ -111,7 +111,9 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
       "| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | 5 | Week 2–3 |\n",
       "",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Experiments/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Experiments/,
+    );
   });
 
   it("throws with 4 experiments", () => {
@@ -121,17 +123,23 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
         "| Fourth experiment | Claim | Pass | Fail | 1 hour | $0 | 2 | Week 4 |\n\n" +
         "### Expected evidence signal strength",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Experiments/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Experiments/,
+    );
   });
 
   it("throws when signal strength is out of range", () => {
     const bad = fixture().replace("| 4 | Week 1 |", "| 9 | Week 1 |");
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*signal strength/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*signal strength/,
+    );
   });
 
   it("throws when signal strength is not a number", () => {
     const bad = fixture().replace("| 4 | Week 1 |", "| high | Week 1 |");
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*signal strength/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*signal strength/,
+    );
   });
 
   it("throws when there are only 4 signal strength anchors", () => {
@@ -139,7 +147,9 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
       "- **5** — can produce a binding commercial commitment or payment\n",
       "",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*[Ss]ignal strength/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*[Ss]ignal strength/,
+    );
   });
 
   it("throws when Start Here's pass condition does not match experiment 1's", () => {
@@ -147,7 +157,9 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
       "**What counts as a pass:** 3 of 8 leads send a run sheet within 48 hours",
       "**What counts as a pass:** literally any response at all",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*pass condition/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*pass condition/,
+    );
   });
 
   it("throws when Start Here's fail condition does not match experiment 1's", () => {
@@ -155,7 +167,9 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
       "**What counts as a fail:** Fewer than 2 of 8 respond within a week",
       "**What counts as a fail:** nobody ever responds, ever",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*fail condition/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*fail condition/,
+    );
   });
 
   it("throws when a required table column is missing", () => {
@@ -167,12 +181,19 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
   });
 
   it("throws when Venture name is blank", () => {
-    const bad = fixture().replace("- Venture name: Kerbside", "- Venture name:");
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Venture name/);
+    const bad = fixture().replace(
+      "- Venture name: Kerbside",
+      "- Venture name:",
+    );
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Venture name/,
+    );
   });
 
   it("throws when Budget is missing", () => {
     const bad = fixture().replace("**Budget:** $500\n\n", "");
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED.*Budget/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Budget/,
+    );
   });
 });

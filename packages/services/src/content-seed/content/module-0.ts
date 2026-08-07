@@ -35,7 +35,8 @@ export const MODULE_0_CONTENT: ModuleContent = {
   moduleKey: "module-00-setup",
   sequenceIndex: 0,
   title: "Setup and Connection",
-  subtitle: "Confirm the Toolkit works end to end before starting substantive work",
+  subtitle:
+    "Confirm the Toolkit works end to end before starting substantive work",
   description:
     "Confirms the authenticated Founder, authorised Workspace, active Venture, Remote MCP connection, and platform storage read/write before Module 1 begins. Does not connect Google Drive, does not ask pressure-test questions, and does not produce a business verdict.",
   objective:
