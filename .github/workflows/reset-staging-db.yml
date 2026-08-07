@@ -43,11 +43,13 @@ jobs:
       CLUSTER: ai-catalyst-staging
       SUBNETS: subnet-07b302fc84ea32325,subnet-0463eda6ac077e977
       SECURITY_GROUP: sg-0e0aad4d80002be63
-      # Staging RDS was provisioned as ai_catalyst_develop (not the
-      # terraform module default ai_catalyst). packages/db/src/reset.ts
-      # requires --confirm-database to match DATABASE_URL's path exactly —
-      # a wrong name is refused before any DROP runs.
-      STAGING_DB_NAME: ai_catalyst_develop
+      # Staging now owns its own RDS instance inside the staging VPC, with a
+      # single database named ai_catalyst; the old ai_catalyst_develop lived on
+      # an instance shared with the retired production environment.
+      # packages/db/src/reset.ts requires --confirm-database to match
+      # DATABASE_URL's path exactly — a wrong name is refused before any DROP
+      # runs, so this value has to track the database it points at.
+      STAGING_DB_NAME: ai_catalyst
 
     steps:
       - name: Verify confirmation phrase
