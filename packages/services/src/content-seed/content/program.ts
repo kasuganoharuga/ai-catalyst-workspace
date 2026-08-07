@@ -7,24 +7,68 @@ import type { ProgramContent } from "../types.js";
 // This is a program_versions row under program_key "founder-toolkit-v1"
 // (content revision). It is not a second overall product Program — a future
 // product-line V2 would be a new programs.program_key.
+//
+// versionNumber/versionLabel are meant to stay fixed at 1/"v1" for the
+// entire living-V1 period — versionLabel is upsertProgramVersion's lookup
+// key, so changing it mid-stream would create a second program_versions
+// row instead of reconciling this one. They only move to 2/a new label
+// once V1 is frozen (`pnpm db:freeze`) and a genuinely new version starts;
+// see freeze-cli.ts's own printed runbook for that sequence. Until then,
+// every content edit — including this file's own releaseNotes below —
+// lands on this same row via db:seed, because contentLock is "mutable".
+//
+// This is the changelog for the living V1 row, editable in place — add a
+// new entry at the top on every content change from now on, the same way
+// a CHANGELOG.md would be updated, rather than writing a new
+// program_versions row per edit. It replaces the old per-version
+// releaseNotes text v1-v6 each carried (those program_versions rows,
+// and the release notes describing them, existed under the old
+// "one program_version per content revision" scheme this rollout
+// replaces — see infra/database/migrations/0012_content_lock.sql's own
+// comments for why).
+const V1_CHANGELOG = [
+  "## Living V1 rollout — content_lock becomes 'mutable'",
+  "Every prompt/content edit used to require publishing a brand-new program_version, which a Founder ",
+  "already mid-Run never saw (program_versions binds at Run creation and never moves — see that column's ",
+  "own comment). That meant shipping a fix and having real Founders testing the product were mutually ",
+  "exclusive. From this point on, while content_lock='mutable', the content-seed reconciler can edit ",
+  "Modules/Questions/Artifact Definitions/Prompts of this already-published program_version in place, and ",
+  "every Founder Run's program_run_modules is kept in sync automatically — a missing Module is front-filled, ",
+  "a renamed/reordered one is updated, and nothing already unlocked is ever re-locked (see ",
+  "workflow/internal/reconcile-run-modules.ts) — the next time getOrCreateProgramRun runs for that Founder. ",
+  "`pnpm db:freeze` ends the living period for good and restores the original bound-at-creation semantics for ",
+  "whatever version comes after.",
+  "",
+  "Staging and production were reset (every prior program_version, and every Run/Founder bound to one, was ",
+  "wiped — see packages/db/src/reset.ts) rather than migrated in place: collapsing six already-diverged content ",
+  "revisions (v1 through v6) into a single living v1 row is not a safe automatic migration.",
+  "",
+  "## Carried over from the old program_versions v6 (\"v6-interview-notes-source-of-truth\")",
+  "Module 4 previously saved Interview-Notes.md in Block 1 and then graded the rest of the Module from ",
+  "`evidence_additions`, which the facilitator itself describes as a deliberately lossy set of extracts — a ",
+  "Module resumed in a new chat a week later had no complete copy of the interviews left. v6 inverted that: the ",
+  "file is the record, the extracts are an index into it. evidence_facilitator orders the save ahead of every ",
+  "Response (readable notes -> normalise -> save_artifact -> confirm success -> save_founder_input), stops the ",
+  "Module if that save fails rather than continuing from the conversation copy, requires every later block and ",
+  "every resume to re-read the file with get_artifact, and warns that Interview-Notes.md needs this Module's ",
+  "own attemptId while Module 3's Problem-Interview-Guide.md needs Module 3's. evidence_artifact_generator reads ",
+  "the file back before generating, so quotations come from the record. interview_notes moved to sequence_index ",
+  "1 and the two graded outputs to 2 and 3, so sequence order describes when each artefact happens; what a ",
+  "Module is summarised by is its first *required* Artifact (apps/web's headlineArtifact), not its first row.",
+].join("\n");
+
 export const PROGRAM_CONTENT: ProgramContent = {
   programKey: "founder-toolkit-v1",
   programName: "AI Catalyst Founder Toolkit",
   programDescription:
     "The single V1 Program: a skill-first founder workflow from raw idea to validation-ready plan.",
-  versionNumber: 6,
-  versionLabel: "v6-interview-notes-source-of-truth",
-  versionName: "Founder Toolkit — Interview notes as Module 4's source of truth",
+  versionNumber: 1,
+  versionLabel: "v1",
+  versionName: "Founder Toolkit V1 (living)",
   versionDescription:
-    "Same five active Modules and the same three Module 4 Artifact Definitions as v5, with Interview-Notes.md moved to sequence_index 1 (it is the first thing that happens in Module 4). evidence_facilitator moves to v4 and evidence_artifact_generator to v2: the saved Interview-Notes.md becomes the Module's source of truth for what customers said, rather than a write-once archive read only by later Modules.",
-  // PR1 of the living-V1 rollout (see the content-lock migration and
-  // content-seed/db/program.ts): this stays "frozen" until the PR that
-  // resets staging and collapses these constants down to v1 flips it to
-  // "mutable" — keeping it "frozen" here means PR1 is a no-behavioural-
-  // -change change: content_lock is a new column but every row this seed
-  // script writes is still frozen, so isContentEditable degrades exactly
-  // to today's isDraftEditable.
-  contentLock: "frozen",
-  releaseNotes:
-    "program_versions v6 under founder-toolkit-v1. Module 4 previously saved Interview-Notes.md in Block 1 and then graded the rest of the Module from `evidence_additions`, which the facilitator itself describes as a deliberately lossy set of extracts. A Module resumed in a new chat a week later therefore had no complete copy of the interviews left. v6 inverts that: the file is the record, the extracts are an index into it. evidence_facilitator v4 orders the save ahead of every Response (readable notes -> normalise -> save_artifact -> confirm success -> save_founder_input), stops the Module if that save fails rather than continuing from the conversation copy, requires every later block and every resume to re-read the file with get_artifact, and warns that Interview-Notes.md needs this Module's own attemptId while Module 3's Problem-Interview-Guide.md needs Module 3's — the two rules are opposites and were easy to conflate. evidence_artifact_generator v2 reads the file back before generating, so quotations come from the record. Artifact Definition change: interview_notes moves to sequence_index 1 and the two graded outputs to 2 and 3, so sequence order describes when each artefact happens; what a Module is summarised by is now its first *required* Artifact (apps/web's headlineArtifact), not its first row. Applies only to newly created Runs — a Run binds its program_version at creation, so in-flight v5 Runs keep v5's prompts and ordering and are not rolled over. Published v1-module-0-1, v2-module-1-interview-flow, v3-modules-2-3-4, v4-interview-notes-artefact and v5-facilitator-prompt-fidelity remain immutable for their in-flight Runs.",
+    "The living V1 content set: Modules, Questions, Artifact Definitions, and Prompts evolve in place " +
+    "(content_lock='mutable') until V1 is judged complete and frozen. See releaseNotes for the changelog " +
+    "of what changed and when.",
+  contentLock: "mutable",
+  releaseNotes: V1_CHANGELOG,
 };

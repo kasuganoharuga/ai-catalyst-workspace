@@ -118,29 +118,19 @@ beforeAll(async () => {
 });
 
 describe("listModuleCatalog", () => {
-  it("lists the real V1 catalog in sequence order with the live / coming-soon split", async () => {
+  it("lists the real V1 catalog in sequence order, every Module live", async () => {
     const entries = await listModuleCatalog(founderActor());
 
+    // Modules 0-4 are all of V1; Modules 5/6 are in manifest.json but
+    // deliberately not seeded (see content/index.ts).
     expect(entries.map((entry) => entry.moduleKey)).toEqual([
       "module-00-setup",
       "module-01-pressure-test",
       "module-02-customer-avatar",
       "module-03-problem-statement",
       "module-04-evidence-of-unmet-need",
-      "module-05-solution-options",
-      "module-06-validation-plan",
     ]);
-
-    expect(
-      entries.filter((entry) => entry.catalogStatus === "live").map((entry) => entry.moduleKey),
-    ).toEqual([
-      "module-00-setup",
-      "module-01-pressure-test",
-      "module-02-customer-avatar",
-      "module-03-problem-statement",
-      "module-04-evidence-of-unmet-need",
-    ]);
-    expect(entries.filter((entry) => entry.catalogStatus === "coming_soon")).toHaveLength(2);
+    expect(entries.every((entry) => entry.catalogStatus === "live")).toBe(true);
 
     const module0 = entries.find((entry) => entry.moduleKey === "module-00-setup")!;
     expect(module0.expectedArtifacts).toEqual([
@@ -177,9 +167,6 @@ describe("listModuleCatalog", () => {
       "Founder's Decision",
       "Working Notes / Unresolved Assumptions",
     ]);
-
-    const placeholder = entries.find((entry) => entry.moduleKey === "module-05-solution-options")!;
-    expect(placeholder.expectedArtifacts).toEqual([]);
   });
 
   it("returns a DTO with exactly the documented fields, no internal columns leaking", async () => {
@@ -236,10 +223,33 @@ describe("Program isolation, multi-version selection, and Artifact aggregation",
   const ISOLATION_KEY = `catalog-isolation-test-${RUN_SUFFIX}`;
   const VERSIONING_KEY = `catalog-versioning-test-${RUN_SUFFIX}`;
   const ARTIFACT_KEY = `catalog-artifacts-test-${RUN_SUFFIX}`;
+  const DRAFT_KEY = `catalog-draft-test-${RUN_SUFFIX}`;
 
   afterAll(async () => {
     await pool.query("delete from programs where program_key = any($1::text[])", [
-      [ISOLATION_KEY, VERSIONING_KEY, ARTIFACT_KEY],
+      [ISOLATION_KEY, VERSIONING_KEY, ARTIFACT_KEY, DRAFT_KEY],
+    ]);
+  });
+
+  // The real V1 catalog is all-live now that Modules 5/6 are no longer
+  // seeded as draft placeholders, so the draft -> coming_soon mapping only
+  // has fixture coverage. It stays supported: a future Module lands as a
+  // draft first.
+  it("reports a draft Module as coming_soon", async () => {
+    const content = buildFixtureContent(DRAFT_KEY, 1, `v1-${RUN_SUFFIX}`, [
+      buildFixtureModule("draft-fixture-live-module", 0, [
+        buildFixtureArtifact("draft_fixture_artifact", 1, "Draft Fixture Artifact", "live.md"),
+      ]),
+      { ...buildFixtureModule("draft-fixture-upcoming-module", 1, []), isPublishable: false },
+    ]);
+    await withTransaction((client) => seedToolkitContent(client, content));
+
+    const entries = await listModuleCatalog(founderActor(), { programKey: DRAFT_KEY });
+    expect(
+      entries.map((entry) => [entry.moduleKey, entry.catalogStatus]),
+    ).toEqual([
+      ["draft-fixture-live-module", "live"],
+      ["draft-fixture-upcoming-module", "coming_soon"],
     ]);
   });
 

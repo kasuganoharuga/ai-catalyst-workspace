@@ -852,9 +852,9 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
 /**
  * Merges the shared wizard skeleton with one Module's own brief/confirm
  * copy into the single flat object every step component reads. Falls back
- * to Module 1's table for an unrecognised key rather than throwing — a
- * draft placeholder Module (5, 6) is never live, so this path is only ever
- * exercised by a real standard Module.
+ * to Module 1's table for an unrecognised key rather than throwing — every
+ * live Module has its own entry above, so this path is only reachable for
+ * a Module whose copy hasn't been written yet.
  */
 export function resolveModuleCopy(moduleKey: string) {
   const brief =

@@ -2312,7 +2312,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Interview-style guide for Module 1: collect-only Q1–Q6, summary confirm, batch save, then verdict and Founder decision.",
     promptType: "module_facilitator",
-    versionNumber: 3,
+    versionNumber: 1,
     content: FACILITATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
@@ -2323,7 +2323,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Generates the locked-schema Pressure-Test Verdict (draft then final) from confirmed Responses.",
     promptType: "artifact_generator",
-    versionNumber: 3,
+    versionNumber: 1,
     content: ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },
@@ -2377,18 +2377,18 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Five-block guide for Module 4: assembles the evidence inventory (including Module 3's interview notes), grades evidence maturity, logs behaviour, runs an adversarial falsifiability test, and captures 30-day constraints.",
     promptType: "module_facilitator",
-    // v2 saves the interview notes as Interview-Notes.md instead of telling
-    // the Founder the transcript stays with them — later modules need to
-    // re-read the interviews, not Module 4's extracts of them. v3 fixes a
-    // stale "not in the platform" line left over from before v2, and spells
-    // out the two-call get_module_context -> get_artifact sequence needed to
-    // read Module 3's Problem-Interview-Guide.md (Module 4's own attemptId
-    // does not resolve it). v4 makes the saved Interview-Notes.md this
-    // Module's source of truth rather than a write-once archive: the save
-    // is ordered ahead of every Response and stops the Module if it fails,
-    // and every later block re-reads the file with get_artifact instead of
-    // grading from `evidence_additions` or from conversation memory.
-    versionNumber: 4,
+    // Saves the interview notes as Interview-Notes.md (rather than telling
+    // the Founder the transcript stays with them) and spells out the
+    // two-call get_module_context -> get_artifact sequence needed to read
+    // Module 3's Problem-Interview-Guide.md (Module 4's own attemptId does
+    // not resolve it) — the two are easy to conflate. The saved
+    // Interview-Notes.md is this Module's source of truth rather than a
+    // write-once archive: the save is ordered ahead of every Response and
+    // stops the Module if it fails, and every later block re-reads the
+    // file with get_artifact instead of grading from `evidence_additions`
+    // (a deliberately lossy set of extracts) or from conversation memory.
+    // See content/program.ts's V1_CHANGELOG for the full history of why.
+    versionNumber: 1,
     content: EVIDENCE_FACILITATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
@@ -2399,10 +2399,10 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Generates the Evidence of Unmet Need assessment and the 30-Day Validation Roadmap from the 7 confirmed Responses plus upstream Module 2/3 metadata.",
     promptType: "artifact_generator",
-    // v2 reads Interview-Notes.md back with get_artifact before generating,
-    // so quotations come from the saved record rather than from
+    // Reads Interview-Notes.md back with get_artifact before generating, so
+    // quotations come from the saved record rather than from
     // `evidence_additions`, which carries extracts and is deliberately lossy.
-    versionNumber: 2,
+    versionNumber: 1,
     content: EVIDENCE_ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["confirmed_responses", "artifact_definition"] },

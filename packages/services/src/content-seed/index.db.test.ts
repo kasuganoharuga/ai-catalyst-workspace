@@ -28,6 +28,12 @@ function buildTestContent(): ToolkitSeedContent {
       ...DEFAULT_TOOLKIT_CONTENT.program,
       programKey: `content-seed-test-${RUN_SUFFIX}`,
       versionLabel: `v1-test-${RUN_SUFFIX}`,
+      // Pinned frozen regardless of what the real V1 currently is: the
+      // suite below covers the frozen guarantees (published content is
+      // never overwritten, unexpected rows are a hard error). Living
+      // 'mutable' behaviour has its own describe block, with its own
+      // fixtures, further down.
+      contentLock: "frozen",
     },
     modules: DEFAULT_TOOLKIT_CONTENT.modules,
     prompts: DEFAULT_TOOLKIT_CONTENT.prompts.map((prompt) => ({
@@ -95,7 +101,7 @@ describe("seedToolkitContent", () => {
 
     expect(result.published).toBe(true);
     expect(result.programVersionStatus).toBe("published");
-    expect(result.modulesReconciled).toBe(7);
+    expect(result.modulesReconciled).toBe(5);
     expect(result.promptsReconciled).toBe(8);
 
     const modules = await fetchModuleRows(result.programVersionId);
@@ -105,11 +111,9 @@ describe("seedToolkitContent", () => {
       "module-02-customer-avatar",
       "module-03-problem-statement",
       "module-04-evidence-of-unmet-need",
-      "module-05-solution-options",
-      "module-06-validation-plan",
     ]);
     expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
-    expect(modules.filter((row) => row.status === "draft")).toHaveLength(2);
+    expect(modules.filter((row) => row.status === "draft")).toHaveLength(0);
 
     const module0 = modules.find((row) => row.module_key === "module-00-setup")!;
     const module1 = modules.find((row) => row.module_key === "module-01-pressure-test")!;
@@ -355,7 +359,7 @@ describe("seedToolkitContent", () => {
       "select count(*) as count from module_definitions where program_version_id = $1",
       [first.programVersionId],
     );
-    expect(Number(moduleCount.rows[0].count)).toBe(7);
+    expect(Number(moduleCount.rows[0].count)).toBe(5);
   });
 
   it("rejects a content change to already-published rows instead of overwriting them", async () => {
@@ -524,12 +528,12 @@ describe("seedToolkitContent", () => {
     });
   });
 
-  it("keeps exactly 5 active Modules and 2 draft placeholders with no sequence_index conflicts", async () => {
+  it("keeps exactly 5 active Modules and no drafts, with no sequence_index conflicts", async () => {
     const result = await withTransaction((client) => seedToolkitContent(client, TEST_CONTENT));
     const modules = await fetchModuleRows(result.programVersionId);
 
     expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
-    expect(modules.filter((row) => row.status === "draft")).toHaveLength(2);
+    expect(modules.filter((row) => row.status === "draft")).toHaveLength(0);
 
     const sequenceIndexes = modules.map((row) => row.sequence_index);
     expect(new Set(sequenceIndexes).size).toBe(sequenceIndexes.length);
