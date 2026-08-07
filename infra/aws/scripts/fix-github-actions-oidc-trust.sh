@@ -47,7 +47,12 @@ else
   echo "OIDC provider already present."
 fi
 
-TRUST_FILE="$(mktemp)"
+# Write next to the script, not under /tmp: the Windows aws.exe CLI cannot
+# open Git Bash's /tmp/... paths (file:///tmp/tmp.xxx → Errno 2). A path
+# under the repo is visible to both bash and the native CLI; on MSYS we
+# still convert it with cygpath -w so file:// gets a real Windows path.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TRUST_FILE="${SCRIPT_DIR}/.oidc-trust-policy.tmp.json"
 trap 'rm -f "${TRUST_FILE}"' EXIT
 
 cat > "${TRUST_FILE}" <<EOF
@@ -80,6 +85,11 @@ cat > "${TRUST_FILE}" <<EOF
 }
 EOF
 
+POLICY_PATH="${TRUST_FILE}"
+if command -v cygpath >/dev/null 2>&1; then
+  POLICY_PATH="$(cygpath -w "${TRUST_FILE}")"
+fi
+
 echo
 echo "Current trust policy on ${ROLE_NAME}:"
 aws iam get-role --role-name "${ROLE_NAME}" --query 'Role.AssumeRolePolicyDocument' --output json || {
@@ -91,7 +101,7 @@ echo
 echo "Updating trust policy..."
 aws iam update-assume-role-policy \
   --role-name "${ROLE_NAME}" \
-  --policy-document "file://${TRUST_FILE}"
+  --policy-document "file://${POLICY_PATH}"
 
 echo
 echo "Updated trust policy:"
