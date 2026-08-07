@@ -26,7 +26,6 @@ import {
 } from "@ai-catalyst/services/storage";
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import { resolveValidator } from "@ai-catalyst/services/artifact/internal/validators/registry";
-import { resolveWorkbookRenderer } from "@ai-catalyst/services/artifact/internal/renderers/registry";
 import { resolveSubmissionCreatedVia } from "@ai-catalyst/services/artifact/internal/created-via";
 import {
   resolveArtifactEventActorType,
@@ -855,6 +854,12 @@ export async function renderArtifactWorkbook(
     );
   }
 
+  // Dynamic import keeps pdf-lib / fontkit / embedded fonts out of the
+  // @ai-catalyst/services/artifact barrel — getArtifactSubmission,
+  // runDraftCheck, and completion paths must not pay for workbook rendering.
+  const { resolveWorkbookRenderer } = await import(
+    "@ai-catalyst/services/artifact/internal/renderers/registry"
+  );
   const renderer = resolveWorkbookRenderer(artifactDefinition.renderer_key, deps.renderers);
   const programVersionNumber = await loadProgramVersionNumber(pool, context.runModule.program_run_id);
 

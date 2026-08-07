@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 
-import {
-  getFounderArtifactDocument,
-  getFounderArtifactWorkbook,
-} from "@/lib/artifacts";
+import { getFounderArtifactWorkbook } from "@/lib/artifact-workbook";
+import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { serviceErrorResponse } from "@/lib/service-error-response";
 
