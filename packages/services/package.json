@@ -114,7 +114,7 @@
   "devDependencies": {
     "@types/fontkit": "^2.0.9",
     "@types/node": "^20",
-    "@types/pg": "^8.15.6",
+    "@types/pg": "^8.20.4",
     "pdfjs-dist": "^6.2.108",
     "tsx": "^4.20.6",
     "typeface-noto-sans": "^1.1.13",
