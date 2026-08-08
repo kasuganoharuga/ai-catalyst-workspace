@@ -30,16 +30,18 @@ const COLLAPSED_MAX_PX = 420;
 export function DocumentPreview({
   name,
   meta,
-  readHref,
-  downloadHref,
+  readHref = null,
+  downloadHref = null,
   workbookAvailable = false,
   children,
 }: {
   name: string;
   /** Version and save time, already formatted. */
   meta: string | null;
-  readHref: string;
-  downloadHref: string;
+  /** Omit to hide the "Open full page" link (e.g. website-only evidence). */
+  readHref?: string | null;
+  /** Omit to hide download controls when no submission exists yet. */
+  downloadHref?: string | null;
   /** A confirmed submission exists and a renderer is configured — shows the fillable PDF as the primary download, Markdown as secondary. */
   workbookAvailable?: boolean;
   children: ReactNode;
@@ -57,6 +59,8 @@ export function DocumentPreview({
     setOverflows(element.scrollHeight > COLLAPSED_MAX_PX + 24);
   }, [children]);
 
+  const showFooter = overflows || Boolean(readHref);
+
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3">
@@ -70,16 +74,18 @@ export function DocumentPreview({
             </p>
           ) : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <ArtefactDownloadMenu
-            downloadHref={downloadHref}
-            workbookAvailable={workbookAvailable}
-            size="sm"
-            downloadLabel={module1Copy.documentDownload}
-            pdfLabel={module1Copy.documentDownloadWorkbook}
-            markdownLabel={module1Copy.documentDownloadSource}
-          />
-        </div>
+        {downloadHref ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <ArtefactDownloadMenu
+              downloadHref={downloadHref}
+              workbookAvailable={workbookAvailable}
+              size="sm"
+              downloadLabel={module1Copy.documentDownload}
+              pdfLabel={module1Copy.documentDownloadWorkbook}
+              markdownLabel={module1Copy.documentDownloadSource}
+            />
+          </div>
+        ) : null}
       </div>
 
       <div className="relative">
@@ -100,35 +106,39 @@ export function DocumentPreview({
         ) : null}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
-        {overflows ? (
-          <button
-            type="button"
-            onClick={() => setExpanded((open) => !open)}
-            aria-expanded={expanded}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:underline"
-          >
-            {expanded
-              ? module1Copy.documentCollapse
-              : module1Copy.documentExpand}
-            <ChevronDown
-              aria-hidden="true"
-              className={cn(
-                "h-3.5 w-3.5 transition-transform",
-                expanded ? "rotate-180" : "rotate-0",
-              )}
-            />
-          </button>
-        ) : (
-          <span />
-        )}
-        <Link
-          href={readHref}
-          className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
-        >
-          {module1Copy.documentOpenFull}
-        </Link>
-      </div>
+      {showFooter ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3">
+          {overflows ? (
+            <button
+              type="button"
+              onClick={() => setExpanded((open) => !open)}
+              aria-expanded={expanded}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-foreground underline-offset-2 hover:underline"
+            >
+              {expanded
+                ? module1Copy.documentCollapse
+                : module1Copy.documentExpand}
+              <ChevronDown
+                aria-hidden="true"
+                className={cn(
+                  "h-3.5 w-3.5 transition-transform",
+                  expanded ? "rotate-180" : "rotate-0",
+                )}
+              />
+            </button>
+          ) : (
+            <span />
+          )}
+          {readHref ? (
+            <Link
+              href={readHref}
+              className="text-sm font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+            >
+              {module1Copy.documentOpenFull}
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

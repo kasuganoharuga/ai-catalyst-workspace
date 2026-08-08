@@ -158,19 +158,12 @@ function humanizeQuestionKey(questionKey: string): string {
 }
 
 /**
- * The Artifact whose saved version is the only proof the platform has that
- * a Module's off-platform prerequisite was met. Module 4's facilitator
- * saves `Interview-Notes.md` in Block 1, before any Response, and re-reads
- * it from storage for every later block — so a saved version of that file
- * means the interviews genuinely reached the platform.
- *
- * Not the `evidence_additions` Response, which this used to check: the
- * facilitator explicitly accepts "Nothing to add" as a complete answer to
- * that field, so it can be answered without any notes existing, and the
- * row would go green on a Module that had not met its prerequisite at all.
+ * Artifacts produced before the Claude / confirm path, so they stay off the
+ * work-step and confirm-step "documents this module produces" lists.
+ * Module 4's Interview Evidence is confirmed in wizard step 1.
  */
 const PREREQUISITE_ARTIFACT_KEY: Record<string, string> = {
-  [MODULE_4_KEY]: "interview_notes",
+  [MODULE_4_KEY]: "interview_evidence",
 };
 
 /**

@@ -12,16 +12,42 @@ import { moduleAccentStyle } from "../../lib/module-display";
 import type { ArtefactCardModel } from "../types";
 
 function statusFor(row: ArtefactCardModel) {
-  if (row.versionNumber === null) {
-    return { label: "Not saved yet", tone: "muted" as const };
+  if (row.versionNumber !== null) {
+    if (row.submissionStatus === "draft") {
+      return {
+        label: `Draft · v${row.versionNumber}`,
+        tone: "outline" as const,
+      };
+    }
+    return {
+      label: `Saved · v${row.versionNumber}`,
+      tone: "module" as const,
+    };
   }
-  if (row.submissionStatus === "draft") {
-    return { label: `Draft · v${row.versionNumber}`, tone: "outline" as const };
+  if (row.websiteEvidence?.status === "confirmed") {
+    return { label: "Confirmed", tone: "module" as const };
   }
-  return {
-    label: `Saved · v${row.versionNumber}`,
-    tone: "module" as const,
-  };
+  if (row.websiteEvidence?.status === "draft_preview") {
+    return { label: "Draft preview", tone: "outline" as const };
+  }
+  return { label: "Not saved yet", tone: "muted" as const };
+}
+
+function detailFor(row: ArtefactCardModel): string {
+  if (row.savedAt) {
+    return `Saved at: ${formatDateTime(row.savedAt)}`;
+  }
+  if (row.websiteEvidence?.status === "confirmed") {
+    return row.websiteEvidence.confirmedAt
+      ? `Confirmed at: ${formatDateTime(row.websiteEvidence.confirmedAt)}`
+      : "Confirmed on Proof";
+  }
+  if (row.websiteEvidence?.status === "draft_preview") {
+    return "Preview on Proof · confirm to lock";
+  }
+  return row.isRequired
+    ? "Required · waiting to be saved"
+    : "Optional · not saved yet";
 }
 
 export function ArtefactDocumentRow({
@@ -33,8 +59,11 @@ export function ArtefactDocumentRow({
 }) {
   const status = statusFor(artefact);
   const saved = artefact.versionNumber !== null;
-  const readHref = `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}`;
-  const downloadHref = `${readHref}/download`;
+  const websiteReadable = artefact.websiteEvidence != null;
+  const readHref = saved
+    ? `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}`
+    : `/modules/${encodeURIComponent(artefact.moduleKey)}`;
+  const downloadHref = `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}/download`;
 
   return (
     <div
@@ -51,11 +80,7 @@ export function ArtefactDocumentRow({
           <StatusBadge status={status} moduleIndex={artefact.sequenceIndex} />
         </div>
         <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
-          {artefact.savedAt
-            ? `Saved at: ${formatDateTime(artefact.savedAt)}`
-            : artefact.isRequired
-              ? "Required · waiting to be saved"
-              : "Optional · not saved yet"}
+          {detailFor(artefact)}
         </p>
       </div>
 
@@ -76,6 +101,17 @@ export function ArtefactDocumentRow({
             pdfLabel={artefactsCopy.downloadWorkbookCta}
             markdownLabel={artefactsCopy.downloadSourceCta}
           />
+        </div>
+      ) : websiteReadable ? (
+        <div className="flex shrink-0 items-center">
+          <Button
+            asChild
+            size="default"
+            className="text-white hover:brightness-110"
+            style={moduleAccentStyle(artefact.sequenceIndex)}
+          >
+            <Link href={readHref}>{artefactsCopy.readCta}</Link>
+          </Button>
         </div>
       ) : artefact.startAction ? (
         <div className="flex shrink-0 items-center">

@@ -816,8 +816,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
     ],
     completedNextStep: {
-      title: "Next: run the five interviews",
-      body: "Nothing here runs them for you. Take your Problem Interview Guide to five matching customers, write each conversation up separately in their own words within 30 minutes, and keep the notes. If you download the fillable PDF workbook to write in during the calls, it stays your own working copy — filling it in saves nothing back to AI Catalyst, so bring the finished notes into Module 4 yourself. The next module opens by grading what actually came back, and can't start without them — three or four is still worth bringing.",
+      title: "Next: talk to customers, then open Module 4",
+      body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
     },
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
@@ -844,40 +844,35 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-04-evidence-of-unmet-need": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant inventories and grades the evidence you bring — starting with the notes from your Module 3 interviews — then builds a 30-day validation plan. It also makes the strongest case that the problem may not be real or urgent enough and asks you to respond with evidence.",
+      "Your AI assistant works from the customer interviews you recorded to identify patterns in the evidence, test your current assumptions, decide what needs to change, and turn what you learned into a 30-day validation plan. This module analyses real interview evidence — it does not require the evidence to support your original hypothesis.",
     whyBody:
-      "Repeated assumptions can feel like validation. Separating what you actually know from what you merely believe keeps you honest before you spend more time building.",
-    whyBuildsOn: (moduleIndex: string) =>
-      `Module ${moduleIndex} is the last module currently open. Its Roadmap is what you actually do next — the evidence it plans for is what decides whether to keep going.`,
+      "A few encouraging comments can feel like validation, while contradictory evidence is easy to explain away. Separating what customers actually said from what you expected to hear helps you make the next decision based on evidence rather than momentum.",
+    whyBuildsOn: (_moduleIndex: string) =>
+      "Every action in your 30-day plan should trace back to what you learned from real conversations. Strong evidence may reinforce your direction; mixed or contradictory evidence may show you what needs another test.",
     before: [
       {
-        severity: "warning",
-        lead: "Do not start this module until you have finished the Module 3 interviews.",
+        lead: "Allow 30–45 minutes once your interviews are done.",
+        body: "This covers recording and reviewing your evidence, analysing it with your AI assistant, and building your 30-day plan — not the time spent conducting the interviews themselves.",
       },
       {
-        lead: "Allow 30–40 minutes.",
-        body: "Grading evidence honestly and standing up to the counterargument both take a moment's real thought.",
+        lead: "Complete at least one real interview first.",
+        body: "Five interviews are recommended for a stronger evidence base, but one completed interview is enough to continue.",
       },
       {
-        lead: "Expect your evidence to be challenged.",
-        body: "One part of this module argues the other side on purpose. That's by design, not a fault.",
+        lead: "Expect the evidence to challenge your assumptions.",
+        body: "Supports, mixed, and contradicts are all useful outcomes — the goal is to understand what the interviews actually show.",
       },
       {
-        lead: "This module plans validation experiments; it does not run them for you.",
-        body: "The 30-day Roadmap is a to-do list you carry out afterwards.",
+        lead: "This module creates your next validation plan.",
+        body: "The 30-day Roadmap sets out the experiments and actions to carry out afterwards; it does not run them for you.",
       },
     ],
-    workPrerequisite: {
-      label: "Interview notes",
-      pending: "Nothing handed over yet.",
-      done: "Saved to your workspace.",
-    },
-    questionsLabel: "Seven evidence questions",
-    progressVerdict: "Evidence saved to your workspace",
+    questionsLabel: "Four evidence questions",
+    progressVerdict: "Evidence and plan saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
     confirmTitle: "Confirm your evidence and validation documents",
     confirmBody:
-      "Your interview notes, Evidence of Unmet Need and 30-Day Validation Roadmap are all saved. Confirming marks this module done.",
+      "Your Evidence of Unmet Need and 30-Day Validation Roadmap are saved. Confirming marks this module done.",
     confirmNoFileTitle: "No files yet",
     confirmNoFileBody:
       "Your Module 4 documents haven't arrived yet. Return to your AI assistant and ask it to save Evidence of Unmet Need and 30-Day Validation Roadmap, then refresh this page.",
@@ -1045,6 +1040,15 @@ export const artefactsCopy = {
   interviewNotesTitle: "Interview notes",
   interviewNotesSubtitle:
     "The Problem & Five Whys interviews as you recorded them. Hand them to your assistant in whatever shape you have — a file, a doc, or pasted text — and what's kept here is formatted Markdown for Proof to grade.",
+
+  interviewRecordsTitle: "Customer interviews",
+  interviewRecordsSubtitle:
+    "Record what customers said after Module 3. When you have at least one completed interview, return to Proof to review and confirm the evidence.",
+  interviewRecordsCta: "Record interviews",
+  interviewRecordsContinueCta: "Continue recording",
+  interviewRecordsViewCta: "View interviews",
+  interviewRecordsProgress: (completed: number, recommended: number) =>
+    `${completed} interview${completed === 1 ? "" : "s"} completed · ${recommended} recommended`,
 } as const;
 
 // ── Workspace ───────────────────────────────────────────────────────────

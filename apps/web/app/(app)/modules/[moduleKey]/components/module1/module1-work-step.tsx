@@ -31,7 +31,14 @@ export function Module1WorkStep({
   preview,
   needsRetry,
   accent,
-}: Module1RunProps & { accent: ModuleAccent }) {
+  lockAssistant = false,
+  lockAssistantNote,
+}: Module1RunProps & {
+  accent: ModuleAccent;
+  /** Soft-lock the Claude handoff while earlier website work is unfinished. */
+  lockAssistant?: boolean;
+  lockAssistantNote?: string;
+}) {
   const copy = resolveModuleCopy(moduleKey);
   const isPreview = preview !== null;
   // Simplified, block-level rows — never the full question text; see
@@ -87,8 +94,13 @@ export function Module1WorkStep({
           prompt={startPrompt}
           retry={needsRetry}
           accent={accent}
-          disabled={isPreview}
-          disabledNote={previewNote}
+          disabled={isPreview || lockAssistant}
+          disabledNote={
+            lockAssistant
+              ? (lockAssistantNote ??
+                "Confirm your interview evidence first, then continue in Claude.")
+              : previewNote
+          }
         />
       </div>
 

@@ -22,6 +22,7 @@ export function StartModuleAttemptButton({
   size = "lg",
   variant = "default",
   style,
+  disabled = false,
 }: {
   programRunModuleId: string;
   label?: string;
@@ -30,6 +31,7 @@ export function StartModuleAttemptButton({
   size?: "default" | "sm" | "lg";
   variant?: "default" | "outline" | "secondary";
   style?: CSSProperties;
+  disabled?: boolean;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -53,7 +55,7 @@ export function StartModuleAttemptButton({
       size={size}
       variant={variant}
       onClick={handleClick}
-      disabled={isPending}
+      disabled={disabled || isPending}
       style={style}
       className={cn(className)}
     >

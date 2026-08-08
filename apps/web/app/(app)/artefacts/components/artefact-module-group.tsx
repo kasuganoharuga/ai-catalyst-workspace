@@ -10,7 +10,8 @@ export function ArtefactModuleGroup({
   group: ArtefactModuleGroupModel;
 }) {
   const savedCount = group.artefacts.filter(
-    (row) => row.versionNumber !== null,
+    (row) =>
+      row.versionNumber !== null || row.websiteEvidence?.status === "confirmed",
   ).length;
 
   return (

@@ -17,6 +17,7 @@ import {
 } from "../../../../lib/copy";
 import { formatSavedAt } from "../../lib/format-saved-at";
 import { useConfirmModuleCompletion } from "../../hooks/use-confirm-module-completion";
+import { prerequisiteArtifactKey } from "../../../../lib/module-display";
 import type {
   Module1RunProps,
   ModuleAccent,
@@ -101,15 +102,26 @@ export function Module1ConfirmStep({
   preview,
   nextModuleTitle,
   accent,
-}: Module1RunProps & { accent: ModuleAccent }) {
+  lockClaude = false,
+}: Module1RunProps & {
+  accent: ModuleAccent;
+  /** Soft-lock retry / Claude start while earlier website work is unfinished. */
+  lockClaude?: boolean;
+}) {
   const { isPending, handleConfirm } = useConfirmModuleCompletion({
     programRunModuleId,
     nextModuleTitle,
   });
   const copy = resolveModuleCopy(moduleKey);
   const isPreview = preview !== null;
+  // Interview Evidence (and any other inbound / pre-Claude artifact) is
+  // reviewed earlier — confirm only shows documents this Module produces.
+  const prerequisiteKey = prerequisiteArtifactKey(moduleKey);
+  const confirmArtifacts = artifacts.filter(
+    (artifact) => artifact.artifactKey !== prerequisiteKey,
+  );
 
-  const anySaved = artifacts.some(
+  const anySaved = confirmArtifacts.some(
     (artifact) => artifact.versionNumber !== null,
   );
   const founderDecision =
@@ -165,6 +177,7 @@ export function Module1ConfirmStep({
               size="default"
               className="shrink-0 text-white hover:brightness-110"
               style={accent}
+              disabled={lockClaude}
             />
           ) : null}
         </div>
@@ -181,9 +194,12 @@ export function Module1ConfirmStep({
           before; more than one (Modules 3 and 4) stacks each Artifact's own
           card in sequence order, with the decision line (if any) once at
           the end. */}
-      {artifacts.length === 1 ? (
+      {confirmArtifacts.length === 1 ? (
         <div className="mt-6 space-y-4">
-          <ArtifactStatusBlock moduleKey={moduleKey} artifact={artifacts[0]} />
+          <ArtifactStatusBlock
+            moduleKey={moduleKey}
+            artifact={confirmArtifacts[0]}
+          />
           {decisionLabel && anySaved ? (
             <dl className="overflow-hidden rounded-lg border border-border px-4 py-2 text-sm">
               <CheckLine
@@ -196,7 +212,7 @@ export function Module1ConfirmStep({
         </div>
       ) : (
         <div className="mt-6 space-y-6">
-          {artifacts.map((artifact) => (
+          {confirmArtifacts.map((artifact) => (
             <ArtifactStatusBlock
               key={artifact.artifactKey}
               moduleKey={moduleKey}
@@ -242,18 +258,16 @@ export function Module1ConfirmStep({
               </Button>
               {nextModuleTitle ? (
                 <Button asChild size="lg" variant="outline">
-                  <Link href="/modules">Continue anyway</Link>
+                  <Link href="/modules">See your modules</Link>
                 </Button>
               ) : null}
             </>
           ) : founderDecision === "pivot" ? (
             <>
-              <Button asChild size="lg" className="text-white" style={accent}>
-                <Link href="/modules">
-                  {nextModuleTitle
-                    ? `Continue to ${nextModuleTitle}`
-                    : "See your modules"}
-                </Link>
+              {/* Confirm already unlocked the next module and navigated away —
+                  returning here is review-only, so no second Continue CTA. */}
+              <Button asChild size="lg" variant="outline">
+                <Link href="/modules">See your modules</Link>
               </Button>
               <Button asChild size="lg" variant="outline">
                 <Link href={`/modules/module-01-pressure-test`}>
@@ -262,12 +276,10 @@ export function Module1ConfirmStep({
               </Button>
             </>
           ) : (
-            <Button asChild size="lg" className="text-white" style={accent}>
-              <Link href="/modules">
-                {nextModuleTitle
-                  ? `Continue to ${nextModuleTitle}`
-                  : "See your modules"}
-              </Link>
+            // Same as Module 0: once completed, do not offer another
+            // "Continue to X" that can be clicked again on revisit.
+            <Button asChild size="lg" variant="outline">
+              <Link href="/modules">See your modules</Link>
             </Button>
           )}
         </div>

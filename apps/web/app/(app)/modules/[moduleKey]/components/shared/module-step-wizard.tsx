@@ -17,12 +17,15 @@ export function ModuleStepWizard({
   onActiveChange,
   accent,
   children,
+  nextDisabled = false,
 }: {
   steps: WizardStep[];
   active: number;
   onActiveChange: (index: number) => void;
   accent: ModuleAccent;
   children: ReactNode;
+  /** Soft-lock Next without hiding later steps in the rail. */
+  nextDisabled?: boolean;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border bg-card">
@@ -96,7 +99,7 @@ export function ModuleStepWizard({
             onClick={() =>
               onActiveChange(Math.min(steps.length - 1, active + 1))
             }
-            disabled={active === steps.length - 1}
+            disabled={active === steps.length - 1 || nextDisabled}
           >
             Next
           </Button>

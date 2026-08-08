@@ -3,14 +3,25 @@ import type {
   ModuleContext,
   RunModuleStatus,
 } from "@ai-catalyst/shared";
+import {
+  INTERVIEW_EVIDENCE_ARTIFACT_KEY,
+  MODULE_4_KEY,
+  type InterviewEvidenceStatus,
+} from "@ai-catalyst/services/interview";
 
-import { artefactsCopy } from "../../lib/copy";
-import { MODULE_4_KEY } from "../../lib/module-display";
 import type {
   ArtefactCardModel,
   ArtefactModuleGroupModel,
   ArtefactStartAction,
 } from "../types";
+
+export type InterviewEvidenceOverlay = {
+  completedCount: number;
+  evidenceStatus: InterviewEvidenceStatus;
+  evidenceConfirmedAt: string | null;
+  /** Owning module run status — used to re-place the single Start CTA. */
+  runStatus: RunModuleStatus;
+};
 
 type HandoffSpec = {
   /** The module that owns the artefact definition. */
@@ -22,19 +33,10 @@ type HandoffSpec = {
   subtitle: string;
 };
 
-// Interview notes belong to Module 4 in the database (that is where they are
-// handed over and graded), but on this page they read as what the founder
-// carries out of Module 3 — so they leave Module 4's group and sit between
-// the two.
-const HANDOFF_ARTEFACTS: HandoffSpec[] = [
-  {
-    moduleKey: MODULE_4_KEY,
-    artifactKey: "interview_notes",
-    sortIndex: 3.5,
-    title: artefactsCopy.interviewNotesTitle,
-    subtitle: artefactsCopy.interviewNotesSubtitle,
-  },
-];
+// Customer interview *forms* live at /artefacts/interviews (injected on the
+// Artefacts page between Module 3 and Proof). Confirmed Interview-Evidence.md
+// remains a Module 4 artefact row — not a between-module handoff card.
+const HANDOFF_ARTEFACTS: HandoffSpec[] = [];
 
 /**
  * Lifts handoff artefacts out of their owning module's group into cards of
@@ -105,6 +107,86 @@ function startActionForUnsaved(
   return { kind: "locked" };
 }
 
+/**
+ * One Start/Locked CTA per module group — every unsaved row linking to the
+ * same module repeats the same button and reads as noise. Rows that already
+ * have website evidence (draft preview / confirmed) are not Start targets.
+ */
+function assignSingleModuleStartAction(
+  artefacts: ArtefactCardModel[],
+  moduleKey: string,
+  status: RunModuleStatus,
+): ArtefactCardModel[] {
+  let assigned = false;
+  return artefacts.map((artefact) => {
+    const needsStart =
+      artefact.versionNumber === null && artefact.websiteEvidence == null;
+    if (!needsStart) {
+      return { ...artefact, startAction: undefined };
+    }
+    if (assigned) {
+      return { ...artefact, startAction: undefined };
+    }
+    assigned = true;
+    return {
+      ...artefact,
+      startAction: startActionForUnsaved(moduleKey, status),
+    };
+  });
+}
+
+/**
+ * Mirror Proof's Customer Interview Evidence state onto the Artefacts row
+ * before Claude pins a real submission.
+ */
+export function applyInterviewEvidenceOverlay(
+  groups: ArtefactModuleGroupModel[],
+  overlay: InterviewEvidenceOverlay | null,
+): ArtefactModuleGroupModel[] {
+  if (!overlay) return groups;
+
+  return groups.map((group) => {
+    if (group.moduleKey !== MODULE_4_KEY) return group;
+
+    const artefacts = group.artefacts.map((artefact) => {
+      if (artefact.artifactKey !== INTERVIEW_EVIDENCE_ARTIFACT_KEY) {
+        return artefact;
+      }
+      // Real submission wins once Claude has materialised the file.
+      if (artefact.versionNumber !== null) return artefact;
+
+      if (overlay.evidenceStatus === "confirmed") {
+        return {
+          ...artefact,
+          websiteEvidence: {
+            status: "confirmed" as const,
+            confirmedAt: overlay.evidenceConfirmedAt,
+          },
+        };
+      }
+      if (overlay.completedCount > 0) {
+        return {
+          ...artefact,
+          websiteEvidence: {
+            status: "draft_preview" as const,
+            confirmedAt: null,
+          },
+        };
+      }
+      return { ...artefact, websiteEvidence: undefined };
+    });
+
+    return {
+      ...group,
+      artefacts: assignSingleModuleStartAction(
+        artefacts,
+        group.moduleKey,
+        overlay.runStatus,
+      ),
+    };
+  });
+}
+
 /** Groups saved artefacts from the active run, hiding setup unless flagged. */
 export function buildSavedArtefactGroups(
   contexts: ModuleContext[],
@@ -131,8 +213,8 @@ export function buildSavedArtefactGroups(
         ]),
       );
 
-      const artefacts: ArtefactCardModel[] = context.artifacts.map(
-        (artifact) => {
+      const artefacts = assignSingleModuleStartAction(
+        context.artifacts.map((artifact) => {
           const expected = expectedByKey.get(artifact.artifactKey);
           const versionNumber =
             artifact.latestSubmission?.versionNumber ?? null;
@@ -151,17 +233,10 @@ export function buildSavedArtefactGroups(
             savedAt: artifact.latestSubmission?.updatedAt ?? null,
             workbookAvailable: artifact.workbookAvailable,
             workbookFormat: artifact.workbookFormat,
-            // Unsaved rows need a CTA — same Start/Locked affordance as the
-            // pre-run preview path; without this the card renders empty actions.
-            startAction:
-              versionNumber === null
-                ? startActionForUnsaved(
-                    context.runModule.moduleKey,
-                    context.runModule.status,
-                  )
-                : undefined,
           };
-        },
+        }),
+        context.runModule.moduleKey,
+        context.runModule.status,
       );
 
       return {
@@ -205,35 +280,38 @@ export function buildPreviewArtefactGroups(
       subtitle: entry.subtitle,
       sequenceIndex: entry.sequenceIndex,
       sortIndex: entry.sequenceIndex,
-      artefacts: entry.expectedArtifacts.map((artifact) => ({
-        moduleKey: entry.moduleKey,
-        moduleTitle: entry.title,
-        moduleSubtitle: entry.subtitle,
-        sequenceIndex: entry.sequenceIndex,
-        artifactKey: artifact.artifactKey,
-        name: artifact.name,
-        requiredFilename: artifact.requiredFilename,
-        isRequired: artifact.isRequired,
-        versionNumber: null,
-        submissionStatus: null,
-        savedAt: null,
-        // No Attempt exists yet in this pre-run preview, so a workbook can
-        // never actually be downloaded here regardless of renderer support
-        // — matches load-module-detail.ts's own pre-Run workbookAvailable
-        // rule.
-        workbookAvailable: false,
-        workbookFormat: artifact.workbookFormat,
-        startAction:
-          entry.moduleKey === nextStartableKey
-            ? ({
-                kind: "start",
-                href: `/modules/${encodeURIComponent(entry.moduleKey)}`,
-              } as const)
-            : ({ kind: "locked" } as const),
-      })),
+      artefacts: assignSingleModuleStartAction(
+        entry.expectedArtifacts.map((artifact) => ({
+          moduleKey: entry.moduleKey,
+          moduleTitle: entry.title,
+          moduleSubtitle: entry.subtitle,
+          sequenceIndex: entry.sequenceIndex,
+          artifactKey: artifact.artifactKey,
+          name: artifact.name,
+          requiredFilename: artifact.requiredFilename,
+          isRequired: artifact.isRequired,
+          versionNumber: null,
+          submissionStatus: null,
+          savedAt: null,
+          // No Attempt exists yet in this pre-run preview, so a workbook can
+          // never actually be downloaded here regardless of renderer support
+          // — matches load-module-detail.ts's own pre-Run workbookAvailable
+          // rule.
+          workbookAvailable: false,
+          workbookFormat: artifact.workbookFormat,
+        })),
+        entry.moduleKey,
+        entry.moduleKey === nextStartableKey ? "available" : "locked",
+      ),
     }));
 
   return splitHandoffGroups(moduleGroups);
+}
+
+function isArtefactPresent(row: ArtefactCardModel): boolean {
+  return (
+    row.versionNumber !== null || row.websiteEvidence?.status === "confirmed"
+  );
 }
 
 export function artefactCounts(groups: ArtefactModuleGroupModel[]) {
@@ -243,8 +321,7 @@ export function artefactCounts(groups: ArtefactModuleGroupModel[]) {
   );
   const savedCount = groups.reduce(
     (count, group) =>
-      count +
-      group.artefacts.filter((row) => row.versionNumber !== null).length,
+      count + group.artefacts.filter((row) => isArtefactPresent(row)).length,
     0,
   );
   return { totalArtefacts, savedCount };

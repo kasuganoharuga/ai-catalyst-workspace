@@ -164,18 +164,15 @@ describe("buildArtifactMetadata", () => {
     });
   });
 
-  // Module 4's interview_notes is the only isRequired:false Artifact in the
-  // content set, and the confirm-step card reads this flag to say "sign-off
-  // doesn't wait on this one" rather than showing it as a missing document.
   it("carries isRequired through from both the catalog and the run context", () => {
     const fromCatalog = buildArtifactMetadata(null, [
-      catalogArtifact("interview_notes", { isRequired: false }),
+      catalogArtifact("supporting_notes", { isRequired: false }),
     ]);
     expect(fromCatalog[0].isRequired).toBe(false);
 
     const fromContext = buildArtifactMetadata(
-      [contextArtifact("interview_notes", null, false)],
-      [catalogArtifact("interview_notes", { isRequired: false })],
+      [contextArtifact("supporting_notes", null, false)],
+      [catalogArtifact("supporting_notes", { isRequired: false })],
     );
     expect(fromContext[0].isRequired).toBe(false);
   });

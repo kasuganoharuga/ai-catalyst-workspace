@@ -3,6 +3,15 @@ import type { WorkbookFormat } from "@ai-catalyst/shared";
 export type ArtefactStartAction =
   { kind: "start"; href: string } | { kind: "locked" };
 
+/**
+ * Website-confirmed Module 4 evidence before Claude materialises a real
+ * artifact_submissions row — keeps the Artefacts list in sync with Proof.
+ */
+export type WebsiteEvidenceState = {
+  status: "draft_preview" | "confirmed";
+  confirmedAt: string | null;
+};
+
 export type ArtefactCardModel = {
   moduleKey: string;
   moduleTitle: string;
@@ -21,6 +30,7 @@ export type ArtefactCardModel = {
   /** A confirmed submission exists and a renderer is configured — the fillable PDF download can render. */
   workbookAvailable: boolean;
   workbookFormat: WorkbookFormat | null;
+  websiteEvidence?: WebsiteEvidenceState;
 };
 
 /**

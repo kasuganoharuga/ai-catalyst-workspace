@@ -11,14 +11,16 @@ import { MarkdownDocument } from "../../../components/markdown-document";
 import { StatusBadge } from "../../../components/status-badge";
 import { moduleGateCopy } from "../../../lib/copy";
 import {
+  MODULE_4_KEY,
   deriveModuleDisplayStatus,
   moduleAccentStyle,
 } from "../../../lib/module-display";
+import { StatusPill } from "../../components/status-pill";
 import { loadModuleDetail } from "../lib/load-module-detail";
 import type { ModuleArtifactView } from "../types";
-import { StatusPill } from "../../components/status-pill";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
+import { Module4EvidencePanel } from "./module4/module4-evidence-panel";
 import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
 
@@ -72,6 +74,8 @@ export async function ModuleDetailBody({
       <MarkdownDocument content={artifact.content} />
     ) : null,
   }));
+
+  const isModule4 = moduleKey === MODULE_4_KEY;
 
   return (
     <>
@@ -249,25 +253,49 @@ export async function ModuleDetailBody({
                 validation={validation}
               />
             ))}
-            <Module1Run
-              moduleKey={entry.moduleKey}
-              moduleIndex={entry.sequenceIndex}
-              provider={provider}
-              programRunModuleId={runModule.id}
-              ventureId={venture?.id ?? null}
-              claudeProjectId={venture?.claudeProjectId ?? null}
-              connected={Boolean(connection?.authorised)}
-              coreQuestions={coreQuestions}
-              decisionQuestions={decisionQuestions}
-              artifacts={artifactViews}
-              hasAttempt={activeAttempt !== null}
-              needsRetry={needsRetry}
-              awaitingConfirmation={awaitingConfirmation}
-              isCompleted={isCompleted}
-              preview={isLocked ? "locked" : null}
-              startPrompt={startPrompt}
-              nextModuleTitle={nextModuleTitle}
-            />
+            {isModule4 && !isLocked ? (
+              <Module4EvidencePanel
+                actor={actor}
+                programRunId={runModule.programRunId}
+                moduleKey={entry.moduleKey}
+                moduleIndex={entry.sequenceIndex}
+                provider={provider}
+                programRunModuleId={runModule.id}
+                ventureId={venture?.id ?? null}
+                claudeProjectId={venture?.claudeProjectId ?? null}
+                connected={Boolean(connection?.authorised)}
+                coreQuestions={coreQuestions}
+                decisionQuestions={decisionQuestions}
+                artifacts={artifactViews}
+                hasAttempt={activeAttempt !== null}
+                needsRetry={needsRetry}
+                awaitingConfirmation={awaitingConfirmation}
+                isCompleted={isCompleted}
+                preview={null}
+                startPrompt={startPrompt}
+                nextModuleTitle={nextModuleTitle}
+              />
+            ) : (
+              <Module1Run
+                moduleKey={entry.moduleKey}
+                moduleIndex={entry.sequenceIndex}
+                provider={provider}
+                programRunModuleId={runModule.id}
+                ventureId={venture?.id ?? null}
+                claudeProjectId={venture?.claudeProjectId ?? null}
+                connected={Boolean(connection?.authorised)}
+                coreQuestions={coreQuestions}
+                decisionQuestions={decisionQuestions}
+                artifacts={artifactViews}
+                hasAttempt={activeAttempt !== null}
+                needsRetry={needsRetry}
+                awaitingConfirmation={awaitingConfirmation}
+                isCompleted={isCompleted}
+                preview={isLocked ? "locked" : null}
+                startPrompt={startPrompt}
+                nextModuleTitle={nextModuleTitle}
+              />
+            )}
           </section>
         )
       ) : null}
