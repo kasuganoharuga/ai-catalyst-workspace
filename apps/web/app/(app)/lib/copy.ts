@@ -792,15 +792,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-03-problem-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant works from your customer's surface complaint towards a structural root cause using a Five Whys ladder, then turns the result into five interview questions you can take to real customers. This module prepares the interviews — it does not conduct them or analyse the responses.",
+      "Your AI assistant works from your customer's surface complaint towards a current root-cause hypothesis using a Five Whys ladder, then turns the result into five interview questions you can take to real customers. This module prepares the interviews — it does not conduct them or analyse the responses.",
     whyBody:
-      "The first complaint a customer names is rarely the reason the problem persists. Building for the symptom instead of the root cause is how founders end up solving the wrong problem very well.",
+      "The first complaint a customer names is rarely the reason the problem persists. Building for the symptom instead of a testable root-cause hypothesis is how founders end up solving the wrong problem very well.",
     whyBuildsOn: (moduleIndex: string) =>
-      `Every module after Module ${moduleIndex} builds on the root cause and interview questions you settle here. A shallow answer here means the interviews test the wrong thing.`,
+      `Every module after Module ${moduleIndex} builds on the root-cause hypothesis and interview questions you settle here. A shallow answer here means the interviews test the wrong thing.`,
     before: [
       {
         lead: "Allow 30–40 minutes.",
-        body: 'Working down to a root cause takes a few more "why" turns than it feels like it should.',
+        body: 'Working down to a root-cause hypothesis takes a few more "why" turns than it feels like it should.',
       },
       {
         lead: "Be specific rather than polished.",
@@ -808,7 +808,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Expect each answer to be challenged and taken deeper.",
-        body: "The ladder stops at the root cause, not at the first plausible-sounding answer.",
+        body: "The ladder produces a current root-cause hypothesis to test — not a proven fact at the first plausible-sounding answer.",
       },
       {
         lead: "This module creates interview questions, not customer evidence.",
@@ -828,6 +828,17 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     confirmNoFileTitle: "No files yet",
     confirmNoFileBody:
       "Your Module 3 documents haven't arrived yet. Return to your AI assistant and ask it to save the Problem Statement and Problem Interview Guide, then refresh this page.",
+    coachingCard: {
+      heading: "From symptom to root-cause hypothesis",
+      weakLabel: "Surface problem",
+      weakExample:
+        "Client onboarding information keeps getting missed or duplicated.",
+      strongLabel: "Root-cause hypothesis",
+      strongExample:
+        "No one explicitly owns how client information moves across tools, so breakdowns are patched manually instead of the workflow being redesigned.",
+      footer:
+        "The first answer describes the pain. The second gives you a cause you can go and test.",
+    },
   },
 
   "module-04-evidence-of-unmet-need": {

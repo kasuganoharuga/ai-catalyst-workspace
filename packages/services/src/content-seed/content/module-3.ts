@@ -92,8 +92,9 @@ const PROBLEM_INTERVIEW_GUIDE_TEMPLATE = `# Problem Interview Guide
 
 ## Pass Bar
 
-**For this five-interview validation round, the problem meets the pass bar when at least 3 of 5
-interviews satisfy the conditions below:**
+**For this five-interview validation round, grade each lane separately. Label every condition
+Problem, Root cause, or Urgency. Typical bar: at least 3 of 5 interviews satisfy each lane's
+conditions below (calibrate windows to the confirmed pain cadence):**
 
 -
 -
@@ -101,7 +102,9 @@ interviews satisfy the conditions below:**
 
 ## Kill Criteria
 
-**Three patterns that mean this problem is not worth building for and the scope has to change:**
+**Three patterns. True kills mean the problem is not worth pursuing and scope must change.
+Patterns that only falsify the current root-cause hypothesis must say to re-run Five Whys / revise
+the hypothesis — not to kill the problem:**
 
 1.
 2.
@@ -142,7 +145,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 1,
     questionGroup: "statement",
     questionText:
-      "In the Founder's own words, what does the beachhead customer struggle with, why, and what does it cost them?",
+      "In the Founder's own words, what does the beachhead customer struggle with, and what does it cost them when it happens?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -184,7 +187,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 4,
     questionGroup: "five_whys",
     questionText:
-      "What structural or behavioural cause sits at the bottom of the ladder — the reason the problem persists rather than the reason it hurts?",
+      "What is the current root-cause hypothesis at the bottom of the ladder — the reason the problem may persist rather than only the reason it hurts?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -198,7 +201,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 5,
     questionGroup: "statement",
     questionText:
-      "Restated from the root cause: who struggles with what, because of which underlying cause, and with what consequence?",
+      "Restated from the current root-cause hypothesis: who struggles with what, because of which underlying cause, and with what consequence?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -212,7 +215,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 6,
     questionGroup: "why_this_is_urgent",
     questionText:
-      "How often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution?",
+      "Scored in turn: how often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution — each with an evidence basis?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",

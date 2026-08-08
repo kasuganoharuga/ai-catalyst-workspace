@@ -106,15 +106,13 @@ and the situation that makes it urgent for them:
 
     [Module 2: customer_situation]
 
-Now put the problem itself into one sentence. Use this shape:
+Now put the surface problem into one sentence — what they struggle with, and what it costs them
+when it happens. Do not explain why yet; that is what the Five Whys are for. Use this shape:
 
-    [Beachhead customer] struggles with [problem] because [reason], which results in [impact].
+    [Beachhead customer] struggles with [problem], which results in [impact].
 
-Fill in each part as best you can right now. It will be rough, and that is fine — we are going to
-take it apart shortly, and I will keep this first version so you can see the difference.
-
-If you are unsure about the "because" part, say so. That is the part we spend the rest of this
-module on.
+It will be rough, and that is fine — I will keep this first version so you can see the difference
+after we dig into causes.
 ```
 
 ### Block 2 — How are they solving it today?
@@ -138,7 +136,7 @@ Two things founders usually leave out, so I will ask directly:
   answer and often the most important one.
 — What did they pay for and stop using? That tells us more than what they are using now.
 
-This is what you are actually competing with.
+We will carry these forward as hypotheses to test in interviews — not as decisions already made.
 ```
 
 ### Block 3 — Why does this problem exist?
@@ -150,8 +148,10 @@ Do not compress this into a single question.*
 
 ```
 Now we find what sits underneath it. I am going to ask you "why", building each question on your
-last answer, until we reach something structural. Usually that takes four or five rounds, sometimes
-three. Take them one at a time — the first answer is almost always a symptom.
+last answer, until we reach a current root-cause hypothesis. Usually that takes four or five
+rounds, sometimes three. Take them one at a time — the first answer is almost always a symptom.
+I will challenge the candidate bottom once before we stop; we are forming a hypothesis to test,
+not proving the cause.
 
 Here is the first: why does this problem exist in the first place?
 ```
@@ -159,22 +159,21 @@ Here is the first: why does this problem exist in the first place?
 *Subsequent whys are spoken one at a time, each built from the Founder's previous answer. Wording
 guidance is in the facilitator prompt; these are not separate question rows.*
 
-### Block 4 — The root-cause statement
+### Block 4 — The root-cause hypothesis statement
 
 *Resolves `problem_statement`. Convergence block — nothing new is collected.*
 
 ```
-Here is your problem statement rewritten from the root cause we just reached, next to the one you
-started with.
+Here is your problem statement rewritten from the current root-cause hypothesis, next to the one
+you started with.
 
 BEFORE
     [problem_draft]
 
 AFTER
-    [proposed root-cause statement]
+    [proposed root-cause-hypothesis statement]
 
-The second version is narrower and harder to argue with, because it names why the problem persists
-rather than just that it hurts.
+The second version is narrower, because it names a cause you can go and test — not a proven fact.
 
 Does it describe the problem as you understand it now? Correct any part of it — particularly the
 "because" clause, since that is the part every later module builds on and the part the interviews
@@ -185,29 +184,27 @@ will test.
 
 *Resolves `pain_intensity`, `priority_evidence`.*
 
-*Two layers: score the pain first, then test priority. One confirmation at the end.*
+*Four spoken layers: Frequency, then Cost, then Search/Urgency, then priority. One confirmation
+at the end.*
 
 ```
-Two things, and both need specifics rather than impressions.
+We will score the size of the pain in three separate turns — Frequency, then Cost, then how
+actively they are looking — each with an evidence basis. Where you do not know, say so and I will
+leave the score blank rather than guess.
 
-First, the size of the pain. Three questions:
+First: how often does this happen to them?
+```
 
-— How often does this happen to them? Daily, weekly, monthly, once a quarter?
-— What does it cost them each time, in hours, money, or opportunities that did not happen?
-— How actively are they looking for a solution right now — have they searched, asked around,
-  compared options, or allocated budget?
+*After Frequency is scored, ask Cost. After Cost is scored, ask Search/Urgency. Then:*
 
-I will score each of those out of 10 against a fixed scale and show you the reasoning. Where you do
-not know, say so and I will leave the score blank rather than guess.
-
-Second, the harder question. Is this actually among the most important problems they face right
-now? If they could only fix one thing this year, would they choose this one?
+```
+Second layer: is this actually among the most important problems they face right now? If they
+could only fix one thing this year, would they choose this one?
 
 Tell me what you are basing that on — interviews, observed behaviour, data, or complaints you have
 heard. If it is a hunch, say it is a hunch. A confident guess scored as evidence is worse than an
 honest gap.
 ```
-
 ### Block 6 — How much evidence supports this problem?
 
 *Resolves `validation_status`.*
@@ -246,12 +243,12 @@ blocks in §2 are what the Founder hears.
 
 | # | `question_key` | `question_text` | Type |
 |---|---|---|---|
-| 1 | `problem_draft` | In the Founder's own words, what does the beachhead customer struggle with, why, and what does it cost them? | long_text |
+| 1 | `problem_draft` | In the Founder's own words, what does the beachhead customer struggle with, and what does it cost them when it happens? | long_text |
 | 2 | `current_alternatives` | What tools, workarounds, manual processes and paid products does this customer use today, and where does each fall short? | long_text |
 | 3 | `five_whys_ladder` | Asked in sequence, each building on the last: why does this problem exist? | long_text |
-| 4 | `root_cause` | What structural or behavioural cause sits at the bottom of the ladder — the reason the problem persists rather than the reason it hurts? | long_text |
-| 5 | `problem_statement` | Restated from the root cause: who struggles with what, because of which underlying cause, and with what consequence? | long_text |
-| 6 | `pain_intensity` | How often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution? | long_text |
+| 4 | `root_cause` | What is the current root-cause hypothesis at the bottom of the ladder — the reason the problem may persist rather than only the reason it hurts? | long_text |
+| 5 | `problem_statement` | Restated from the current root-cause hypothesis: who struggles with what, because of which underlying cause, and with what consequence? | long_text |
+| 6 | `pain_intensity` | Scored in turn: how often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution — each with an evidence basis? | long_text |
 | 7 | `priority_evidence` | What evidence shows this is among the most important problems this customer faces right now? | long_text |
 | 8 | `validation_status` | What is the highest evidence level reached for this exact problem? | single_choice |
 
@@ -371,11 +368,27 @@ from the exact words of the previous answer:
 
     Why does the data live in four systems?
 
-**Five is a ceiling, not a quota.** Stop when you reach something structural — an incentive, a
-constraint, a habit, a market condition, a piece of how the industry is organised. That may be Why 3
-or Why 4. Record where it bottomed out. Padding to five produces a rung that restates the one above
-it, and the artefact is worse for it. Three rungs is the floor: if you stopped at two, you have
-accepted a symptom.
+**Keep every Why causal-open.** A Why may land on process, ownership, policy, incentives, tooling,
+capability, or habit. Never default to a solution-adoption frame such as "why hasn't the firm
+adopted an integration / automation / tool" — that presupposes the missing solution is the cause.
+
+**Five is a ceiling, not a quota.** A candidate bottom is something structural — an incentive, a
+constraint, a habit, a market condition, a piece of how the industry is organised. That may appear
+at Why 3 or Why 4. Padding to five produces a rung that restates the one above it, and the artefact
+is worse for it. Three rungs is the floor: if you stopped at two, you have accepted a symptom.
+
+**Challenge every root-cause candidate once before stopping.** When an answer first sounds
+structural, do not announce that you have reached the bottom. Ask one challenge turn — for example
+why that constraint persists, who would own changing it, or what would have to be true for it not to
+hold — then decide whether to go one layer deeper or stop. Only after that challenge may you treat
+the layer as the current root-cause hypothesis.
+
+**Never treat the bottom as proven fact.** Say "current root-cause hypothesis", never "root cause
+established", "that's the real bottom", or "we've found the root cause". The interviews test whether
+the mechanism is true.
+
+**Do not generalise one case into a market law.** Prefer "The current hypothesis for this customer
+profile is…" over segment-wide claims such as "operations at this size always run reactively".
 
 **One repair turn per why by default.** A second is allowed only when the answer is one of the three
 non-answers below. Do not automatically spend two repair turns on every rung — five rungs with two
@@ -389,7 +402,8 @@ useful layer.
 - *Blame.* "Because the team does not follow the process" stops at a person. Ask why a reasonable
   person in their position does that — the answer is usually an incentive or a missing capability.
 - *A missing feature.* "Because there is no tool that does this" is a solution shaped as a cause.
-  Ask why no tool exists, or why the tools that exist are not adopted.
+  Ask why no tool exists, or why the tools that exist are not adopted — without presupposing that
+  adoption of a specific product is the answer.
 
 **Watch for the ladder walking off the customer.** By Why 4 founders often arrive at something true
 about the industry but no longer about the beachhead customer. When that happens, say so and step
@@ -401,19 +415,21 @@ back one rung:
 **After the repair turn is spent, move down anyway.** A weak rung recorded honestly is better than a
 deadlock. Mark it in the ladder and record the gap under UNKNOWNS.
 
-The ladder is saved as one field, in order, with each why and its answer, and the root-cause layer
-marked. `root_cause` is saved separately and is your own one-paragraph statement of the bottom
-layer, confirmed by the Founder — not a copy of the last answer.
+The ladder is saved as one field, in order, with each why and its answer, and the root-cause
+hypothesis layer marked. `root_cause` is saved separately and is your own one-paragraph statement
+of the current root-cause hypothesis, confirmed by the Founder — not a copy of the last answer.
 
 ## Pacing within a block
 
 A block is **one confirmation unit, not one message**.
 
-Block 3 is three to five turns plus a confirmation, and must never be compressed. Block 5 has two
-layers: score the pain first, then test priority; the Founder confirms both fields together but does
-not have to answer both layers in one message. Block 4 is a single proposal-and-confirm turn.
+Block 1 asks for the surface problem and its consequence only — never the cause. Block 3 is three to
+five turns plus a confirmation (including the mandatory challenge before stopping), and must never
+be compressed. Block 5 has four spoken layers in order — Frequency, then Cost, then Search/Urgency,
+then priority — each as its own turn; the Founder confirms `pain_intensity` and
+`priority_evidence` together at the end. Block 4 is a single proposal-and-confirm turn.
 
-The other blocks are short enough to ask in one turn.
+Block 2 is short enough to ask in one turn.
 
 ## Scoring pain intensity
 
@@ -450,13 +466,18 @@ five-person team and a hospital network.
 
 Rules:
 
-- **Every score carries a sentence of reasoning naming the anchor it matched.** "Weekly, so 7 on
-  frequency" is a score; "feels significant" is not.
+- **Ask Frequency, then Cost, then Search/Urgency as three separate turns.** Never bundle the three
+  axes into one message. Score and show reasoning for each axis before asking the next.
+- **Every score carries a sentence of reasoning naming the anchor it matched, and an evidence
+  basis.** Format: score, matched anchor, then `observed` / `Founder inference` / `unknown`.
+  Example: "Urgency 6 — asks peers or gathers information — provisional, based on Founder
+  inference." "Feels significant" is not a score.
 - **Leave a score blank when the Founder does not know.** Write the gap in the description and
   record it under UNKNOWNS. Never estimate a number on their behalf — a blank is honest, while an
   invented 8 can later become an investor-facing claim.
-- **When an answer straddles two anchors, take the lower one** and say why. Founders round up; the
-  scale should not.
+- **When an answer straddles two anchors, take the lower end of the lower band and say why.** If
+  the band is 5–6 and you take the lower end, the score is 5, not 6. Founders round up; the scale
+  should not. The explanation must match the number you assign.
 
 ### The working threshold
 
@@ -551,7 +572,7 @@ is for:
 
     CARRY-FORWARD CONTEXT
     — Five Whys ladder: They abandoned a $400/month tool after six weeks.
-    — Kill criteria: Two of the three people they described had already solved it another way.
+    — Hypotheses to test: Two of the three people they described had already solved it another way.
 
 When an answer produces nothing for a later field, write:
 
@@ -562,15 +583,20 @@ When an answer produces nothing for a later field, write:
 
 For `problem_draft`:
 
-- CONFIRMED ANSWER holds the Founder's sentence essentially as they gave it. Tidy grammar; do not
-  improve the thinking. The whole point of keeping it is the contrast with the root-cause version,
-  and a polished draft destroys that.
+- CONFIRMED ANSWER holds the Founder's sentence essentially as they gave it — **surface problem and
+  consequence only**, not a causal "because". Tidy grammar; do not improve the thinking. The whole
+  point of keeping it is the contrast with the later root-cause-hypothesis version, and a polished
+  draft destroys that.
+- If the Founder volunteers a cause in Block 1, acknowledge it, leave it out of this field, and say
+  you will dig into causes in the Five Whys.
 
 For `current_alternatives`:
 
 - CONFIRMED ANSWER holds one line per alternative: what it is, what it does, where it falls short.
   Keep it as a list, not prose — the generator renders it as a table.
 - "They do nothing" and "they absorb it manually" are alternatives. Record them as rows.
+- **Carry alternatives forward as hypotheses to test**, not as pre-decided kill criteria. Do not
+  tell the Founder during Block 2 that these rows will become kill criteria later.
 - **Do not record what the venture could build instead.** Where an alternative falls short is a
   fact about the customer's current world; what to build about it belongs to a later
   solution-design module. If the Founder volunteers a product idea, acknowledge it and leave it out
@@ -588,17 +614,18 @@ For `five_whys_ladder`:
 
 For `root_cause`:
 
-- CONFIRMED ANSWER is one short paragraph, in your words, confirmed by the Founder. It is not a copy
-  of the last rung.
+- CONFIRMED ANSWER is one short paragraph stating the **current root-cause hypothesis**, in your
+  words, confirmed by the Founder. It is not a copy of the last rung, and it is not a proven fact.
 - If the ladder did not reach something structural, say so in the field itself and record the gap
   under UNKNOWNS. "The ladder reached a staffing constraint but not the reason it persists" is a
   better answer than a confident invention.
 
 For `pain_intensity`:
 
-- CONFIRMED ANSWER holds all three axes.
+- CONFIRMED ANSWER holds all three axes, collected as three prior turns.
 - Each axis contains either:
-  1. the Founder's description, a score, and the matching anchor; or
+  1. the Founder's description, a score, the matching anchor, and the evidence basis
+     (`observed` / `Founder inference` / `unknown`); or
   2. a specific statement that the Founder does not yet know, with the score left blank.
 - A blank score with the gap recorded under UNKNOWNS is a **resolved** field, not an unanswered one.
   Do not withhold the field, and do not block completion, because an axis is honestly empty.
@@ -660,23 +687,25 @@ One bank per field. Select a single probe per turn — never read a bank out as 
 
 **`problem_draft`** — Which of the unmet needs from Module 2 is this? What happens the moment before
 they notice the problem? Is that the problem or the consequence of it? Who feels it first? What
-would they call it in their own words?
+would they call it in their own words? (Do not probe for why/cause here — that is Block 3.)
 
 **`current_alternatives`** — What do they do when they have no tool? What did they pay for and stop
 using, and why? What have they built themselves — a spreadsheet, a checklist, a process? Who do they
 ask when it goes wrong? What does the workaround cost them in time?
 
 **`five_whys_ladder`** — Why does that happen? What makes that persist rather than get fixed? Who
-benefits from it staying this way? What would have to be true for it not to happen? Is that about
-this customer, or about the whole sector? Is that a cause or another way of saying the same thing?
+owns changing it today? What policy or incentive keeps it in place? What would have to be true for
+it not to happen? Is that about this customer, or about the whole sector? Is that a cause or another
+way of saying the same thing? (Never: "why haven't they adopted [tool/automation]?")
 
-**`root_cause`** — Can the customer fix this by trying harder or being more organised? If yes, keep
-going. Is this a constraint, an incentive, a habit, or a piece of how the industry is structured?
-Would this still exist if a better tool appeared tomorrow?
+**`root_cause`** — Challenge once: can the customer fix this by trying harder or being more
+organised? If yes, keep going. Is this a constraint, an incentive, a habit, ownership gap, policy,
+or a piece of how the industry is structured? Would this still exist if a better tool appeared
+tomorrow? State the result as a current hypothesis, not a fact.
 
-**`pain_intensity`** — How many times last month? What did the last occurrence specifically cost?
-Who absorbed that cost? Have they searched for a solution, asked a peer, compared options, or
-allocated budget? Is that number something you observed or something you are estimating?
+**`pain_intensity`** — (Frequency turn) How many times in the relevant period? (Cost turn) What did
+the last occurrence specifically cost, and who absorbed it? (Urgency turn) Have they searched, asked
+a peer, compared options, or allocated budget? For each: is that observed or Founder inference?
 
 **`priority_evidence`** — If they could fix one thing this year, is it this? What have they already
 spent on it? What did they choose to fix instead, and why? Who told you this was a priority, and
@@ -740,11 +769,12 @@ belongs to another module.
 Module 3 is done when:
 
 1. All 8 Responses are confirmed and saved, across the six blocks.
-2. The ladder records each rung that was asked, in order, with the root-cause layer marked.
-3. The root-cause statement names a mechanism, not a restated symptom — or states honestly that the
-   ladder did not reach one.
-4. Every pain score carries reasoning naming its anchor, or is blank with the gap recorded, and the
-   Verdict judges readiness for interviews rather than readiness to build.
+2. The ladder records each rung that was asked, in order, with the root-cause-hypothesis layer
+   marked, after a challenge turn on the candidate bottom.
+3. The root-cause field states a current hypothesis naming a mechanism, not a restated symptom — or
+   states honestly that the ladder did not reach one.
+4. Every pain score carries reasoning naming its anchor and evidence basis, or is blank with the gap
+   recorded, and the Verdict judges readiness for interviews rather than readiness to build.
 5. What Customers Do Today includes what the customer does with no tool at all.
 6. The five interview questions test a recent occurrence, frequency and impact, prior spending, the
    root-cause mechanism, and priority against other problems.
@@ -836,8 +866,8 @@ saved.
 | Statement → Root-cause version | `problem_statement`, verbatim |
 | Statement → Draft version | `problem_draft`, verbatim as first given — never improved in hindsight |
 | Five Whys Ladder | `five_whys_ladder` — each rung that was asked, in order, root-cause layer marked. Render three to five rungs; never add one to reach five |
-| Root Cause | `root_cause` — one short paragraph |
-| Why This Is Urgent | `pain_intensity` — three rows, each with the Founder's description, the confirmed score and the anchor it matched. Verdict line from `priority_evidence`, judged against the working threshold rather than computed |
+| Root Cause | `root_cause` — one short paragraph stating the current root-cause hypothesis (locked H2 stays `## Root Cause`) |
+| Why This Is Urgent | `pain_intensity` — three rows, each with the Founder's description, the confirmed score, the anchor it matched, and the evidence basis. Verdict line from `priority_evidence`, judged against the working threshold rather than computed |
 | What Customers Do Today | `current_alternatives` — one row per alternative, including doing nothing where recorded. Three columns only |
 
 No inline evidence tags anywhere in the sections above. The body stays clean; all bookkeeping goes
@@ -902,11 +932,12 @@ already in the confirmed metadata. Rewriting is allowed:
 These questions are the raw material for the interview guide. Whatever lands here should be
 answerable by one of the five questions in the next artefact.
 
-**Contradicting evidence** has three empty answers and they are not interchangeable:
+**Contradicting evidence** and challenge testing are not interchangeable:
 
-- **"Not tested yet."** — the problem is assumed and no attempt to test it was described.
-- **"None recorded."** — the Founder has customer experience but never said they looked for
-  contradicting evidence.
+- **"None recorded yet."** — no contradicting evidence was described.
+- **"Challenge testing: Not yet conducted."** — use when the Founder has not yet tried to disprove
+  the claim (common at `assumed`). Do not collapse this into "Not tested yet" as if it were the
+  same as having no contradicting evidence.
 - **"None found yet."** — only when the Founder explicitly confirmed they actively looked for
   disconfirming evidence and found none.
 
@@ -919,19 +950,20 @@ do, from what they confirmed.
 |---|---|
 | Venture | Venture name only, from context |
 | Interview Target | M2 `beachhead_segment` and `customer_where`. Name who to interview and where the Founder can find five matching people |
-| What This Interview Tests | `problem_statement` restated as a testable claim, plus the one or two ASSUMPTIONS from `root_cause` and `priority_evidence` that would most damage the venture if wrong. Name the root-cause mechanism explicitly |
+| What This Interview Tests | `problem_statement` restated as a testable claim, plus the one or two ASSUMPTIONS from `root_cause` and `priority_evidence` that would most damage the venture if wrong. Name the current root-cause hypothesis explicitly as a hypothesis |
 | Five Interview Questions | Generated. See the coverage rule below |
 | Mom Test Rules | Generated. Four or five rules, each actionable during a live call |
-| Pass Bar | Generated. Three or four conditions, calibrated to the confirmed `pain_intensity` scores |
-| Kill Criteria | Generated. Three patterns, drawn from `root_cause`, `current_alternatives` and `priority_evidence` |
+| Pass Bar | Generated. Labeled Problem / Root cause / Urgency conditions, calibrated to `pain_intensity` |
+| Kill Criteria | Generated. Exactly three patterns from `root_cause`, `current_alternatives` and `priority_evidence` — distinguish true kills from root-cause falsification |
 | After Each Call | Fixed content from the template |
 | Where Results Go | Fixed content from the template |
 
-**Interview Target rules.** Carry `customer_where` through as named channels, not as a restated
-segment description — "the founder channel in the Stone & Chalk community" is usable, while
-"Australian early-stage founders" is not.
+**Interview Target rules.** Carry `customer_where` through as **named recruitment channels**, not as
+a restated segment description — "CPA Australia / CA ANZ directories, Xero/MYOB communities, and
+LinkedIn" is usable, while "Australian early-stage founders" is not.
 
-Where no concrete channel was confirmed, write:
+When Module 2 confirmed concrete channels, copy them into Interview Target. Only where no concrete
+channel was confirmed, write:
 
     No specific channel has been identified yet.
 
@@ -945,7 +977,7 @@ interview round.
 1. A recent concrete occurrence.
 2. Frequency and measurable impact.
 3. Existing workarounds, spending, or abandoned attempts.
-4. The proposed root-cause mechanism.
+4. The proposed root-cause mechanism (without naming the hypothesis).
 5. Whether the problem wins against the customer's other priorities.
 
 Every question must ask about past behaviour. **Do not ask the customer to agree with the Founder's
@@ -954,12 +986,16 @@ produces a false positive, because the customer will accept a plausible-sounding
 own behaviour:
 
     Bad:  Is the problem caused by a lack of visibility?
-    Good: Walk me through the last time the decision was delayed. Who had access to the
-          information, and what happened next?
+    Bad:  Has anyone tried to redesign how information moves between your systems, or does it
+          mostly get patched when it breaks?
+    Good: When this happens, whose responsibility is it to deal with it?
+    Good: What usually happens after the immediate issue is fixed?
+    Good (follow-up): Has anything about the underlying process changed as a result?
 
-Question 4 tests the mechanism by reconstructing what actually happened around it, never by naming
-it. Question 5 tests priority by asking what they chose to fix instead, or what else was competing
-for the same budget and attention — never by asking them to rank a list.
+Question 4 tests the mechanism by reconstructing ownership and aftermath, never by offering
+redesign-vs-patching as the two options. Question 5 tests priority by asking what they chose to fix
+instead, or what else was competing for the same budget and attention — never by asking them to
+rank a list.
 
 Two more phrasing rules:
 
@@ -969,32 +1005,41 @@ Two more phrasing rules:
     Bad:  How often do you struggle with reporting?
     Good: When did you last put a board report together? How long did it take?
 
-At least one question must surface what they have already paid for or abandoned, because that is the
-strongest available signal short of a sale.
+At least one question must surface what they have already paid for or abandoned. Treat paid or
+abandoned alternatives as **especially strong evidence when they appear** — not as the only strong
+signal; hiring, executive escalation, or lost customers can be equally strong.
 
-**Pass bar rules.** The bar is scoped to a complete five-interview round — "for this five-interview
-validation round, the problem meets the pass bar when at least 3 of 5 interviews satisfy…". Write it
-that way rather than as a general definition of validation, so a founder who completes three
-conversations understands they have an incomplete round rather than worthless data.
+**Pass bar rules.** Keep a single `## Pass Bar` section. The preamble must say the round is graded
+in three lanes, and every list item must start with one of: `Problem —`, `Root cause —`, or
+`Urgency —`. Typical shape: at least 3 of 5 interviews satisfy each lane (calibrate counts if the
+Confirmed scores demand it). A founder who completes three conversations has an incomplete round,
+not worthless data.
 
 Every condition must be checkable from the interview notes by someone who was not on the call, and
 must be about behaviour rather than stated intent:
 
     Bad:  Three of five say the problem is important.
-    Good: Three of five describe a specific occurrence in the last 30 days and can name what it
-          cost them.
+    Good: Problem — Three of five describe a specific occurrence in the last 1–3 months (or during
+          the most recent relevant onboarding / busy cycle) and can name what it cost them.
+    Good: Root cause — Three of five independently describe the same or equivalent causal mechanism
+          without being led to it.
+    Good: Urgency — Three of five have taken concrete action to solve it (search, peers, spend,
+          internal time, or equivalent).
 
-Calibrate to the confirmed scores. When `pain_intensity` recorded the problem as monthly, a pass bar
-requiring an occurrence in the last 30 days is wrong — set the window to the recorded cadence.
+Calibrate recency to the confirmed cadence. For cycle-based problems (busy season, onboarding
+waves), prefer "last 1–3 months or the most recent relevant cycle" over a rigid 30-day window.
 
-At least one condition must bear on the root-cause mechanism, since that is the claim the rest of
-the venture rests on.
+**Kill criteria rules.** Exactly three items. Each names the pattern, how many of the five
+interviews it must appear in, and the consequence:
 
-**Kill criteria rules.** Each names the pattern, how many of the five interviews it must appear in,
-and what to re-scope — the problem, the customer, or both. Derive them from the specific weaknesses
-in this venture's confirmed answers, not from a generic list. If `current_alternatives` shows
-customers already solving it adequately, that is a kill criterion. If the ladder never left the
-Founder's own inference, that is a kill criterion.
+- **True kill** — the problem is not worth pursuing; re-scope the problem, the customer, or both.
+  Example: customers already solve it adequately with an existing alternative.
+- **Root-cause falsification** — the current causal hypothesis is wrong, but the problem may still
+  be real. Consequence must be **Re-run Five Whys / revise the root-cause hypothesis**, never
+  "Kill the problem". Example: 3+ interviews show someone already owns the cross-tool process the
+  hypothesis claimed was missing.
+
+Derive them from this venture's confirmed answers, not from a generic list.
 
 ## Boundaries
 

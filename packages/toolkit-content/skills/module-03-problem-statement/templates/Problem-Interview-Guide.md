@@ -50,10 +50,11 @@ five rules, each one actionable during a live call.>
 
 ## Pass Bar
 
-**For this five-interview validation round, the problem meets the pass bar when at least 3 of 5
-interviews satisfy the conditions below:**
+**For this five-interview validation round, grade each lane separately. Label every condition
+Problem, Root cause, or Urgency. Typical bar: at least 3 of 5 interviews satisfy each lane's
+conditions below (calibrate windows to the confirmed pain cadence):**
 
-<Three or four conditions, each independently checkable from the notes by someone who was not on the
+<Labeled conditions, each independently checkable from the notes by someone who was not on the
 call. Conditions must be about what the customer has already done, not about what they said they
 would do.>
 
@@ -63,10 +64,12 @@ would do.>
 
 ## Kill Criteria
 
-**Three patterns that mean this problem is not worth building for and the scope has to change:**
+**Three patterns. True kills mean the problem is not worth pursuing and scope must change.
+Patterns that only falsify the current root-cause hypothesis must say to re-run Five Whys / revise
+the hypothesis — not to kill the problem:**
 
-<Each one names the pattern, how many of the five interviews it has to appear in, and what to
-re-scope — the problem, the customer, or both.>
+<Each one names the pattern, how many of the five interviews it has to appear in, and the
+consequence — kill/re-scope, or re-run Five Whys.>
 
 1.
 2.

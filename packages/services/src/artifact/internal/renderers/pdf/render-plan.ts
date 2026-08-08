@@ -139,7 +139,8 @@ function drawField(
     textField.updateAppearances(fonts.regular);
   } else if (field.kind === "checkbox") {
     const checkbox = form.createCheckBox(field.name);
-    checkbox.addToPage(page, { ...field.rect, borderWidth: 0.8 });
+    // Visible square border so Pass/Kill ticks read as checkboxes, not bare codes.
+    checkbox.addToPage(page, { ...field.rect, borderWidth: 1.2 });
   } else {
     const dropdown = form.createDropdown(field.name);
     dropdown.setOptions(field.options);

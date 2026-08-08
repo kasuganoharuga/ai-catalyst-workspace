@@ -43,7 +43,7 @@ const ROUND_SIZE = 5;
 // reference page; this note says so explicitly.
 const OBSERVATION_NOTE =
   "Founder observation only — Module 4 will independently verify this against the written evidence. " +
-  "The full wording of every condition is on page 1.";
+  "The full wording of the Pass Bar and Kill Criteria is on pages 1–2.";
 
 export interface BuildInterviewWorkbookPlanOptions {
   /** Founder-chosen interview section count, 5-10 — see manifests/interview-v1.ts. Defaults to the manifest's default (5). */
@@ -51,19 +51,27 @@ export interface BuildInterviewWorkbookPlanOptions {
 }
 
 function labelLine(layout: LayoutBuilder, text: string, x?: number): void {
-  layout.ensure(11);
-  // Drawn as locked chrome (a field label), not tracked against the model —
-  // labels are renderer-authored, not confirmed-Markdown content.
+  const labelX = x ?? layout.margin;
+  const maxWidth =
+    x === undefined
+      ? layout.usableWidth
+      : Math.max(40, layout.margin + layout.usableWidth - labelX);
+  const label = text.toUpperCase();
+  // Leave clear air between the label block and the field border — long
+  // uppercase chrome used to sit on (or through) the box edge.
+  const gapAfterLabel = 7;
+  const labelHeight = layout.measuredHeight(label, 6, maxWidth, true);
+  layout.ensure(labelHeight + gapAfterLabel + 4);
   layout.lockedText(
     `chrome.label.${text}`,
-    text.toUpperCase(),
+    label,
     { size: 6, bold: true, color: MUTED },
     {
-      x: x ?? layout.margin,
-      gap: 0,
+      x: labelX,
+      maxWidth,
+      gap: gapAfterLabel,
     },
   );
-  layout.advance(-layout.linePitch(6) + 4); // tight gap between a label and the field beneath it
 }
 
 function sectionHeading(
@@ -103,14 +111,16 @@ function twoColumnCheckboxes(
   layout.y = Math.min(afterLeftHeading, layout.y);
 
   const rowsTop = layout.y;
-  const boxSize = 10;
+  // Slightly larger than the old 10pt boxes so Pass/Kill ticks read as
+  // real checkboxes next to P1/K1 codes, not bare accent text.
+  const boxSize = 12;
   // Row pitch is boxSize plus clearance, not boxSize alone: pdf-lib's
   // checkbox widgets report a rectangle inflated by their border width
-  // (confirmed: a requested 10x10 box with borderWidth 0.8 reads back as
-  // 10.8x10.8 once rendered), so packing rows at exactly boxSize apart
+  // (confirmed: a requested box with borderWidth 0.8 reads back slightly
+  // larger once rendered), so packing rows at exactly boxSize apart
   // leaves adjacent checkboxes' borders overlapping by a fraction of a
   // point.
-  const rowPitch = boxSize + 3;
+  const rowPitch = boxSize + 5;
 
   for (let i = 0; i < passBarCount; i += 1) {
     const boxY = rowsTop - i * rowPitch - boxSize;
@@ -373,7 +383,7 @@ function interviewSection(
   labelLine(layout, "Verbatim customer quotes — their words, not a summary");
   layout.textField(`${prefix}.verbatim_quotes`, {
     width: layout.usableWidth,
-    height: 132,
+    height: 118,
     multiline: true,
     capacity: 620,
     gap: 8,
@@ -382,7 +392,7 @@ function interviewSection(
   labelLine(layout, "Observed behaviour — what they have actually done");
   layout.textField(`${prefix}.observed_behaviour`, {
     width: layout.usableWidth,
-    height: 90,
+    height: 80,
     multiline: true,
     capacity: 470,
     gap: 8,
@@ -422,7 +432,7 @@ function interviewSection(
   );
   layout.textField(`${prefix}.contradictions`, {
     width: layout.usableWidth,
-    height: 90,
+    height: 78,
     multiline: true,
     capacity: 470,
     gap: 8,
@@ -433,13 +443,13 @@ function interviewSection(
     `${prefix}.observation_note`,
     OBSERVATION_NOTE,
     { size: 7, color: MUTED },
-    { gap: 8 },
+    { gap: 6 },
   );
 
   labelLine(layout, "Evidence-bearing extracts to take into the next module");
   layout.textField(`${prefix}.evidence_extracts`, {
     width: layout.usableWidth,
-    height: 88,
+    height: 72,
     multiline: true,
     capacity: 400,
     gap: 0,
