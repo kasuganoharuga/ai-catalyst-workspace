@@ -1,10 +1,11 @@
-import { Download, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { formatDateTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+import { ArtefactDownloadMenu } from "../../components/artefact-download-menu";
 import { StatusBadge } from "../../components/status-badge";
 import { artefactsCopy } from "../../lib/copy";
 import { moduleAccentStyle } from "../../lib/module-display";
@@ -68,26 +69,13 @@ export function ArtefactDocumentRow({
           >
             <Link href={readHref}>{artefactsCopy.readCta}</Link>
           </Button>
-          {artefact.workbookAvailable ? (
-            <>
-              <Button asChild size="default" variant="outline">
-                <a href={`${downloadHref}?format=workbook`}>
-                  <Download aria-hidden="true" />
-                  {artefactsCopy.downloadWorkbookCta}
-                </a>
-              </Button>
-              <Button asChild size="default" variant="ghost">
-                <a href={downloadHref}>{artefactsCopy.downloadSourceCta}</a>
-              </Button>
-            </>
-          ) : (
-            <Button asChild size="default" variant="outline">
-              <a href={downloadHref}>
-                <Download aria-hidden="true" />
-                {artefactsCopy.downloadCta}
-              </a>
-            </Button>
-          )}
+          <ArtefactDownloadMenu
+            downloadHref={downloadHref}
+            workbookAvailable={artefact.workbookAvailable}
+            downloadLabel={artefactsCopy.downloadCta}
+            pdfLabel={artefactsCopy.downloadWorkbookCta}
+            markdownLabel={artefactsCopy.downloadSourceCta}
+          />
         </div>
       ) : artefact.startAction ? (
         <div className="flex shrink-0 items-center">

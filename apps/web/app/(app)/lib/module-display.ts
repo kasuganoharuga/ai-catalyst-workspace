@@ -25,10 +25,17 @@ export const DECISION_QUESTION_KEYS = new Set([
 /**
  * Module 2's thirteen `module_questions` rows are the Facilitator's
  * per-field save points, but the founder-facing conversation runs as
- * eight blocks (see content-seed/content/module-2.ts's `questionGroup`
- * values) — this mirrors that grouping so the progress UI can say "eight
- * blocks", matching resolveModuleCopy's questionsLabel, instead of
- * thirteen individual fields.
+ * eight blocks — this must mirror the actual conversation-block
+ * boundaries (packages/toolkit-content/skills/module-02-customer-avatar/
+ * prompts/module-02-prompt-set.md, §1 "Field ownership" / §2 "Conversation
+ * blocks"), not module-2.ts's `questionGroup` values: those describe which
+ * *document section* of the artefact a field renders under, which is a
+ * different grouping (e.g. `customer_picture` and `beachhead_segment` are
+ * one Field-ownership block but two document groups — "snapshot" and
+ * "segment"). Using `questionGroup` here previously made row 2
+ * ("segment"/beachhead) light up before row 1 ("snapshot"), because
+ * Block 1 saves both fields together but Block 2 doesn't save the rest of
+ * "snapshot" until later — see the QA report this comment replaced.
  */
 const MODULE_2_QUESTION_BLOCKS: {
   group: string;
@@ -36,19 +43,14 @@ const MODULE_2_QUESTION_BLOCKS: {
   questionKeys: string[];
 }[] = [
   {
-    group: "snapshot",
-    label: "Who they are, where they are, and what they are moving towards",
-    questionKeys: [
-      "customer_picture",
-      "customer_where",
-      "customer_stage",
-      "commercial_moment",
-    ],
+    group: "who_and_buyer",
+    label: "Who the customer is and who buys",
+    questionKeys: ["customer_picture", "beachhead_segment"],
   },
   {
-    group: "segment",
-    label: "The beachhead segment you start with",
-    questionKeys: ["beachhead_segment"],
+    group: "where_stage_moment",
+    label: "Where they are, their stage, and what they're moving towards",
+    questionKeys: ["customer_where", "customer_stage", "commercial_moment"],
   },
   {
     group: "situation",
@@ -77,7 +79,7 @@ const MODULE_2_QUESTION_BLOCKS: {
   },
   {
     group: "validation",
-    label: "How much of this is evidence, not assumption",
+    label: "How much of this is evidenced, not assumption",
     questionKeys: ["validation_status"],
   },
 ];

@@ -751,8 +751,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       `Every module after Module ${moduleIndex} builds on the customer you name here. A vague Avatar makes every later module vaguer too.`,
     before: [
       {
-        lead: "Allow 20–30 minutes.",
-        body: "Eight short conversation blocks, not thirteen separate interrogations.",
+        lead: "Most founders take around 40–60 minutes.",
+        body: "You can pause and resume at any time — eight focused conversation blocks, with a few short follow-up questions where needed, not thirteen separate interrogations.",
       },
       {
         lead: "Be specific rather than polished.",

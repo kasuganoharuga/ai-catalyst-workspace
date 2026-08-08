@@ -41,20 +41,28 @@ import {
 import type { FieldPlan, WorkbookRenderPlan } from "../types.js";
 
 const FOOTER_Y = 22;
-const FOOTER_SIZE = 5.5;
-const FOOTER_COLOR = rgb(0.58, 0.58, 0.62);
+const FOOTER_SIZE = 7;
+const FOOTER_COLOR = rgb(0.45, 0.45, 0.5);
 const BODY_COLOR = rgb(0.1, 0.1, 0.12);
 const FIELD_BG = rgb(0.972, 0.974, 0.98);
 const FIELD_BORDER = rgb(0.72, 0.72, 0.78);
 const FIELD_TEXT_SIZE = 9;
 
-/** The fixed left-hand provenance line drawn on every page, independent of the page-specific `footerLabel`. */
-function provenanceFooterLine(plan: WorkbookRenderPlan): string {
-  const { provenance } = plan;
-  return (
-    `${provenance.rendererKey} · Artifact version ${provenance.sourceArtifactVersion} · ` +
-    `Program v${provenance.programVersionNumber} · Generated ${provenance.generatedAt}`
-  );
+/**
+ * Visible footer left line — product + workbook title only. Technical
+ * provenance (renderer key, artifact version, timestamps) lives in the PDF
+ * Info dictionary via `stampProvenanceInfoDict`, not in the printed chrome.
+ */
+function visibleFooterLeft(
+  plan: WorkbookRenderPlan,
+  pageIndex: number,
+): string {
+  const label = plan.pages[pageIndex]?.footerLabel;
+  return label ? `AI Catalyst · ${label}` : "AI Catalyst";
+}
+
+function visibleFooterRight(pageIndex: number, pageCount: number): string {
+  return `Page ${pageIndex + 1} of ${pageCount}`;
 }
 
 function assertAllContentWithinCoverage(plan: WorkbookRenderPlan): void {
@@ -70,11 +78,24 @@ function assertAllContentWithinCoverage(plan: WorkbookRenderPlan): void {
     .filter((l): l is string => l !== null)) {
     assertFontCoverage(REGULAR_FONTKIT_FONT, label, "page footer label");
   }
-  assertFontCoverage(
-    REGULAR_FONTKIT_FONT,
-    provenanceFooterLine(plan),
-    "provenance footer",
-  );
+  // Only pages that opt into a footer label get printed chrome — document
+  // exports (e.g. Ideal Customer Avatar) leave footerLabel null and match
+  // the handout examples with a clean bottom edge.
+  for (let i = 0; i < plan.pages.length; i += 1) {
+    if (plan.pages[i]?.footerLabel === null) {
+      continue;
+    }
+    assertFontCoverage(
+      REGULAR_FONTKIT_FONT,
+      visibleFooterLeft(plan, i),
+      "footer left",
+    );
+    assertFontCoverage(
+      REGULAR_FONTKIT_FONT,
+      visibleFooterRight(i, plan.pages.length),
+      "footer right",
+    );
+  }
   for (const field of plan.fields) {
     if (field.kind === "dropdown") {
       for (const option of field.options) {
@@ -132,26 +153,27 @@ function stampFooters(
   plan: WorkbookRenderPlan,
   font: PDFFont,
 ): void {
-  const provenanceLine = provenanceFooterLine(plan);
   pages.forEach((page, index) => {
-    page.drawText(provenanceLine, {
+    if (plan.pages[index]?.footerLabel === null) {
+      return;
+    }
+    const left = visibleFooterLeft(plan, index);
+    const right = visibleFooterRight(index, pages.length);
+    page.drawText(left, {
       x: DEFAULT_MARGIN,
       y: FOOTER_Y,
       size: FOOTER_SIZE,
       font,
       color: FOOTER_COLOR,
     });
-    const label = plan.pages[index]?.footerLabel;
-    if (label) {
-      const width = font.widthOfTextAtSize(label, FOOTER_SIZE);
-      page.drawText(label, {
-        x: A4.width - DEFAULT_MARGIN - width,
-        y: FOOTER_Y,
-        size: FOOTER_SIZE,
-        font,
-        color: FOOTER_COLOR,
-      });
-    }
+    const rightWidth = font.widthOfTextAtSize(right, FOOTER_SIZE);
+    page.drawText(right, {
+      x: A4.width - DEFAULT_MARGIN - rightWidth,
+      y: FOOTER_Y,
+      size: FOOTER_SIZE,
+      font,
+      color: FOOTER_COLOR,
+    });
   });
 }
 

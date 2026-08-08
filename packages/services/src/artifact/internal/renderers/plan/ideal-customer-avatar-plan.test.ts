@@ -90,10 +90,19 @@ async function extractText(bytes: Buffer, pageNumber: number): Promise<string> {
 }
 
 describe("buildIdealCustomerAvatarPlan — plan structure", () => {
-  it("produces at least one page, with a footer on every page", () => {
+  it("flows continuously with a footer on every page and no forced page-2 kicker", () => {
     const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
     expect(plan.pages.length).toBeGreaterThan(0);
     expect(plan.pages.every((p) => p.footerLabel !== null)).toBe(true);
+    const roles = plan.lockedContent.map((e) => e.role);
+    expect(roles).not.toContain("page2.kicker");
+    // Disqualifiers are individual bullets, not a ·-joined line.
+    expect(roles).toContain("disqualifiers.1");
+    expect(roles).toContain("disqualifiers.2");
+    expect(roles).toContain("disqualifiers.3");
+    expect(plan.lockedContent.some((e) => e.text.includes("  ·  "))).toBe(
+      false,
+    );
   });
 
   it("declares no fields at all — this is a read-only export, not a fillable workbook", () => {
@@ -149,10 +158,13 @@ describe("buildIdealCustomerAvatarPlan — every locked model field is present s
     expect(allText).toContain(MODEL.corePromise);
   });
 
-  it("includes every Validation Status field, compactly", () => {
+  it("includes every Validation Status field as structured rows", () => {
     expect(allText).toContain(MODEL.validationStatus.currentLevel);
     expect(allText).toContain(MODEL.validationStatus.basedOnObservation);
     expect(allText).toContain(MODEL.validationStatus.contradictingEvidence);
+    const roles = plan.lockedContent.map((e) => e.role);
+    expect(roles).toContain("validation_status.current_level");
+    expect(roles).toContain("validation_status.highest_priority_questions");
   });
 });
 
@@ -223,5 +235,16 @@ describe("buildIdealCustomerAvatarPlan -> renderWorkbookPlan — full pipeline",
       await Promise.all(plan.pages.map((_, i) => extractText(bytes, i + 1)))
     ).join(" ");
     expect(allText).toContain("Run a professional seed raise");
+  });
+
+  it("prints a simple product footer, not technical provenance", async () => {
+    const plan = buildIdealCustomerAvatarPlan(MODEL, PROVENANCE);
+    const bytes = await renderWorkbookPlan(plan);
+    const page1 = await extractText(bytes, 1);
+    expect(page1).toContain("AI Catalyst");
+    expect(page1).toContain("Ideal Customer Avatar");
+    expect(page1).toContain("Page 1 of");
+    expect(page1).not.toContain("Artifact version");
+    expect(page1).not.toContain("ideal_customer_avatar_export_v1");
   });
 });

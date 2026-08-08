@@ -1,4 +1,3 @@
-import { Download } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -8,6 +7,7 @@ import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { formatDateTime } from "@/lib/format";
 import { appPageTitle } from "@/lib/page-metadata";
 
+import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
 import { MarkdownDocument } from "../../../components/markdown-document";
 import { PageShell } from "../../../components/page-shell";
 
@@ -73,26 +73,13 @@ export default async function ArtefactDetailPage({
               Open module
             </Link>
           </Button>
-          {document.workbookAvailable ? (
-            <>
-              <Button asChild size="lg">
-                <a href={`${downloadHref}?format=workbook`}>
-                  <Download aria-hidden="true" />
-                  Download PDF
-                </a>
-              </Button>
-              <Button asChild size="lg" variant="ghost">
-                <a href={downloadHref}>Markdown source</a>
-              </Button>
-            </>
-          ) : (
-            <Button asChild size="lg">
-              <a href={downloadHref}>
-                <Download aria-hidden="true" />
-                Download
-              </a>
-            </Button>
-          )}
+          <ArtefactDownloadMenu
+            downloadHref={downloadHref}
+            workbookAvailable={document.workbookAvailable}
+            size="lg"
+            triggerVariant="default"
+            singleVariant="default"
+          />
         </div>
       </div>
 

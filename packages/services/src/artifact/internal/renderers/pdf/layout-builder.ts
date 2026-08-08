@@ -27,6 +27,7 @@ import type { Font as FontkitFont } from "fontkit";
 import {
   blockHeight,
   linePitch,
+  sanitizeForFontCoverage,
   wrapText,
 } from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
 import type {
@@ -171,12 +172,18 @@ export class LayoutBuilder {
     const maxWidth = options.maxWidth ?? this.usableWidth;
     const x = options.x ?? this.margin;
     const font = this.fontFor(style);
-    const height = blockHeight(font, text, style.size, maxWidth);
+    // Sanitised once, here, so the height computed for pagination and the
+    // text actually pushed into lockedContent (later drawn verbatim by
+    // render-plan.ts) can never disagree about what a line wraps to — see
+    // sanitizeForFontCoverage's own comment for why this must happen
+    // before any measurement at all, not just before drawing.
+    const sanitizedText = sanitizeForFontCoverage(font, text);
+    const height = blockHeight(font, sanitizedText, style.size, maxWidth);
 
     if (options.y !== undefined) {
       this.lockedContent.push({
         role,
-        text,
+        text: sanitizedText,
         page: this.pageIndex,
         x,
         y: options.y,
@@ -192,7 +199,7 @@ export class LayoutBuilder {
       this.ensure(height);
       this.lockedContent.push({
         role,
-        text,
+        text: sanitizedText,
         page: this.pageIndex,
         x,
         y: this.y,
@@ -205,7 +212,7 @@ export class LayoutBuilder {
     } else {
       // Split at line boundaries: emit as many lines as fit on the current
       // page as one entry, page-break, then continue with the remainder.
-      const lines = wrapText(font, text, style.size, maxWidth);
+      const lines = wrapText(font, sanitizedText, style.size, maxWidth);
       const pitch = linePitch(font, style.size);
       let remaining = lines;
       while (remaining.length > 0) {

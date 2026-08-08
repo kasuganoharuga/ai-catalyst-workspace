@@ -92,6 +92,97 @@ export function blockHeight(
 }
 
 /**
+ * Characters common in AI-generated or founder-typed prose that fall
+ * outside the embedded Latin subset's coverage but have no clean Unicode
+ * decomposition — a stroke through a letter, an arrow, a checkmark — so
+ * NFKD normalisation below can't recover them.
+ */
+// Combining Diacritical Marks block (U+0300-U+036F) — written as escapes,
+// not literal characters, so the source stays readable in an editor and
+// a future edit here can't silently paste a raw combining mark instead of
+// the two-character regex range it looks like.
+const COMBINING_MARK_RANGE = new RegExp("[\\u0300-\\u036f]", "g");
+
+// Prefer human-readable ASCII over serialization-looking tokens
+// ("->", "[done]") — Noto Sans Latin subset has no arrow/checkmark glyphs,
+// but " > " / "(ok)" still read as prose in a printed workbook.
+const FONT_COVERAGE_SUBSTITUTIONS: Record<string, string> = {
+  "→": " > ",
+  "←": " < ",
+  "↔": " <-> ",
+  "⇒": " => ",
+  "⇐": " <= ",
+  "✓": "(ok)",
+  "✔": "(ok)",
+  "✗": "(no)",
+  "✘": "(no)",
+  ł: "l",
+  Ł: "L",
+  đ: "d",
+  Đ: "D",
+  ø: "o",
+  Ø: "O",
+  ß: "ss",
+  æ: "ae",
+  Æ: "AE",
+  "…": "...",
+};
+
+/**
+ * Best-effort rewrite of `text` so every character has a glyph in `font`,
+ * applied before any layout/measurement or drawing happens. A single
+ * character outside the embedded font's coverage must never fail the
+ * whole workbook render — this is the point that guarantees it doesn't.
+ *
+ * Order: (1) the explicit table above, for characters with no usable
+ * decomposition; (2) NFKD-normalise and strip combining diacritical marks
+ * for anything still uncovered (é -> e, ü -> u, ...); (3) fall back to "?"
+ * for anything neither step recovers (CJK, Cyrillic, Greek, emoji) rather
+ * than let `assertFontCoverage` below throw over content a Founder typed
+ * in good faith.
+ */
+export function sanitizeForFontCoverage(
+  font: FontkitFont,
+  text: string,
+): string {
+  let result = "";
+  for (const char of text) {
+    // Whitespace and control characters (notably "\n" and "\t") are
+    // structural, not drawn glyphs — wrapText splits on them before any
+    // text reaches the font at all, and several have no glyph in this (or
+    // any) font's cmap despite being perfectly fine to carry through.
+    // Coverage-checking them would rewrite "\n" to "?" and silently
+    // collapse a multi-paragraph field onto one line.
+    if (/\s/.test(char)) {
+      result += char;
+      continue;
+    }
+    const codePoint = char.codePointAt(0);
+    if (codePoint === undefined || font.hasGlyphForCodePoint(codePoint)) {
+      result += char;
+      continue;
+    }
+    const substituted = FONT_COVERAGE_SUBSTITUTIONS[char];
+    if (substituted !== undefined) {
+      result += substituted;
+      continue;
+    }
+    const decomposed = char.normalize("NFKD").replace(COMBINING_MARK_RANGE, "");
+    const decomposedCovered =
+      decomposed.length > 0 &&
+      [...decomposed].every((decomposedChar) => {
+        const decomposedCodePoint = decomposedChar.codePointAt(0);
+        return (
+          decomposedCodePoint !== undefined &&
+          font.hasGlyphForCodePoint(decomposedCodePoint)
+        );
+      });
+    result += decomposedCovered ? decomposed : "?";
+  }
+  return result;
+}
+
+/**
  * Every codepoint in `text` must have a glyph in `font`, or this throws.
  * Custom embedded fonts do NOT throw on an uncovered character the way
  * pdf-lib's StandardFonts do — they silently fall back to `.notdef` (a

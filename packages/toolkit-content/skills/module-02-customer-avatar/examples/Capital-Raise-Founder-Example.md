@@ -20,7 +20,7 @@ Australian pre-seed / seed founders raising $500k–$3M.
 
 **STAGE:** Post-MVP, $10k–$80k ARR or strong pilots. 6–12 mths runway
 
-**RAISE / CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed
+**CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed
 
 ## Situation
 

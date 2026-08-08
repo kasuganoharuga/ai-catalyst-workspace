@@ -1,12 +1,12 @@
 "use client";
 
-import { ChevronDown, Download } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
 import { module1Copy } from "../../../lib/copy";
 
 // Tall enough to show a verdict's opening section and prove the document is
@@ -71,26 +71,14 @@ export function DocumentPreview({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {workbookAvailable ? (
-            <>
-              <Button asChild variant="outline" size="sm">
-                <a href={`${downloadHref}?format=workbook`}>
-                  <Download aria-hidden="true" />
-                  {module1Copy.documentDownloadWorkbook}
-                </a>
-              </Button>
-              <Button asChild variant="ghost" size="sm">
-                <a href={downloadHref}>{module1Copy.documentDownloadSource}</a>
-              </Button>
-            </>
-          ) : (
-            <Button asChild variant="outline" size="sm">
-              <a href={downloadHref}>
-                <Download aria-hidden="true" />
-                {module1Copy.documentDownload}
-              </a>
-            </Button>
-          )}
+          <ArtefactDownloadMenu
+            downloadHref={downloadHref}
+            workbookAvailable={workbookAvailable}
+            size="sm"
+            downloadLabel={module1Copy.documentDownload}
+            pdfLabel={module1Copy.documentDownloadWorkbook}
+            markdownLabel={module1Copy.documentDownloadSource}
+          />
         </div>
       </div>
 

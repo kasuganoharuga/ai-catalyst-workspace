@@ -23,7 +23,7 @@ Australian pre-seed / seed founders raising $500k–$3M.
 
 **STAGE:** Post-MVP, $10k–$80k ARR or strong pilots. 6–12 months runway.
 
-**RAISE / CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed.
+**CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed.
 
 ## Situation
 
@@ -198,13 +198,13 @@ describe("parseIdealCustomerAvatar — negative cases (each must throw WORKBOOK_
     );
   });
 
-  it("throws when Snapshot is missing the RAISE label", () => {
+  it("throws when Snapshot is missing the CURRENT COMMERCIAL MOMENT label", () => {
     const bad = fixture().replace(
-      "**RAISE / CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed.\n",
+      "**CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed.\n",
       "",
     );
     expect(() => parseIdealCustomerAvatar(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*RAISE/,
+      /WORKBOOK_RENDER_FAILED.*CURRENT COMMERCIAL MOMENT/,
     );
   });
 

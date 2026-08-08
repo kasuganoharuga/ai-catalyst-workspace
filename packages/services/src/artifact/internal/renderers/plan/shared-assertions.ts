@@ -4,6 +4,8 @@
 // renderer's own assertPlanMatchesModel (in its plan/*.ts file) calls these
 // plus its own model-specific content-equality checks.
 import { isPlaceholderText } from "@ai-catalyst/services/artifact/internal/markdown-sections";
+import { REGULAR_FONTKIT_FONT } from "@ai-catalyst/services/artifact/internal/renderers/pdf/embed-fonts";
+import { sanitizeForFontCoverage } from "@ai-catalyst/services/artifact/internal/renderers/pdf/metrics";
 import type { WorkbookRenderPlan } from "../types.js";
 
 function fail(message: string): never {
@@ -35,7 +37,16 @@ export function assertNoPlaceholderText(plan: WorkbookRenderPlan): void {
   }
 }
 
-/** Every value in `expected` must appear verbatim somewhere in the plan's locked content. */
+/**
+ * Every value in `expected` must appear somewhere in the plan's locked
+ * content — compared after the same font-coverage sanitisation `lockedText`
+ * already applied to what's actually in the plan (an arrow or a stroked
+ * letter in the raw model value would otherwise never match the sanitised
+ * text that replaced it, and this would fail every time that value's
+ * source field contained one). Sanitised against the regular face: the
+ * two embedded weights share the same Latin-subset coverage, so which one
+ * a given entry was actually drawn in does not change the result.
+ */
 export function assertAllPresent(
   plan: WorkbookRenderPlan,
   expected: readonly string[],
@@ -43,7 +54,8 @@ export function assertAllPresent(
 ): void {
   const haystack = plan.lockedContent.map((entry) => entry.text);
   for (const value of expected) {
-    if (!haystack.some((text) => text.includes(value))) {
+    const sanitizedValue = sanitizeForFontCoverage(REGULAR_FONTKIT_FONT, value);
+    if (!haystack.some((text) => text.includes(sanitizedValue))) {
       fail(`${label} "${value}" is missing from the plan's locked content.`);
     }
   }

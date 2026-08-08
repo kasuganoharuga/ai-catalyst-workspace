@@ -284,24 +284,28 @@ describe("renderWorkbookPlan — drawn content and footers", () => {
     expect(page1Text).toContain("Page two");
   });
 
-  it("draws the fixed provenance line on every page, independent of the per-page label", async () => {
+  it("draws a human-readable footer with page numbers on every page", async () => {
     const bytes = await renderWorkbookPlan(samplePlan());
     const page0Text = await extractPageText(bytes, 1);
     const page1Text = await extractPageText(bytes, 2);
-    for (const text of [page0Text, page1Text]) {
-      expect(text).toContain("test_workbook_v1");
-      expect(text).toContain("Artifact version 3");
-      expect(text).toContain("Program v7");
-    }
+    expect(page0Text).toContain("AI Catalyst");
+    expect(page0Text).toContain("Page one");
+    expect(page0Text).toContain("Page 1 of 2");
+    expect(page1Text).toContain("Page two");
+    expect(page1Text).toContain("Page 2 of 2");
+    // Technical provenance stays out of the printed footer.
+    expect(page0Text).not.toContain("Artifact version");
+    expect(page0Text).not.toContain("test_workbook_v1");
   });
 
-  it("a page with a null footerLabel still carries the fixed provenance line", async () => {
+  it("skips printed footer chrome when footerLabel is null", async () => {
     const plan = samplePlan({
       pages: [{ footerLabel: null }, { footerLabel: null }],
     });
     const bytes = await renderWorkbookPlan(plan);
     const page0Text = await extractPageText(bytes, 1);
-    expect(page0Text).toContain("test_workbook_v1");
+    expect(page0Text).not.toContain("AI Catalyst");
+    expect(page0Text).not.toContain("Page 1 of 2");
   });
 
   it("extracts text with byte-correct characters — the WOFF2-vs-TTF regression this font module exists to prevent", async () => {

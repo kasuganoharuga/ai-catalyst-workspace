@@ -124,7 +124,7 @@ export function parseIdealCustomerAvatar(
     who: requiredLabel(markdown, "WHO", { level: 2, heading: "Snapshot" }),
     where: requiredLabel(markdown, "WHERE", { level: 2, heading: "Snapshot" }),
     stage: requiredLabel(markdown, "STAGE", { level: 2, heading: "Snapshot" }),
-    raise: requiredLabel(markdown, "RAISE / CURRENT COMMERCIAL MOMENT", {
+    raise: requiredLabel(markdown, "CURRENT COMMERCIAL MOMENT", {
       level: 2,
       heading: "Snapshot",
     }),

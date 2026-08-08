@@ -27,7 +27,7 @@ const IDEAL_CUSTOMER_AVATAR_TEMPLATE = `# Ideal Customer Avatar
 
 **STAGE:**
 
-**RAISE / CURRENT COMMERCIAL MOMENT:**
+**CURRENT COMMERCIAL MOMENT:**
 
 ## Situation
 
@@ -366,7 +366,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
       {
         key: "snapshot_commercial_moment",
         type: "label_present",
-        label: "RAISE / CURRENT COMMERCIAL MOMENT",
+        label: "CURRENT COMMERCIAL MOMENT",
         scope: { level: 2, heading: "Snapshot" },
       },
       {

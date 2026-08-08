@@ -7,6 +7,7 @@ import {
   heightAtSize,
   linePitch,
   measureTextWidth,
+  sanitizeForFontCoverage,
   wrapText,
 } from "./metrics.js";
 
@@ -135,5 +136,43 @@ describe("assertFontCoverage", () => {
     expect(() =>
       assertFontCoverage(FONT, "Kerbside 中", "venture_name"),
     ).toThrow(/WORKBOOK_RENDER_FAILED/);
+  });
+});
+
+describe("sanitizeForFontCoverage", () => {
+  it("leaves already-covered text untouched", () => {
+    const text = "“smart quotes” — em dash — A$ € £ é ü ñ Å";
+    expect(sanitizeForFontCoverage(FONT, text)).toBe(text);
+  });
+
+  it("substitutes arrows and checkmarks with human-readable ASCII", () => {
+    expect(sanitizeForFontCoverage(FONT, "budget cuts → deprioritized")).toBe(
+      "budget cuts  >  deprioritized",
+    );
+    expect(sanitizeForFontCoverage(FONT, "done ✓")).toBe("done (ok)");
+    expect(sanitizeForFontCoverage(FONT, "missed ✗")).toBe("missed (no)");
+  });
+
+  it("substitutes stroked letters that NFKD cannot decompose", () => {
+    expect(sanitizeForFontCoverage(FONT, "Łukasz")).toBe("Lukasz");
+    expect(sanitizeForFontCoverage(FONT, "đen")).toBe("den");
+  });
+
+  it("strips diacritics via NFKD for accented Latin Extended characters", () => {
+    // "ș" (s with comma below, U+0219) is outside the Latin-1 set the font
+    // covers directly but decomposes cleanly to a covered "s".
+    expect(sanitizeForFontCoverage(FONT, "ș")).toBe("s");
+  });
+
+  it("falls back to '?' for scripts with no substitution or decomposition", () => {
+    expect(sanitizeForFontCoverage(FONT, "中文")).toBe("??");
+  });
+
+  it("makes the result always pass assertFontCoverage, however mixed the input", () => {
+    const messy = "Kerbside 中 → done ✓ Łukasz ș café";
+    const sanitized = sanitizeForFontCoverage(FONT, messy);
+    expect(() =>
+      assertFontCoverage(FONT, sanitized, "test_field"),
+    ).not.toThrow();
   });
 });

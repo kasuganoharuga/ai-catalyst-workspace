@@ -35,7 +35,7 @@ does not own.
 | 1 | `beachhead_segment` | Segment | — | inherits Module 1 context |
 | 2 | `customer_where` | Snapshot → WHERE | — | |
 | 2 | `customer_stage` | Snapshot → STAGE | Disqualifiers | assisted |
-| 2 | `commercial_moment` | Snapshot → RAISE / CURRENT COMMERCIAL MOMENT | Tier 2 signals | assisted |
+| 2 | `commercial_moment` | Snapshot → CURRENT COMMERCIAL MOMENT | Tier 2 signals | assisted |
 | 3 | `customer_situation` | Situation | Functional needs | inherits Module 1 context |
 | 4 | `functional_needs` | Unmet Needs → Functional | Core Promise | inherits Module 1 context |
 | 4 | `emotional_needs` | Unmet Needs → Emotional and social | Tier 1 signals | inherits Module 1 context |
@@ -592,14 +592,18 @@ answer for them:
 - Propose two or three candidate framings derived **only** from the Founder's confirmed answers.
 - Always include "None of these — I would describe it differently."
 - Do not treat a proposed candidate as confirmed until the Founder explicitly selects or corrects it.
+- **Every candidate must answer the same question** — for `customer_stage`, "what has to already be
+  true before this problem becomes theirs?" Do not mix a stage boundary with a pain/urgency signal or
+  a description of an existing workaround in the same option set; a Founder choosing between three
+  different *kinds* of claim can't actually compare them.
 
 Shape:
 
     Based on what you have described, the strongest stage boundary appears to be one of these:
 
     A. Post-MVP, before repeatable revenue
-    B. Early revenue, before hiring a dedicated sales team
-    C. Established customers, but still operating the process manually
+    B. Early revenue, before the team is large enough to need a dedicated system
+    C. Established revenue, past the headcount where the current approach stops scaling
     D. None of these — I would describe it differently
 
     Which is closest?
@@ -776,7 +780,7 @@ Rules:
 
 ## Content rules
 
-Three rules govern what may be written, taken from the reference handout:
+Four rules govern what may be written, taken from the reference handout:
 
 1. **Write needs, not features.** Every unmet need is something the customer wants to be true, never
    a description of what we sell. Rewrite "an AI dashboard" as "knowing which actions to prioritise
@@ -786,6 +790,17 @@ Three rules govern what may be written, taken from the reference handout:
    feel frustrated", "they value innovation", "they want growth".
 3. **Tier by urgency.** Separate act-now from nurture. Same person, different message, different
    speed of response.
+4. **Do not infer disqualifiers from positive beachhead, stage, tool, size or capability criteria.**
+   Block 1's beachhead selection, Block 2's stage boundary, and any tool or team-size detail the
+   Founder mentions while describing the strongest-fit customer are hypotheses about who fits best —
+   never evidence about who to exclude, even when they read as a boundary. A small team, a lean
+   toolset or an in-house technical capability are reasons a customer fits the beachhead well; they
+   become a disqualifier only when the Founder explicitly names the opposite profile as an exclusion
+   in Block 6 itself ("teams under five people can't justify the spend" is a disqualifier; "our
+   beachhead is 5-20 person firms using 3+ disconnected tools" is not evidence that a 4-person firm,
+   or one using two tools, should be excluded). Disqualifiers are established in Block 6 and nowhere
+   else — do not backfill one from an earlier block's fit criteria, in conversation or at artefact
+   generation time.
 
 ## Probe bank
 
@@ -813,6 +828,12 @@ observed or reasonably inferred from outside? Does it create willingness to pay,
 to look? A real trigger can be entirely internal — a budget approval, a board deadline, a
 procurement review, a contract expiry — and that is fine here. Strict observability is the rule for
 buying signals, not for the commercial moment.
+
+A recurring cycle — "month-end reporting", "quarter-end close", "busy season" on its own — is not a
+commercial moment by itself: it explains why the pain is recurring, not why *now* rather than any other
+occurrence of the same cycle. If a Founder offers one, narrow it to the next concrete occurrence and
+what makes that one different — "the upcoming quarter-end close, the first with the new client
+included" is a commercial moment; "quarter-end reporting is always a crunch" is not.
 
 **`customer_situation`** — What triggered it? What have they already tried and why did it fail? What did
 that cost them? What happens if nothing changes for six months? Is this a real customer or an
@@ -853,10 +874,21 @@ is exactly what Module 2 is for.
 Do not require five interviews, a 30-day window, or formal research. One real conversation with a
 closely matching person is enough for `interviewed`.
 
-Before saving, check it against what they told you in the earlier blocks:
+Before saving, check it against what they told you in the earlier blocks, and against Module 1's
+`current_stage`:
 
 - If the earlier answers recorded real customer conversations under OBSERVATION BASIS, `assumed` is
   probably understated. Point that out and let them decide.
+- Module 1's `current_stage` (idea only / prototype / early users / paying customers) is inherited
+  context, not a Module 2 finding — but it is a real signal that must be reconciled, not silently
+  dropped. `early_users` or `paying_customers` there means the Founder already has people using or
+  paying for the product; it is not automatically `interviewed` or `paying` here, since those early
+  users may not match this exact beachhead profile and using a product is not the same as a
+  conversation about this specific problem. If Module 1 says `early_users` or `paying_customers` and
+  the Founder is about to settle Block 8 on `assumed` with no real conversation described, surface
+  that directly — "You mentioned in Module 1 that you already have early users. Have you talked to any
+  of them about this specific problem, or does that not overlap with this beachhead?" — rather than
+  letting the two responses stand unreconciled.
 - If they choose `paying`, confirm that a customer matching **this exact profile** made the payment
   or binding commitment **to this venture**, for **this problem**. Spending on a competitor, on
   internal staff or on another workaround does not count as `paying` — that is behavioural evidence
@@ -983,7 +1015,7 @@ exactly.
 | Snapshot → WHO | `customer_picture` |
 | Snapshot → WHERE | `customer_where` |
 | Snapshot → STAGE | `customer_stage` |
-| Snapshot → RAISE / CURRENT COMMERCIAL MOMENT | `commercial_moment` |
+| Snapshot → CURRENT COMMERCIAL MOMENT | `commercial_moment` |
 | Situation | `customer_situation` — one paragraph |
 | Unmet Needs → Functional | `functional_needs` — 3–6, in the Founder-confirmed order. Do not invent a ranking when no defensible order was established |
 | Unmet Needs → Emotional and social | `emotional_needs` — 3–6 |
@@ -1021,12 +1053,35 @@ Open this section with:
     This section records the evidence available when this version of the Avatar was created. It is
     a current snapshot, not a final validation verdict.
 
+**Current level describes the profile as a whole, not every field in it.** A profile at
+`interviewed` can still mix confirmed observation, Founder assumption and open unknowns
+field-by-field — Current level is the honest ceiling the strongest evidence reached, not a claim that
+every field above was independently verified. Do not let the heading alone imply otherwise; the
+Based on observation / Founder assumptions / Important unknowns breakdown immediately below it is
+what actually shows the field-by-field mix.
+
 When assembling Validation Status, consolidate duplicate or overlapping items across Responses.
 Preserve the strongest confirmed wording and do not repeat the same evidence under multiple bullets.
 
 Ignore structural "None recorded." markers while aggregating — they mark an empty category on one
 Response, not a finding. Write "None recorded" in a final subsection only when no substantive items
 remain after consolidation.
+
+**Important unknowns and Highest-priority validation questions must never read as contradicting each
+other.** A validation question can be restated from either an UNKNOWNS block or a load-bearing
+ASSUMPTIONS block (see the rule below), so it is possible for Important unknowns to have nothing of
+its own while questions are still listed underneath it — but a bare "None recorded" directly above a
+non-empty question list reads as self-contradictory to anyone reading the artefact, whichever category
+each question actually came from. When Highest-priority validation questions is non-empty and
+Important unknowns has no UNKNOWNS-sourced material of its own, do not write a bare "None recorded" —
+write instead:
+
+    None recorded as outright unknowns — see Highest-priority validation questions below, drawn from
+    assumptions still to be tested.
+
+An item that still requires validation stays an assumption or an unknown; restating it as a question
+never promotes it to a confirmed fact, and it never disappears from view just because its home section
+came up empty.
 
 **Highest-priority validation questions are produced only by restating confirmed UNKNOWNS and
 load-bearing ASSUMPTIONS as questions.** Do not introduce a new uncertainty, research topic or test

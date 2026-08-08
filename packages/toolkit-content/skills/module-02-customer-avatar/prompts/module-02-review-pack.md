@@ -262,7 +262,7 @@ networks where a real example could be identified>
 
 **STAGE:** <what must already be true before this problem is urgent; who is too early, who too advanced>
 
-**RAISE / CURRENT COMMERCIAL MOMENT:** <the event or deadline they are moving toward>
+**CURRENT COMMERCIAL MOMENT:** <the event or deadline they are moving toward>
 
 ## Situation
 
