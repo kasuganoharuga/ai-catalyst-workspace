@@ -2,6 +2,7 @@
 
 import { ChevronDown, Download, Loader2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +12,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { toastCopy } from "../lib/copy";
+
 /**
  * Download control for a saved artefact. When only Markdown exists, this is
  * a single plain link — a dropdown with one option would just be noise.
@@ -18,12 +21,8 @@ import {
  * When a PDF workbook is also available, the two formats are independent:
  * Markdown stays a plain `<a href>` (always works, never blocked by
  * anything), while PDF goes through `fetch` so a `WORKBOOK_RENDER_FAILED`
- * response (e.g. a field with a character outside the embedded font's
- * coverage) surfaces as an inline message next to the menu instead of the
- * browser navigating to a raw JSON error body — and so it can never affect
- * the Markdown option, which the previous two-separate-`<a>`-tags layout
- * technically already guaranteed but never actually surfaced a failure for
- * either.
+ * response surfaces as a toast instead of navigating to a raw JSON error
+ * body — and so it can never affect the Markdown option.
  */
 export function ArtefactDownloadMenu({
   downloadHref,
@@ -46,7 +45,6 @@ export function ArtefactDownloadMenu({
   pdfLabel?: string;
   markdownLabel?: string;
 }) {
-  const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!workbookAvailable) {
@@ -61,7 +59,6 @@ export function ArtefactDownloadMenu({
   }
 
   async function downloadPdf() {
-    setPdfError(null);
     setPdfLoading(true);
     try {
       const response = await fetch(`${downloadHref}?format=workbook`);
@@ -69,7 +66,9 @@ export function ArtefactDownloadMenu({
         const body = (await response.json().catch(() => null)) as {
           error?: { message?: string };
         } | null;
-        throw new Error(body?.error?.message ?? "Could not generate the PDF.");
+        throw new Error(
+          body?.error?.message ?? toastCopy.pdfDownloadFailedFallback,
+        );
       }
       const blob = await response.blob();
       const disposition = response.headers.get("Content-Disposition") ?? "";
@@ -84,47 +83,43 @@ export function ArtefactDownloadMenu({
       link.remove();
       URL.revokeObjectURL(objectUrl);
     } catch (error) {
-      setPdfError(
-        error instanceof Error ? error.message : "Could not generate the PDF.",
-      );
+      const raw =
+        error instanceof Error
+          ? error.message
+          : toastCopy.pdfDownloadFailedFallback;
+      const description = `${raw.replace(/^WORKBOOK_RENDER_FAILED:\s*/i, "").trim()} ${toastCopy.pdfDownloadFailedHint}`;
+      toast.error(toastCopy.actionFailedTitle, { description });
     } finally {
       setPdfLoading(false);
     }
   }
 
   return (
-    <div className="flex flex-col items-start gap-1.5">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size={size} variant={triggerVariant}>
-            <Download aria-hidden="true" />
-            {downloadLabel}
-            <ChevronDown aria-hidden="true" className="size-3.5" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem
-            disabled={pdfLoading}
-            onSelect={(event) => {
-              event.preventDefault();
-              void downloadPdf();
-            }}
-          >
-            {pdfLoading ? (
-              <Loader2 aria-hidden="true" className="animate-spin" />
-            ) : null}
-            {pdfLabel}
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <a href={downloadHref}>{markdownLabel}</a>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-      {pdfError ? (
-        <p className="max-w-xs text-xs leading-5 text-destructive">
-          {pdfError} The Markdown version is still available above.
-        </p>
-      ) : null}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size={size} variant={triggerVariant}>
+          <Download aria-hidden="true" />
+          {downloadLabel}
+          <ChevronDown aria-hidden="true" className="size-3.5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem
+          disabled={pdfLoading}
+          onSelect={(event) => {
+            event.preventDefault();
+            void downloadPdf();
+          }}
+        >
+          {pdfLoading ? (
+            <Loader2 aria-hidden="true" className="animate-spin" />
+          ) : null}
+          {pdfLabel}
+        </DropdownMenuItem>
+        <DropdownMenuItem asChild>
+          <a href={downloadHref}>{markdownLabel}</a>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }

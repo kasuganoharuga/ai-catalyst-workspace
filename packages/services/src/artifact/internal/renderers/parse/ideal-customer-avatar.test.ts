@@ -110,6 +110,15 @@ describe("parseIdealCustomerAvatar — happy path", () => {
     expect(model.snapshot.raise).toContain("First institutional round");
   });
 
+  it("accepts the legacy RAISE / CURRENT COMMERCIAL MOMENT Snapshot label", () => {
+    const legacy = fixture().replace(
+      "**CURRENT COMMERCIAL MOMENT:**",
+      "**RAISE / CURRENT COMMERCIAL MOMENT:**",
+    );
+    const legacyModel = parseIdealCustomerAvatar(legacy);
+    expect(legacyModel.snapshot.raise).toContain("First institutional round");
+  });
+
   it("extracts the Situation paragraph", () => {
     expect(model.situation).toContain("black box");
   });

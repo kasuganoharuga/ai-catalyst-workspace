@@ -1096,6 +1096,9 @@ export const toastCopy = {
   moduleConfirmedNext: (nextModuleTitle: string) =>
     `${nextModuleTitle} is now open.`,
   actionFailedTitle: "That didn't work",
+  /** PDF workbook download failed; Markdown remains available from the same control. */
+  pdfDownloadFailedFallback: "Couldn't generate the PDF. Try Markdown instead.",
+  pdfDownloadFailedHint: "Markdown download is still available.",
 } as const;
 
 // ── Profile prompt ──────────────────────────────────────────────────────

@@ -58,18 +58,21 @@ function requiredSection(
 
 function requiredLabel(
   markdown: string,
-  label: string,
+  label: string | readonly string[],
   scope: { level: number; heading: string },
 ): string {
   const scoped = getSection(markdown, scope.level, scope.heading);
   if (scoped === null) {
     fail(`is missing a "${scope.heading}" section.`);
   }
-  const value = extractLabelValue(scoped, label);
-  if (value === null || !isSubstantiveText(value)) {
-    fail(`is missing "${label}" under "${scope.heading}".`);
+  const labels = typeof label === "string" ? [label] : label;
+  for (const candidate of labels) {
+    const value = extractLabelValue(scoped, candidate);
+    if (value !== null && isSubstantiveText(value)) {
+      return stripMarkdownEmphasis(value).trim();
+    }
   }
-  return stripMarkdownEmphasis(value).trim();
+  fail(`is missing "${labels[0]}" under "${scope.heading}".`);
 }
 
 /**
@@ -124,10 +127,16 @@ export function parseIdealCustomerAvatar(
     who: requiredLabel(markdown, "WHO", { level: 2, heading: "Snapshot" }),
     where: requiredLabel(markdown, "WHERE", { level: 2, heading: "Snapshot" }),
     stage: requiredLabel(markdown, "STAGE", { level: 2, heading: "Snapshot" }),
-    raise: requiredLabel(markdown, "CURRENT COMMERCIAL MOMENT", {
-      level: 2,
-      heading: "Snapshot",
-    }),
+    // Prefer the current template label; keep the pre-rename form so
+    // already-confirmed artefacts on staging/prod still render as PDF.
+    raise: requiredLabel(
+      markdown,
+      ["CURRENT COMMERCIAL MOMENT", "RAISE / CURRENT COMMERCIAL MOMENT"],
+      {
+        level: 2,
+        heading: "Snapshot",
+      },
+    ),
   };
 
   const situation = requiredSection(markdown, 2, "Situation");
