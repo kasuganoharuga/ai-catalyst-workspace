@@ -33,6 +33,7 @@ services:
       # single-process use; prefer S3 (STORAGE_PROVIDER=s3) when web and mcp
       # must share objects across containers.
       LOCAL_STORAGE_ROOT: /data/storage
+      GOTENBERG_URL: http://gotenberg:3000
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
@@ -40,6 +41,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
 
   mcp:
     build:
@@ -84,6 +87,12 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # Chromium HTML → PDF for printable Interview Guide (and later Verdict/ICA/Roadmap).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "127.0.0.1:${GOTENBERG_HOST_PORT:-3001}:3000"
 
 volumes:
   postgres_data:

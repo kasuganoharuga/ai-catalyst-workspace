@@ -293,7 +293,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Ideal-Customer-Avatar.md",
-  rendererKey: "ideal_customer_avatar_export_v1",
+  rendererKey: "ideal_customer_avatar_html_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,

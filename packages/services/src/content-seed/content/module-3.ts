@@ -446,7 +446,7 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Problem-Interview-Guide.md",
-  rendererKey: "problem_interview_workbook_v1",
+  rendererKey: "interview_guide_html_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,

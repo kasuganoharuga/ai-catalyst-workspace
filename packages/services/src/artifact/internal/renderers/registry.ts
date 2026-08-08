@@ -24,14 +24,23 @@ import { idealCustomerAvatarWorkbookV1 } from "@ai-catalyst/services/artifact/in
 import { problemInterviewWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/problem-interview-workbook-v1";
 import { validationRoadmapWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/validation-roadmap-workbook-v1";
 
-import type { RegisteredWorkbookRenderer, WorkbookRenderer } from "./types.js";
+import {
+  idealCustomerAvatarHtmlV1Registered,
+  pressureTestVerdictHtmlV1Registered,
+  validationRoadmapHtmlV1Registered,
+} from "@ai-catalyst/services/artifact/internal/renderers/html-document-v1";
+import { interviewGuideHtmlV1Registered } from "@ai-catalyst/services/artifact/internal/renderers/interview-guide-html-v1";
+import type {
+  RegisteredWorkbookRenderer,
+  WorkbookRenderer,
+} from "@ai-catalyst/services/artifact/internal/renderers/types";
 
 export type {
   RegisteredWorkbookRenderer,
   RequiredSection,
   WorkbookRenderOptions,
   WorkbookRenderer,
-} from "./types.js";
+} from "@ai-catalyst/services/artifact/internal/renderers/types";
 
 export function registerWorkbookRenderer<TModel>(
   renderer: WorkbookRenderer<TModel>,
@@ -56,6 +65,7 @@ export function registerWorkbookRenderer<TModel>(
 }
 
 const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
+  // Legacy pdf-lib paths retained for in-flight program versions.
   [problemInterviewWorkbookV1.rendererKey]: registerWorkbookRenderer(
     problemInterviewWorkbookV1,
   ),
@@ -65,6 +75,14 @@ const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
   [idealCustomerAvatarWorkbookV1.rendererKey]: registerWorkbookRenderer(
     idealCustomerAvatarWorkbookV1,
   ),
+  // HTML → Gotenberg printable PDFs (current seed defaults).
+  [interviewGuideHtmlV1Registered.rendererKey]: interviewGuideHtmlV1Registered,
+  [validationRoadmapHtmlV1Registered.rendererKey]:
+    validationRoadmapHtmlV1Registered,
+  [idealCustomerAvatarHtmlV1Registered.rendererKey]:
+    idealCustomerAvatarHtmlV1Registered,
+  [pressureTestVerdictHtmlV1Registered.rendererKey]:
+    pressureTestVerdictHtmlV1Registered,
 };
 
 /**

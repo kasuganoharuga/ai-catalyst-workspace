@@ -206,7 +206,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "ideal_customer_avatar",
         required_filename: "Ideal-Customer-Avatar.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: "ideal_customer_avatar_export_v1",
+        renderer_key: "ideal_customer_avatar_html_v1",
       },
     ]);
   });
@@ -268,7 +268,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "problem_interview_guide",
         required_filename: "Problem-Interview-Guide.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: "problem_interview_workbook_v1",
+        renderer_key: "interview_guide_html_v1",
       },
     ]);
   });

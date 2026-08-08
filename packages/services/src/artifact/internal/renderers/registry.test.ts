@@ -9,7 +9,7 @@ import {
 import { validationRoadmapWorkbookV1 } from "./validation-roadmap-workbook-v1.js";
 
 describe("resolveWorkbookRenderer", () => {
-  it("resolves all three real renderer keys", () => {
+  it("resolves legacy pdf-lib and HTML→Gotenberg renderer keys", () => {
     expect(
       resolveWorkbookRenderer("problem_interview_workbook_v1").rendererKey,
     ).toBe("problem_interview_workbook_v1");
@@ -19,6 +19,12 @@ describe("resolveWorkbookRenderer", () => {
     expect(
       resolveWorkbookRenderer("ideal_customer_avatar_export_v1").rendererKey,
     ).toBe("ideal_customer_avatar_export_v1");
+    expect(
+      resolveWorkbookRenderer("ideal_customer_avatar_html_v1").rendererKey,
+    ).toBe("ideal_customer_avatar_html_v1");
+    expect(resolveWorkbookRenderer("interview_guide_html_v1").rendererKey).toBe(
+      "interview_guide_html_v1",
+    );
   });
 
   it("throws INTERNAL_INVARIANT_ERROR for an unregistered key", () => {

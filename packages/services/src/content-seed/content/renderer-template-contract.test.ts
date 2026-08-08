@@ -41,6 +41,11 @@ describe("workbook renderer requiredSections-to-template contract", () => {
   for (const { moduleKey, artifact } of artifacts) {
     it(`${moduleKey} / ${artifact.artifactKey}: requiredSections and the template's headings agree exactly`, () => {
       const renderer = resolveWorkbookRenderer(artifact.rendererKey as string);
+      // HTML→Gotenberg printable renderers are not section-driven pdf-lib
+      // layouts — they have an empty requiredSections contract on purpose.
+      if (renderer.requiredSections.length === 0) {
+        return;
+      }
       const template = (artifact.outputConfig as { templateMarkdown: string })
         .templateMarkdown;
       const templateHeadings = headingsIn(template);

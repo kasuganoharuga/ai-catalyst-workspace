@@ -212,7 +212,7 @@ const PRESSURE_TEST_VERDICT_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Pressure-Test-Verdict.md",
-  rendererKey: null,
+  rendererKey: "pressure_test_verdict_html_v1",
   validatorKey: "pressure_test_verdict_v2",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
