@@ -298,8 +298,15 @@ function InterviewRecordForm({
               />
             </Field>
             <Field label="Interview date">
+              {/* type="date" follows OS locale (e.g. mixed "yyyy / mm / 日"). */}
               <input
-                type="date"
+                type="text"
+                inputMode="numeric"
+                lang="en"
+                autoComplete="off"
+                placeholder="YYYY-MM-DD"
+                pattern="\d{4}-\d{2}-\d{2}"
+                maxLength={10}
                 className={fieldClass}
                 value={interviewedAt}
                 disabled={disabled || readOnly}
