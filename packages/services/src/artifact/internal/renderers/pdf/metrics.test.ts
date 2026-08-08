@@ -168,11 +168,33 @@ describe("sanitizeForFontCoverage", () => {
     expect(sanitizeForFontCoverage(FONT, "中文")).toBe("??");
   });
 
+  it("normalises uncovered Unicode spaces instead of leaving them for assert to fail", () => {
+    // Hair space / narrow no-break space match JS /\s/ but have no glyph in
+    // the Latin subset — the original founder_assumptions WORKBOOK_RENDER_FAILED.
+    expect(sanitizeForFontCoverage(FONT, "a\u200ab")).toBe("a b");
+    expect(sanitizeForFontCoverage(FONT, "a\u202fb")).toBe("a b");
+    expect(() =>
+      assertFontCoverage(
+        FONT,
+        sanitizeForFontCoverage(FONT, "partner\u202f→\u200aops"),
+        "validation_status.founder_assumptions",
+      ),
+    ).not.toThrow();
+  });
+
   it("makes the result always pass assertFontCoverage, however mixed the input", () => {
-    const messy = "Kerbside 中 → done ✓ Łukasz ș café";
+    const messy = "Kerbside 中 → done ✓ Łukasz ș café\u200a\u202f";
     const sanitized = sanitizeForFontCoverage(FONT, messy);
     expect(() =>
       assertFontCoverage(FONT, sanitized, "test_field"),
     ).not.toThrow();
+  });
+});
+
+describe("assertFontCoverage — diagnostics", () => {
+  it("renders uncovered invisible characters as U+XXXX in the error", () => {
+    expect(() => assertFontCoverage(FONT, "a\u200ab", "test_field")).toThrow(
+      /coverage: U\+200A/,
+    );
   });
 });

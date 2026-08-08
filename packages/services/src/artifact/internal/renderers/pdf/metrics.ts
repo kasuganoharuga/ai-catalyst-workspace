@@ -126,6 +126,16 @@ const FONT_COVERAGE_SUBSTITUTIONS: Record<string, string> = {
   æ: "ae",
   Æ: "AE",
   "…": "...",
+  // Unicode spaces that commonly leak in from Docs / Word / model output
+  // and are not in the embedded Latin subset (see sanitize loop comment).
+  "\u00a0": " ", // NBSP — usually covered, but normalise anyway
+  "\u202f": " ", // narrow no-break space
+  "\u2009": " ", // thin space
+  "\u200a": " ", // hair space
+  "\u2008": " ", // punctuation space
+  "\u2007": " ", // figure space
+  "\u2002": " ", // en space
+  "\u2003": " ", // em space
 };
 
 /**
@@ -147,13 +157,14 @@ export function sanitizeForFontCoverage(
 ): string {
   let result = "";
   for (const char of text) {
-    // Whitespace and control characters (notably "\n" and "\t") are
-    // structural, not drawn glyphs — wrapText splits on them before any
-    // text reaches the font at all, and several have no glyph in this (or
-    // any) font's cmap despite being perfectly fine to carry through.
-    // Coverage-checking them would rewrite "\n" to "?" and silently
-    // collapse a multi-paragraph field onto one line.
-    if (/\s/.test(char)) {
+    // Only ASCII structural whitespace is kept unchecked. Unicode spaces
+    // (hair space U+200A, narrow no-break U+202F, …) match JS `/\s/` but
+    // often have no glyph in the Latin subset — leaving them through used
+    // to make assertFontCoverage fail with an "empty" missing-char list
+    // after the colon (invisible characters). Uncovered Unicode spaces
+    // fall through to the substitution / "?" path below and become a
+    // regular ASCII space via the table, or "?" as a last resort.
+    if (char === "\n" || char === "\r" || char === "\t" || char === " ") {
       result += char;
       continue;
     }
@@ -197,15 +208,33 @@ export function assertFontCoverage(
 ): void {
   const missing = new Set<string>();
   for (const char of text) {
+    // Same structural ASCII whitespace carve-out as sanitizeForFontCoverage.
+    if (char === "\n" || char === "\r" || char === "\t" || char === " ") {
+      continue;
+    }
     const codePoint = char.codePointAt(0);
     if (codePoint !== undefined && !font.hasGlyphForCodePoint(codePoint)) {
       missing.add(char);
     }
   }
   if (missing.size > 0) {
+    // Prefer U+XXXX for non-printable / whitespace so operators can see
+    // what failed instead of an empty gap after the colon.
+    const shown = [...missing]
+      .map((char) => {
+        const cp = char.codePointAt(0);
+        if (cp === undefined) {
+          return "?";
+        }
+        if (char.trim() === "" || cp < 0x20) {
+          return `U+${cp.toString(16).toUpperCase().padStart(4, "0")}`;
+        }
+        return char;
+      })
+      .join(" ");
     throw new Error(
       `WORKBOOK_RENDER_FAILED: field "${fieldName}" contains characters outside the embedded font's ` +
-        `coverage: ${[...missing].join(" ")}`,
+        `coverage: ${shown}`,
     );
   }
 }
