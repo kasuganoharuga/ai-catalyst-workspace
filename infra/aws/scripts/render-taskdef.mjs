@@ -21,9 +21,9 @@ function flag(name, fallback) {
 const all = args.includes("--all");
 const envName = flag("env", "staging");
 const serviceArg = flag("service", "web");
-const services = all ? ["web", "api", "mcp"] : [serviceArg];
+const services = all ? ["web", "api", "mcp", "gotenberg"] : [serviceArg];
 
-const ports = { web: 3000, api: 8000, mcp: 8787 };
+const ports = { web: 3000, api: 8000, mcp: 8787, gotenberg: 3000 };
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(scriptDir, ".generated");
 mkdirSync(outDir, { recursive: true });
@@ -31,30 +31,47 @@ mkdirSync(outDir, { recursive: true });
 const rendered = services.map((service) => {
   const port = ports[service];
   if (!port) {
-    throw new Error(`Unknown service "${service}". Expected web|api|mcp.`);
+    throw new Error(
+      `Unknown service "${service}". Expected web|api|mcp|gotenberg.`,
+    );
   }
   const family = `ai-catalyst-${envName}-${service}`;
+  const isGotenberg = service === "gotenberg";
+  const environment = isGotenberg
+    ? []
+    : [
+        { name: "STORAGE_PROVIDER", value: "s3" },
+        { name: "EMAIL_PROVIDER", value: "ses" },
+        { name: "AWS_REGION", value: "ap-southeast-2" },
+        ...(service === "web"
+          ? [
+              {
+                name: "GOTENBERG_URL",
+                value: `http://gotenberg.ai-catalyst-${envName}.local:3000`,
+              },
+            ]
+          : []),
+      ];
   const taskDef = {
     family,
     networkMode: "awsvpc",
     requiresCompatibilities: ["FARGATE"],
-    cpu: "256",
-    memory: "512",
+    // Chromium needs more headroom than the thin Next/API shells.
+    cpu: isGotenberg ? "1024" : "256",
+    memory: isGotenberg ? "2048" : "512",
     containerDefinitions: [
       {
         // Short name matches live task definitions and deploy-aws.yml's
         // jq image rewrite (web / api / mcp). Family stays fully qualified.
         name: service,
-        image: `ACCOUNT.dkr.ecr.ap-southeast-2.amazonaws.com/ai-catalyst-${envName}/${service}:latest`,
+        image: isGotenberg
+          ? "gotenberg/gotenberg:8"
+          : `ACCOUNT.dkr.ecr.ap-southeast-2.amazonaws.com/ai-catalyst-${envName}/${service}:latest`,
         essential: true,
         portMappings: [
           { containerPort: port, hostPort: port, protocol: "tcp" },
         ],
-        environment: [
-          { name: "STORAGE_PROVIDER", value: "s3" },
-          { name: "EMAIL_PROVIDER", value: "ses" },
-          { name: "AWS_REGION", value: "ap-southeast-2" },
-        ],
+        environment,
         logConfiguration: {
           logDriver: "awslogs",
           options: {

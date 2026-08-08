@@ -19,9 +19,15 @@ Developer
    → ALB (HTTPS)
         → Web (:3000)
         → MCP (:8787)
-   → private: API (:8000), RDS Postgres (inside staging VPC)
+   → private: API (:8000), Gotenberg (:3000 via Cloud Map),
+              RDS Postgres (inside staging VPC)
    → S3 (artifacts), SES (email), Secrets Manager
 ```
+
+Printable PDF downloads (`?format=workbook`) call Gotenberg from the web
+task. Staging wires `GOTENBERG_URL=http://gotenberg.ai-catalyst-staging.local:3000`
+(Cloud Map private DNS). Local Docker Compose uses `http://gotenberg:3000`
+on the web service (host publish `127.0.0.1:3001`).
 
 Download product default (not signed URL):
 
@@ -79,15 +85,16 @@ Providers never read `process.env` themselves. App wiring builds:
 - `StorageConfig` via `loadStorageConfigFromEnv` → `resolveProvider(config)`
 - `EmailConfig` via `loadEmailConfigFromEnv` → `createEmailSenderFromConfig`
 
-| Variable                        | Staging                | Local default               |
-| ------------------------------- | ---------------------- | --------------------------- |
-| `STORAGE_PROVIDER`              | `s3`                   | `local`                     |
-| `STORAGE_CONTAINER`             | staging bucket         | n/a (`local-development`)   |
-| `EMAIL_PROVIDER`                | `ses` / `noop`         | `noop`                      |
-| `EMAIL_FROM`                    | staging identity       | —                           |
-| `AUTH_ISSUER_URL`               | `https://staging…`     | `http://localhost:3000`     |
-| `MCP_RESOURCE_URL`              | `https://staging…/mcp` | `http://localhost:8787/mcp` |
-| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                 | unset                       |
+| Variable                        | Staging                 | Local default               |
+| ------------------------------- | ----------------------- | --------------------------- |
+| `STORAGE_PROVIDER`              | `s3`                    | `local`                     |
+| `STORAGE_CONTAINER`             | staging bucket          | n/a (`local-development`)   |
+| `EMAIL_PROVIDER`                | `ses` / `noop`          | `noop`                      |
+| `EMAIL_FROM`                    | staging identity        | —                           |
+| `AUTH_ISSUER_URL`               | `https://staging…`      | `http://localhost:3000`     |
+| `MCP_RESOURCE_URL`              | `https://staging…/mcp`  | `http://localhost:8787/mcp` |
+| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                  | unset                       |
+| `GOTENBERG_URL`                 | Cloud Map Gotenberg URL | `http://127.0.0.1:3001`     |
 
 ## Validate without applying
 

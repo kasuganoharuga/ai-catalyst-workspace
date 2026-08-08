@@ -116,6 +116,15 @@ resource "aws_security_group" "ecs" {
     security_groups = [module.alb.alb_security_group_id]
   }
 
+  # Web → Gotenberg (Cloud Map DNS). Same ECS SG; ALB ingress above does
+  # not cover task-to-task traffic on :3000.
+  ingress {
+    from_port = 3000
+    to_port   = 3000
+    protocol  = "tcp"
+    self      = true
+  }
+
   ingress {
     from_port       = 8787
     to_port         = 8787
@@ -201,7 +210,33 @@ module "web" {
   task_role_arn      = module.iam.task_role_arns["web"]
   target_group_arn   = module.alb.web_target_group_arn
   aws_region         = var.aws_region
-  environment        = local.common_env
+  environment = merge(local.common_env, {
+    # Private Cloud Map name (see module.gotenberg). Live staging uses
+    # short container name "web" + this env; deploy-aws.yml preserves it
+    # when rewriting the image digest.
+    GOTENBERG_URL = "http://gotenberg.${var.name}.local:3000"
+  })
+}
+
+# HTML→PDF for printable artefacts. Not on the ALB — web reaches it via
+# Cloud Map (`gotenberg.<name>.local`). Live staging already has the
+# private DNS namespace + service registry; this module records the ECS
+# shape (image/cpu/memory). Wire service_registries in a follow-up once
+# the ecs_service module supports Cloud Map.
+module "gotenberg" {
+  source             = "../../modules/ecs_service"
+  name               = "${var.name}-gotenberg"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.ecs.id]
+  container_port     = 3000
+  cpu                = 1024
+  memory             = 2048
+  image              = "gotenberg/gotenberg:8"
+  execution_role_arn = module.iam.execution_role_arn
+  task_role_arn      = module.iam.task_role_arns["api"]
+  aws_region         = var.aws_region
+  environment        = {}
 }
 
 module "api" {
