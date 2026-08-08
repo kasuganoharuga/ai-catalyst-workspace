@@ -1,6 +1,12 @@
 "use client";
 
-import { ChevronDown, Download, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Download,
+  FileDown,
+  FileText,
+  Loader2,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -18,11 +24,11 @@ import { toastCopy } from "../lib/copy";
  * Download control for a saved artefact. When only Markdown exists, this is
  * a single plain link — a dropdown with one option would just be noise.
  *
- * When a PDF workbook is also available, the two formats are independent:
- * Markdown stays a plain `<a href>` (always works, never blocked by
- * anything), while PDF goes through `fetch` so a `WORKBOOK_RENDER_FAILED`
- * response surfaces as a toast instead of navigating to a raw JSON error
- * body — and so it can never affect the Markdown option.
+ * When a PDF workbook is also available, the two formats sit in a menu that
+ * matches the rest of the app chrome (hairline border, card surface, no
+ * soft popover glow). Markdown stays a plain `<a href>` (always works);
+ * PDF goes through `fetch` so a `WORKBOOK_RENDER_FAILED` response surfaces
+ * as a toast instead of a raw JSON error body.
  */
 export function ArtefactDownloadMenu({
   downloadHref,
@@ -33,6 +39,7 @@ export function ArtefactDownloadMenu({
   downloadLabel = "Download",
   pdfLabel = "Download PDF",
   markdownLabel = "Markdown source",
+  className,
 }: {
   downloadHref: string;
   workbookAvailable: boolean;
@@ -44,12 +51,13 @@ export function ArtefactDownloadMenu({
   downloadLabel?: string;
   pdfLabel?: string;
   markdownLabel?: string;
+  className?: string;
 }) {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   if (!workbookAvailable) {
     return (
-      <Button asChild size={size} variant={singleVariant}>
+      <Button asChild size={size} variant={singleVariant} className={className}>
         <a href={downloadHref}>
           <Download aria-hidden="true" />
           {downloadLabel}
@@ -97,13 +105,22 @@ export function ArtefactDownloadMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size={size} variant={triggerVariant}>
-          <Download aria-hidden="true" />
+        <Button
+          size={size}
+          variant={triggerVariant}
+          disabled={pdfLoading}
+          className={className}
+        >
+          {pdfLoading ? (
+            <Loader2 aria-hidden="true" className="animate-spin" />
+          ) : (
+            <Download aria-hidden="true" />
+          )}
           {downloadLabel}
-          <ChevronDown aria-hidden="true" className="size-3.5" />
+          <ChevronDown aria-hidden="true" className="size-3.5 opacity-70" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
+      <DropdownMenuContent align="end" className="min-w-[13.5rem]">
         <DropdownMenuItem
           disabled={pdfLoading}
           onSelect={(event) => {
@@ -112,12 +129,33 @@ export function ArtefactDownloadMenu({
           }}
         >
           {pdfLoading ? (
-            <Loader2 aria-hidden="true" className="animate-spin" />
-          ) : null}
-          {pdfLabel}
+            <Loader2 aria-hidden="true" className="size-4 animate-spin" />
+          ) : (
+            <FileDown
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
+          )}
+          <span className="flex min-w-0 flex-col gap-0.5">
+            <span>{pdfLabel}</span>
+            <span className="text-[11px] font-normal text-muted-foreground">
+              Printable layout
+            </span>
+          </span>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
-          <a href={downloadHref}>{markdownLabel}</a>
+          <a href={downloadHref}>
+            <FileText
+              aria-hidden="true"
+              className="size-4 text-muted-foreground"
+            />
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span>{markdownLabel}</span>
+              <span className="text-[11px] font-normal text-muted-foreground">
+                Original source file
+              </span>
+            </span>
+          </a>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -49,6 +49,8 @@ export function registerHtmlDocumentRenderer(input: {
       fields: [],
     },
     async build(markdown, provenance) {
+      // `markdown` is the confirmed submission body (filled document), not
+      // the seed template — rendered to HTML then printed via Gotenberg.
       const plan = emptyPlan(markdown, provenance);
       const html = buildMarkdownDocumentHtml({
         title: input.title,

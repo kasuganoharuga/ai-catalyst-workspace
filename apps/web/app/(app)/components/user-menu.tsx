@@ -91,7 +91,7 @@ export function UserMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align={align} side={side} className="w-60">
-        <DropdownMenuLabel className="font-normal">
+        <DropdownMenuLabel className="px-2.5 py-2 font-normal">
           <span className="block truncate text-[13px] font-semibold text-foreground">
             {name}
           </span>
