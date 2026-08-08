@@ -25,7 +25,6 @@ export default async function InterviewRecordsPage() {
     (context) => context.runModule.moduleKey === MODULE_4_KEY,
   );
   const programRunId = module4?.runModule.programRunId ?? null;
-  const hasAttempt = Boolean(module4?.activeAttempt);
 
   const activity = programRunId
     ? await getInterviewActivityForProgramRun(actor, programRunId)
@@ -74,7 +73,6 @@ export default async function InterviewRecordsPage() {
         ) : (
           <InterviewRecordsClient
             activityId={activity.id}
-            programRunId={programRunId}
             questions={activity.questions}
             records={records}
             progress={
@@ -88,7 +86,6 @@ export default async function InterviewRecordsPage() {
               }
             }
             evidenceStatus={activity.evidenceStatus}
-            hasAttempt={hasAttempt}
           />
         )}
       </div>

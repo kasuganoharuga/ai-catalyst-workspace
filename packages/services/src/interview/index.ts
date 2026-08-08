@@ -716,6 +716,88 @@ export async function completeInterviewRecord(
   }
 }
 
+/**
+ * Reopen a completed interview so the Founder can edit it again before
+ * confirming evidence. If evidence was already confirmed (but not pinned to a
+ * Claude attempt), it returns to draft so the snapshot is rebuilt on confirm.
+ */
+export async function reopenInterviewRecord(
+  actor: ActorContext,
+  recordIdRaw: string,
+): Promise<InterviewRecord> {
+  assertRole(actor, ["founder"]);
+  const recordId = parseEntityIdOrNotFound(
+    recordIdRaw,
+    "Interview record not found.",
+  );
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const workspace = await resolveFounderWorkspace(actor, client);
+    const existing = await client.query<
+      RecordRow & {
+        program_run_id: string;
+        evidence_status: InterviewEvidenceStatus;
+      }
+    >(
+      `select r.*, a.program_run_id, a.evidence_status
+       from interview_records r
+       join interview_activities a
+         on a.id = r.activity_id and a.workspace_id = r.workspace_id
+       where r.id = $1 and r.workspace_id = $2
+       for update of r, a`,
+      [recordId, workspace.id],
+    );
+    const row = existing.rows[0];
+    if (!row) {
+      throw new ServiceError("NOT_FOUND", "Interview record not found.");
+    }
+    await assertNoPinnedClaudeAttempt(workspace.id, row.program_run_id, client);
+    await autoReopenIfConfirmed(client, {
+      id: row.activity_id,
+      workspaceId: workspace.id,
+      programRunId: row.program_run_id,
+      sourceModuleAttemptId: "",
+      questions: [],
+      evidenceStatus: row.evidence_status,
+      evidenceConfirmedAt: null,
+      confirmedMarkdown: null,
+      confirmedSourceRecordIds: [],
+      confirmedArtifactSubmissionId: null,
+      createdAt: "",
+      updatedAt: "",
+    });
+
+    if (row.status !== "completed") {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Only a completed interview can be reopened for editing.",
+      );
+    }
+
+    const updated = await client.query<RecordRow>(
+      `update interview_records
+       set status = 'draft',
+           completed_at = null,
+           updated_at = now()
+       where id = $1 and workspace_id = $2 and status = 'completed'
+       returning ${RECORD_COLUMNS}`,
+      [recordId, workspace.id],
+    );
+    await client.query("commit");
+    const out = updated.rows[0];
+    if (!out) {
+      throw new ServiceError("NOT_FOUND", "Interview record not found.");
+    }
+    return mapRecord(out);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 // ---------------------------------------------------------------------
 // Evidence preview / confirm / reopen
 // ---------------------------------------------------------------------
@@ -784,13 +866,13 @@ export async function confirmInterviewEvidence(
     if (completed.length < INTERVIEW_MINIMUM_COUNT) {
       throw new ServiceError(
         "VALIDATION_ERROR",
-        `Complete at least ${INTERVIEW_MINIMUM_COUNT} interviews before submitting evidence.`,
+        `Complete all ${INTERVIEW_MINIMUM_COUNT} interviews before confirming evidence.`,
       );
     }
     if (drafts.length > 0) {
       throw new ServiceError(
         "VALIDATION_ERROR",
-        "Complete every draft interview before submitting evidence.",
+        "Complete every draft interview before confirming evidence.",
       );
     }
 

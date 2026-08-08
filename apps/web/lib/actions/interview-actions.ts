@@ -8,6 +8,7 @@ import {
   completeInterviewRecord,
   confirmInterviewEvidence,
   reopenInterviewEvidence,
+  reopenInterviewRecord,
   saveInterviewRecordDraft,
 } from "@ai-catalyst/services/interview";
 import { ServiceError } from "@ai-catalyst/services/errors";
@@ -85,6 +86,19 @@ export async function completeInterviewRecordAction(
   try {
     const actor = await requireFounderActor();
     await completeInterviewRecord(actor, recordId, fields);
+    revalidateInterviewPaths();
+    return { ok: true, recordId };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+export async function reopenInterviewRecordAction(
+  recordId: string,
+): Promise<InterviewActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await reopenInterviewRecord(actor, recordId);
     revalidateInterviewPaths();
     return { ok: true, recordId };
   } catch (error) {

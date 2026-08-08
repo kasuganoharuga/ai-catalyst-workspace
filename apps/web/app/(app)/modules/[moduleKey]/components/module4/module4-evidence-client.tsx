@@ -60,7 +60,8 @@ export function Module4EvidenceClient({
   const [error, setError] = useState<string | null>(null);
 
   const confirmed = evidenceStatus === "confirmed";
-  const canConfirm = progress.requirementMet;
+  const canConfirm =
+    progress.requirementMet && progress.draftCount === 0 && !confirmed;
   const hasInterviews = progress.completedCount > 0;
   const workDone = awaitingConfirmation || isCompleted;
   const started =
@@ -140,12 +141,12 @@ export function Module4EvidenceClient({
                 {hasInterviews ? (
                   <StepHeading
                     title="Review your evidence"
-                    body="Complete and lock at least five customer interviews, then return here to review and confirm the evidence."
+                    body="Check the summary built from your completed interviews. Confirm evidence when it looks right — that locks Interview-Evidence.md for your AI assistant."
                   />
                 ) : (
                   <StepHeading
                     title="Record your interviews"
-                    body="Capture what you heard from real customers before analysing the evidence. You must complete at least five interviews before evidence can be submitted."
+                    body="Capture what you heard from real customers. Complete all five interviews and submit them, then return here to review and confirm evidence."
                   />
                 )}
               </div>
@@ -178,7 +179,7 @@ export function Module4EvidenceClient({
               </p>
               {canConfirm ? (
                 <p className="font-medium text-foreground">
-                  ✓ Five interviews completed — ready to confirm
+                  ✓ All five interviews completed — ready to confirm
                 </p>
               ) : null}
             </div>
@@ -222,12 +223,13 @@ export function Module4EvidenceClient({
                 </Button>
                 {!canConfirm ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Complete at least five interviews before confirming. You can
-                    also submit from Customer interviews.
+                    Complete all five interviews (no drafts left), then confirm
+                    here. Use Submit interviews on Customer interviews when
+                    you&apos;re ready to review.
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Confirming locks this evidence for your AI assistant
+                    Confirming locks Interview-Evidence.md for your AI assistant
                     attempt.
                   </p>
                 )}

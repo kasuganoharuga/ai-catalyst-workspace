@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
@@ -23,10 +24,12 @@ import {
 import {
   addInterviewRecordAction,
   completeInterviewRecordAction,
-  confirmInterviewEvidenceAction,
+  reopenInterviewRecordAction,
   saveInterviewRecordDraftAction,
 } from "@/lib/actions/interview-actions";
 import { cn } from "@/lib/utils";
+
+const MODULE_4_HREF = "/modules/module-04-evidence-of-unmet-need";
 
 const fieldClass = cn(
   "w-full rounded-md border border-border bg-background px-3 py-2.5 text-sm",
@@ -38,17 +41,14 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type Props = {
   activityId: string;
-  programRunId: string;
   questions: InterviewQuestionSnapshot[];
   records: InterviewRecord[];
   progress: InterviewProgress;
   evidenceStatus: InterviewEvidenceStatus;
-  hasAttempt: boolean;
 };
 
 export function InterviewRecordsClient({
   activityId,
-  programRunId,
   questions,
   records,
   progress,
@@ -60,10 +60,6 @@ export function InterviewRecordsClient({
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(
     records.find((r) => r.status === "draft")?.id ?? records[0]?.id ?? null,
   );
-  const [submitBlockedOpen, setSubmitBlockedOpen] = useState(false);
-  const [submitConfirmOpen, setSubmitConfirmOpen] = useState(false);
-  const [submitBlockReasons, setSubmitBlockReasons] = useState<string[]>([]);
-
   // Derive the active pill from props when the selection is missing/stale —
   // avoid syncing that choice through an effect (cascading setState).
   const activeRecordId =
@@ -75,7 +71,7 @@ export function InterviewRecordsClient({
   const active = records.find((r) => r.id === activeRecordId) ?? null;
   const confirmed = evidenceStatus === "confirmed";
   const draftRecords = records.filter((r) => r.status === "draft");
-  const canSubmitEvidence =
+  const canSubmitInterviews =
     progress.completedCount >= INTERVIEW_MINIMUM_COUNT &&
     draftRecords.length === 0;
 
@@ -94,29 +90,15 @@ export function InterviewRecordsClient({
     });
   }
 
-  function onSubmitEvidenceClick() {
-    const reasons: string[] = [];
-    if (progress.completedCount < INTERVIEW_MINIMUM_COUNT) {
-      const remaining = INTERVIEW_MINIMUM_COUNT - progress.completedCount;
-      reasons.push(
-        `You need ${remaining} more completed interview${remaining === 1 ? "" : "s"} (minimum ${INTERVIEW_MINIMUM_COUNT}).`,
-      );
-    }
-    if (draftRecords.length > 0) {
-      const labels = draftRecords
-        .map((r) => `Interview ${r.sequenceIndex}`)
-        .join(", ");
-      reasons.push(
-        `${draftRecords.length === 1 ? "This draft is" : "These drafts are"} still unfinished: ${labels}. Complete ${draftRecords.length === 1 ? "it" : "them"} first.`,
-      );
-    }
-    if (reasons.length > 0) {
-      setSubmitBlockReasons(reasons);
-      setSubmitBlockedOpen(true);
-      return;
-    }
-    setSubmitConfirmOpen(true);
-  }
+  const submitHint = confirmed
+    ? "Evidence is confirmed on Proof."
+    : progress.completedCount < INTERVIEW_MINIMUM_COUNT
+      ? `Complete all ${INTERVIEW_MINIMUM_COUNT} interviews before submitting.`
+      : draftRecords.length > 0
+        ? `Finish every draft first: ${draftRecords
+            .map((r) => `Interview ${r.sequenceIndex}`)
+            .join(", ")}.`
+        : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -127,11 +109,17 @@ export function InterviewRecordsClient({
       ) : null}
 
       <section className="space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-            {progress.completedCount}/{INTERVIEW_MINIMUM_COUNT} completed
-            {confirmed ? " · Evidence locked" : ""}
-          </p>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="space-y-1">
+            <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              {progress.completedCount} of {INTERVIEW_MINIMUM_COUNT} interviews
+              completed
+              {confirmed ? " · Evidence confirmed" : ""}
+            </p>
+            {submitHint ? (
+              <p className="text-xs text-muted-foreground">{submitHint}</p>
+            ) : null}
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
@@ -144,14 +132,19 @@ export function InterviewRecordsClient({
             >
               + Add interview
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={pending || confirmed}
-              onClick={onSubmitEvidenceClick}
-            >
-              {confirmed ? "Evidence locked" : "Submit & lock evidence"}
-            </Button>
+            {confirmed ? (
+              <Button type="button" size="sm" disabled>
+                Evidence confirmed
+              </Button>
+            ) : canSubmitInterviews ? (
+              <Button type="button" size="sm" asChild>
+                <Link href={MODULE_4_HREF}>Submit interviews</Link>
+              </Button>
+            ) : (
+              <Button type="button" size="sm" disabled>
+                Submit interviews
+              </Button>
+            )}
           </div>
         </div>
 
@@ -162,9 +155,9 @@ export function InterviewRecordsClient({
             </p>
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-muted-foreground">
               Add your first customer interview and capture what they said
-              against the questions from Module 3. You need at least{" "}
-              {INTERVIEW_MINIMUM_COUNT} completed interviews before you can
-              submit evidence.
+              against the questions from Module 3. Complete all{" "}
+              {INTERVIEW_MINIMUM_COUNT} interviews, then submit them for review
+              on Proof.
             </p>
             <Button
               type="button"
@@ -211,7 +204,7 @@ export function InterviewRecordsClient({
                           : "text-muted-foreground",
                       )}
                     >
-                      {record.status === "completed" ? "Done" : "Draft"}
+                      {record.status === "completed" ? "Completed" : "Draft"}
                     </span>
                   </button>
                 );
@@ -224,7 +217,7 @@ export function InterviewRecordsClient({
                 record={active}
                 questions={questions}
                 disabled={pending || confirmed}
-                readOnly={confirmed || active.status === "completed"}
+                evidenceConfirmed={confirmed}
                 onSaveDraft={(fields) =>
                   run(async () =>
                     saveInterviewRecordDraftAction(active.id, fields),
@@ -235,71 +228,14 @@ export function InterviewRecordsClient({
                     completeInterviewRecordAction(active.id, fields),
                   )
                 }
+                onEdit={() =>
+                  run(async () => reopenInterviewRecordAction(active.id))
+                }
               />
             ) : null}
           </>
         )}
       </section>
-
-      <Dialog open={submitBlockedOpen} onOpenChange={setSubmitBlockedOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Not ready to submit</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-2 text-sm text-muted-foreground">
-                <p>
-                  You need at least {INTERVIEW_MINIMUM_COUNT} completed
-                  interviews, and every interview must be finished (no drafts
-                  left), before evidence can be locked.
-                </p>
-                <ul className="list-disc space-y-1 pl-5 text-foreground">
-                  {submitBlockReasons.map((reason) => (
-                    <li key={reason}>{reason}</li>
-                  ))}
-                </ul>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button type="button" onClick={() => setSubmitBlockedOpen(false)}>
-              Keep recording
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={submitConfirmOpen} onOpenChange={setSubmitConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Submit and lock evidence?</DialogTitle>
-            <DialogDescription>
-              This locks all {progress.completedCount} completed interviews as
-              your evidence snapshot for Proof. You will not be able to edit
-              them afterwards from this screen.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => setSubmitConfirmOpen(false)}
-            >
-              Keep recording
-            </Button>
-            <Button
-              type="button"
-              disabled={pending || !canSubmitEvidence}
-              onClick={() => {
-                setSubmitConfirmOpen(false);
-                run(async () => confirmInterviewEvidenceAction(programRunId));
-              }}
-            >
-              Submit & lock
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
@@ -336,16 +272,18 @@ function InterviewRecordForm({
   record,
   questions,
   disabled,
-  readOnly,
+  evidenceConfirmed,
   onSaveDraft,
   onComplete,
+  onEdit,
 }: {
   record: InterviewRecord;
   questions: InterviewQuestionSnapshot[];
   disabled: boolean;
-  readOnly: boolean;
+  evidenceConfirmed: boolean;
   onSaveDraft: (fields: FormFields) => void;
   onComplete: (fields: FormFields) => void;
+  onEdit: () => void;
 }) {
   const [intervieweeName, setIntervieweeName] = useState(
     record.intervieweeName,
@@ -369,7 +307,8 @@ function InterviewRecordForm({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
-  const lockedCompleted = record.status === "completed";
+  const isCompleted = record.status === "completed";
+  const readOnly = isCompleted || evidenceConfirmed;
   const interviewLabel = `Interview ${record.sequenceIndex}`;
 
   function fields(): FormFields {
@@ -399,7 +338,7 @@ function InterviewRecordForm({
             {interviewLabel}
           </h2>
           <p className="font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            {lockedCompleted ? "Completed · Locked" : "Draft"}
+            {isCompleted ? "Completed" : "Draft"}
           </p>
         </div>
       </header>
@@ -514,33 +453,41 @@ function InterviewRecordForm({
                 ))}
               </ul>
             ) : null}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                These actions apply only to {interviewLabel}.
-              </p>
-              <div className="flex flex-wrap justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={() => {
-                    setValidationErrors([]);
-                    onSaveDraft(fields());
-                  }}
-                >
-                  Save draft · {interviewLabel}
-                </Button>
-                <Button type="button" disabled={disabled} onClick={tryComplete}>
-                  Complete {interviewLabel}
-                </Button>
-              </div>
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={disabled}
+                onClick={() => {
+                  setValidationErrors([]);
+                  onSaveDraft(fields());
+                }}
+              >
+                Save draft
+              </Button>
+              <Button type="button" disabled={disabled} onClick={tryComplete}>
+                Complete interview
+              </Button>
             </div>
           </>
+        ) : isCompleted && !evidenceConfirmed ? (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm text-muted-foreground">
+              This interview is complete. You can still edit it before
+              submitting all interviews.
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={disabled}
+              onClick={onEdit}
+            >
+              Edit interview
+            </Button>
+          </div>
         ) : (
           <p className="text-right text-sm text-muted-foreground">
-            {lockedCompleted
-              ? `${interviewLabel} is completed and locked. It cannot be changed.`
-              : "Evidence is confirmed and locked. Completed interviews cannot be changed."}
+            Evidence is confirmed. Completed interviews cannot be changed.
           </p>
         )}
       </footer>
@@ -548,10 +495,11 @@ function InterviewRecordForm({
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Complete {interviewLabel}?</DialogTitle>
+            <DialogTitle>Complete this interview?</DialogTitle>
             <DialogDescription>
-              Once completed, {interviewLabel} is locked and cannot be edited.
-              Make sure every required field is filled before continuing.
+              Marks {interviewLabel} as finished for the count toward{" "}
+              {INTERVIEW_MINIMUM_COUNT}. You can edit it again before submitting
+              all interviews.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -571,7 +519,7 @@ function InterviewRecordForm({
                 onComplete(fields());
               }}
             >
-              Complete and lock {interviewLabel}
+              Complete interview
             </Button>
           </DialogFooter>
         </DialogContent>

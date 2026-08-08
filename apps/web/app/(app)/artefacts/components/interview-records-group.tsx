@@ -62,11 +62,11 @@ export function InterviewRecordsGroup({
             <p className="mt-1.5 text-[13px] leading-5 text-foreground">
               {confirmed
                 ? "Evidence confirmed on Proof"
-                : "Ready for Proof · Review evidence"}
+                : "Ready · Submit interviews, then confirm evidence on Proof"}
             </p>
           ) : requirementMet ? (
             <p className="mt-1.5 text-[13px] leading-5 text-foreground">
-              Ready to submit · Lock evidence for Proof
+              Ready to submit interviews for review
             </p>
           ) : locked ? (
             <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
@@ -74,7 +74,7 @@ export function InterviewRecordsGroup({
             </p>
           ) : (
             <p className="mt-1.5 text-[13px] leading-5 text-muted-foreground">
-              Complete at least {recommendedCount} interviews to submit evidence
+              Complete all {recommendedCount} interviews, then submit them
             </p>
           )}
         </div>
