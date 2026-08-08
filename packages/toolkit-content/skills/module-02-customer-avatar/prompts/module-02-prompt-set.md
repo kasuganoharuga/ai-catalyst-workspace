@@ -670,27 +670,46 @@ When an answer produces nothing for a later field, write:
 
 ### Field-shape discipline
 
-The wide questions collect more than their own field needs. CONFIRMED ANSWER holds only what fills
-the field; everything else goes to carry-forward. Do not pour a whole wide answer into a Snapshot
-line.
+The wide questions collect more than their own field needs. CONFIRMED ANSWER holds only the
+**Snapshot recognition-card line** for that field — the Capital Raise handout density: one short
+scannable line per Snapshot cell. Explanatory reasoning goes to CARRY-FORWARD CONTEXT (and later
+into Situation / Disqualifiers / Validation Status) — never into a Snapshot prose paragraph.
+Format and extract; do not reinterpret.
 
-For `customer_picture`:
+Summarising and challenging happen **here**, while the Founder can still confirm. Once a field is
+confirmed as a recognition-card line, later artefact generation must not summarise it again.
 
-- CONFIRMED ANSWER contains the concise WHO description.
-- When it materially matters — which it usually does in B2B — it **also** carries the relationship
-  between user, champion, decision-maker and economic buyer. Do not strip that out for brevity: a
-  WHO that says "Head of Operations at an aged-care provider" and loses "the operations team are the
-  daily users, the Head of Operations champions it, the CFO approves the spend" has lost the part
-  that decides how the customer is sold to.
-- Detailed daily routine, pressure, goals and prior attempts go to CARRY-FORWARD CONTEXT, named for
-  the field they belong to.
+For `customer_picture` (Snapshot → WHO):
+
+Format the confirmed answer as **one short recognition line** (a second short line only when
+buying-committee roles are material and will not fit without becoming a paragraph).
+
+Do not rewrite the Founder's answer into a persona narrative.
+Do not add descriptors, motivations or implications that were not explicitly confirmed.
+
+Keep explanations out of this card. For example,
+"Sarah is the champion because she feels the pain most directly" should preserve a short WHO fact
+such as "Ops manager; users = admin/ops; champion = Sarah; buyer = managing partner" — not the
+because-clause. The explanation may be carried forward to evidence / assumptions if relevant.
+
+Detailed daily routine, pressure, goals and prior attempts go to CARRY-FORWARD CONTEXT, named for
+the field they belong to.
+
+Worked example for `customer_picture` (Capital Raise density):
+
+    CONFIRMED ANSWER
+    32–42, technical or domain-expert founder; 2–8 person team
+
+    CARRY-FORWARD CONTEXT
+    — Situation: Running the raise while running the company; both are suffering
+      (only if the Founder confirmed that wording).
 
 For `customer_where`:
 
 - CONFIRMED ANSWER contains geography, market, ecosystem and, where useful, one or two named
   communities or networks.
 - Keep the whole field to one concise sentence. Do not turn WHERE into a media, newsletter, podcast
-  or event list — that breaks the Snapshot's four-line shape.
+  or event list — that breaks the Snapshot's scannable shape.
 - A longer list of newsletters, podcasts, events or channels is **left out as non-essential**, not
   stored in CARRY-FORWARD CONTEXT — unless a later Module 2 field genuinely needs it. Carry-forward
   exists to serve a later question in this module; nothing in this module consumes a full channel
@@ -699,8 +718,34 @@ For `customer_where`:
 Worked example for `customer_where`:
 
     CONFIRMED ANSWER
-    Sydney and Melbourne-based early-stage health-tech founders, commonly found through Startmate
-    and Stone & Chalk networks.
+    Sydney / Melbourne / Brisbane. Often accelerator-adjacent
+
+For `customer_stage` (Snapshot → STAGE):
+
+Format the confirmed answer as **one short recognition line** of observable operating-state facts
+(stage, traction, runway, tool/automation state — only what was confirmed).
+
+Do not turn the answer into a marketing description or inferred company stage.
+Do not introduce words such as "growing", "mature", "digitally advanced", or similar descriptors
+unless the Founder explicitly used or confirmed them.
+Preserve the Founder's terminology.
+
+Explanatory material belongs elsewhere:
+
+- current workflow breakdown / trigger / why the problem bites now → Situation
+- strongest-fit but not hard cutoff → Validation Status / Founder assumptions
+- explicit exclusions → Disqualifiers (confirmed again in Block 6)
+
+Worked example for `customer_stage` (Capital Raise density):
+
+    CONFIRMED ANSWER
+    Post-MVP, $10k–$80k ARR or strong pilots. 6–12 mths runway
+
+    CARRY-FORWARD CONTEXT
+    — Situation: Manual coordination starts becoming a real problem as onboarding volume increases
+      (only if the Founder confirmed that wording).
+    — Validation Status / Founder assumptions: This segment is the strongest beachhead, not a hard
+      exclusion boundary.
 
 For `emotional_needs`:
 
@@ -980,12 +1025,18 @@ tell them the Module is complete.
 
 Generate Module 2's artefact from the Founder's confirmed Responses.
 
+**Do not summarise or reinterpret confirmed responses.** Treat confirmed module Responses as
+authoritative content. Your job is to map, relocate, deduplicate and format them into the artefact
+schema while preserving confirmed meaning and terminology. Summarising already happened in the
+Facilitator while the Founder could confirm it — do not run a second round of summarising here.
+
 ## Inputs
 
 - Read the 13 confirmed Responses (`customer_picture` through `validation_status`) from the Module
   context. Use nothing the Founder has not confirmed.
 - Each Response is stored in the save protocol's shape:
-  - **CONFIRMED ANSWER** fills the customer-facing sections.
+  - **CONFIRMED ANSWER** fills the customer-facing sections (Snapshot fields should already be
+    short recognition-card lines from the Facilitator).
   - **OBSERVATION BASIS, ASSUMPTIONS, UNKNOWNS and CONTRADICTIONS** feed Validation Status. They
     never appear in the body sections.
   - **CARRY-FORWARD CONTEXT is conversation scaffolding only.** It exists so a later Module 2
@@ -1008,20 +1059,83 @@ exactly.
 
 ## Ideal-Customer-Avatar.md
 
+### SNAPSHOT FORMATTING RULES
+
+The Snapshot is a recognition card in the Capital Raise handout sense: one short scannable line per
+cell (WHO / WHERE / STAGE / CURRENT COMMERCIAL MOMENT). It is not a prose summary and not a
+multi-field labelled form.
+
+Format, do not reinterpret.
+
+Preserve every material Founder-confirmed fact, but place each fact once in the section where it
+adds the most value.
+
+Do not discard material confirmed information when compressing Snapshot fields. Relocate it to the
+most appropriate downstream section. Snapshot compression changes placement, not meaning.
+
+Relocated information should appear once only. Do not keep the full version in Snapshot and repeat
+it again downstream.
+
+**WHO:**
+
+- One short recognition line on the same line as, or immediately under, `**WHO:**`.
+- Do not render WHO as an explanatory paragraph.
+- Identify who they are in scannable terms (role / life situation / team shape). Include
+  user / champion / buyer only as compact clauses when material — never as a narrative of motives.
+- Move reasons, motivations and evidence provenance to Situation or Validation Status
+  (Founder assumptions when the rationale is an inference).
+
+**WHERE:**
+
+- One short recognition line: geography / market / ecosystem / one or two named networks.
+
+**STAGE:**
+
+- One short recognition line of observable operating-state facts.
+- Do not render STAGE as a marketing description or inferred company-stage essay.
+- Move explanations of why the problem occurs to Situation (only if confirmed).
+- Move soft-boundary assumptions to Validation Status where appropriate.
+- Move hard exclusions to Disqualifiers.
+
+**CURRENT COMMERCIAL MOMENT:**
+
+- One short recognition line: the event or deadline, and what happens if they delay — kept tight.
+
+**DE-DUPLICATION:**
+
+Do not repeat the same fact across Segment, WHO and STAGE. If team size is already fully stated in
+Segment, do not repeat it in another Snapshot field unless it adds distinct meaning.
+
+**NO REINTERPRETATION:**
+
+Do not replace confirmed language with inferred descriptors. Do not compress
+"5+ staff, 3+ disconnected tools, limited automation" into "growing firm with fragmented workflows"
+unless the Founder explicitly confirmed that wording.
+
+Canonical density (Capital Raise worked example):
+
+    **WHO:** 32–42, technical or domain-expert founder; 2–8 person team
+
+    **WHERE:** Sydney / Melbourne / Brisbane. Often accelerator-adjacent
+
+    **STAGE:** Post-MVP, $10k–$80k ARR or strong pilots. 6–12 mths runway
+
+    **CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed
+
 | Section | Source |
 |---|---|
 | Venture | Venture name only, from context |
 | Segment | `beachhead_segment`, verbatim |
-| Snapshot → WHO | `customer_picture` |
-| Snapshot → WHERE | `customer_where` |
-| Snapshot → STAGE | `customer_stage` |
-| Snapshot → CURRENT COMMERCIAL MOMENT | `commercial_moment` |
-| Situation | `customer_situation` — one paragraph |
+| Snapshot → WHO | `customer_picture` — short recognition line (see above) |
+| Snapshot → WHERE | `customer_where` — short recognition line |
+| Snapshot → STAGE | `customer_stage` — short recognition line |
+| Snapshot → CURRENT COMMERCIAL MOMENT | `commercial_moment` — short recognition line |
+| Situation | `customer_situation` — one paragraph; also receives confirmed trigger / "why the problem bites now" facts that must not sit in Snapshot |
 | Unmet Needs → Functional | `functional_needs` — 3–6, in the Founder-confirmed order. Do not invent a ranking when no defensible order was established |
 | Unmet Needs → Emotional and social | `emotional_needs` — 3–6 |
 | Buying Signals → Tier 1 | `tier1_signals` — 3–5 observable actions |
 | Buying Signals → Tier 2 | `tier2_signals` — 3–5 observable trigger events |
-| Disqualifiers | `disqualifiers` — 3 or more |
+| Disqualifiers | `disqualifiers` — 3 or more; hard exclusions live here, not restated as STAGE prose |
 | Core Promise | `core_promise` — one concise paragraph of one or two sentences describing the customer result and, where relevant, the risk reduced or the capability retained. Not all three apply to every product. It should say what they are really buying beyond the product itself, but must not add subheadings that are not in the locked template |
 
 No inline evidence tags anywhere in the sections above. The body stays clean; all bookkeeping goes

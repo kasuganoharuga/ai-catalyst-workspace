@@ -8,8 +8,8 @@ import type {
   InterviewProgress,
   InterviewQuestionSnapshot,
   InterviewRecord,
-} from "@ai-catalyst/services/interview";
-import { INTERVIEW_MINIMUM_COUNT } from "@ai-catalyst/services/interview";
+} from "@ai-catalyst/services/interview/types";
+import { INTERVIEW_MINIMUM_COUNT } from "@ai-catalyst/services/interview/types";
 
 import { Button } from "@/components/ui/button";
 import {

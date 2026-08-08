@@ -369,8 +369,16 @@ export function extractLabelValue(
     return inline;
   }
 
+  // Skip a blank line (or a few) between the marker and the value block so
+  // compact Snapshot cards can sit under `**WHO:**` / `**STAGE:**` without
+  // looking like an empty label to the draft check.
+  let i = markerIndex + 1;
+  while (i < lines.length && lines[i].trim().length === 0) {
+    i += 1;
+  }
+
   const collected: string[] = [];
-  for (let i = markerIndex + 1; i < lines.length; i += 1) {
+  for (; i < lines.length; i += 1) {
     const line = lines[i];
     if (line.trim().length === 0) {
       break;

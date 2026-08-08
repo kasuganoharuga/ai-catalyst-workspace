@@ -254,13 +254,14 @@ channel or account list.>
 
 ## Snapshot
 
-**WHO:** <role or life situation, the environment they operate in, and — where it matters — who uses
-it, who decides and who pays>
+**WHO:** <one short recognition line — Capital Raise density. Role / life situation / team shape.
+Include user / champion / buyer only as compact clauses when material. No motivations or prose.>
 
-**WHERE:** <one concise sentence: country, market, ecosystem, and one or two named communities or
-networks where a real example could be identified>
+**WHERE:** <one short recognition line: country, market, ecosystem, and one or two named communities
+or networks>
 
-**STAGE:** <what must already be true before this problem is urgent; who is too early, who too advanced>
+**STAGE:** <one short recognition line of observable operating-state facts. No marketing description.
+Move why-the-problem-bites-now to Situation; hard exclusions to Disqualifiers.>
 
 **CURRENT COMMERCIAL MOMENT:** <the event or deadline they are moving toward>
 

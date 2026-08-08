@@ -487,6 +487,41 @@ function checkLabelEnum(
   };
 }
 
+function countSentences(value: string): number {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return 0;
+  }
+  const parts = trimmed
+    .split(/[.!?]+/)
+    .filter((part) => part.trim().length > 0);
+  return Math.max(1, parts.length);
+}
+
+function checkLabelValueCompact(
+  rule: Extract<DraftRule, { type: "label_value_compact" }>,
+  ctx: ValidationContext,
+): RuleCheck {
+  const value = labelRefValue({ label: rule.label, scope: rule.scope }, ctx);
+  if (value === null || !isSubstantiveText(value)) {
+    return {
+      key: rule.key,
+      passed: false,
+      message: `${rule.label} must be a short recognition-card line, not a narrative paragraph. Reformat without changing or adding facts.`,
+    };
+  }
+  const tooLong = value.length > rule.maxChars;
+  const tooManySentences = countSentences(value) > rule.maxSentences;
+  const passed = !tooLong && !tooManySentences;
+  return {
+    key: rule.key,
+    passed,
+    message: passed
+      ? undefined
+      : `${rule.label} must be a short recognition-card line, not a narrative paragraph. Reformat without changing or adding facts.`,
+  };
+}
+
 function runDraftRule(rule: DraftRule, ctx: ValidationContext): RuleCheck {
   switch (rule.type) {
     case "sections_exist":
@@ -515,6 +550,8 @@ function runDraftRule(rule: DraftRule, ctx: ValidationContext): RuleCheck {
       return checkLabelPresent(rule, ctx);
     case "label_enum":
       return checkLabelEnum(rule, ctx);
+    case "label_value_compact":
+      return checkLabelValueCompact(rule, ctx);
   }
 }
 

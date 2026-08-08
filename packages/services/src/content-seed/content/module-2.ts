@@ -352,9 +352,25 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         scope: { level: 2, heading: "Snapshot" },
       },
       {
+        key: "snapshot_who_compact",
+        type: "label_value_compact",
+        label: "WHO",
+        maxChars: 180,
+        maxSentences: 2,
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
         key: "snapshot_where",
         type: "label_present",
         label: "WHERE",
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
+        key: "snapshot_where_compact",
+        type: "label_value_compact",
+        label: "WHERE",
+        maxChars: 180,
+        maxSentences: 2,
         scope: { level: 2, heading: "Snapshot" },
       },
       {
@@ -364,9 +380,25 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         scope: { level: 2, heading: "Snapshot" },
       },
       {
+        key: "snapshot_stage_compact",
+        type: "label_value_compact",
+        label: "STAGE",
+        maxChars: 180,
+        maxSentences: 2,
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
         key: "snapshot_commercial_moment",
         type: "label_present",
         label: "CURRENT COMMERCIAL MOMENT",
+        scope: { level: 2, heading: "Snapshot" },
+      },
+      {
+        key: "snapshot_commercial_moment_compact",
+        type: "label_value_compact",
+        label: "CURRENT COMMERCIAL MOMENT",
+        maxChars: 180,
+        maxSentences: 2,
         scope: { level: 2, heading: "Snapshot" },
       },
       {

@@ -132,6 +132,17 @@ const LabelEnumRuleSchema = RuleBaseSchema.extend({
   scope: HeadingRefSchema.optional(),
 }).strict();
 
+// Keeps Module 2 Snapshot cells at Capital Raise recognition-card density:
+// a short scannable line, not an explanatory paragraph. Used so the
+// generator can repair without changing facts.
+const LabelValueCompactRuleSchema = RuleBaseSchema.extend({
+  type: z.literal("label_value_compact"),
+  label: z.string().min(1),
+  maxChars: z.number().int().min(1),
+  maxSentences: z.number().int().min(1),
+  scope: HeadingRefSchema.optional(),
+}).strict();
+
 const DraftRuleSchema = z.discriminatedUnion("type", [
   SectionsExistRuleSchema,
   SectionNonEmptyRuleSchema,
@@ -146,6 +157,7 @@ const DraftRuleSchema = z.discriminatedUnion("type", [
   TableColumnScoredReasoningRuleSchema,
   LabelPresentRuleSchema,
   LabelEnumRuleSchema,
+  LabelValueCompactRuleSchema,
 ]);
 
 export type DraftRule = z.infer<typeof DraftRuleSchema>;

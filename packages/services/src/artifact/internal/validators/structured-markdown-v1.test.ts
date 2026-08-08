@@ -765,6 +765,39 @@ describe("range_table_rows / minimum_table_rows with orRecordedUnknown", () => {
   });
 });
 
+describe("label_value_compact — Snapshot recognition-card density", () => {
+  const WHO_RULE = {
+    key: "snapshot_who_compact",
+    type: "label_value_compact",
+    label: "WHO",
+    maxChars: 180,
+    maxSentences: 2,
+    scope: { level: 2, heading: "Snapshot" },
+  };
+
+  it("passes a Capital Raise–density WHO line", () => {
+    const content = `## Snapshot
+
+**WHO:** 32–42, technical or domain-expert founder; 2–8 person team
+
+**WHERE:** Sydney / Melbourne / Brisbane. Often accelerator-adjacent
+`;
+    expect(draftCheck(content, [WHO_RULE]).passed).toBe(true);
+  });
+
+  it("fails a narrative WHO paragraph", () => {
+    const content = `## Snapshot
+
+**WHO:** Sarah, a 38-year-old operations manager at an aged-care provider. The admin and ops staff are the daily users; Sarah champions bringing the tool in because she feels the pain most directly; the managing partner is the economic buyer and signs off spend.
+
+**WHERE:** Sydney
+`;
+    const result = draftCheck(content, [WHO_RULE]);
+    expect(result.passed).toBe(false);
+    expect(result.issues[0]).toContain("recognition-card");
+  });
+});
+
 describe("table_column_exact_sequence — Evidence Maturity Level's locked reference table", () => {
   const RULE = {
     key: "level_scaffolding",

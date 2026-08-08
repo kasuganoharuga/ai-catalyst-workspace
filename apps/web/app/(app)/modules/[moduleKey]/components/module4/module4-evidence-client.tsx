@@ -7,7 +7,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import type {
   InterviewEvidenceStatus,
   InterviewProgress,
-} from "@ai-catalyst/services/interview";
+} from "@ai-catalyst/services/interview/types";
 
 import { Button } from "@/components/ui/button";
 import { confirmInterviewEvidenceAction } from "@/lib/actions/interview-actions";
