@@ -27,6 +27,14 @@ import type { ProgramContent } from "../types.js";
 // replaces — see infra/database/migrations/0012_content_lock.sql's own
 // comments for why).
 const V1_CHANGELOG = [
+  "## Module 4 — website interview evidence, then Claude",
+  "Module 3 still prepares the Interview Guide (questions snapshotted at confirm). Module 4 opens ",
+  "with website Steps 1–2 (record interviews → confirm Interview-Evidence.md); Continue in Claude ",
+  "only after confirm. Claude runs Analyse / Decide / Plan against one pinned evidence snapshot per ",
+  "attempt. Printable PDFs (Interview Guide, Verdict, ICA, 30-Day Roadmap) render via HTML→Gotenberg ",
+  "(interview_guide_html_v1 / pressure_test_verdict_html_v1 / ideal_customer_avatar_html_v1 / ",
+  "validation_roadmap_html_v1). Legacy pdf-lib renderer keys remain registered for in-flight Runs.",
+  "",
   "## Ideal Customer Avatar gains a styled PDF export",
   "Module 2's Ideal-Customer-Avatar.md is now also downloadable as an on-demand, never-stored PDF ",
   '("?format=workbook") ported from a Claude Design mockup — a navy masthead, four-column Snapshot ',

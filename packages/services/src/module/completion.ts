@@ -23,6 +23,11 @@ import {
   type ArtifactServiceDependencies,
 } from "@ai-catalyst/services/artifact";
 import { renderSetupSummaryMarkdown } from "@ai-catalyst/services/module/internal/setup-summary";
+import {
+  MODULE_3_KEY,
+  createInterviewActivityFromGuide,
+  loadGuideQuestionsForAttempt,
+} from "@ai-catalyst/services/interview";
 
 // Orchestrates module completion after a Founder calls complete_module:
 // submitAttempt, runOfficialValidation, then leave the Attempt at
@@ -728,6 +733,23 @@ export async function confirmModuleCompletion(
     );
   }
 
+  // Snapshot Module 3 interview questions before the txn so we can create
+  // interview_activities inside the same commit as module completion.
+  const moduleKeyResult = await pool.query<{
+    module_key: string;
+    program_run_id: string;
+  }>(
+    `select module_key, program_run_id
+     from program_run_modules
+     where id = $1 and workspace_id = $2`,
+    [programRunModuleId, workspace.id],
+  );
+  const completingModule = moduleKeyResult.rows[0];
+  const guideQuestions =
+    completingModule?.module_key === MODULE_3_KEY
+      ? await loadGuideQuestionsForAttempt(actor, attempt.id)
+      : null;
+
   const client = await pool.connect();
   let nextModuleUnlocked: NextModuleUnlocked | null = null;
   try {
@@ -739,6 +761,15 @@ export async function confirmModuleCompletion(
       runModule.id,
       attempt.id,
     );
+    if (completingModule?.module_key === MODULE_3_KEY && guideQuestions) {
+      await createInterviewActivityFromGuide({
+        client,
+        workspaceId: workspace.id,
+        programRunId: completingModule.program_run_id,
+        sourceModuleAttemptId: attempt.id,
+        questions: guideQuestions,
+      });
+    }
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");

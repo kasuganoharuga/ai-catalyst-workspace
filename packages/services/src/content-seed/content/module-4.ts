@@ -4,15 +4,11 @@ import type {
   QuestionContent,
 } from "../types.js";
 
-// Ported from skills/module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md
-// (§1 field ownership, §3 question rows, §5 artifact generator) and the
-// templates it names. Three artefacts, in the order they happen:
-// Interview-Notes.md is the ungraded record of Module 3's interviews, saved
-// first and re-read from storage as this module's source of truth for what
-// the customers said (see INTERVIEW_NOTES_ARTIFACT); Evidence-Of-Unmet-Need.md
-// then grades what is actually known; Validation-Roadmap-30-Day.md plans the
-// next 30 days. Upstream Module 2/3 validation statuses are historical
-// snapshots, never a ceiling on the level this module may assign.
+// Module 4 — Proof.
+// Website Steps 1–2 record interviews and Confirm evidence → Interview-Evidence.md.
+// Claude then runs three blocks (Analyse / Decide / Plan) against that pinned
+// snapshot. Evidence-Of-Unmet-Need.md and Validation-Roadmap-30-Day.md remain
+// the Claude-authored outputs.
 
 const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 
@@ -141,124 +137,55 @@ Results are not recorded in this roadmap. For each experiment, keep:
 Keep the results with you and bring them into the review that follows.
 `;
 
-const INTERVIEW_NOTES_TEMPLATE = `# Interview Notes
+const INTERVIEW_EVIDENCE_TEMPLATE = `# Customer Interview Evidence
 
-## Venture
-- Venture name:
-
-## Interviews
-
-### Interview 1
-
-**Who they are:**
-
-**When it happened:**
-
-**How it happened:**
-
-**What they said about the problem:**
-
-**What they have already done about it:**
-
-**Direct quotes:**
-
-**What this changes:**
-
-## Signals Outside The Interviews
-
-## Still Unknown
+Evidence is recorded on the AI Catalyst website (Module 4 Steps 1–2) and
+confirmed by the Founder before Claude starts. Do not invent interviews.
 `;
 
-const EVIDENCE_LEVEL_OPTIONS = [
-  { value: "assumption", label: "Assumption" },
-  { value: "secondary_research", label: "Secondary research" },
-  { value: "primary_research", label: "Primary research" },
-  { value: "demand_signal", label: "Demand signal" },
-  { value: "paying", label: "Paying" },
+const EVIDENCE_OUTCOME_OPTIONS = [
+  { value: "supports", label: "Supports hypothesis" },
+  { value: "mixed", label: "Mixed evidence" },
+  { value: "contradicts", label: "Contradicts hypothesis" },
 ];
 
-// One question per confirmed field. `evidence_additions` is where Module
-// 3's interview notes enter the system (Module 3 never records results
-// itself) — see §1's "Also supports" column and the facilitator's
-// "Assembling the inventory" section for how the rest of the inventory is
-// assembled from upstream Responses rather than asked here.
+// Three Claude blocks after website Confirm evidence. Structured interview
+// capture lives on the website; these fields are reasoning only.
 const EVIDENCE_QUESTIONS: QuestionContent[] = [
   {
-    questionKey: "evidence_additions",
+    questionKey: "evidence_outcome",
     sequenceIndex: 1,
-    questionGroup: "evidence_inventory",
+    questionGroup: "analyse",
     questionText:
-      "What evidence exists outside the confirmed Responses of earlier modules — Module 3 interview notes, informal signals, public complaints, casual remarks, observed patterns?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
-    questionKey: "evidence_level",
-    sequenceIndex: 2,
-    questionGroup: "evidence_maturity",
-    questionText:
-      "What is the highest evidence level reached for this customer and problem?",
+      "Taken together, do the confirmed customer interviews support, mix, or contradict the current problem hypothesis?",
     helpText: null,
     placeholderText: null,
     responseType: "single_choice",
     isRequired: true,
     allowSkip: false,
-    options: EVIDENCE_LEVEL_OPTIONS,
+    options: EVIDENCE_OUTCOME_OPTIONS,
     conditions: {},
   },
   {
-    questionKey: "evidence_level_reasoning",
+    questionKey: "evidence_analysis",
+    sequenceIndex: 2,
+    questionGroup: "analyse",
+    questionText:
+      "What did you learn — repeated problems, common workarounds, urgency signals, contradictions, unexpected findings, buying signals, and weak evidence?",
+    helpText: null,
+    placeholderText: null,
+    responseType: "long_text",
+    isRequired: true,
+    allowSkip: false,
+    options: [],
+    conditions: {},
+  },
+  {
+    questionKey: "evidence_decision",
     sequenceIndex: 3,
-    questionGroup: "evidence_maturity",
+    questionGroup: "decide",
     questionText:
-      "What specifically supports that level, and what is missing from the level above?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
-    questionKey: "observed_behaviour",
-    sequenceIndex: 4,
-    questionGroup: "behavioural_evidence",
-    questionText:
-      "What has this customer been observed doing about the problem — workarounds built, money spent, people assigned, processes changed, time repeatedly invested, or tools abandoned?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
-    questionKey: "strongest_counterargument",
-    sequenceIndex: 5,
-    questionGroup: "falsifiability",
-    questionText:
-      "What is the strongest case that this problem is not painful enough to pay for, or that existing solutions are already good enough?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
-    questionKey: "counterargument_defence",
-    sequenceIndex: 6,
-    questionGroup: "falsifiability",
-    questionText:
-      "What evidence answers that case, and where does the defence run out?",
+      "What should change next — keep or refine the ICA, change the problem, change interview assumptions, or gather more evidence?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -269,8 +196,8 @@ const EVIDENCE_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "validation_constraints",
-    sequenceIndex: 7,
-    questionGroup: "roadmap",
+    sequenceIndex: 4,
+    questionGroup: "plan",
     questionText:
       "Over the next 30 days, what time, budget and customer access is genuinely available?",
     helpText: null,
@@ -513,13 +440,6 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
     ],
     submissionRules: [
       {
-        key: "maturity_level_matches_response",
-        type: "label_matches_response",
-        label: "Current level",
-        scope: { level: 2, heading: "Evidence Maturity Level" },
-        responseKey: "evidence_level",
-      },
-      {
         key: "maturity_and_validation_status_agree",
         type: "labels_agree",
         labelA: {
@@ -546,7 +466,7 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Validation-Roadmap-30-Day.md",
-  rendererKey: "validation_roadmap_workbook_v1",
+  rendererKey: "validation_roadmap_html_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
@@ -697,38 +617,20 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
 };
 
 // The Founder's raw interview record, and Module 4's source of truth for
-// what the customers actually said. `evidence_additions` carries extracts
-// from it into the graded document, but it is deliberately lossy — the
-// facilitator saves this file in Block 1 before any Response is written,
-// then re-reads it with `get_artifact` for every later block, so a Module
-// resumed in a new chat a week later still has the complete record.
-// Deliberately unlike the two artefacts above:
-//  - `isRequired: false`, so it never blocks completeModuleAttempt — the
-//    "did you actually interview anyone" gate lives in the facilitator
-//    prompt, which grades thin notes rather than rejecting them. Optional
-//    to the completion check, not optional to the Module;
-//  - `validatorKey: null` (with the empty validationConfig that implies),
-//    because raw notes have no structure worth failing a Founder over. The
-//    template below is formatting guidance for the assistant, not a
-//    contract enforced on submission.
-// First in sequence, because it is the first thing that happens here. That
-// used to collide with several consumers reading `expectedArtifacts[0]` as
-// the Module's headline output (the module catalog card's "Produces …",
-// the dashboard's saved/not-saved tracking) — an ungraded inbound record
-// is not what this Module produces. Those now go through apps/web's
-// `headlineArtifact`, which picks the first *required* Artifact, so
-// sequence order is free to describe when things happen.
-const INTERVIEW_NOTES_ARTIFACT: ArtifactContent = {
-  artifactKey: "interview_notes",
+// Website-confirmed canonical interview evidence. Materialised by the
+// platform when Continue in Claude starts (pinned on the attempt). Required
+// so complete_module cannot finish without the Founder-confirmed snapshot.
+const INTERVIEW_EVIDENCE_ARTIFACT: ArtifactContent = {
+  artifactKey: "interview_evidence",
   sequenceIndex: 1,
-  name: "Interview Notes",
+  name: "Customer Interview Evidence",
   description:
-    "The Module 3 problem interviews as the Founder recorded them, normalised to Markdown and kept in the workspace. Raw input to the evidence assessment, accepted at whatever quality it arrives in.",
-  isRequired: false,
+    "Founder-confirmed record of real customer interviews, captured on the website before Claude analyses evidence.",
+  isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
   outputFormat: "markdown",
-  requiredFilename: "Interview-Notes.md",
+  requiredFilename: "Interview-Evidence.md",
   rendererKey: null,
   validatorKey: null,
   allowedMimeTypes: ["text/markdown", "text/plain"],
@@ -737,7 +639,7 @@ const INTERVIEW_NOTES_ARTIFACT: ArtifactContent = {
   outputConfig: {
     schemaVersion: 1,
     templateFormat: "markdown",
-    templateMarkdown: INTERVIEW_NOTES_TEMPLATE,
+    templateMarkdown: INTERVIEW_EVIDENCE_TEMPLATE,
   },
   validationConfig: {},
 };
@@ -747,11 +649,11 @@ export const MODULE_4_CONTENT: ModuleContent = {
   sequenceIndex: 4,
   title: "Proof",
   subtitle:
-    "Grade what you actually know against what you believe, and plan the next 30 days",
+    "Record real interviews, confirm the evidence, then analyse and plan the next 30 days",
   description:
-    "Seven confirmed structured answers saved field by field, an Evidence of Unmet Need assessment (including Module 3's interview notes), and a 30-Day Validation Roadmap. Upstream validation statuses are historical snapshots, never a cap.",
+    "Website steps capture interview records and lock Interview-Evidence.md. Claude then analyses what was learned, decides what changes, and builds a 30-Day Validation Roadmap.",
   objective:
-    "Reconcile what the Founder believes against what they have actually observed, grade the evidence, and plan the next 30 days of validation.",
+    "Capture what customers said, analyse the evidence honestly, decide what changes, and plan the next 30 days of validation.",
   moduleType: "standard",
   isRequired: true,
   allowRevisions: true,
@@ -760,7 +662,7 @@ export const MODULE_4_CONTENT: ModuleContent = {
   isPublishable: true,
   questions: EVIDENCE_QUESTIONS,
   artifacts: [
-    INTERVIEW_NOTES_ARTIFACT,
+    INTERVIEW_EVIDENCE_ARTIFACT,
     EVIDENCE_OF_UNMET_NEED_ARTIFACT,
     VALIDATION_ROADMAP_ARTIFACT,
   ],

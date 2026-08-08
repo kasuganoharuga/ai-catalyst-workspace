@@ -34,6 +34,8 @@ function statusForCode(code: ServiceErrorCode): number {
     case "ATTEMPT_NOT_EDITABLE":
     case "ATTEMPT_NOT_SUBMITTABLE":
     case "ATTEMPT_RETRY_SOURCE_INVALID":
+    case "EVIDENCE_NOT_CONFIRMED":
+    case "EVIDENCE_FROZEN_FOR_ATTEMPT":
       return 409;
     case "INTERNAL_INVARIANT_ERROR":
       // Never the caller's fault (e.g. content misconfiguration) — a 500,

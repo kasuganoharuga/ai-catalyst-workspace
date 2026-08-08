@@ -91,7 +91,13 @@ export type ServiceErrorCode =
   // parse / buildPlan / assertPlanMatchesModel / render / assertPdfStructure
   // threw while building a workbook — a renderer or content bug, never the
   // caller's fault; a 500, not a 4xx.
-  | "WORKBOOK_RENDER_FAILED";
+  | "WORKBOOK_RENDER_FAILED"
+  // Module 4 interview evidence is not confirmed yet — Claude attempt /
+  // Continue in Claude is refused until Website Step 2 Confirm evidence.
+  | "EVIDENCE_NOT_CONFIRMED"
+  // A Module 4 Claude attempt has already pinned an evidence snapshot;
+  // interview records / evidence reopen must wait for finish or retry.
+  | "EVIDENCE_FROZEN_FOR_ATTEMPT";
 
 export class ServiceError extends Error {
   constructor(

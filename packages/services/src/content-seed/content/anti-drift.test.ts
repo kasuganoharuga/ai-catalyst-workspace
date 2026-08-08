@@ -241,8 +241,9 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
 const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
   {
     moduleKey: "module-04-evidence-of-unmet-need",
-    artifactKey: "interview_notes",
-    sourcePath: "module-04-evidence-of-unmet-need/templates/Interview-Notes.md",
+    artifactKey: "interview_evidence",
+    sourcePath:
+      "module-04-evidence-of-unmet-need/templates/Interview-Evidence.md",
   },
 ];
 

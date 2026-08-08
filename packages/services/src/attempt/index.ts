@@ -21,6 +21,11 @@ import {
   RETRYABLE_ATTEMPT_STATUSES,
   isRetryableAttemptStatus,
 } from "@ai-catalyst/services/attempt/internal/retry";
+import {
+  MODULE_4_KEY,
+  getInterviewActivityForProgramRun,
+  pinInterviewEvidenceForModule4Attempt,
+} from "@ai-catalyst/services/interview";
 
 // This module owns Attempt/Response orchestration for a single Module:
 // starting/resuming an Attempt, saving structured answers, and submitting
@@ -46,6 +51,7 @@ interface RunModuleRow {
   program_run_branch_id: string;
   status: RunModuleStatus;
   active_attempt_id: string | null;
+  module_key: string;
 }
 
 // Explicit column list (never `select *`) mapped through mapAttemptRow —
@@ -415,7 +421,7 @@ export async function startOrResumeAttempt(
     // taken. Scoped by workspace_id: a run_module belonging to another
     // Workspace is indistinguishable from one that doesn't exist.
     const runModuleResult = await client.query<RunModuleRow>(
-      `select id, program_run_id, program_run_branch_id, status, active_attempt_id
+      `select id, program_run_id, program_run_branch_id, status, active_attempt_id, module_key
        from program_run_modules
        where id = $1 and workspace_id = $2
        for update`,
@@ -435,6 +441,20 @@ export async function startOrResumeAttempt(
         "RUN_MODULE_NOT_AVAILABLE",
         `Module is "${runModule.status}" and cannot be started or resumed.`,
       );
+    }
+
+    // Module 4 Claude work requires website Confirm evidence first.
+    if (runModule.module_key === MODULE_4_KEY) {
+      const activity = await getInterviewActivityForProgramRun(
+        actor,
+        runModule.program_run_id,
+      );
+      if (!activity || activity.evidenceStatus !== "confirmed") {
+        throw new ServiceError(
+          "EVIDENCE_NOT_CONFIRMED",
+          "Confirm interview evidence on the website before continuing in Claude.",
+        );
+      }
     }
 
     if (runModule.active_attempt_id) {
@@ -463,6 +483,9 @@ export async function startOrResumeAttempt(
           );
         }
         await client.query("commit");
+        if (runModule.module_key === MODULE_4_KEY) {
+          await pinInterviewEvidenceForModule4Attempt(actor, active.id);
+        }
         return { attempt: mapAttemptRow(active), created: false };
       }
 
@@ -549,6 +572,9 @@ export async function startOrResumeAttempt(
     });
 
     await client.query("commit");
+    if (runModule.module_key === MODULE_4_KEY) {
+      await pinInterviewEvidenceForModule4Attempt(actor, newAttempt.id);
+    }
     return { attempt: mapAttemptRow(newAttempt), created: true };
   } catch (error) {
     await client.query("rollback");

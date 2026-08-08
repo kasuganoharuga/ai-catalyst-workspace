@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Application Service Layer 鈥?the single home for business logic, consumed by apps/web route handlers and apps/mcp tool handlers. The only layer permitted to call apps/api (for internal AI calls).",
+  "description": "Application Service Layer — the single home for business logic, consumed by apps/web route handlers and apps/mcp tool handlers. The only layer permitted to call apps/api (for internal AI calls).",
   "exports": {
     "./workflow": "./src/workflow/index.ts",
     "./workflow/internal/reconcile-run-modules": "./src/workflow/internal/reconcile-run-modules.ts",
@@ -63,6 +63,9 @@
     "./storage/internal/hash": "./src/storage/internal/hash.ts",
     "./email": "./src/email/index.ts",
     "./invitation": "./src/invitation/index.ts",
+    "./interview": "./src/interview/index.ts",
+    "./interview/types": "./src/interview/types.ts",
+    "./interview/evidence-markdown": "./src/interview/evidence-markdown.ts",
     "./audit": "./src/audit/index.ts",
     "./errors": "./src/errors.ts",
     "./workspace": "./src/workspace/index.ts",

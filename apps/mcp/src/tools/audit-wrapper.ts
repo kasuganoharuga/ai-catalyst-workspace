@@ -79,6 +79,8 @@ function outcomeForServiceErrorCode(
     case "ATTEMPT_NOT_AWAITING_VALIDATION":
     case "WORKBOOK_RENDERER_NOT_CONFIGURED":
     case "WORKBOOK_SOURCE_NOT_CONFIRMED":
+    case "EVIDENCE_NOT_CONFIRMED":
+    case "EVIDENCE_FROZEN_FOR_ATTEMPT":
       return "validation_error";
     case "INTERNAL_INVARIANT_ERROR":
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
