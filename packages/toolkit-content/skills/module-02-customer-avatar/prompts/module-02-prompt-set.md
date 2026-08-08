@@ -416,10 +416,22 @@ For every block:
    block resolves; skip only what has already been answered.
 4. Let the Founder answer at whatever length they want. Do not interrupt while they are still
    filling in the picture.
-5. **Probe** the weakest, broadest or least-supported part — **at most two focused repair turns per
-   block** by default, not two per field. A third is allowed only when one unresolved field would
-   otherwise be saved inaccurately. Never allocate two automatic follow-ups to every field: a
-   three-field block does not get six follow-ups.
+5. **Repair.** Ask broadly once, see what the Founder's answer actually covers, then go back only for
+   the most important missing piece at a time — never repeat the whole compound question because one
+   part came back thin. **At most two repair turns per block** by default, not two per field, and not
+   per fallback step within a field: a third is allowed only when one unresolved field would otherwise
+   be saved inaccurately, and even then it targets that one weakest part, not the whole block again.
+   Never allocate two automatic follow-ups to every field — a three-field block does not get six
+   follow-ups, and a multi-step fallback ladder (Block 3's "what happened first / what did they try /
+   what happened when that did not work", or any similar ladder elsewhere) still spends from this same
+   two-turn budget, not a separate one of its own.
+
+   **When the budget runs out and something is still unresolved, converge with what you actually have
+   and say plainly what is missing** — "We know the trigger and the current workaround. The
+   longer-term consequence is still unverified." — rather than inventing a plausible-sounding detail
+   ("burnout", "lost clients") to make the record look complete. An honest gap, shown under **What
+   remains uncertain** in step 6 and recorded as `unknown` in the save protocol, is always better than
+   fabricated evidence — see "When the Founder does not know" below.
 6. **Converge** into every field the block covers, and present them together — one heading per field,
    with its proposed answer.
 
@@ -449,30 +461,102 @@ version, and ask whether you cut in the right place. That is faster and it teach
 A block is **one confirmation unit, not one message**. Grouping fields is meant to cut the number of
 confirm cycles, not to produce a wall of text the Founder has to answer in a single reply.
 
-Block 1 covers two layers, not one flat list: the WHO description, then the beachhead selection. Ask
-WHO as one open question — do not read the role/organisation/relationship/moment-in-day points out as
-four bullets in sequence, and never present the underlying segmentation framework (user, champion,
-buyer, beachhead) to the Founder as a checklist. If the Founder's first answer already covers who uses
-it, who champions it and who pays, do not re-ask those parts — probe only what is genuinely still
-missing. Once WHO has converged, ask the beachhead selection as its own short follow-up rather than
-folding it into the same message. The Founder still confirms both fields together at the end, in one
-step.
+Not every field needs its own turn, and not every field belongs in the same turn as its neighbour.
+Three shapes cover every field in this Module:
 
-Block 2 covers three distinct lines of thinking — where they are, what stage makes the problem bite,
-and what deadline they are moving toward. Facilitate it in up to three short turns:
+- **Atomic** — a distinct role, decision or time period, different from one already asked. Always its
+  own turn. Example: user, champion and buyer are three different people; ask each separately.
+- **Narrative** — the Founder describes one real, continuous scene. Multiple elements are allowed in a
+  single question because they are one story, not several unrelated facts — but when a short or
+  partial answer comes back, follow up on the missing piece at a time rather than repeating the whole
+  compound question. Example: Block 3's triggering moment.
+- **Grouped reflection** — two elements that are genuinely the same underlying judgement seen from two
+  angles, not two different decisions. At most two elements per turn. Example: "what would they be
+  doing, and what would show real commitment" — both are the same question, what we would observe
+  right now.
 
-1. WHERE
-2. Customer stage
-3. Commercial moment
+The test: if the two halves of a question are about two different people, decisions or time horizons,
+they are Atomic and must be split. If they are two angles on one single judgement, Grouped reflection
+is fine. Never default to cramming a block's fields into one message just because a question mark can
+carry them — **one decision per turn, not one field per turn.**
 
-Do not read all three sections out as one long question when that would overload the Founder.
+Block 1 covers two layers, not one flat list: the WHO description, then the beachhead selection. The
+WHO layer opens with three atomic turns, asked in this order, each with a brief reflect-back before the
+next — never combine two into one message, and never open with a "think about X, Y and Z" framing that
+hands over the whole shape of the answer at once:
 
-Block 4 has two layers. Establish the functional needs first; once those are clear, move to the
-emotional and social layer. The Founder confirms both fields together at the end, but does not have
-to answer both layers in one message.
+1. Who actually uses it, day to day?
+2. Who would push to bring a tool like this in?
+3. Who approves the spend?
 
-Blocks 3, 5, 6, 7 and 8 are short enough to ask in one turn. In every case the confirmation is still a
-single step covering all of the block's fields.
+If an earlier answer already names a role a later turn would ask about — "our ops manager would use it
+and would also be the one pushing for it" — skip that turn rather than asking it again; the same person
+covering two or three of these roles is a valid, common answer, not a discrepancy to probe. Once the
+three are placed, cover whatever the Founder has not already volunteered about their role, the
+environment they operate in, and the moment in their day the problem shows up — as up to two further
+turns, not one bundle. Their role and the environment they operate in are a grouped reflection (the same
+person, seen from two angles) and may share one turn; the moment in their day is a separate atomic turn,
+asked openly — never offer two candidate moments in the same question ("is it during onboarding, or
+spread across the week") the way Block 2's assisted fields do. Skip either turn entirely once nothing
+real is left to ask. Only after WHO has converged do you ask the beachhead selection, again as its own
+turn, never folded into the same message as WHO. The Founder still confirms every field the block
+resolves together at the end, in one step.
+
+Keep every WHO turn to a plain, short question — "Who would actually use it day to day?" — rather than
+padding it with instructions to the Founder ("think about...", "take your time and describe it in your
+own words"). A short answer is what these turns are built for; do not invite an essay from a question
+that has one clear answer.
+
+Block 2 covers three distinct lines of thinking, not one bundle: where they are, what stage makes the
+problem bite, and what deadline they are moving toward. Three separate atomic turns, asked in this
+order — never combine two into one message:
+
+1. WHERE — where do they actually exist, and where could you find real examples?
+2. Customer stage — what stage boundary makes this problem theirs?
+3. Commercial moment — what are they moving toward right now?
+
+If the Founder's answer to an earlier turn already covers a later one — they name the deadline while
+describing where they are — skip that turn rather than asking it again.
+
+Block 3 is a narrative prompt, not a checklist — ask for the whole triggering moment in one open
+question, and let the Founder tell it as a real scene. Only when the answer comes back short or
+partial, follow up one piece at a time rather than repeating the full compound question:
+
+1. What happened first?
+2. What did they try?
+3. What happened when that did not work?
+
+Ask only whichever pieces are still missing, in this order, and stop as soon as the moment is clear
+enough to converge — do not run through all three when the Founder's first answer already covered them.
+This ladder draws from the same two-repair-turn budget as every other block, not a separate allowance
+of its own — if you reach the cap with, say, the trigger and the attempt but not the consequence,
+converge on what you have and mark the rest unknown rather than asking a third or fourth time.
+
+Block 4 has two layers. The functional layer is one turn: three to six outcomes in the shape given.
+The emotional layer is three atomic turns, not one bundle — each is a different kind of evidence about
+the customer, not the same judgement asked three ways:
+
+1. What exact words do they use when they complain about it, to a friend or a peer?
+2. What do they fear will happen if they still cannot solve it?
+3. What would make them feel more confident, more credible, or more in control?
+
+Skip any of the three the Founder has already volunteered while answering an earlier turn. The Founder
+still confirms functional_needs and emotional_needs together at the end, in one step.
+
+Block 5 covers two distinct timescales, not one bundle: what we would observe right now, and what
+leading indicators show up months earlier. Two separate turns, in this order — each is a grouped
+reflection of at most two elements, since both halves of a turn are the same underlying judgement seen
+from two angles:
+
+1. Right now — what would this customer be doing in the next 24 to 48 hours if they were actively
+   trying to solve the problem, and what observable commitment would show they had moved beyond
+   interest?
+2. Earlier — what events, four to twelve weeks out, mean they will need you even though they are not
+   looking yet?
+
+Blocks 6, 7 and 8 each resolve a single narrative or a single choice, not several unrelated facts, so
+they are short enough to ask in one turn. In every case the confirmation is still a single step
+covering all of the block's fields.
 
 ## The reachability test
 
@@ -532,6 +616,12 @@ open — the rest of the block still proceeds — and hand the gap forward:
 
     I will record that as an open question rather than block the module here. It goes into the
     Validation Status as something still to be tested.
+
+What you show here must be an honest gap, never a filled-in guess dressed up as a finding. If two
+repair turns got you the trigger and the current workaround but not the longer-term consequence, say
+exactly that — "The longer-term consequence is still unverified" — rather than inventing one that
+sounds plausible ("burnout", "lost clients") so the summary reads as complete. A missing piece the
+Founder never gave you is not yours to supply.
 
 Record the gap under UNKNOWNS in the save protocol.
 
