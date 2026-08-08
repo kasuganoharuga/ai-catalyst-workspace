@@ -15,6 +15,7 @@ import { parseInterviewGuide } from "@ai-catalyst/services/artifact/internal/ren
 import { buildInterviewEvidenceMarkdown } from "@ai-catalyst/services/interview/evidence-markdown";
 import {
   INTERVIEW_EVIDENCE_ARTIFACT_KEY,
+  INTERVIEW_MINIMUM_COUNT,
   INTERVIEW_RECOMMENDED_COUNT,
   MODULE_3_KEY,
   MODULE_4_KEY,
@@ -28,6 +29,7 @@ import {
 
 export {
   INTERVIEW_EVIDENCE_ARTIFACT_KEY,
+  INTERVIEW_MINIMUM_COUNT,
   INTERVIEW_RECOMMENDED_COUNT,
   MODULE_3_KEY,
   MODULE_4_KEY,
@@ -334,7 +336,7 @@ export async function getInterviewProgress(
   return {
     completedCount,
     recommendedCount: INTERVIEW_RECOMMENDED_COUNT,
-    requirementMet: completedCount >= 1,
+    requirementMet: completedCount >= INTERVIEW_MINIMUM_COUNT,
     evidenceStatus: activity.evidenceStatus,
     draftCount: Number(row?.draft_count ?? 0),
     totalCount: Number(row?.total_count ?? 0),
@@ -569,6 +571,8 @@ export async function saveInterviewRecordDraft(
   }
 }
 
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
 function assertCompleteable(fields: {
   intervieweeName: string;
   company: string;
@@ -583,10 +587,22 @@ function assertCompleteable(fields: {
       "Interviewee name is required to complete an interview.",
     );
   }
-  if (!fields.interviewedAt) {
+  if (!fields.company.trim()) {
     throw new ServiceError(
       "VALIDATION_ERROR",
-      "Interview date is required to complete an interview.",
+      "Company is required to complete an interview.",
+    );
+  }
+  if (!fields.role.trim()) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Role is required to complete an interview.",
+    );
+  }
+  if (!fields.interviewedAt || !ISO_DATE.test(fields.interviewedAt)) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Interview date is required in YYYY-MM-DD format to complete an interview.",
     );
   }
   for (const q of fields.questions) {
@@ -764,10 +780,17 @@ export async function confirmInterviewEvidence(
     );
     const records = recordsResult.rows.map(mapRecord);
     const completed = records.filter((r) => r.status === "completed");
-    if (completed.length < 1) {
+    const drafts = records.filter((r) => r.status === "draft");
+    if (completed.length < INTERVIEW_MINIMUM_COUNT) {
       throw new ServiceError(
         "VALIDATION_ERROR",
-        "Complete at least one interview before confirming evidence.",
+        `Complete at least ${INTERVIEW_MINIMUM_COUNT} interviews before submitting evidence.`,
+      );
+    }
+    if (drafts.length > 0) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Complete every draft interview before submitting evidence.",
       );
     }
 

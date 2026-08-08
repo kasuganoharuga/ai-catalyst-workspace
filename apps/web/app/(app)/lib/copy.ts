@@ -855,8 +855,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "This covers recording and reviewing your evidence, analysing it with your AI assistant, and building your 30-day plan — not the time spent conducting the interviews themselves.",
       },
       {
-        lead: "Complete at least one real interview first.",
-        body: "Five interviews are recommended for a stronger evidence base, but one completed interview is enough to continue.",
+        lead: "Complete at least five real interviews first.",
+        body: "Evidence cannot be submitted until five interviews are completed and locked. Draft interviews must be finished before you submit.",
       },
       {
         lead: "Expect the evidence to challenge your assumptions.",
@@ -1043,12 +1043,12 @@ export const artefactsCopy = {
 
   interviewRecordsTitle: "Customer interviews",
   interviewRecordsSubtitle:
-    "Record what customers said after Module 3. When you have at least one completed interview, return to Proof to review and confirm the evidence.",
+    "Record what customers said after Module 3. Complete and lock at least five interviews, then submit evidence for Proof.",
   interviewRecordsCta: "Record interviews",
   interviewRecordsContinueCta: "Continue recording",
   interviewRecordsViewCta: "View interviews",
   interviewRecordsProgress: (completed: number, recommended: number) =>
-    `${completed} interview${completed === 1 ? "" : "s"} completed · ${recommended} recommended`,
+    `${completed} of ${recommended} interviews completed`,
 } as const;
 
 // ── Workspace ───────────────────────────────────────────────────────────

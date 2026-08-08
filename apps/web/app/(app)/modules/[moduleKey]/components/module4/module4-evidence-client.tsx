@@ -111,9 +111,7 @@ export function Module4EvidenceClient({
     ) ?? null;
   const evidenceName = evidenceArtifact?.name ?? "Customer Interview Evidence";
 
-  const interviewCountLabel = `${progress.completedCount} interview${
-    progress.completedCount === 1 ? "" : "s"
-  } completed · ${progress.recommendedCount} recommended`;
+  const interviewCountLabel = `${progress.completedCount} of ${progress.recommendedCount} interviews completed`;
 
   // Evidence gate: Next stays locked until Confirm evidence.
   const nextDisabled = activeStep === 1 && !confirmed;
@@ -142,12 +140,12 @@ export function Module4EvidenceClient({
                 {hasInterviews ? (
                   <StepHeading
                     title="Review your evidence"
-                    body="Record at least one customer interview, then return here to review and confirm the evidence."
+                    body="Complete and lock at least five customer interviews, then return here to review and confirm the evidence."
                   />
                 ) : (
                   <StepHeading
                     title="Record your interviews"
-                    body="Capture what you heard from real customers before analysing the evidence. Complete at least one interview to continue. Five are recommended for a stronger evidence base."
+                    body="Capture what you heard from real customers before analysing the evidence. You must complete at least five interviews before evidence can be submitted."
                   />
                 )}
               </div>
@@ -180,7 +178,7 @@ export function Module4EvidenceClient({
               </p>
               {canConfirm ? (
                 <p className="font-medium text-foreground">
-                  ✓ Minimum requirement met
+                  ✓ Five interviews completed — ready to confirm
                 </p>
               ) : null}
             </div>
@@ -224,7 +222,8 @@ export function Module4EvidenceClient({
                 </Button>
                 {!canConfirm ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Complete at least one interview before confirming.
+                    Complete at least five interviews before confirming. You can
+                    also submit from Customer interviews.
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">

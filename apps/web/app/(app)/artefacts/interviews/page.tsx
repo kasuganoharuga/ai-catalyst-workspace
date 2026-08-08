@@ -61,7 +61,7 @@ export default async function InterviewRecordsPage() {
       </div>
 
       <div className="mt-10">
-        {!activity || !records ? (
+        {!activity || !records || !programRunId ? (
           <div className="mx-auto max-w-3xl rounded-xl border border-border bg-card p-6 text-sm leading-6 text-muted-foreground">
             <p>
               Interview recording opens after you confirm Module 3 on the
@@ -74,6 +74,7 @@ export default async function InterviewRecordsPage() {
         ) : (
           <InterviewRecordsClient
             activityId={activity.id}
+            programRunId={programRunId}
             questions={activity.questions}
             records={records}
             progress={

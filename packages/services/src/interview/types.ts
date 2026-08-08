@@ -48,6 +48,8 @@ export interface InterviewProgress {
 }
 
 export const INTERVIEW_RECOMMENDED_COUNT = 5;
+/** V1 forces the same floor as the recommended set — evidence cannot lock below this. */
+export const INTERVIEW_MINIMUM_COUNT = INTERVIEW_RECOMMENDED_COUNT;
 export const INTERVIEW_EVIDENCE_ARTIFACT_KEY = "interview_evidence";
 export const MODULE_3_KEY = "module-03-problem-statement";
 export const MODULE_4_KEY = "module-04-evidence-of-unmet-need";
