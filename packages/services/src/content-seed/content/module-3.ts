@@ -265,7 +265,7 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Problem-Statement.md",
-  rendererKey: null,
+  rendererKey: "problem_statement_html_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,

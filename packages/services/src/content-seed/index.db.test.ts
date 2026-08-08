@@ -262,7 +262,7 @@ describe("seedToolkitContent", () => {
         artifact_key: "problem_statement",
         required_filename: "Problem-Statement.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
+        renderer_key: "problem_statement_html_v1",
       },
       {
         artifact_key: "problem_interview_guide",

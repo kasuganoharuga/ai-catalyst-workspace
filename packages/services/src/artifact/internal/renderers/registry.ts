@@ -27,6 +27,7 @@ import { validationRoadmapWorkbookV1 } from "@ai-catalyst/services/artifact/inte
 import {
   idealCustomerAvatarHtmlV1Registered,
   pressureTestVerdictHtmlV1Registered,
+  problemStatementHtmlV1Registered,
   validationRoadmapHtmlV1Registered,
 } from "@ai-catalyst/services/artifact/internal/renderers/html-document-v1";
 import { interviewGuideHtmlV1Registered } from "@ai-catalyst/services/artifact/internal/renderers/interview-guide-html-v1";
@@ -83,6 +84,8 @@ const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
     idealCustomerAvatarHtmlV1Registered,
   [pressureTestVerdictHtmlV1Registered.rendererKey]:
     pressureTestVerdictHtmlV1Registered,
+  [problemStatementHtmlV1Registered.rendererKey]:
+    problemStatementHtmlV1Registered,
 };
 
 /**

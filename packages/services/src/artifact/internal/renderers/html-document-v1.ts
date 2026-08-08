@@ -87,3 +87,10 @@ export const pressureTestVerdictHtmlV1Registered = registerHtmlDocumentRenderer(
     footerLabel: "AI Catalyst · Pressure-Test Verdict",
   },
 );
+
+export const problemStatementHtmlV1Registered = registerHtmlDocumentRenderer({
+  rendererKey: "problem_statement_html_v1",
+  downloadFilename: "Problem-Statement.pdf",
+  title: "Problem Statement",
+  footerLabel: "AI Catalyst · Problem Statement",
+});
