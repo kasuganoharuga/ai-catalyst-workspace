@@ -178,7 +178,7 @@ packages/
   services/         Reserved Application Service Layer — the single home for business logic (scaffold, no logic yet)
 infra/
   docker/           Local Docker Compose setup
-  aws/              AWS Staging/Production prep (Terraform, SES, S3, deploy runbook)
+  aws/              AWS Staging prep (Terraform, SES, S3, deploy runbook)
 ```
 
 ## Architecture Direction

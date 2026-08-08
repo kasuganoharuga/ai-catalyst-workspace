@@ -42,7 +42,9 @@ const rendered = services.map((service) => {
     memory: "512",
     containerDefinitions: [
       {
-        name: family,
+        // Short name matches live task definitions and deploy-aws.yml's
+        // jq image rewrite (web / api / mcp). Family stays fully qualified.
+        name: service,
         image: `ACCOUNT.dkr.ecr.ap-southeast-2.amazonaws.com/ai-catalyst-${envName}/${service}:latest`,
         essential: true,
         portMappings: [

@@ -142,14 +142,12 @@ jobs:
         with:
           terraform_version: 1.9.8
 
-      - name: Terraform fmt / validate (staging + production)
+      - name: Terraform fmt / validate (staging)
         run: |
           set -euo pipefail
           terraform fmt -check -recursive infra/aws/terraform
           terraform -chdir=infra/aws/terraform/envs/staging init -backend=false
           terraform -chdir=infra/aws/terraform/envs/staging validate
-          terraform -chdir=infra/aws/terraform/envs/production init -backend=false
-          terraform -chdir=infra/aws/terraform/envs/production validate
 
       - name: Dry-run ECS task definition render
         run: node infra/aws/scripts/render-taskdef.mjs --env staging --all

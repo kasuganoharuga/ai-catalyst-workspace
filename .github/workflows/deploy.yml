@@ -1,8 +1,9 @@
 name: Deploy (manual)
 
-# Cloud deploy readiness for Staging (develop) / Production (main).
-# Does NOT auto-run on push — enable live AWS deploy later via secrets +
-# GitHub Environments. Default path is dry-run (task definition render).
+# Optional dry-run / ECR push helper for Staging. Live deploys on push to
+# develop go through deploy-aws.yml. The retired AWS production environment
+# is not offered here — restore a production choice only when a real
+# production stack exists again.
 
 on:
   workflow_dispatch:
@@ -13,7 +14,6 @@ on:
         type: choice
         options:
           - staging
-          - production
       mode:
         description: dry-run (no AWS) or push (requires AWS credentials)
         required: true

@@ -1,5 +1,5 @@
 # One-time bootstrap for Terraform remote state (S3 + DynamoDB lock).
-# Apply this stack once per AWS account before `envs/staging` / `envs/production`.
+# Apply this stack once per AWS account before `envs/staging`.
 # See infra/aws/README.md.
 
 terraform {
