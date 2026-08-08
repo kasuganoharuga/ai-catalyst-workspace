@@ -273,6 +273,7 @@ describe("getModuleContext — database integration", () => {
         name: "Fixture artifact verdict",
         isRequired: true,
         requiredFilename: "verdict.md",
+        templateMarkdown: null,
         latestSubmission: null,
         workbookSupported: false,
         workbookAvailable: false,

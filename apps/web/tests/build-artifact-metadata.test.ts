@@ -31,6 +31,7 @@ function contextArtifact(
     name: `${artifactKey} real name`,
     isRequired,
     requiredFilename: `${artifactKey}.md`,
+    templateMarkdown: null,
     latestSubmission,
     workbookSupported: false,
     workbookAvailable: false,

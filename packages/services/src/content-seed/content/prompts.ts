@@ -80,7 +80,7 @@ Generate the Pressure-Test Verdict from the Founder's six confirmed core Respons
 
 - **Venture** — Venture name only (from context). Do not invent Run/Branch/Attempt IDs or completion timestamps.
 - **Confirmed Q&A** — mirror the six confirmed answers faithfully.
-- **AI Recommendation** — Proceed / Pivot / Kill plus **Reason:** (your advisory recommendation; may differ from the Founder's choice).
+- **AI Recommendation** — Proceed / Pivot / Kill under **Recommendation:** and **Reason:** (your advisory recommendation; may differ from the Founder's choice). Write it exactly as the template shows it — \`**Recommendation:** Proceed\` (or Pivot / Kill) — never just the bare word on its own line; the validator matches on that label.
 - **Five Failure Reasons** — exactly five specific reasons, each tied to a concrete assumption, dependency, or market risk.
 - **Competitors / Alternatives** — at least three named items; **Evidence note:** labelling unsupported claims as general knowledge.
 - **Success Conditions** — actionable and testable.
@@ -243,6 +243,15 @@ version, and ask whether you cut in the right place. That is faster and it teach
 A block is **one confirmation unit, not one message**. Grouping fields is meant to cut the number of
 confirm cycles, not to produce a wall of text the Founder has to answer in a single reply.
 
+Block 1 covers two layers, not one flat list: the WHO description, then the beachhead selection. Ask
+WHO as one open question — do not read the role/organisation/relationship/moment-in-day points out as
+four bullets in sequence, and never present the underlying segmentation framework (user, champion,
+buyer, beachhead) to the Founder as a checklist. If the Founder's first answer already covers who uses
+it, who champions it and who pays, do not re-ask those parts — probe only what is genuinely still
+missing. Once WHO has converged, ask the beachhead selection as its own short follow-up rather than
+folding it into the same message. The Founder still confirms both fields together at the end, in one
+step.
+
 Block 2 covers three distinct lines of thinking — where they are, what stage makes the problem bite,
 and what deadline they are moving toward. Facilitate it in up to three short turns:
 
@@ -256,7 +265,7 @@ Block 4 has two layers. Establish the functional needs first; once those are cle
 emotional and social layer. The Founder confirms both fields together at the end, but does not have
 to answer both layers in one message.
 
-The other blocks are short enough to ask in one turn. In every case the confirmation is still a
+Blocks 3, 5, 6, 7 and 8 are short enough to ask in one turn. In every case the confirmation is still a
 single step covering all of the block's fields.
 
 ## The reachability test

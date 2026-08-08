@@ -79,6 +79,7 @@ interface ArtifactRow {
   required_filename: string | null;
   sequence_index: number;
   renderer_key: string | null;
+  template_markdown: string | null;
   submission_version_number: number | null;
   submission_status: ArtifactSubmissionStatus | null;
   submission_submitted_at: Date | null;
@@ -204,6 +205,7 @@ async function loadArtifactsByModuleAttempts(
      )
      select mc.module_definition_id, ad.artifact_key, ad.name, ad.is_required,
             ad.required_filename, ad.sequence_index, ad.renderer_key,
+            ad.output_config->>'templateMarkdown' as template_markdown,
             s.version_number as submission_version_number,
             s.status as submission_status,
             s.submitted_at as submission_submitted_at,
@@ -269,6 +271,7 @@ function mapArtifactSummaries(
       name: row.name,
       isRequired: row.is_required,
       requiredFilename: row.required_filename,
+      templateMarkdown: row.template_markdown,
       latestSubmission:
         row.submission_version_number === null ||
         row.submission_updated_at === null

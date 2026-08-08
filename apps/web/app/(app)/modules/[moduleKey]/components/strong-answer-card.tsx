@@ -1,13 +1,13 @@
 import type { ModuleCoachingCard } from "../../../lib/copy";
 
 /**
- * Side-by-side coaching: what separates an answer the pressure test can
- * bite into from one it can't. Used on Module 1's work step, under the
- * brief — before the founder opens Claude.
+ * Side-by-side coaching: what separates a weaker answer from a sharper one,
+ * on the work step under the brief — before the founder opens Claude.
  *
- * Optional per Module (`copy.coachingCard`) — only Module 1 has one today,
- * so this renders nothing for a Module whose copy doesn't carry one rather
- * than showing Module 1's pressure-test example on an unrelated Module.
+ * Optional per Module (`copy.coachingCard`) — Modules 1 and 2 have one today
+ * and chain them (Module 1's strong example becomes Module 2's starting
+ * point), so this renders nothing for a Module whose copy doesn't carry one
+ * rather than showing an unrelated example.
  */
 export function StrongAnswerCard({
   card,

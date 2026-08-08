@@ -22,13 +22,17 @@ export interface ModuleContextQuestion {
   answerText: string | null;
 }
 
-// Metadata only — never the Artifact's stored content (that is
-// `get_artifact`'s job, and only on request).
+// Metadata plus the locked output template — never the Artifact's stored
+// submission content (that is `get_artifact`'s job, and only on request).
 export interface ModuleContextArtifactSummary {
   artifactKey: string;
   name: string;
   isRequired: boolean;
   requiredFilename: string | null;
+  /** The Artifact Definition's locked `output_config.templateMarkdown`, so the
+   *  AI client can copy its headings exactly instead of reconstructing them
+   *  from prose in the bound prompt. Null when the Definition has none. */
+  templateMarkdown: string | null;
   latestSubmission: {
     versionNumber: number;
     status: ArtifactSubmissionStatus;

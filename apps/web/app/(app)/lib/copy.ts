@@ -639,7 +639,13 @@ export interface ModuleBeforeItem {
   severity?: "warning";
 }
 
-/** The vague-vs-specific example card on the work step. Optional — only Module 1's brief carries one today. */
+/**
+ * The vague-vs-specific example card on the work step. Modules 1 and 2 chain
+ * theirs deliberately: Module 1's `strongExample` (the customer sharp enough
+ * to pressure-test) becomes Module 2's `weakExample` (the starting point it
+ * narrows into a beachhead) — the same customer, carried forward and made
+ * more specific, not two unrelated examples.
+ */
 export interface ModuleCoachingCard {
   heading: string;
   weakLabel: string;
@@ -683,7 +689,7 @@ export interface ModuleBriefCopy {
   confirmBody: string;
   confirmNoFileTitle: string;
   confirmNoFileBody: string;
-  /** Undefined for every Module except 1 — StrongAnswerCard renders nothing without one. */
+  /** Undefined for Modules 3-4 today — StrongAnswerCard renders nothing without one. */
   coachingCard?: ModuleCoachingCard;
 }
 
@@ -724,14 +730,14 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     confirmNoFileBody:
       "We haven't found a verdict in your workspace yet. Once it's saved, you sign it off here.",
     coachingCard: {
-      heading: "Strong answers look like this",
+      heading: "From vague to testable",
       weakLabel: "Too vague to test",
       weakExample: "Everyone building a startup needs this.",
-      strongLabel: "Specific enough to argue with",
+      strongLabel: "Specific enough to test",
       strongExample:
         "ANZ pre-seed SaaS founders raising their first $500k who've cold-emailed 50+ investors and stalled.",
       footer:
-        "A real person, a number, and evidence they already tried something.",
+        "A specific customer, a clear situation, and evidence the problem is real.",
     },
   },
 
@@ -770,6 +776,17 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     confirmNoFileTitle: "No file yet",
     confirmNoFileBody:
       "Your Ideal Customer Avatar hasn't arrived yet. Return to your AI assistant and ask it to save the Avatar, then refresh this page.",
+    coachingCard: {
+      heading: "From testable to targetable",
+      weakLabel: "What Module 1 established",
+      weakExample:
+        "ANZ pre-seed SaaS founders raising their first $500k who've cold-emailed 50+ investors and stalled.",
+      strongLabel: "Specific enough to target first",
+      strongExample:
+        "First-time ANZ B2B SaaS founders raising $300k–$700k, with no warm investor network, who have already contacted 50+ investors without securing enough meetings.",
+      footer:
+        "Same customer — now narrow them into the first group you can actually find, interview and sell to.",
+    },
   },
 
   "module-03-problem-statement": {

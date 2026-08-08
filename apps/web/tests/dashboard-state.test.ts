@@ -72,6 +72,7 @@ function context(
       name: artifactKey,
       isRequired: true,
       requiredFilename: `${artifactKey}.md`,
+      templateMarkdown: null,
       latestSubmission: {
         versionNumber: 1,
         status: "submitted" as const,
