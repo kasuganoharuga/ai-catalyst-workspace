@@ -10,6 +10,7 @@ import {
   reopenInterviewEvidence,
   reopenInterviewRecord,
   saveInterviewRecordDraft,
+  submitInterviewSetForReview,
 } from "@ai-catalyst/services/interview";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
@@ -101,6 +102,19 @@ export async function reopenInterviewRecordAction(
     await reopenInterviewRecord(actor, recordId);
     revalidateInterviewPaths();
     return { ok: true, recordId };
+  } catch (error) {
+    return toResult(error);
+  }
+}
+
+export async function submitInterviewSetForReviewAction(
+  programRunId: string,
+): Promise<InterviewActionResult> {
+  try {
+    const actor = await requireFounderActor();
+    await submitInterviewSetForReview(actor, programRunId);
+    revalidateInterviewPaths();
+    return { ok: true };
   } catch (error) {
     return toResult(error);
   }

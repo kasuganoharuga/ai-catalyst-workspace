@@ -36,6 +36,7 @@ function statusForCode(code: ServiceErrorCode): number {
     case "ATTEMPT_RETRY_SOURCE_INVALID":
     case "EVIDENCE_NOT_CONFIRMED":
     case "EVIDENCE_FROZEN_FOR_ATTEMPT":
+    case "MODULE_4_INTERVIEW_EVIDENCE_MISSING":
       return 409;
     case "INTERNAL_INVARIANT_ERROR":
       // Never the caller's fault (e.g. content misconfiguration) — a 500,

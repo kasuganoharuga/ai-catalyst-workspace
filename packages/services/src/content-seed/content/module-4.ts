@@ -40,8 +40,8 @@ const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 | 1 — Assumption | You think this might be a problem. |
 | 2 — Secondary research | You have read about it in research, articles or reports. |
 | 3 — Primary research | You have spoken directly to matching customers about their experience of it. |
-| 4 — Demand signal | A matching customer has taken an unprompted commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. |
-| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. |
+| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. A prompted demo, founder-scheduled call, or founder-initiated pilot invitation is **not** Level 4. |
+| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5. |
 
 ### Why this level
 
@@ -221,7 +221,7 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Evidence-Of-Unmet-Need.md",
-  rendererKey: null,
+  rendererKey: "evidence_of_unmet_need_html_v1",
   validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
@@ -616,17 +616,18 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   },
 };
 
-// The Founder's raw interview record, and Module 4's source of truth for
-// Website-confirmed canonical interview evidence. Materialised by the
-// platform when Continue in Claude starts (pinned on the attempt). Required
-// so complete_module cannot finish without the Founder-confirmed snapshot.
+// Website-confirmed source/input for Module 4 — not a Claude output.
+// Materialised and pinned on the attempt when Continue in Claude starts.
+// isRequired is false so it does not enter official output validators
+// (validatorKey is intentionally null). Presence is enforced by
+// completeModuleAttempt's pinned-source prerequisite check instead.
 const INTERVIEW_EVIDENCE_ARTIFACT: ArtifactContent = {
   artifactKey: "interview_evidence",
   sequenceIndex: 1,
   name: "Customer Interview Evidence",
   description:
     "Founder-confirmed record of real customer interviews, captured on the website before Claude analyses evidence.",
-  isRequired: true,
+  isRequired: false,
   artifactType: "document",
   sourceFormat: "markdown",
   outputFormat: "markdown",

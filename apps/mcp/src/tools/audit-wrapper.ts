@@ -81,6 +81,7 @@ function outcomeForServiceErrorCode(
     case "WORKBOOK_SOURCE_NOT_CONFIRMED":
     case "EVIDENCE_NOT_CONFIRMED":
     case "EVIDENCE_FROZEN_FOR_ATTEMPT":
+    case "MODULE_4_INTERVIEW_EVIDENCE_MISSING":
       return "validation_error";
     case "INTERNAL_INVARIANT_ERROR":
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":

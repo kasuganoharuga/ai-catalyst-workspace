@@ -596,20 +596,28 @@ export const moduleRunCopy = {
     "You can look ahead here. Sign-off appears once your documents have been saved.",
   confirmUnavailable: "Sign-off opens along with this module.",
   confirmFinishFirst: "Finish the conversation in the previous step first.",
+  /** Heading when ≥1 output is saved but the attempt is not yet ready_for_review. */
+  confirmDocumentsSavedTitle: "Documents saved",
+  confirmDocumentsSavedBody:
+    "Your documents are in the workspace. Checking completion requirements…",
+  /** Heading when the attempt is ready_for_review (Confirm CTA available). */
+  confirmDocumentsReadyTitle: "Documents ready",
+  confirmCheckingRequirements: "Checking completion requirements…",
   reviseHint:
     "Not happy with it? Ask for a revision. Nothing is locked in until you confirm.",
 
   documentHeading: "The document",
   documentCovers: "It should cover",
   documentRead: "Read document",
-  documentDownload: "Download",
+  /** Markdown-only download (no PDF renderer). */
+  documentDownload: "Download Markdown",
   // Shown instead of documentDownload once a workbook exists for this
   // Artifact — same primary/secondary split as artefactsCopy's pair. Not
   // all PDF renderers are fillable (Module 2's Ideal Customer Avatar is a
   // read-only styled export), so this stays generic rather than claiming
   // "fillable" for every one of them.
   documentDownloadWorkbook: "Download PDF",
-  documentDownloadSource: "Markdown source",
+  documentDownloadSource: "Download Markdown",
   documentDecisionLabel: "Your decision",
   documentNotSaved: "Not saved yet.",
   // A supporting document the Module accepts but never blocks completion
@@ -1022,14 +1030,14 @@ export const artefactsCopy = {
   savedCount: (saved: number, total: number) => `${saved} of ${total} saved`,
 
   readCta: "Read document",
-  downloadCta: "Download",
+  downloadCta: "Download Markdown",
   // Shown instead of downloadCta once a PDF renderer exists — the PDF
   // becomes the primary download, and the Markdown record moves to a
   // smaller secondary link beside it (operational-workbooks plan §11). Not
   // every renderer is a fillable form (Module 2's Ideal Customer Avatar is
   // a read-only styled export), so this stays generic.
   downloadWorkbookCta: "Download PDF",
-  downloadSourceCta: "Markdown source",
+  downloadSourceCta: "Download Markdown",
   startCta: "Start module",
   lockedCta: "Locked",
   storageNote: "Files are stored in your workspace, not just in the chat.",

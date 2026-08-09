@@ -45,6 +45,8 @@ const FOUNDER_MESSAGE_BY_CODE: Partial<Record<ServiceErrorCode, string>> = {
     "Confirm your interview evidence on this website before continuing in Claude.",
   EVIDENCE_FROZEN_FOR_ATTEMPT:
     "A Claude session is already using your confirmed evidence. Finish or retry that module attempt before changing interviews.",
+  MODULE_4_INTERVIEW_EVIDENCE_MISSING:
+    "Interview evidence must be confirmed and pinned for this Module 4 attempt before the module can finish. Confirm evidence on the website, then continue in Claude.",
 
   VALIDATOR_NOT_CONFIGURED:
     "This module isn't ready to check your work yet. Try again shortly, and tell your program lead if it keeps happening.",

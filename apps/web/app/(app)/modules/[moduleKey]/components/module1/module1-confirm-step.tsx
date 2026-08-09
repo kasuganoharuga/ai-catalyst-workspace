@@ -133,7 +133,12 @@ export function Module1ConfirmStep({
   const decisionLabel = founderDecision
     ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
     : null;
-  const showNoFileHeading = !isCompleted && !awaitingConfirmation;
+  // Drive Step 4 copy from saved outputs × attempt gate — not independent
+  // guesses. awaitingConfirmation === ready_for_review on the live path.
+  const showNoFileHeading = !isCompleted && !awaitingConfirmation && !anySaved;
+  const showDocumentsSavedHeading =
+    !isCompleted && !awaitingConfirmation && anySaved;
+  const showDocumentsReadyHeading = !isCompleted && awaitingConfirmation;
   const canUseActions = !isPreview;
 
   // Only Module 1 has a Founder decision (decisionQuestions is empty for
@@ -157,7 +162,19 @@ export function Module1ConfirmStep({
 
   return (
     <>
-      {showNoFileHeading ? (
+      {isCompleted ? (
+        <StepHeading title={completedTitle} body={completedBody} />
+      ) : showDocumentsReadyHeading ? (
+        <StepHeading
+          title={copy.confirmDocumentsReadyTitle}
+          body={copy.confirmBody}
+        />
+      ) : showDocumentsSavedHeading ? (
+        <StepHeading
+          title={copy.confirmDocumentsSavedTitle}
+          body={copy.confirmDocumentsSavedBody}
+        />
+      ) : showNoFileHeading ? (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0 flex-1">
             <h3 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
@@ -182,10 +199,7 @@ export function Module1ConfirmStep({
           ) : null}
         </div>
       ) : (
-        <StepHeading
-          title={isCompleted ? completedTitle : copy.confirmTitle}
-          body={isCompleted ? completedBody : copy.confirmBody}
-        />
+        <StepHeading title={copy.confirmTitle} body={copy.confirmBody} />
       )}
 
       {/* One card per Artifact: saved shows the document, unsaved shows what
@@ -299,6 +313,10 @@ export function Module1ConfirmStep({
             {copy.reviseHint}
           </p>
         </div>
+      ) : anySaved && !isCompleted ? (
+        <p className="mt-6 text-sm text-muted-foreground">
+          {copy.confirmCheckingRequirements}
+        </p>
       ) : (
         <p className="mt-6 text-sm text-muted-foreground">
           {isPreview ? copy.confirmUnavailable : copy.confirmFinishFirst}

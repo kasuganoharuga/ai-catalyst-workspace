@@ -311,8 +311,9 @@ describe("seedToolkitContent", () => {
       required_filename: string;
       validator_key: string | null;
       renderer_key: string | null;
+      is_required: boolean;
     }>(
-      "select artifact_key, required_filename, validator_key, renderer_key from artifact_definitions where module_definition_id = $1 order by sequence_index",
+      "select artifact_key, required_filename, validator_key, renderer_key, is_required from artifact_definitions where module_definition_id = $1 order by sequence_index",
       [module4.id],
     );
     expect(artifacts.rows).toEqual([
@@ -321,18 +322,21 @@ describe("seedToolkitContent", () => {
         required_filename: "Interview-Evidence.md",
         validator_key: null,
         renderer_key: null,
+        is_required: false,
       },
       {
         artifact_key: "evidence_of_unmet_need",
         required_filename: "Evidence-Of-Unmet-Need.md",
         validator_key: "structured_markdown_v1",
-        renderer_key: null,
+        renderer_key: "evidence_of_unmet_need_html_v1",
+        is_required: true,
       },
       {
         artifact_key: "validation_roadmap_30_day",
         required_filename: "Validation-Roadmap-30-Day.md",
         validator_key: "structured_markdown_v1",
         renderer_key: "validation_roadmap_html_v1",
+        is_required: true,
       },
     ]);
   });

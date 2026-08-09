@@ -33,6 +33,7 @@ type ListItem =
       recommendedCount: number;
       requirementMet: boolean;
       confirmed: boolean;
+      submitted: boolean;
       sequenceIndex: number;
       locked: boolean;
     };
@@ -95,6 +96,8 @@ export default async function ArtefactsPage() {
       requirementMet: progress?.requirementMet ?? false,
       confirmed:
         (progress?.evidenceStatus ?? activity?.evidenceStatus) === "confirmed",
+      submitted:
+        (progress?.evidenceStatus ?? activity?.evidenceStatus) === "submitted",
       sequenceIndex: module4Catalog?.sequenceIndex ?? 4,
       locked: !activity,
     });
@@ -141,6 +144,7 @@ export default async function ArtefactsPage() {
                   recommendedCount={item.recommendedCount}
                   requirementMet={item.requirementMet}
                   confirmed={item.confirmed}
+                  submitted={item.submitted}
                   sequenceIndex={item.sequenceIndex}
                   locked={item.locked}
                 />

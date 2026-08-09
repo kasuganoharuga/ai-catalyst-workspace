@@ -10,7 +10,10 @@ import type {
 } from "@ai-catalyst/services/interview/types";
 
 import { Button } from "@/components/ui/button";
-import { confirmInterviewEvidenceAction } from "@/lib/actions/interview-actions";
+import {
+  confirmInterviewEvidenceAction,
+  reopenInterviewEvidenceAction,
+} from "@/lib/actions/interview-actions";
 import { SHOW_CLAUDE_PROJECT } from "@/lib/feature-flags";
 import { useSoftModuleRefresh } from "../../../../hooks/use-soft-module-refresh";
 import { resolveModuleCopy } from "../../../../lib/copy";
@@ -60,8 +63,12 @@ export function Module4EvidenceClient({
   const [error, setError] = useState<string | null>(null);
 
   const confirmed = evidenceStatus === "confirmed";
+  const submitted = evidenceStatus === "submitted";
   const canConfirm =
-    progress.requirementMet && progress.draftCount === 0 && !confirmed;
+    submitted &&
+    progress.requirementMet &&
+    progress.draftCount === 0 &&
+    !confirmed;
   const hasInterviews = progress.completedCount > 0;
   const workDone = awaitingConfirmation || isCompleted;
   const started =
@@ -179,7 +186,7 @@ export function Module4EvidenceClient({
               </p>
               {canConfirm ? (
                 <p className="font-medium text-foreground">
-                  ✓ All five interviews completed — ready to confirm
+                  ✓ Interviews submitted — ready to confirm evidence
                 </p>
               ) : null}
             </div>
@@ -188,7 +195,13 @@ export function Module4EvidenceClient({
               {hasInterviews && previewDocument ? (
                 <DocumentPreview
                   name={evidenceName}
-                  meta={confirmed ? "Confirmed" : "Draft preview"}
+                  meta={
+                    confirmed
+                      ? "Confirmed"
+                      : submitted
+                        ? "Submitted preview"
+                        : "Draft preview"
+                  }
                 >
                   {previewDocument}
                 </DocumentPreview>
@@ -223,9 +236,8 @@ export function Module4EvidenceClient({
                 </Button>
                 {!canConfirm ? (
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Complete all five interviews (no drafts left), then confirm
-                    here. Use Submit interviews on Customer interviews when
-                    you&apos;re ready to review.
+                    Complete all five interviews (no drafts left), use Submit
+                    interviews on Customer interviews, then confirm here.
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">
@@ -233,6 +245,25 @@ export function Module4EvidenceClient({
                     attempt.
                   </p>
                 )}
+              </div>
+            ) : !hasAttempt && !awaitingConfirmation && !isCompleted ? (
+              <div className="mt-6">
+                <Button
+                  type="button"
+                  size="lg"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() =>
+                    run(async () => reopenInterviewEvidenceAction(programRunId))
+                  }
+                >
+                  {pending ? "Reopening…" : "Reopen evidence"}
+                </Button>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Returns interviews to draft so you can correct them. Once a
+                  Module 4 assistant attempt has used this evidence, it stays
+                  locked for that attempt.
+                </p>
               </div>
             ) : null}
           </>

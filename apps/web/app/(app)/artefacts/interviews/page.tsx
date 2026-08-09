@@ -73,6 +73,7 @@ export default async function InterviewRecordsPage() {
         ) : (
           <InterviewRecordsClient
             activityId={activity.id}
+            programRunId={programRunId}
             questions={activity.questions}
             records={records}
             progress={

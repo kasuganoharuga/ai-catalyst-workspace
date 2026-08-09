@@ -55,6 +55,7 @@ interface ActivityRow {
   source_module_attempt_id: string;
   questions: InterviewQuestionSnapshot[] | unknown;
   evidence_status: InterviewEvidenceStatus;
+  evidence_submitted_at: Date | null;
   evidence_confirmed_at: Date | null;
   confirmed_markdown: string | null;
   confirmed_source_record_ids: string[] | unknown;
@@ -115,6 +116,7 @@ function mapActivity(row: ActivityRow): InterviewActivity {
     sourceModuleAttemptId: row.source_module_attempt_id,
     questions: asQuestions(row.questions),
     evidenceStatus: row.evidence_status,
+    evidenceSubmittedAt: row.evidence_submitted_at?.toISOString() ?? null,
     evidenceConfirmedAt: row.evidence_confirmed_at?.toISOString() ?? null,
     confirmedMarkdown: row.confirmed_markdown,
     confirmedSourceRecordIds: asStringIds(row.confirmed_source_record_ids),
@@ -151,7 +153,7 @@ function mapRecord(row: RecordRow): InterviewRecord {
 
 const ACTIVITY_COLUMNS = `
   id, workspace_id, program_run_id, source_module_attempt_id, questions,
-  evidence_status, evidence_confirmed_at, confirmed_markdown,
+  evidence_status, evidence_submitted_at, evidence_confirmed_at, confirmed_markdown,
   confirmed_source_record_ids, confirmed_artifact_submission_id,
   created_at, updated_at
 `;
@@ -373,14 +375,19 @@ async function assertNoPinnedClaudeAttempt(
   }
 }
 
-async function autoReopenIfConfirmed(
+/**
+ * Return the whole interview set to draft when the Founder changes records
+ * after Submit or Confirm (and the set is not pinned to a Claude attempt).
+ */
+async function revertEvidenceSetToDraft(
   client: PoolClient,
   activity: InterviewActivity,
 ): Promise<void> {
-  if (activity.evidenceStatus !== "confirmed") return;
+  if (activity.evidenceStatus === "draft") return;
   await client.query(
     `update interview_activities
      set evidence_status = 'draft',
+         evidence_submitted_at = null,
          evidence_confirmed_at = null,
          confirmed_markdown = null,
          confirmed_source_record_ids = '[]'::jsonb,
@@ -405,7 +412,7 @@ export async function addInterviewRecord(
       activity.programRunId,
       client,
     );
-    await autoReopenIfConfirmed(client, activity);
+    await revertEvidenceSetToDraft(client, activity);
 
     const next = await client.query<{ next: string }>(
       `select coalesce(max(sequence_index), 0) + 1 as next
@@ -514,14 +521,15 @@ export async function saveInterviewRecordDraft(
         "This interview is completed and cannot be edited.",
       );
     }
-    if (row.evidence_status === "confirmed") {
-      await autoReopenIfConfirmed(client, {
+    if (row.evidence_status !== "draft") {
+      await revertEvidenceSetToDraft(client, {
         id: row.activity_id,
         workspaceId: workspace.id,
         programRunId: row.program_run_id,
         sourceModuleAttemptId: "",
         questions: [],
         evidenceStatus: row.evidence_status,
+        evidenceSubmittedAt: null,
         evidenceConfirmedAt: null,
         confirmedMarkdown: null,
         confirmedSourceRecordIds: [],
@@ -651,13 +659,14 @@ export async function completeInterviewRecord(
       throw new ServiceError("NOT_FOUND", "Interview record not found.");
     }
     await assertNoPinnedClaudeAttempt(workspace.id, row.program_run_id, client);
-    await autoReopenIfConfirmed(client, {
+    await revertEvidenceSetToDraft(client, {
       id: row.activity_id,
       workspaceId: workspace.id,
       programRunId: row.program_run_id,
       sourceModuleAttemptId: "",
       questions: asQuestions(row.questions),
       evidenceStatus: row.evidence_status,
+      evidenceSubmittedAt: null,
       evidenceConfirmedAt: null,
       confirmedMarkdown: null,
       confirmedSourceRecordIds: [],
@@ -753,13 +762,14 @@ export async function reopenInterviewRecord(
       throw new ServiceError("NOT_FOUND", "Interview record not found.");
     }
     await assertNoPinnedClaudeAttempt(workspace.id, row.program_run_id, client);
-    await autoReopenIfConfirmed(client, {
+    await revertEvidenceSetToDraft(client, {
       id: row.activity_id,
       workspaceId: workspace.id,
       programRunId: row.program_run_id,
       sourceModuleAttemptId: "",
       questions: [],
       evidenceStatus: row.evidence_status,
+      evidenceSubmittedAt: null,
       evidenceConfirmedAt: null,
       confirmedMarkdown: null,
       confirmedSourceRecordIds: [],
@@ -799,8 +809,97 @@ export async function reopenInterviewRecord(
 }
 
 // ---------------------------------------------------------------------
-// Evidence preview / confirm / reopen
+// Evidence preview / submit set / confirm / reopen
 // ---------------------------------------------------------------------
+
+/**
+ * Hand the completed interview set to Evidence Review (Module 4).
+ * Does not lock markdown — Confirm evidence does that.
+ */
+export async function submitInterviewSetForReview(
+  actor: ActorContext,
+  programRunIdRaw: string,
+): Promise<InterviewActivity> {
+  assertRole(actor, ["founder"]);
+  const programRunId = parseEntityIdOrNotFound(
+    programRunIdRaw,
+    "Program run not found.",
+  );
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+    const workspace = await resolveFounderWorkspace(actor, client);
+    await assertNoPinnedClaudeAttempt(workspace.id, programRunId, client);
+
+    const activityResult = await client.query<ActivityRow>(
+      `select ${ACTIVITY_COLUMNS} from interview_activities
+       where program_run_id = $1 and workspace_id = $2
+       for update`,
+      [programRunId, workspace.id],
+    );
+    const activityRow = activityResult.rows[0];
+    if (!activityRow) {
+      throw new ServiceError("NOT_FOUND", "Interview activity not found.");
+    }
+    if (activityRow.evidence_status === "confirmed") {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Evidence is already confirmed. Reopen evidence before changing interviews.",
+      );
+    }
+    if (activityRow.evidence_status === "submitted") {
+      await client.query("commit");
+      return mapActivity(activityRow);
+    }
+
+    const recordsResult = await client.query<RecordRow>(
+      `select ${RECORD_COLUMNS} from interview_records
+       where activity_id = $1 and workspace_id = $2
+       order by sequence_index`,
+      [activityRow.id, workspace.id],
+    );
+    const records = recordsResult.rows.map(mapRecord);
+    const completed = records.filter((r) => r.status === "completed");
+    const drafts = records.filter((r) => r.status === "draft");
+    if (completed.length < INTERVIEW_MINIMUM_COUNT) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        `Complete all ${INTERVIEW_MINIMUM_COUNT} interviews before submitting.`,
+      );
+    }
+    if (drafts.length > 0) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Complete every draft interview before submitting.",
+      );
+    }
+
+    const submittedAt = new Date().toISOString();
+    const updated = await client.query<ActivityRow>(
+      `update interview_activities
+       set evidence_status = 'submitted',
+           evidence_submitted_at = $3,
+           updated_at = now()
+       where id = $1 and workspace_id = $2
+       returning ${ACTIVITY_COLUMNS}`,
+      [activityRow.id, workspace.id, submittedAt],
+    );
+    await client.query("commit");
+    const out = updated.rows[0];
+    if (!out) {
+      throw new ServiceError(
+        "INTERNAL_INVARIANT_ERROR",
+        "Failed to submit interviews for review.",
+      );
+    }
+    return mapActivity(out);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
 export async function buildEvidencePreview(
   actor: ActorContext,
@@ -853,6 +952,17 @@ export async function confirmInterviewEvidence(
       throw new ServiceError("NOT_FOUND", "Interview activity not found.");
     }
     await assertNoPinnedClaudeAttempt(workspace.id, programRunId, client);
+
+    if (activityRow.evidence_status === "confirmed") {
+      await client.query("commit");
+      return mapActivity(activityRow);
+    }
+    if (activityRow.evidence_status !== "submitted") {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Submit interviews for review before confirming evidence.",
+      );
+    }
 
     const recordsResult = await client.query<RecordRow>(
       `select ${RECORD_COLUMNS} from interview_records
@@ -936,6 +1046,7 @@ export async function reopenInterviewEvidence(
     const updated = await client.query<ActivityRow>(
       `update interview_activities
        set evidence_status = 'draft',
+           evidence_submitted_at = null,
            evidence_confirmed_at = null,
            confirmed_markdown = null,
            confirmed_source_record_ids = '[]'::jsonb,

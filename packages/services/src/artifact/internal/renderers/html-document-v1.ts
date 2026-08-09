@@ -94,3 +94,12 @@ export const problemStatementHtmlV1Registered = registerHtmlDocumentRenderer({
   title: "Problem Statement",
   footerLabel: "AI Catalyst · Problem Statement",
 });
+
+export const evidenceOfUnmetNeedHtmlV1Registered = registerHtmlDocumentRenderer(
+  {
+    rendererKey: "evidence_of_unmet_need_html_v1",
+    downloadFilename: "Evidence-Of-Unmet-Need.pdf",
+    title: "Evidence of Unmet Need",
+    footerLabel: "AI Catalyst · Evidence of Unmet Need",
+  },
+);

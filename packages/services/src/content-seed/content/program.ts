@@ -27,6 +27,14 @@ import type { ProgramContent } from "../types.js";
 // replaces — see infra/database/migrations/0012_content_lock.sql's own
 // comments for why).
 const V1_CHANGELOG = [
+  "## Module 4 QA — source prerequisite, submit set, Evidence PDF, prompt fidelity",
+  "interview_evidence is optional for official validators (is_required=false); complete_module still ",
+  "requires this Attempt's pinned source_interview_evidence_artifact_id. Submit interviews persists ",
+  "evidence_status=submitted before Confirm evidence. evidence_of_unmet_need gains ",
+  "evidence_of_unmet_need_html_v1 (HTML→Gotenberg PDF). Facilitator/generator v3: free-text review ",
+  "(no Save-as-is), quantitative fidelity, no claim re-strengthening, Level 4 unprompted / Level 5 ",
+  "paid-or-binding.",
+  "",
   "## Module 4 — website interview evidence, then Claude",
   "Module 3 still prepares the Interview Guide (questions snapshotted at confirm). Module 4 opens ",
   "with website Steps 1–2 (record interviews → confirm Interview-Evidence.md); Continue in Claude ",

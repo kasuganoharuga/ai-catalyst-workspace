@@ -25,6 +25,7 @@ import { problemInterviewWorkbookV1 } from "@ai-catalyst/services/artifact/inter
 import { validationRoadmapWorkbookV1 } from "@ai-catalyst/services/artifact/internal/renderers/validation-roadmap-workbook-v1";
 
 import {
+  evidenceOfUnmetNeedHtmlV1Registered,
   idealCustomerAvatarHtmlV1Registered,
   pressureTestVerdictHtmlV1Registered,
   problemStatementHtmlV1Registered,
@@ -86,6 +87,8 @@ const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
     pressureTestVerdictHtmlV1Registered,
   [problemStatementHtmlV1Registered.rendererKey]:
     problemStatementHtmlV1Registered,
+  [evidenceOfUnmetNeedHtmlV1Registered.rendererKey]:
+    evidenceOfUnmetNeedHtmlV1Registered,
 };
 
 /**

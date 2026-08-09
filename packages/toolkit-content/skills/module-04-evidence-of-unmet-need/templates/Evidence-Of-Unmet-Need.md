@@ -61,12 +61,13 @@ three items.>
 | 1 — Assumption | You think this might be a problem. |
 | 2 — Secondary research | You have read about it in research, articles or reports. |
 | 3 — Primary research | You have spoken directly to matching customers about their experience of it. |
-| 4 — Demand signal | A matching customer has taken an unprompted commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. |
-| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. |
+| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. A prompted demo, founder-scheduled call, or founder-initiated pilot invitation is **not** Level 4. |
+| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5. |
 
 <Money spent on competitors, internal staff or workarounds is strong behavioural evidence, but it is
 not Level 5 for this venture. "Sounds useful" or "tell me when it is ready" is not, on its own,
-Level 4 — the step has to be unprompted and commercial.>
+Level 4 — the step has to be unprompted and commercial. A prompted demo or founder-initiated pilot
+invitation is not Level 4. A free or unpaid scoped pilot is not Level 5.>
 
 <An attempted payment stays at Level 4 — Demand signal, and at row-level Evidence strength 4, until
 payment is received or a binding agreement is signed.>

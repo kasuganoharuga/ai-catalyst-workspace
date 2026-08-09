@@ -1,5 +1,6 @@
 export type InterviewRecordStatus = "draft" | "completed";
-export type InterviewEvidenceStatus = "draft" | "confirmed";
+/** draft = recording; submitted = whole set handed to Evidence Review; confirmed = locked snapshot. */
+export type InterviewEvidenceStatus = "draft" | "submitted" | "confirmed";
 
 export interface InterviewQuestionSnapshot {
   index: number;
@@ -13,6 +14,7 @@ export interface InterviewActivity {
   sourceModuleAttemptId: string;
   questions: InterviewQuestionSnapshot[];
   evidenceStatus: InterviewEvidenceStatus;
+  evidenceSubmittedAt: string | null;
   evidenceConfirmedAt: string | null;
   confirmedMarkdown: string | null;
   confirmedSourceRecordIds: string[];

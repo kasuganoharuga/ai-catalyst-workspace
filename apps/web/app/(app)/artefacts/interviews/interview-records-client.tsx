@@ -26,6 +26,7 @@ import {
   completeInterviewRecordAction,
   reopenInterviewRecordAction,
   saveInterviewRecordDraftAction,
+  submitInterviewSetForReviewAction,
 } from "@/lib/actions/interview-actions";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 type Props = {
   activityId: string;
+  programRunId: string;
   questions: InterviewQuestionSnapshot[];
   records: InterviewRecord[];
   progress: InterviewProgress;
@@ -49,6 +51,7 @@ type Props = {
 
 export function InterviewRecordsClient({
   activityId,
+  programRunId,
   questions,
   records,
   progress,
@@ -57,6 +60,7 @@ export function InterviewRecordsClient({
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [submitOpen, setSubmitOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(
     records.find((r) => r.status === "draft")?.id ?? records[0]?.id ?? null,
   );
@@ -70,6 +74,7 @@ export function InterviewRecordsClient({
         null);
   const active = records.find((r) => r.id === activeRecordId) ?? null;
   const confirmed = evidenceStatus === "confirmed";
+  const submitted = evidenceStatus === "submitted";
   const draftRecords = records.filter((r) => r.status === "draft");
   const canSubmitInterviews =
     progress.completedCount >= INTERVIEW_MINIMUM_COUNT &&
@@ -90,15 +95,37 @@ export function InterviewRecordsClient({
     });
   }
 
+  function submitForReview() {
+    setError(null);
+    setSubmitOpen(false);
+    startTransition(async () => {
+      const result = await submitInterviewSetForReviewAction(programRunId);
+      if (!result.ok) {
+        setError(result.message ?? "Something went wrong.");
+        return;
+      }
+      router.push(MODULE_4_HREF);
+      router.refresh();
+    });
+  }
+
+  const statusLabel = confirmed
+    ? " · Evidence confirmed"
+    : submitted
+      ? " · Submitted for review"
+      : "";
+
   const submitHint = confirmed
-    ? "Evidence is confirmed on Proof."
-    : progress.completedCount < INTERVIEW_MINIMUM_COUNT
-      ? `Complete all ${INTERVIEW_MINIMUM_COUNT} interviews before submitting.`
-      : draftRecords.length > 0
-        ? `Finish every draft first: ${draftRecords
-            .map((r) => `Interview ${r.sequenceIndex}`)
-            .join(", ")}.`
-        : null;
+    ? "Evidence is confirmed on Proof. Reopen evidence there if you need to change interviews."
+    : submitted
+      ? "Submitted for evidence review on Proof. You can still edit interviews before confirming."
+      : progress.completedCount < INTERVIEW_MINIMUM_COUNT
+        ? `Complete all ${INTERVIEW_MINIMUM_COUNT} interviews before submitting.`
+        : draftRecords.length > 0
+          ? `Finish every draft first: ${draftRecords
+              .map((r) => `Interview ${r.sequenceIndex}`)
+              .join(", ")}.`
+          : null;
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
@@ -114,7 +141,7 @@ export function InterviewRecordsClient({
             <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
               {progress.completedCount} of {INTERVIEW_MINIMUM_COUNT} interviews
               completed
-              {confirmed ? " · Evidence confirmed" : ""}
+              {statusLabel}
             </p>
             {submitHint ? (
               <p className="text-xs text-muted-foreground">{submitHint}</p>
@@ -136,9 +163,18 @@ export function InterviewRecordsClient({
               <Button type="button" size="sm" disabled>
                 Evidence confirmed
               </Button>
-            ) : canSubmitInterviews ? (
+            ) : submitted ? (
               <Button type="button" size="sm" asChild>
-                <Link href={MODULE_4_HREF}>Submit interviews</Link>
+                <Link href={MODULE_4_HREF}>Review on Proof</Link>
+              </Button>
+            ) : canSubmitInterviews ? (
+              <Button
+                type="button"
+                size="sm"
+                disabled={pending}
+                onClick={() => setSubmitOpen(true)}
+              >
+                Submit interviews
               </Button>
             ) : (
               <Button type="button" size="sm" disabled>
@@ -147,6 +183,38 @@ export function InterviewRecordsClient({
             )}
           </div>
         </div>
+
+        <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                Submit these interviews for evidence review?
+              </DialogTitle>
+              <DialogDescription>
+                You can still correct them before confirming the evidence. Once
+                the evidence is confirmed and used in Module 4, this set will be
+                locked for that attempt.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => setSubmitOpen(false)}
+              >
+                Keep editing
+              </Button>
+              <Button
+                type="button"
+                disabled={pending}
+                onClick={submitForReview}
+              >
+                Submit interviews
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {records.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border px-5 py-10 text-center">

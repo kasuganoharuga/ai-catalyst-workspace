@@ -125,12 +125,10 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
  * The Artifact a Module is summarised by — what "Produces …" names on the
  * catalog card and what the dashboard tracks as saved/not saved.
  *
- * Not `artifacts[0]`. A Module can hold a supporting Artifact it accepts
- * but never blocks on (Module 4's Interview Notes, which is `isRequired:
- * false` and — being the first thing that happens in that Module — sorts
- * first), and an inbound record is not what a Module produces. The first
- * *required* Artifact is, so ordering the Artifacts by when they happen no
- * longer changes what the Module is called by. Falls back to the first of
+ * Not `artifacts[0]`. A Module can hold an inbound prerequisite that sorts
+ * first but is not what it produces (Module 4's `interview_evidence`,
+ * `isRequired: false`). The first *required* Artifact is the headline —
+ * for Module 4 that is Evidence of Unmet Need. Falls back to the first of
  * any kind so a Module with only optional Artifacts still summarises.
  */
 export function headlineArtifact<T extends { isRequired: boolean }>(

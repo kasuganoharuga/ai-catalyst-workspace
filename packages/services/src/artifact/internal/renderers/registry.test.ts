@@ -28,6 +28,9 @@ describe("resolveWorkbookRenderer", () => {
     expect(
       resolveWorkbookRenderer("problem_statement_html_v1").rendererKey,
     ).toBe("problem_statement_html_v1");
+    expect(
+      resolveWorkbookRenderer("evidence_of_unmet_need_html_v1").rendererKey,
+    ).toBe("evidence_of_unmet_need_html_v1");
   });
 
   it("throws INTERNAL_INVARIANT_ERROR for an unregistered key", () => {

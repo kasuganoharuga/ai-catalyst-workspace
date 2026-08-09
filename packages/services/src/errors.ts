@@ -97,7 +97,11 @@ export type ServiceErrorCode =
   | "EVIDENCE_NOT_CONFIRMED"
   // A Module 4 Claude attempt has already pinned an evidence snapshot;
   // interview records / evidence reopen must wait for finish or retry.
-  | "EVIDENCE_FROZEN_FOR_ATTEMPT";
+  | "EVIDENCE_FROZEN_FOR_ATTEMPT"
+  // complete_module on Module 4 without this attempt's pinned
+  // source_interview_evidence_artifact_id (or the pin fails key/ownership
+  // checks). Not satisfied by confirmed-but-unpinned activity evidence.
+  | "MODULE_4_INTERVIEW_EVIDENCE_MISSING";
 
 export class ServiceError extends Error {
   constructor(

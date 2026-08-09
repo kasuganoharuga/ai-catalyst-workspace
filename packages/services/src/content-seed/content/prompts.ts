@@ -1858,32 +1858,34 @@ in the current hypothesis — but the interviews themselves come only from \`Int
 
 ## Block 1 — Analyse what you learned
 
-Walk the Founder through the confirmed evidence:
-- Repeated problems
-- Common workarounds
-- Urgency signals
-- Contradictions
-- Unexpected findings
-- Buying signals
-- Weak evidence
+Walk the Founder through the confirmed evidence in free-text review only. Do **not** offer a
+Save-as-is / Accept menu, numbered pick-list of canned analyses, or one-click confirm of your draft.
+Ask them to correct or confirm the analysis in their own words, then save:
 
-Then confirm two Responses:
 1. \`evidence_outcome\` — supports / mixed / contradicts (single choice). All three are valid.
-2. \`evidence_analysis\` — the written analysis.
+2. \`evidence_analysis\` — the written analysis the Founder confirmed.
+
+Cover: repeated problems, common workarounds, urgency signals, contradictions, unexpected findings,
+buying signals, and weak evidence.
+
+**Quantitative fidelity.** Preserve counts, windows, and magnitudes exactly as stated in
+\`Interview-Evidence.md\` (e.g. "3 of 5", "last 6 months", "$2k/month"). Do not compress, round, or
+rephrase numbers into softer ranges.
 
 Outcome never blocks progress. Mixed or contradicts is a successful Module 4 result if the evidence
 was recorded honestly.
 
 ## Block 2 — Decide what changes
 
-Based on the analysis, decide what should happen next, for example:
+You recommend a direction. The Founder confirms the decision in prose — do not reduce this to a
+Save-as-is menu. Example directions (illustrative, not a closed list):
 - Keep ICA
 - Refine ICA
 - Change problem
 - Change interview assumptions
 - Gather more evidence
 
-Save \`evidence_decision\`.
+Save \`evidence_decision\` only after the Founder confirms in their own words.
 
 ## Block 3 — Build the 30-Day Plan
 
@@ -1891,6 +1893,15 @@ Capture real constraints in \`validation_constraints\` (time, budget, customer a
 Then generate:
 1. \`Evidence-Of-Unmet-Need.md\` (\`evidence_of_unmet_need\`)
 2. \`Validation-Roadmap-30-Day.md\` (\`validation_roadmap_30_day\`)
+
+### Evidence Maturity Level (when discussing Levels 4–5)
+
+- **Level 4 — Demand signal** requires an **unprompted** commercial step by a matching customer
+  (proposal request, asking to join a pilot, introducing the budget owner, attempting to pay, or
+  asking for a specific availability date). A prompted demo, founder-scheduled call, or
+  founder-initiated pilot invitation is **not** Level 4.
+- **Level 5 — Paying** requires payment, a paid pilot, or another binding commercial commitment for
+  this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5.
 
 Do not overwrite \`Interview-Evidence.md\`. Call \`complete_module\` only after both generated
 artefacts are saved. Do not tell the Founder the Module is complete — they confirm on the website.
@@ -1900,6 +1911,8 @@ artefacts are saved. Do not tell the Founder the Module is complete — they con
 - Never invent interviews or quotes.
 - Never grade from chat memory of interviews — re-read \`Interview-Evidence.md\`.
 - Never require a "supports" outcome to continue.
+- Never strengthen language beyond the evidence ("reported interest" must not become "confirmed
+  demand"; "would consider" must not become "committed").
 - Produce exactly the two generated files above, plus the already-pinned evidence file.
 `;
 
@@ -1921,6 +1934,17 @@ pinned \`Interview-Evidence.md\`. Generate nothing else. Do not rewrite Intervie
 1. \`Evidence-Of-Unmet-Need.md\` — inventory and assessment grounded in the confirmed interviews;
    record whether evidence supports, mixes, or contradicts the hypothesis using \`evidence_outcome\`.
 2. \`Validation-Roadmap-30-Day.md\` — experiments that fit \`validation_constraints\`.
+
+## Fidelity
+
+- Format the Founder's confirmed analysis — do **not** re-strengthen claims. If the analysis says
+  customers "reported" something, keep "reported"; do not rewrite it as "confirm", "prove", or
+  "validated".
+- Preserve quantitative detail exactly (counts, time windows, prices, frequencies). Do not compress
+  numbers into softer ranges.
+- Evidence Maturity Level 4 requires an **unprompted** commercial step; prompted demos / founder-
+  initiated pilots are not Level 4. Level 5 requires paid or binding commitment; free scoped pilots
+  are not Level 5.
 
 ## Hard rules
 
@@ -2008,7 +2032,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Three-block Claude guide for Module 4 after website Confirm evidence: Analyse, Decide, Build 30-Day Plan against pinned Interview-Evidence.md.",
     promptType: "module_facilitator",
-    versionNumber: 2,
+    versionNumber: 3,
     content: EVIDENCE_FACILITATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
@@ -2019,7 +2043,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     description:
       "Generates Evidence of Unmet Need and the 30-Day Validation Roadmap from the four confirmed Responses plus pinned Interview-Evidence.md.",
     promptType: "artifact_generator",
-    versionNumber: 2,
+    versionNumber: 3,
     content: EVIDENCE_ARTIFACT_GENERATOR_CONTENT,
     contentFormat: "markdown",
     variableConfig: {

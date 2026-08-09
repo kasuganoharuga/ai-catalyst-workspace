@@ -11,6 +11,7 @@ type Props = {
   recommendedCount: number;
   requirementMet: boolean;
   confirmed: boolean;
+  submitted: boolean;
   /** Module 4 sequence index — accent colour only. */
   sequenceIndex: number;
   locked: boolean;
@@ -21,10 +22,12 @@ export function InterviewRecordsGroup({
   recommendedCount,
   requirementMet,
   confirmed,
+  submitted,
   sequenceIndex,
   locked,
 }: Props) {
-  const recordingComplete = confirmed || completedCount >= recommendedCount;
+  const recordingComplete =
+    confirmed || submitted || completedCount >= recommendedCount;
 
   const cta = locked
     ? null
@@ -62,7 +65,9 @@ export function InterviewRecordsGroup({
             <p className="mt-1.5 text-[13px] leading-5 text-foreground">
               {confirmed
                 ? "Evidence confirmed on Proof"
-                : "Ready · Submit interviews, then confirm evidence on Proof"}
+                : submitted
+                  ? "Submitted · Confirm evidence on Proof"
+                  : "Ready · Submit interviews, then confirm evidence on Proof"}
             </p>
           ) : requirementMet ? (
             <p className="mt-1.5 text-[13px] leading-5 text-foreground">

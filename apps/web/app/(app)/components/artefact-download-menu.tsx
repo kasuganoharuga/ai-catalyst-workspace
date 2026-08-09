@@ -36,9 +36,9 @@ export function ArtefactDownloadMenu({
   size = "default",
   triggerVariant = "outline",
   singleVariant = "outline",
-  downloadLabel = "Download",
+  downloadLabel = "Download Markdown",
   pdfLabel = "Download PDF",
-  markdownLabel = "Markdown source",
+  markdownLabel = "Download Markdown",
   className,
 }: {
   downloadHref: string;
