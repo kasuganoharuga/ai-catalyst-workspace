@@ -460,4 +460,113 @@ describe("getModuleContext — database integration", () => {
     // Write target is the empty Retry — resume at the first unanswered Question there.
     expect(afterRetry.resumeQuestionKey).toBe("first_question");
   });
+
+  it("ready_for_review Retry owns its artifacts even with no answered Responses yet", async () => {
+    const { actor } = await createFounderWithActiveVenture(
+      "ready-review-owns-artifacts",
+    );
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    const { attempt: failedAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    await saveFounderResponse(actor, {
+      attemptId: failedAttempt.id,
+      questionKey: "first_question",
+      value: "Answered before failure.",
+    });
+    await pool.query(
+      `update module_attempts set status = 'validation_failed' where id = $1`,
+      [failedAttempt.id],
+    );
+    await pool.query(
+      `update program_run_modules set active_attempt_id = null where id = $1`,
+      [runModule.runModule.id],
+    );
+
+    const { attempt: retryAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    expect(retryAttempt.basedOnAttemptId).toBe(failedAttempt.id);
+
+    await saveArtifactSubmission(actor, {
+      attemptId: retryAttempt.id,
+      artifactKey: "verdict",
+      content: "# Fixture verdict\n\nSaved on the Retry.\n",
+    });
+    await pool.query(
+      `update module_attempts set status = 'ready_for_review' where id = $1`,
+      [retryAttempt.id],
+    );
+
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    expect(context.activeAttempt?.id).toBe(retryAttempt.id);
+    expect(context.activeAttempt?.status).toBe("ready_for_review");
+    // Must not fall back to the failed based_on Attempt for display or artifacts.
+    expect(context.displayAttempt?.id).toBe(retryAttempt.id);
+    const verdict = context.artifacts.find(
+      (artifact) => artifact.artifactKey === "verdict",
+    );
+    expect(verdict?.latestSubmission?.versionNumber).toBe(1);
+    // Checklist still shows prior Responses when the Retry never re-answered.
+    expect(
+      context.questions.find((q) => q.questionKey === "first_question")
+        ?.answerText,
+    ).toBe("Answered before failure.");
+  });
+
+  it("ready_for_review Retry prefers its own Responses over based_on", async () => {
+    const { actor } = await createFounderWithActiveVenture(
+      "ready-review-own-responses",
+    );
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    const { attempt: failedAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    await saveFounderResponse(actor, {
+      attemptId: failedAttempt.id,
+      questionKey: "first_question",
+      value: "Old failed answer.",
+    });
+    await pool.query(
+      `update module_attempts set status = 'validation_failed' where id = $1`,
+      [failedAttempt.id],
+    );
+    await pool.query(
+      `update program_run_modules set active_attempt_id = null where id = $1`,
+      [runModule.runModule.id],
+    );
+
+    const { attempt: retryAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    await saveFounderResponse(actor, {
+      attemptId: retryAttempt.id,
+      questionKey: "first_question",
+      value: "Re-answered on Retry.",
+    });
+    await saveArtifactSubmission(actor, {
+      attemptId: retryAttempt.id,
+      artifactKey: "verdict",
+      content: "# Fixture verdict\n\nSaved on the Retry.\n",
+    });
+    await pool.query(
+      `update module_attempts set status = 'ready_for_review' where id = $1`,
+      [retryAttempt.id],
+    );
+
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    expect(context.displayAttempt?.id).toBe(retryAttempt.id);
+    expect(
+      context.questions.find((q) => q.questionKey === "first_question")
+        ?.answerText,
+    ).toBe("Re-answered on Retry.");
+  });
 });

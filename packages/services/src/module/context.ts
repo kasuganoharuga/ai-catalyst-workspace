@@ -313,6 +313,15 @@ function attemptHasAnsweredResponses(
   return false;
 }
 
+/** Attempts that have finished (or nearly finished) owning their own outputs. */
+function isAttemptArtifactOwner(status: ModuleAttemptStatus): boolean {
+  return (
+    status === "submitted" ||
+    status === "ready_for_review" ||
+    status === "accepted"
+  );
+}
+
 function assembleModuleContext(
   runModule: RunModuleSummary,
   fallbackDisplayAttemptId: string | null,
@@ -336,10 +345,15 @@ function assembleModuleContext(
 
   // Read surface: show prior answers when the active Attempt is a fresh
   // empty Retry (based_on still holds them), or when active is cleared
-  // after validation_failed. Write surface stays on activeAttempt.
+  // after validation_failed. Never do this once the active Attempt has
+  // reached submitted / ready_for_review / accepted — those own their own
+  // Responses and Artifacts (a Retry can save outputs without re-answering
+  // every Question; falling back would hide the successful work).
+  // Write surface stays on activeAttempt.
   let displayAttempt: ModuleAttempt | null = activeAttempt;
   if (
     activeAttempt &&
+    !isAttemptArtifactOwner(activeAttempt.status) &&
     !attemptHasAnsweredResponses(activeAttempt.id, responsesByAttemptId) &&
     activeAttempt.basedOnAttemptId
   ) {
@@ -356,8 +370,27 @@ function assembleModuleContext(
 
   const questionRows =
     questionsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];
-  const readResponseMap = displayAttempt
-    ? (responsesByAttemptId.get(displayAttempt.id) ?? new Map())
+  // Question checklist: prefer the active Attempt's Responses when any
+  // exist. A Retry that reaches ready_for_review by re-saving Artifacts
+  // without re-answering every Question still needs the based_on answers
+  // visible (displayAttempt is already the active owner for status).
+  let readResponseAttemptId = displayAttempt?.id ?? null;
+  if (
+    activeAttempt &&
+    attemptHasAnsweredResponses(activeAttempt.id, responsesByAttemptId)
+  ) {
+    readResponseAttemptId = activeAttempt.id;
+  } else if (
+    activeAttempt?.basedOnAttemptId &&
+    attemptHasAnsweredResponses(
+      activeAttempt.basedOnAttemptId,
+      responsesByAttemptId,
+    )
+  ) {
+    readResponseAttemptId = activeAttempt.basedOnAttemptId;
+  }
+  const readResponseMap = readResponseAttemptId
+    ? (responsesByAttemptId.get(readResponseAttemptId) ?? new Map())
     : new Map<string, ResponseLookupRow>();
   // Write surface is activeAttempt only — never fall back to displayAttempt
   // (often terminal after validation_failed; Retries start empty).
@@ -455,22 +488,26 @@ async function buildModuleContextsFromRunModules(
     loadResponsesByAttemptIds(attemptIdsToLoad),
   ]);
 
+  // Artifacts follow the active Attempt whenever it owns its outputs
+  // (submitted / ready_for_review / accepted) or already has answers.
+  // Only an empty in-progress Retry falls back to based_on so prior
+  // drafts remain visible while the Founder restarts.
   const artifactAttemptIds = runModules.map((runModule, index) => {
     const activeId = runModule.activeAttemptId;
-    if (
-      activeId &&
-      attemptHasAnsweredResponses(activeId, responsesByAttemptId)
-    ) {
+    if (!activeId) {
+      return fallbackDisplayAttemptIds[index] ?? null;
+    }
+    const active = attemptsById.get(activeId);
+    if (active && isAttemptArtifactOwner(active.status)) {
       return activeId;
     }
-    if (activeId) {
-      const active = attemptsById.get(activeId);
-      if (active?.based_on_attempt_id) {
-        return active.based_on_attempt_id;
-      }
+    if (attemptHasAnsweredResponses(activeId, responsesByAttemptId)) {
       return activeId;
     }
-    return fallbackDisplayAttemptIds[index] ?? null;
+    if (active?.based_on_attempt_id) {
+      return active.based_on_attempt_id;
+    }
+    return activeId;
   });
 
   const artifactsByModuleDefinitionId = await loadArtifactsByModuleAttempts(
