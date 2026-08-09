@@ -190,6 +190,27 @@ export function isWorkPrerequisiteMet(
 }
 
 /**
+ * Required Claude/output artifacts for Confirm — excludes inbound
+ * prerequisites (e.g. Module 4 interview_evidence).
+ */
+export function requiredOutputArtifactsSaved(
+  moduleKey: string,
+  artifacts: {
+    artifactKey: string;
+    isRequired: boolean;
+    versionNumber: number | null;
+  }[],
+): boolean {
+  const prerequisiteKey = prerequisiteArtifactKey(moduleKey);
+  const required = artifacts.filter(
+    (artifact) =>
+      artifact.isRequired && artifact.artifactKey !== prerequisiteKey,
+  );
+  if (required.length === 0) return false;
+  return required.every((artifact) => artifact.versionNumber !== null);
+}
+
+/**
  * Simplified rows for a Module's work-step progress list. Module 2
  * collapses to its eight founder-facing blocks; every other Module gets
  * one row per Question. Either way the row carries a short phrase, not

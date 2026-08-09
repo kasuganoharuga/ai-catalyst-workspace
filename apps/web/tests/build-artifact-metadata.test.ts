@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { ModuleContextArtifactSummary } from "@ai-catalyst/shared";
 
+import { requiredOutputArtifactsSaved } from "@/app/(app)/lib/module-display";
 import { buildArtifactMetadata } from "@/app/(app)/modules/[moduleKey]/lib/load-module-detail";
 import type { ExpectedArtifact } from "@/app/(app)/modules/[moduleKey]/types";
 
@@ -208,5 +209,49 @@ describe("buildArtifactMetadata", () => {
     );
     expect(result[0].versionNumber).toBe(1);
     expect(result[0].savedAt).toBeNull();
+  });
+});
+
+describe("requiredOutputArtifactsSaved", () => {
+  it("ignores Module 4 interview_evidence and requires both Claude outputs", () => {
+    expect(
+      requiredOutputArtifactsSaved("module-04-evidence-of-unmet-need", [
+        {
+          artifactKey: "interview_evidence",
+          isRequired: false,
+          versionNumber: 1,
+        },
+        {
+          artifactKey: "evidence_of_unmet_need",
+          isRequired: true,
+          versionNumber: null,
+        },
+        {
+          artifactKey: "validation_roadmap_30_day",
+          isRequired: true,
+          versionNumber: 1,
+        },
+      ]),
+    ).toBe(false);
+
+    expect(
+      requiredOutputArtifactsSaved("module-04-evidence-of-unmet-need", [
+        {
+          artifactKey: "interview_evidence",
+          isRequired: false,
+          versionNumber: 1,
+        },
+        {
+          artifactKey: "evidence_of_unmet_need",
+          isRequired: true,
+          versionNumber: 1,
+        },
+        {
+          artifactKey: "validation_roadmap_30_day",
+          isRequired: true,
+          versionNumber: 1,
+        },
+      ]),
+    ).toBe(true);
   });
 });

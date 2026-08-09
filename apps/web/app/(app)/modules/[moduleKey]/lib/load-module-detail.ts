@@ -21,6 +21,7 @@ import { ventureForActiveContext } from "@/lib/ventures";
 import {
   DECISION_QUESTION_KEYS,
   needsModuleRetry,
+  requiredOutputArtifactsSaved,
   startModulePrompt,
 } from "../../../lib/module-display";
 import type { ExpectedArtifact, ModuleArtifactView } from "../types";
@@ -160,21 +161,24 @@ export async function loadModuleDetail(
   const isSetupModule = entry.moduleType === "setup";
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
-  const verdictReady =
-    activeAttempt?.status === "ready_for_review" ||
-    displayAttempt?.status === "ready_for_review";
-  const awaitingConfirmation =
-    verdictReady && runModule !== null && context !== null && !needsRetry;
+  const verdictReady = activeAttempt?.status === "ready_for_review";
 
   const nextModuleTitle = runModule
     ? (runResult.modules.find((m) => m.sequenceIndex > runModule.sequenceIndex)
         ?.title ?? null)
     : null;
 
-  // Every Artifact's own official validation is checked, not just the
-  // first — a Module with more than one Artifact (Modules 3 and 4) can have
-  // one pass and the other fail, and the founder needs to see which.
-  const needsValidation = displayAttempt?.status === "validation_failed";
+  // Show validation issues only for the attempt that currently blocks
+  // progress. After a Retry, displayAttempt can still be the prior
+  // validation_failed attempt while activeAttempt is a new draft /
+  // ready_for_review — never surface the old failure as if it belonged
+  // to the current writable attempt.
+  const validationAttempt =
+    activeAttempt?.status === "validation_failed"
+      ? activeAttempt
+      : needsRetry && displayAttempt?.status === "validation_failed"
+        ? displayAttempt
+        : null;
   const needsRunSetup = isLive && !runModule;
   const moduleMissingFromExistingRun =
     needsRunSetup && runResult.runId !== null;
@@ -190,13 +194,23 @@ export async function loadModuleDetail(
     context?.artifacts ?? null,
     entry.expectedArtifacts,
   );
+  const outputsSaved = requiredOutputArtifactsSaved(
+    moduleKey,
+    artifactMetadata,
+  );
+  const awaitingConfirmation =
+    verdictReady &&
+    runModule !== null &&
+    context !== null &&
+    !needsRetry &&
+    outputsSaved;
 
   const [validations, documents, activeContext] = await Promise.all([
-    needsValidation && displayAttempt
+    validationAttempt
       ? Promise.all(
           artifactMetadata.map((artifact) =>
             getLatestValidation(actor, {
-              attemptId: displayAttempt.id,
+              attemptId: validationAttempt.id,
               artifactKey: artifact.artifactKey,
             }).catch(() => null),
           ),

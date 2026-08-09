@@ -253,6 +253,12 @@ export async function ModuleDetailBody({
                 validation={validation}
               />
             ))}
+            {needsRetry ? (
+              <RetryPassCard
+                programRunModuleId={runModule.id}
+                moduleIndex={entry.sequenceIndex}
+              />
+            ) : null}
             {isModule4 && !isLocked ? (
               <Module4EvidencePanel
                 actor={actor}

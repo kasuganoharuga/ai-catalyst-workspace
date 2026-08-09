@@ -792,6 +792,35 @@ export async function confirmModuleCompletion(
     );
   }
 
+  // Defense in depth: ready_for_review should already imply every required
+  // Artifact exists, but never complete/unlock when a required output is
+  // still missing on this attempt (e.g. stale UI / raced state).
+  const missingRequired = await pool.query<{ artifact_key: string }>(
+    `select d.artifact_key
+     from artifact_definitions d
+     join program_run_modules m
+       on m.module_definition_id = d.module_definition_id
+      and m.workspace_id = $2
+     where m.id = $1
+       and d.is_required = true
+       and d.status <> 'archived'
+       and not exists (
+         select 1
+         from artifact_submissions s
+         where s.module_attempt_id = $3
+           and s.artifact_definition_id = d.id
+           and s.status not in ('superseded', 'deleted')
+       )
+     order by d.sequence_index`,
+    [programRunModuleId, workspace.id, attempt.id],
+  );
+  if (missingRequired.rows.length > 0) {
+    throw new ServiceError(
+      "MODULE_NOT_READY_FOR_CONFIRMATION",
+      "This module is missing a required document, so there's nothing to confirm yet.",
+    );
+  }
+
   // Snapshot Module 3 interview questions before the txn so we can create
   // interview_activities inside the same commit as module completion.
   const moduleKeyResult = await pool.query<{

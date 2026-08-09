@@ -12,6 +12,7 @@ import {
   buildQuestionDisplayGroups,
   isWorkPrerequisiteMet,
   prerequisiteArtifactKey,
+  requiredOutputArtifactsSaved,
 } from "../../../../lib/module-display";
 import type { Module1RunProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
@@ -57,6 +58,9 @@ export function Module1WorkStep({
   const outputArtifacts = artifacts.filter(
     (artifact) => artifact.artifactKey !== prerequisiteKey,
   );
+  const checksReady =
+    (awaitingConfirmation || isCompleted) &&
+    requiredOutputArtifactsSaved(moduleKey, artifacts);
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
   const previewBody =
@@ -244,12 +248,10 @@ export function Module1WorkStep({
           ))
         )}
         <CheckLine
-          ok={awaitingConfirmation || isCompleted}
+          ok={checksReady}
           label={copy.progressChecks}
           detail={
-            awaitingConfirmation || isCompleted
-              ? copy.progressChecksDone
-              : copy.progressChecksPending
+            checksReady ? copy.progressChecksDone : copy.progressChecksPending
           }
         />
       </dl>

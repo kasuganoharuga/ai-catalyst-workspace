@@ -15,16 +15,16 @@ export function RetryPassCard({
   moduleIndex: number;
 }) {
   return (
-    <div className="overflow-hidden rounded-[2rem] border border-border bg-card shadow-sm">
-      <div className="border-b border-border bg-muted/40 px-6 py-4">
-        <h2 className="text-base font-semibold text-foreground">
+    <div className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="border-b border-border bg-muted/40 px-5 py-4 sm:px-6">
+        <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
           {retryCopy.title}
         </h2>
-        <p className="mt-1 text-sm leading-6 text-muted-foreground">
+        <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
           {retryCopy.body}
         </p>
       </div>
-      <div className="px-6 py-5">
+      <div className="px-5 py-5 sm:px-6">
         <StartModuleAttemptButton
           programRunModuleId={programRunModuleId}
           className="text-white hover:brightness-110"
