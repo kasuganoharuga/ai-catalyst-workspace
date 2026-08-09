@@ -1,4 +1,5 @@
 import { buildMarkdownDocumentHtml } from "@ai-catalyst/services/artifact/internal/renderers/html/markdown-document-html";
+import { buildValidationRoadmapHtml } from "@ai-catalyst/services/artifact/internal/renderers/html/validation-roadmap-html";
 import { renderHtmlToPdf } from "@ai-catalyst/services/artifact/internal/renderers/html/gotenberg";
 import type {
   LockedContentEntry,
@@ -35,7 +36,13 @@ export function registerHtmlDocumentRenderer(input: {
   downloadFilename: string;
   title: string;
   footerLabel: string;
+  buildHtml?: (input: {
+    title: string;
+    markdown: string;
+    footerLabel: string;
+  }) => string;
 }): RegisteredWorkbookRenderer {
+  const buildHtml = input.buildHtml ?? buildMarkdownDocumentHtml;
   return {
     rendererKey: input.rendererKey,
     rendererVersion: "1",
@@ -52,7 +59,7 @@ export function registerHtmlDocumentRenderer(input: {
       // `markdown` is the confirmed submission body (filled document), not
       // the seed template — rendered to HTML then printed via Gotenberg.
       const plan = emptyPlan(markdown, provenance);
-      const html = buildMarkdownDocumentHtml({
+      const html = buildHtml({
         title: input.title,
         markdown,
         footerLabel: input.footerLabel,
@@ -68,6 +75,7 @@ export const validationRoadmapHtmlV1Registered = registerHtmlDocumentRenderer({
   downloadFilename: "Validation-Roadmap-30-Day.pdf",
   title: "30-Day Validation Roadmap",
   footerLabel: "AI Catalyst · 30-Day Validation Roadmap",
+  buildHtml: buildValidationRoadmapHtml,
 });
 
 export const idealCustomerAvatarHtmlV1Registered = registerHtmlDocumentRenderer(

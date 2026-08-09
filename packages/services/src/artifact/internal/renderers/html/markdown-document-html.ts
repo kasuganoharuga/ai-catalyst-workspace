@@ -1,6 +1,6 @@
 import { marked } from "marked";
 
-function escapeHtml(text: string): string {
+export function escapeHtml(text: string): string {
   return text
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -14,26 +14,26 @@ marked.setOptions({
 });
 
 /**
- * Printable HTML for confirmed Markdown artefacts (Verdict, ICA, Roadmap).
- * Renders Markdown to HTML (GFM lists/tables) then wraps a print stylesheet
- * — same body the Founder reads on the website, not escaped source text.
+ * Shared print chrome for HTML→Gotenberg documents.
+ *
+ * Footer is `position: fixed` so Chromium repeats it on every page. An
+ * in-flow trailing `<footer>` used to orphan onto a blank last page when
+ * the previous page had little leftover space (especially with
+ * `break-inside: avoid` tables).
  */
-export function buildMarkdownDocumentHtml(input: {
+export function wrapPrintableDocumentHtml(input: {
   title: string;
-  markdown: string;
+  bodyHtml: string;
   footerLabel: string;
+  extraCss?: string;
 }): string {
-  const body = marked.parse(input.markdown.replace(/\r\n/g, "\n"), {
-    async: false,
-  }) as string;
-
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <title>${escapeHtml(input.title)}</title>
   <style>
-    @page { size: A4; margin: 18mm 16mm; }
+    @page { size: A4; margin: 18mm 16mm 22mm 16mm; }
     * { box-sizing: border-box; }
     body {
       font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
@@ -41,6 +41,7 @@ export function buildMarkdownDocumentHtml(input: {
       line-height: 1.5;
       color: #1a1a1a;
       margin: 0;
+      padding-bottom: 0;
     }
     h1 {
       font-family: Georgia, "Times New Roman", serif;
@@ -121,18 +122,46 @@ export function buildMarkdownDocumentHtml(input: {
       margin: 14pt 0;
     }
     a { color: #1a1a1a; text-decoration: underline; }
-    footer {
-      margin-top: 20pt;
-      padding-top: 8pt;
+    /* Chromium print repeats fixed elements on every page; keep out of flow
+       so a trailing footer never creates a blank last page by itself. */
+    .print-footer {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding-top: 6pt;
       border-top: 1px solid #ddd;
       font-size: 9pt;
       color: #666;
+      background: #fff;
     }
+    ${input.extraCss ?? ""}
   </style>
 </head>
 <body>
-  ${body}
-  <footer>${escapeHtml(input.footerLabel)}</footer>
+  ${input.bodyHtml}
+  <div class="print-footer">${escapeHtml(input.footerLabel)}</div>
 </body>
 </html>`;
+}
+
+/**
+ * Printable HTML for confirmed Markdown artefacts (Verdict, ICA, Evidence).
+ * Renders Markdown to HTML (GFM lists/tables) then wraps a print stylesheet
+ * — same body the Founder reads on the website, not escaped source text.
+ */
+export function buildMarkdownDocumentHtml(input: {
+  title: string;
+  markdown: string;
+  footerLabel: string;
+}): string {
+  const body = marked.parse(input.markdown.replace(/\r\n/g, "\n"), {
+    async: false,
+  }) as string;
+
+  return wrapPrintableDocumentHtml({
+    title: input.title,
+    bodyHtml: body,
+    footerLabel: input.footerLabel,
+  });
 }

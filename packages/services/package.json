@@ -46,6 +46,7 @@
     "./artifact/internal/renderers/html/gotenberg": "./src/artifact/internal/renderers/html/gotenberg.ts",
     "./artifact/internal/renderers/html/interview-guide-html": "./src/artifact/internal/renderers/html/interview-guide-html.ts",
     "./artifact/internal/renderers/html/markdown-document-html": "./src/artifact/internal/renderers/html/markdown-document-html.ts",
+    "./artifact/internal/renderers/html/validation-roadmap-html": "./src/artifact/internal/renderers/html/validation-roadmap-html.ts",
     "./artifact/internal/validators/registry": "./src/artifact/internal/validators/registry.ts",
     "./artifact/internal/validators/pressure-test-verdict-v1": "./src/artifact/internal/validators/pressure-test-verdict-v1.ts",
     "./artifact/internal/validators/pressure-test-verdict-v2": "./src/artifact/internal/validators/pressure-test-verdict-v2.ts",
