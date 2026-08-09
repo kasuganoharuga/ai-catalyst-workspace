@@ -71,10 +71,8 @@ module "vpc" {
   cidr_block = "10.30.0.0/16"
 }
 
-module "observability" {
-  source = "../../modules/observability"
-  name   = var.name
-}
+# Observability is declared after ALB / ECS modules so it can reference
+# their outputs — see the module "observability" block near the bottom.
 
 module "ecr" {
   source           = "../../modules/ecr"
@@ -190,6 +188,7 @@ module "ecs_cluster" {
 locals {
   common_env = {
     AWS_REGION                    = var.aws_region
+    APP_ENV                       = "staging"
     STORAGE_PROVIDER              = "s3"
     STORAGE_CONTAINER             = module.s3.bucket_name
     EMAIL_PROVIDER                = "ses"
@@ -214,7 +213,9 @@ module "web" {
     # Private Cloud Map name (see module.gotenberg). Live staging uses
     # short container name "web" + this env; deploy-aws.yml preserves it
     # when rewriting the image digest.
-    GOTENBERG_URL = "http://gotenberg.${var.name}.local:3000"
+    GOTENBERG_URL       = "http://gotenberg.${var.name}.local:3000"
+    SERVICE_NAME        = "aicatalyst-web"
+    NEXT_PUBLIC_APP_ENV = "staging"
   })
 }
 
@@ -251,7 +252,7 @@ module "api" {
   task_role_arn      = module.iam.task_role_arns["api"]
   aws_region         = var.aws_region
   environment = merge(local.common_env, {
-    APP_ENV = "staging"
+    SERVICE_NAME = "aicatalyst-api"
   })
 }
 
@@ -267,7 +268,21 @@ module "mcp" {
   task_role_arn      = module.iam.task_role_arns["mcp"]
   target_group_arn   = module.alb.mcp_target_group_arn
   aws_region         = var.aws_region
-  environment        = local.common_env
+  environment = merge(local.common_env, {
+    SERVICE_NAME = "aicatalyst-mcp"
+  })
+}
+
+module "observability" {
+  source                      = "../../modules/observability"
+  name                        = var.name
+  alb_arn_suffix              = module.alb.alb_arn_suffix
+  web_target_group_arn_suffix = module.alb.web_target_group_arn_suffix
+  mcp_target_group_arn_suffix = module.alb.mcp_target_group_arn_suffix
+  ecs_cluster_name            = module.ecs_cluster.cluster_name
+  web_service_name            = module.web.service_name
+  api_service_name            = module.api.service_name
+  mcp_service_name            = module.mcp.service_name
 }
 
 output "alb_dns_name" { value = module.alb.alb_dns_name }
@@ -276,3 +291,4 @@ output "artifact_bucket" { value = module.s3.bucket_name }
 output "rds_endpoint" { value = module.rds.endpoint }
 output "secret_arns" { value = module.secrets.secret_arns_by_name }
 output "log_prefix" { value = module.observability.log_prefix }
+output "alarm_topic_arn" { value = module.observability.alarm_topic_arn }

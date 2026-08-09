@@ -17,7 +17,7 @@
     "db:psql": "docker compose --env-file .env -f infra/docker/docker-compose.yml exec db psql -U ai_catalyst -d ai_catalyst",
     "lint": "pnpm --filter web lint",
     "typecheck:web": "pnpm --filter web typecheck",
-    "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/clients --filter @ai-catalyst/toolkit-content --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
+    "typecheck:packages": "pnpm --filter @ai-catalyst/db --filter @ai-catalyst/contracts --filter @ai-catalyst/observability --filter @ai-catalyst/clients --filter @ai-catalyst/toolkit-content --filter @ai-catalyst/services --filter @ai-catalyst/mcp run typecheck",
     "test": "vitest run --project unit --project web-unit",
     "test:db": "vitest run --project db --project web-db",
     "test:all": "vitest run",
@@ -26,7 +26,7 @@
     "format:check": "prettier --check .",
     "format": "prettier --write .",
     "build": "pnpm --filter web build",
-    "depcruise": "depcruise apps/web/app apps/web/components apps/web/lib apps/mcp/src packages/clients/src packages/contracts/src packages/db/src packages/services/src packages/shared/src"
+    "depcruise": "depcruise apps/web/app apps/web/components apps/web/lib apps/mcp/src packages/clients/src packages/contracts/src packages/db/src packages/observability/src packages/services/src packages/shared/src"
   },
   "pnpm": {
     "overrides": {

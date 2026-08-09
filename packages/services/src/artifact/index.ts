@@ -19,6 +19,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
 import {
   createPendingGeneratedObject,
   getGeneratedTextContent,
@@ -394,30 +395,32 @@ async function insertArtifactModuleEvent(
     programRunBranchId: string;
     programRunModuleId: string;
     moduleAttemptId: string;
-    eventType: ArtifactModuleEventType;
+    eventType: ArtifactModuleEventType | "attempt_ready_for_review";
     actor: ActorContext;
     metadata?: Record<string, unknown>;
+    fromStatus?: string | null;
+    toStatus?: string | null;
+    entityType?: string | null;
+    entityId?: string | null;
   },
 ): Promise<void> {
-  await client.query(
-    `insert into module_events (
-       workspace_id, program_run_id, program_run_branch_id, program_run_module_id,
-       module_attempt_id, event_type, actor_type, actor_user_id, source_provider, metadata
-     )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)`,
-    [
-      input.workspaceId,
-      input.programRunId,
-      input.programRunBranchId,
-      input.programRunModuleId,
-      input.moduleAttemptId,
-      input.eventType,
-      resolveArtifactEventActorType(input.actor),
-      input.actor.userId,
-      resolveArtifactEventSourceProvider(input.actor),
-      JSON.stringify(input.metadata ?? {}),
-    ],
-  );
+  await insertModuleEventRow(client, {
+    workspaceId: input.workspaceId,
+    programRunId: input.programRunId,
+    programRunBranchId: input.programRunBranchId,
+    programRunModuleId: input.programRunModuleId,
+    moduleAttemptId: input.moduleAttemptId,
+    eventType: input.eventType,
+    actorType: resolveArtifactEventActorType(input.actor),
+    actorUserId: input.actor.userId,
+    sourceProvider: resolveArtifactEventSourceProvider(input.actor),
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    metadata: input.metadata,
+    entityType: input.entityType,
+    entityId: input.entityId,
+    actor: input.actor,
+  });
 }
 
 // Shared by runDraftCheck and runOfficialValidation. Always inserts a
@@ -745,6 +748,12 @@ export async function saveArtifactSubmission(
       moduleAttemptId: attemptId,
       eventType: "artifact_uploaded",
       actor,
+      metadata: {
+        artifact_key: lockedArtifactDefinition.artifact_key,
+        version: versionNumber,
+      },
+      entityType: "artifact_submission",
+      entityId: submissionId,
     });
 
     return {
@@ -1369,9 +1378,12 @@ export async function runOfficialValidation(
       actor,
     };
 
+    const fromStatus = locked.attempt.status;
     await insertArtifactModuleEvent(client, {
       ...runModuleEventBase,
       eventType: "validation_started",
+      fromStatus,
+      toStatus: fromStatus,
     });
 
     const validations: ArtifactValidation[] = [];
@@ -1420,6 +1432,14 @@ export async function runOfficialValidation(
       await insertArtifactModuleEvent(client, {
         ...runModuleEventBase,
         eventType: "validation_passed",
+        fromStatus,
+        toStatus: "ready_for_review",
+      });
+      await insertArtifactModuleEvent(client, {
+        ...runModuleEventBase,
+        eventType: "attempt_ready_for_review",
+        fromStatus,
+        toStatus: "ready_for_review",
       });
     } else {
       await client.query(
@@ -1436,6 +1456,8 @@ export async function runOfficialValidation(
       await insertArtifactModuleEvent(client, {
         ...runModuleEventBase,
         eventType: "validation_failed",
+        fromStatus,
+        toStatus: "validation_failed",
         metadata:
           missingArtifactKeys.length > 0 ? { missingArtifactKeys } : undefined,
       });

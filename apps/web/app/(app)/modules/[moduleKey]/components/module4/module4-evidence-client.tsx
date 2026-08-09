@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import type {
   InterviewEvidenceStatus,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/actions/interview-actions";
 import { SHOW_CLAUDE_PROJECT } from "@/lib/feature-flags";
 import { useSoftModuleRefresh } from "../../../../hooks/use-soft-module-refresh";
-import { resolveModuleCopy } from "../../../../lib/copy";
+import { errorCopy, resolveModuleCopy, toastCopy } from "../../../../lib/copy";
 import { moduleAccentStyle } from "../../../../lib/module-display";
 import type { Module1RunProps } from "../../types";
 import { OptionalClaudeProjectCard } from "../optional-claude-project-card";
@@ -60,7 +61,6 @@ export function Module4EvidenceClient({
   const router = useRouter();
   const copy = resolveModuleCopy(moduleKey);
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
 
   const confirmed = evidenceStatus === "confirmed";
   const submitted = evidenceStatus === "submitted";
@@ -86,13 +86,20 @@ export function Module4EvidenceClient({
     firstIncomplete === -1 ? steps.length - 1 : firstIncomplete,
   );
 
-  function run(action: () => Promise<{ ok: boolean; message?: string }>) {
-    setError(null);
+  function run(
+    action: () => Promise<{ ok: boolean; message?: string }>,
+    successToast?: string,
+  ) {
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        setError(result.message ?? "Something went wrong.");
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message ?? errorCopy.generic,
+        });
         return;
+      }
+      if (successToast) {
+        toast.success(successToast);
       }
       router.refresh();
     });
@@ -126,12 +133,6 @@ export function Module4EvidenceClient({
 
   return (
     <div className="space-y-6">
-      {error ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <ModuleStepWizard
         steps={steps}
         active={activeStep}
@@ -225,8 +226,9 @@ export function Module4EvidenceClient({
                   size="lg"
                   disabled={pending || !canConfirm}
                   onClick={() =>
-                    run(async () =>
-                      confirmInterviewEvidenceAction(programRunId),
+                    run(
+                      async () => confirmInterviewEvidenceAction(programRunId),
+                      toastCopy.evidenceConfirmed,
                     )
                   }
                   className="text-white hover:brightness-110"
@@ -254,7 +256,10 @@ export function Module4EvidenceClient({
                   variant="outline"
                   disabled={pending}
                   onClick={() =>
-                    run(async () => reopenInterviewEvidenceAction(programRunId))
+                    run(
+                      async () => reopenInterviewEvidenceAction(programRunId),
+                      toastCopy.evidenceReopened,
+                    )
                   }
                 >
                   {pending ? "Reopening…" : "Reopen evidence"}

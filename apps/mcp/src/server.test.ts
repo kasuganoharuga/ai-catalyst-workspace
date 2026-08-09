@@ -48,7 +48,7 @@ describe("GET /health", () => {
       .get("/health")
       .set("Host", "localhost");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ status: "ok" });
+    expect(res.body).toEqual({ status: "ok", service: "aicatalyst-mcp" });
   });
 });
 

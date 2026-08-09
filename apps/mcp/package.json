@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@ai-catalyst/contracts": "workspace:*",
+    "@ai-catalyst/observability": "workspace:*",
     "@ai-catalyst/services": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "@sentry/node": "^10.69.0",
     "express": "^5.2.1",
     "zod": "^4.4.3"
   },

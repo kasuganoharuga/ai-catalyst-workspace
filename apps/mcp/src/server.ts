@@ -6,11 +6,15 @@ import { hostHeaderValidation } from "@modelcontextprotocol/sdk/server/middlewar
 import express, { type Express, type Request, type Response } from "express";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 
 import { verifyBearerToken } from "./auth/verify-bearer.js";
 import { createMcpServerInstance } from "./mcp-server.js";
 import { originAllowlist } from "./middleware/origin-allowlist.js";
 import { buildProtectedResourceMetadata } from "./well-known/protected-resource.js";
+
+const log = loggerForService(SERVICE_NAMES.mcp);
 
 export interface CreateMcpAppOptions {
   /** Allowed `Host` header hostnames (port-agnostic), for DNS rebinding protection. */
@@ -57,9 +61,11 @@ async function handleStatelessMcpRequest(
     });
     return;
   }
+  const correlationId = baseActor.traceId ?? randomUUID();
   const actor: ActorContext = {
     ...baseActor,
-    traceId: baseActor.traceId ?? randomUUID(),
+    traceId: correlationId,
+    requestId: baseActor.requestId ?? correlationId,
   };
   const mcp = createMcpServerInstance(actor);
   const transport = new StreamableHTTPServerTransport({
@@ -90,7 +96,13 @@ async function handleStatelessMcpRequest(
       cleanup();
     }
   } catch (error) {
-    console.error("Error handling MCP request:", error);
+    log.error({
+      event: "mcp_request_failed",
+      message: "Error handling MCP request",
+      trace_id: actor.traceId,
+      request_id: actor.requestId,
+      error_name: error instanceof Error ? error.name : "unknown",
+    });
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: "2.0",
@@ -127,7 +139,7 @@ export function createMcpApp(options: CreateMcpAppOptions): Express {
   // passing. RFC 9728 requires this document be servable with no
   // authentication of its own.
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", service: SERVICE_NAMES.mcp });
   });
   app.get("/.well-known/oauth-protected-resource", (_req, res) => {
     res.json(
@@ -169,6 +181,10 @@ export interface StartMcpServerOptions extends CreateMcpAppOptions {
 export function startMcpServer(options: StartMcpServerOptions): HttpServer {
   const app = createMcpApp(options);
   return app.listen(options.port, () => {
-    console.log(`AI Catalyst MCP server listening on port ${options.port}`);
+    log.info({
+      event: "mcp_server_listening",
+      message: "AI Catalyst MCP server listening",
+      port: options.port,
+    });
   });
 }

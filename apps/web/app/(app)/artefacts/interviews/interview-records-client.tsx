@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import type {
   InterviewEvidenceStatus,
@@ -12,6 +13,7 @@ import type {
 } from "@ai-catalyst/services/interview/types";
 import { INTERVIEW_MINIMUM_COUNT } from "@ai-catalyst/services/interview/types";
 
+import { errorCopy, toastCopy } from "@/app/(app)/lib/copy";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -59,7 +61,6 @@ export function InterviewRecordsClient({
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
   const [submitOpen, setSubmitOpen] = useState(false);
   const [selectedRecordId, setSelectedRecordId] = useState<string | null>(
     records.find((r) => r.status === "draft")?.id ?? records[0]?.id ?? null,
@@ -82,13 +83,18 @@ export function InterviewRecordsClient({
 
   function run(
     action: () => Promise<{ ok: boolean; message?: string; recordId?: string }>,
+    successToast?: string,
   ) {
-    setError(null);
     startTransition(async () => {
       const result = await action();
       if (!result.ok) {
-        setError(result.message ?? "Something went wrong.");
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message ?? errorCopy.generic,
+        });
         return;
+      }
+      if (successToast) {
+        toast.success(successToast);
       }
       if (result.recordId) setSelectedRecordId(result.recordId);
       router.refresh();
@@ -96,14 +102,16 @@ export function InterviewRecordsClient({
   }
 
   function submitForReview() {
-    setError(null);
     setSubmitOpen(false);
     startTransition(async () => {
       const result = await submitInterviewSetForReviewAction(programRunId);
       if (!result.ok) {
-        setError(result.message ?? "Something went wrong.");
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message ?? errorCopy.generic,
+        });
         return;
       }
+      toast.success(toastCopy.interviewSubmittedForReview);
       router.push(MODULE_4_HREF);
       router.refresh();
     });
@@ -129,12 +137,6 @@ export function InterviewRecordsClient({
 
   return (
     <div className="mx-auto max-w-3xl space-y-8">
-      {error ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
-
       <section className="space-y-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div className="space-y-1">
@@ -292,8 +294,10 @@ export function InterviewRecordsClient({
                   )
                 }
                 onComplete={(fields) =>
-                  run(async () =>
-                    completeInterviewRecordAction(active.id, fields),
+                  run(
+                    async () =>
+                      completeInterviewRecordAction(active.id, fields),
+                    toastCopy.interviewCompleted,
                   )
                 }
                 onEdit={() =>

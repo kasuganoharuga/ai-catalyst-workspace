@@ -1,8 +1,12 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 import type { ModuleAttemptStatus } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+
+const log = loggerForService(SERVICE_NAMES.services);
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
@@ -202,10 +206,14 @@ export async function autoCompleteSetupModule(
     // An unexpected failure here is a platform problem, not the Founder's
     // — log it with enough context to find the Run, and let the caller
     // degrade gracefully.
-    console.error("autoCompleteSetupModule failed", {
-      programRunId,
-      programRunModuleId: runModule.id,
-      error,
+    log.error({
+      event: "setup_module_auto_complete_failed",
+      message: "autoCompleteSetupModule failed unexpectedly",
+      program_run_id: programRunId,
+      program_run_module_id: runModule.id,
+      trace_id: actor.traceId,
+      request_id: actor.requestId,
+      error_name: error instanceof Error ? error.name : "unknown",
     });
     return {
       status: "failed",

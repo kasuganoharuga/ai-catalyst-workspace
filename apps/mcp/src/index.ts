@@ -1,4 +1,12 @@
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
+
+import { initMcpSentry } from "./sentry.js";
 import { startMcpServer } from "./server.js";
+
+initMcpSentry();
+
+const log = loggerForService(SERVICE_NAMES.mcp);
 
 const DEFAULT_PORT = 8787;
 const DEFAULT_ALLOWED_HOSTS = ["localhost", "127.0.0.1", "mcp"];
@@ -76,7 +84,11 @@ const httpServer = startMcpServer({
 });
 
 function shutdown(signal: string): void {
-  console.log(`Received ${signal}, shutting down MCP server...`);
+  log.info({
+    event: "mcp_server_shutdown",
+    message: `Received ${signal}, shutting down MCP server`,
+    signal,
+  });
   httpServer.close(() => {
     process.exit(0);
   });

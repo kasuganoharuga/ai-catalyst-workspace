@@ -3,6 +3,8 @@ import { randomUUID } from "node:crypto";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 import {
   ServiceError,
   type ServiceErrorCode,
@@ -11,6 +13,8 @@ import {
   recordMcpToolCall,
   type McpToolCallOutcome,
 } from "@ai-catalyst/services/audit";
+
+const log = loggerForService(SERVICE_NAMES.mcp);
 
 // Shared audit + error mapping for every MCP tool handler.
 
@@ -116,12 +120,17 @@ export async function withMcpAudit(
 ): Promise<McpToolResponse> {
   const requestId = randomUUID();
   const startedAt = Date.now();
+  // Per-tool-call request id; keep the HTTP-level traceId on the actor.
+  const actor: ActorContext = {
+    ...params.actor,
+    requestId,
+  };
 
   try {
     const { response, audit } = await handler();
     await recordMcpToolCall({
       requestId,
-      actor: params.actor,
+      actor,
       toolName: params.toolName,
       outcome: "success",
       durationMs: Date.now() - startedAt,
@@ -137,10 +146,14 @@ export async function withMcpAudit(
   } catch (error) {
     const isServiceError = error instanceof ServiceError;
     if (!isServiceError) {
-      console.error(
-        `Unexpected error in MCP tool "${params.toolName}":`,
-        error,
-      );
+      log.error({
+        event: "mcp_tool_failed",
+        message: `Unexpected error in MCP tool "${params.toolName}"`,
+        tool_name: params.toolName,
+        trace_id: actor.traceId,
+        request_id: requestId,
+        error_name: error instanceof Error ? error.name : "unknown",
+      });
     }
     const outcome = isServiceError
       ? outcomeForServiceErrorCode(error.code)
@@ -151,7 +164,7 @@ export async function withMcpAudit(
 
     await recordMcpToolCall({
       requestId,
-      actor: params.actor,
+      actor,
       toolName: params.toolName,
       outcome,
       durationMs: Date.now() - startedAt,

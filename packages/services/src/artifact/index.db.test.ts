@@ -1313,6 +1313,7 @@ describe("artifact service — database integration", () => {
         "attempt_submitted",
         "validation_started",
         "validation_passed",
+        "attempt_ready_for_review",
       ]);
     });
 

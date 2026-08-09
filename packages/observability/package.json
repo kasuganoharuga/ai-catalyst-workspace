@@ -1,0 +1,23 @@
+{
+  "name": "@ai-catalyst/observability",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared structured logging, service-name constants, and PII redaction for web/mcp/services. External sinks (CloudWatch via stdout, Sentry) must stay best-effort.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./logger": "./src/logger.ts",
+    "./service-names": "./src/service-names.ts",
+    "./env": "./src/env.ts",
+    "./redact": "./src/redact.ts",
+    "./sentry-scrub": "./src/sentry-scrub.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}

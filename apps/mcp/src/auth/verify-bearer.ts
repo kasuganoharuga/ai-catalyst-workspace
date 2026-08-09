@@ -1,8 +1,12 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { verifyMcpBearerToken } from "@ai-catalyst/services/mcp-auth";
+
+const log = loggerForService(SERVICE_NAMES.mcp);
 
 // The standard way to extend Express's Request type without a direct
 // dependency on the transitive `@types/express-serve-static-core` package
@@ -123,7 +127,11 @@ export function verifyBearerToken(
           return;
         }
 
-        console.error("Unexpected error verifying MCP bearer token:", error);
+        log.error({
+          event: "mcp_bearer_verify_failed",
+          message: "Unexpected error verifying MCP bearer token",
+          error_name: error instanceof Error ? error.name : "unknown",
+        });
         res.status(500).json({
           jsonrpc: "2.0",
           error: { code: -32603, message: "Internal server error." },

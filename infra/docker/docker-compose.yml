@@ -7,6 +7,7 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       APP_ENV: local
+      SERVICE_NAME: aicatalyst-api
       LOG_LEVEL: INFO
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
@@ -23,6 +24,8 @@ services:
       context: ../..
       dockerfile: apps/web/Dockerfile
     environment:
+      APP_ENV: local
+      SERVICE_NAME: aicatalyst-web
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
       AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
@@ -55,6 +58,8 @@ services:
       # container's listener the moment a developer overrides it to dodge a
       # host port clash.
       MCP_PORT: 8787
+      APP_ENV: local
+      SERVICE_NAME: aicatalyst-mcp
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
       # Public-facing URLs only, for OAuth discovery metadata (RFC 9728) —
       # apps/mcp verifies platform Bearer tokens by querying Postgres

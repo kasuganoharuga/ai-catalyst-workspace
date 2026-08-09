@@ -6,11 +6,13 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
 import {
   getArtifactSubmission,
   saveArtifactSubmission,
 } from "@ai-catalyst/services/artifact";
 import { parseInterviewGuide } from "@ai-catalyst/services/artifact/internal/renderers/parse/interview-guide";
+import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 
 import { buildInterviewEvidenceMarkdown } from "@ai-catalyst/services/interview/evidence-markdown";
 import {
@@ -163,6 +165,75 @@ const RECORD_COLUMNS = `
   interviewed_at, answers, key_quote, current_workaround, status,
   completed_at, created_at, updated_at
 `;
+
+interface Module4EventContext {
+  workspaceId: string;
+  programRunId: string;
+  programRunBranchId: string;
+  programRunModuleId: string;
+  moduleAttemptId: string | null;
+}
+
+async function resolveModule4EventContext(
+  client: PoolClient,
+  workspaceId: string,
+  programRunId: string,
+): Promise<Module4EventContext | null> {
+  const result = await client.query<{
+    id: string;
+    program_run_branch_id: string;
+    active_attempt_id: string | null;
+  }>(
+    `select prm.id, prm.program_run_branch_id, prm.active_attempt_id
+     from program_run_modules prm
+     where prm.program_run_id = $1
+       and prm.workspace_id = $2
+       and prm.module_key = $3
+     limit 1`,
+    [programRunId, workspaceId, MODULE_4_KEY],
+  );
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    workspaceId,
+    programRunId,
+    programRunBranchId: row.program_run_branch_id,
+    programRunModuleId: row.id,
+    moduleAttemptId: row.active_attempt_id,
+  };
+}
+
+async function insertInterviewModuleEvent(
+  client: PoolClient,
+  input: {
+    context: Module4EventContext;
+    eventType:
+      "interview_set_submitted" | "evidence_confirmed" | "evidence_reopened";
+    actor: ActorContext;
+    fromStatus: string | null;
+    toStatus: string | null;
+    activityId: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<void> {
+  await insertModuleEventRow(client, {
+    workspaceId: input.context.workspaceId,
+    programRunId: input.context.programRunId,
+    programRunBranchId: input.context.programRunBranchId,
+    programRunModuleId: input.context.programRunModuleId,
+    moduleAttemptId: input.context.moduleAttemptId,
+    eventType: input.eventType,
+    actorType: "user",
+    actorUserId: input.actor.userId,
+    sourceProvider: resolveInteractionProvider(input.actor),
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    metadata: input.metadata,
+    entityType: "interview_activity",
+    entityId: input.activityId,
+    actor: input.actor,
+  });
+}
 
 // ---------------------------------------------------------------------
 // Create activity on Module 3 confirm (called inside completion txn)
@@ -875,6 +946,7 @@ export async function submitInterviewSetForReview(
     }
 
     const submittedAt = new Date().toISOString();
+    const fromStatus = activityRow.evidence_status;
     const updated = await client.query<ActivityRow>(
       `update interview_activities
        set evidence_status = 'submitted',
@@ -884,6 +956,22 @@ export async function submitInterviewSetForReview(
        returning ${ACTIVITY_COLUMNS}`,
       [activityRow.id, workspace.id, submittedAt],
     );
+    const module4 = await resolveModule4EventContext(
+      client,
+      workspace.id,
+      programRunId,
+    );
+    if (module4) {
+      await insertInterviewModuleEvent(client, {
+        context: module4,
+        eventType: "interview_set_submitted",
+        actor,
+        fromStatus,
+        toStatus: "submitted",
+        activityId: activityRow.id,
+        metadata: { completed_count: completed.length },
+      });
+    }
     await client.query("commit");
     const out = updated.rows[0];
     if (!out) {
@@ -993,6 +1081,7 @@ export async function confirmInterviewEvidence(
       confirmedAtIso: confirmedAt.toISOString(),
     });
     const sourceIds = completed.map((r) => r.id);
+    const fromStatus = activityRow.evidence_status;
 
     const updated = await client.query<ActivityRow>(
       `update interview_activities
@@ -1012,6 +1101,25 @@ export async function confirmInterviewEvidence(
         JSON.stringify(sourceIds),
       ],
     );
+    const module4 = await resolveModule4EventContext(
+      client,
+      workspace.id,
+      programRunId,
+    );
+    if (module4) {
+      await insertInterviewModuleEvent(client, {
+        context: module4,
+        eventType: "evidence_confirmed",
+        actor,
+        fromStatus,
+        toStatus: "confirmed",
+        activityId: activityRow.id,
+        metadata: {
+          completed_count: completed.length,
+          source_record_count: sourceIds.length,
+        },
+      });
+    }
     await client.query("commit");
     const out = updated.rows[0];
     if (!out) {
@@ -1043,6 +1151,17 @@ export async function reopenInterviewEvidence(
     await client.query("begin");
     const workspace = await resolveFounderWorkspace(actor, client);
     await assertNoPinnedClaudeAttempt(workspace.id, programRunId, client);
+    const existing = await client.query<ActivityRow>(
+      `select ${ACTIVITY_COLUMNS} from interview_activities
+       where program_run_id = $1 and workspace_id = $2
+       for update`,
+      [programRunId, workspace.id],
+    );
+    const existingRow = existing.rows[0];
+    if (!existingRow) {
+      throw new ServiceError("NOT_FOUND", "Interview activity not found.");
+    }
+    const fromStatus = existingRow.evidence_status;
     const updated = await client.query<ActivityRow>(
       `update interview_activities
        set evidence_status = 'draft',
@@ -1052,10 +1171,25 @@ export async function reopenInterviewEvidence(
            confirmed_source_record_ids = '[]'::jsonb,
            confirmed_artifact_submission_id = null,
            updated_at = now()
-       where program_run_id = $1 and workspace_id = $2
+       where id = $1 and workspace_id = $2
        returning ${ACTIVITY_COLUMNS}`,
-      [programRunId, workspace.id],
+      [existingRow.id, workspace.id],
     );
+    const module4 = await resolveModule4EventContext(
+      client,
+      workspace.id,
+      programRunId,
+    );
+    if (module4) {
+      await insertInterviewModuleEvent(client, {
+        context: module4,
+        eventType: "evidence_reopened",
+        actor,
+        fromStatus,
+        toStatus: "draft",
+        activityId: existingRow.id,
+      });
+    }
     await client.query("commit");
     const out = updated.rows[0];
     if (!out) {

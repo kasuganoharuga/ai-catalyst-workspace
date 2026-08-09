@@ -43,8 +43,12 @@ export interface ActorContext {
   // access by looking like Claude rather than ChatGPT.
   provider?: McpProvider;
   // Correlates a single request across service-layer log lines; not an
-  // authorization input.
+  // authorization input. Prefer one value per inbound HTTP/MCP request.
   traceId?: string;
+  // Per-operation correlation (e.g. one MCP tool call, one web server
+  // action). Distinct from traceId when a single request fans out into
+  // multiple audited operations. Also stored on module_events when set.
+  requestId?: string;
 }
 
 /**
@@ -71,6 +75,7 @@ export function createWebActorContext(params: {
   userId: string;
   role: ActorRole;
   traceId?: string;
+  requestId?: string;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -78,6 +83,7 @@ export function createWebActorContext(params: {
     source: "web",
     scopes: [],
     traceId: params.traceId,
+    requestId: params.requestId,
   };
 }
 
@@ -88,6 +94,7 @@ export function createMcpActorContext(params: {
   clientId: string;
   provider: McpProvider;
   traceId?: string;
+  requestId?: string;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -97,5 +104,6 @@ export function createMcpActorContext(params: {
     clientId: params.clientId,
     provider: params.provider,
     traceId: params.traceId,
+    requestId: params.requestId,
   };
 }

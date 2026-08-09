@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   ActorContext,
   ActorRole,
@@ -25,8 +27,12 @@ export function actorContextFromSession(session: {
     throw new ServiceError("FORBIDDEN", "Unrecognized account role.");
   }
 
+  // One correlation pair per server action / RSC call into services.
+  const correlationId = randomUUID();
   return createWebActorContext({
     userId: session.user.id,
     role: session.user.role,
+    traceId: correlationId,
+    requestId: correlationId,
   });
 }

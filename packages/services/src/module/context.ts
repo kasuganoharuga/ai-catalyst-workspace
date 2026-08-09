@@ -1,5 +1,7 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 import type {
   ArtifactSubmissionStatus,
   ModuleAttempt,
@@ -20,6 +22,8 @@ import {
   getRunModuleByKey,
   listRunModules,
 } from "@ai-catalyst/services/workflow";
+
+const log = loggerForService(SERVICE_NAMES.services);
 
 interface AttemptRow {
   id: string;
@@ -473,6 +477,36 @@ function assembleModuleContext(
 
   const artifactRows =
     artifactsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];
+  const artifacts = mapArtifactSummaries(artifactRows);
+  const answered = questions.filter(
+    (question) =>
+      question.responseStatus === "answered" ||
+      question.responseStatus === "skipped",
+  ).length;
+  const total = questions.length;
+
+  // Diagnostic only — never write module_events on the hydration path.
+  // Surfaces the historical "4/4 → 0/4 with Saved artefacts" class of bugs.
+  if (
+    activeAttempt &&
+    isAttemptArtifactOwner(activeAttempt.status) &&
+    artifacts.length > 0 &&
+    total > 0 &&
+    answered === 0
+  ) {
+    log.warn({
+      event: "module_checklist_state_mismatch",
+      message: "Module checklist state does not match artifact owner attempt",
+      module_key: runModule.moduleKey,
+      attempt_id: activeAttempt.id,
+      read_attempt_id: readResponseAttemptId,
+      active_attempt_id: activeAttempt.id,
+      answered,
+      total,
+      artifact_count: artifacts.length,
+      attempt_status: activeAttempt.status,
+    });
+  }
 
   return {
     runModule,
@@ -480,7 +514,7 @@ function assembleModuleContext(
     displayAttempt,
     resumeQuestionKey,
     questions,
-    artifacts: mapArtifactSummaries(artifactRows),
+    artifacts,
     prompts:
       promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
   };

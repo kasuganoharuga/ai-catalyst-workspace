@@ -1,5 +1,6 @@
 import path from "node:path";
 
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
 const workspaceRoot = path.join(__dirname, "..", "..");
@@ -9,6 +10,7 @@ const nextConfig: NextConfig = {
     "@ai-catalyst/shared",
     "@ai-catalyst/services",
     "@ai-catalyst/toolkit-content",
+    "@ai-catalyst/observability",
   ],
   // Verified by scripts/verify-standalone-build.mjs (package.json's
   // "test:standalone"): a successful `next build` does not prove the
@@ -37,4 +39,10 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  // Source-map upload is opt-in via SENTRY_AUTH_TOKEN in CI — empty token
+  // skips upload without failing the build.
+  silent: true,
+  widenClientFileUpload: true,
+  disableLogger: true,
+});

@@ -1118,6 +1118,10 @@ export const toastCopy = {
   moduleConfirmed: "Module confirmed",
   moduleConfirmedNext: (nextModuleTitle: string) =>
     `${nextModuleTitle} is now open.`,
+  interviewCompleted: "Interview saved",
+  interviewSubmittedForReview: "Interviews submitted for review",
+  evidenceConfirmed: "Evidence confirmed",
+  evidenceReopened: "Evidence reopened for editing",
   actionFailedTitle: "That didn't work",
   /** PDF workbook download failed; Markdown remains available from the same control. */
   pdfDownloadFailedFallback: "Couldn't generate the PDF. Try Markdown instead.",

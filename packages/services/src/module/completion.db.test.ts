@@ -389,6 +389,7 @@ describe("completeModuleAttempt — database integration", () => {
       "attempt_submitted",
       "validation_started",
       "validation_passed",
+      "attempt_ready_for_review",
     ]);
   });
 
@@ -428,6 +429,7 @@ describe("completeModuleAttempt — database integration", () => {
       "attempt_submitted",
       "validation_started",
       "validation_passed",
+      "attempt_ready_for_review",
       "attempt_accepted",
       "module_completed",
     ]);

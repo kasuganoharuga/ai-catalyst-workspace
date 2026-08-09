@@ -14,6 +14,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
 import { submitAttempt } from "@ai-catalyst/services/attempt";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
@@ -293,27 +294,27 @@ async function insertCompletionEvent(
     moduleAttemptId: string | null;
     eventType: CompletionEventType;
     actor: ActorContext;
+    fromStatus?: string | null;
+    toStatus?: string | null;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
   const actorType = input.actor.source === "system" ? "system" : "user";
-  await client.query(
-    `insert into module_events (
-       workspace_id, program_run_id, program_run_branch_id, program_run_module_id,
-       module_attempt_id, event_type, actor_type, actor_user_id, source_provider
-     )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [
-      input.workspaceId,
-      input.programRunId,
-      input.programRunBranchId,
-      input.programRunModuleId,
-      input.moduleAttemptId,
-      input.eventType,
-      actorType,
-      input.actor.userId,
-      resolveInteractionProvider(input.actor),
-    ],
-  );
+  await insertModuleEventRow(client, {
+    workspaceId: input.workspaceId,
+    programRunId: input.programRunId,
+    programRunBranchId: input.programRunBranchId,
+    programRunModuleId: input.programRunModuleId,
+    moduleAttemptId: input.moduleAttemptId,
+    eventType: input.eventType,
+    actorType,
+    actorUserId: input.actor.userId,
+    sourceProvider: resolveInteractionProvider(input.actor),
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    metadata: input.metadata,
+    actor: input.actor,
+  });
 }
 
 interface RunModuleLockRow {
@@ -406,6 +407,8 @@ async function completeSystemModule(
     moduleAttemptId: attempt.id,
     eventType: "attempt_accepted",
     actor,
+    fromStatus: "ready_for_review",
+    toStatus: "accepted",
   });
   await insertCompletionEvent(client, {
     workspaceId,
@@ -415,6 +418,8 @@ async function completeSystemModule(
     moduleAttemptId: attempt.id,
     eventType: "module_completed",
     actor,
+    fromStatus: runModule.status,
+    toStatus: "completed",
   });
 
   // Joined to module_definitions.status = 'active' so a Module whose
@@ -464,6 +469,9 @@ async function completeSystemModule(
     moduleAttemptId: null,
     eventType: "module_unlocked",
     actor,
+    fromStatus: "locked",
+    toStatus: "available",
+    metadata: { unlocked_module_key: nextModule.module_key },
   });
 
   return {

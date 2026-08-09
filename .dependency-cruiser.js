@@ -76,6 +76,14 @@ module.exports = {
       to: { path: "^(apps|packages)/", pathNot: "^packages/db/" },
     },
     {
+      name: "observability-is-a-leaf",
+      severity: "error",
+      comment:
+        "packages/observability is a cross-cutting leaf (logger + redaction) and must not depend on services/db/apps.",
+      from: { path: "^packages/observability/" },
+      to: { path: "^(apps|packages)/", pathNot: "^packages/observability/" },
+    },
+    {
       name: "clients-cannot-import-services-or-db",
       severity: "error",
       comment:

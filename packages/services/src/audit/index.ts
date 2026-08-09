@@ -1,5 +1,9 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
+
+const log = loggerForService(SERVICE_NAMES.services);
 
 // Owns writes to `mcp_tool_audit_logs`. Called independently of business
 // transactions — a failure here must not change the tool call outcome for
@@ -104,9 +108,13 @@ export async function recordMcpToolCall(
       ],
     );
   } catch (error) {
-    console.error(
-      `Failed to record MCP tool audit log for "${input.toolName}":`,
-      error,
-    );
+    log.error({
+      event: "mcp_tool_audit_write_failed",
+      message: `Failed to record MCP tool audit log for "${input.toolName}"`,
+      tool_name: input.toolName,
+      request_id: input.requestId,
+      trace_id: input.actor.traceId,
+      error_name: error instanceof Error ? error.name : "unknown",
+    });
   }
 }

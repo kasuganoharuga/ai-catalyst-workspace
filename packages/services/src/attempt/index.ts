@@ -16,6 +16,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
   RETRYABLE_ATTEMPT_STATUSES,
@@ -153,6 +154,9 @@ async function insertModuleEvent(
       | "response_saved"
       | "attempt_submitted";
     actor: ActorContext;
+    fromStatus?: string | null;
+    toStatus?: string | null;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
   // module_events is business-state history for Modules/Attempts/
@@ -160,23 +164,21 @@ async function insertModuleEvent(
   // apps/mcp's mcp_tool_audit_logs, and written directly by the Service
   // inside the same transaction as the state change it records, never as
   // a separate best-effort side channel.
-  await client.query(
-    `insert into module_events (
-       workspace_id, program_run_id, program_run_branch_id, program_run_module_id,
-       module_attempt_id, event_type, actor_type, actor_user_id, source_provider
-     )
-     values ($1, $2, $3, $4, $5, $6, 'user', $7, $8)`,
-    [
-      input.workspaceId,
-      input.programRunId,
-      input.programRunBranchId,
-      input.programRunModuleId,
-      input.moduleAttemptId,
-      input.eventType,
-      input.actor.userId,
-      resolveInteractionProvider(input.actor),
-    ],
-  );
+  await insertModuleEventRow(client, {
+    workspaceId: input.workspaceId,
+    programRunId: input.programRunId,
+    programRunBranchId: input.programRunBranchId,
+    programRunModuleId: input.programRunModuleId,
+    moduleAttemptId: input.moduleAttemptId,
+    eventType: input.eventType,
+    actorType: "user",
+    actorUserId: input.actor.userId,
+    sourceProvider: resolveInteractionProvider(input.actor),
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    metadata: input.metadata,
+    actor: input.actor,
+  });
 }
 
 // Runtime validation of untrusted input crossing the API boundary — the
@@ -569,6 +571,8 @@ export async function startOrResumeAttempt(
       moduleAttemptId: newAttempt.id,
       eventType,
       actor,
+      fromStatus: null,
+      toStatus: newAttempt.status,
     });
 
     await client.query("commit");
@@ -933,11 +937,14 @@ export async function saveFounderResponse(
 
     // First-response transition: draft -> in_progress. Left untouched if
     // already in_progress (a later edit to an existing answer).
+    const fromStatus = attemptRow.status;
+    let toStatus: string = attemptRow.status;
     if (attemptRow.status === "draft") {
       await client.query(
         `update module_attempts set status = 'in_progress', updated_at = now() where id = $1`,
         [attemptRow.id],
       );
+      toStatus = "in_progress";
     }
 
     await insertModuleEvent(client, {
@@ -948,6 +955,9 @@ export async function saveFounderResponse(
       moduleAttemptId: attemptRow.id,
       eventType: "response_saved",
       actor,
+      fromStatus,
+      toStatus,
+      metadata: { question_key: question.question_key },
     });
 
     await client.query("commit");
@@ -1110,6 +1120,8 @@ export async function submitAttempt(
       moduleAttemptId: attempt.id,
       eventType: "attempt_submitted",
       actor,
+      fromStatus: attempt.status,
+      toStatus: "submitted",
     });
 
     await client.query("commit");
