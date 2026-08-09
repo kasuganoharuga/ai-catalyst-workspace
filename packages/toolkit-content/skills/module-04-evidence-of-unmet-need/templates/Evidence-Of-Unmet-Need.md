@@ -17,10 +17,11 @@ than useless, because downstream modules and outputs read it as the evidence bas
 already recorded in earlier modules plus anything the Founder added here. One row per distinct
 piece — do not merge three interviews into "customer interviews".>
 
-<Type is one of: data, conversation, observation, signal. Evidence strength is 1–5, and every score
-carries its reasoning in the row it belongs to, not in a footnote.>
+<Type is one of: data, conversation, observation, signal. Evidence strength is Weak, Moderate, or
+Strong — never 1–5 — and every grade carries its reasoning in the row it belongs to, not in a
+footnote. Example: "Strong — confirmed repeated weekly miss with a named consequence.">
 
-| Source | Type | What it says | Evidence strength (1–5) |
+| Source | Type | What it says | Evidence strength |
 |---|---|---|---|
 | | | | |
 | | | | |
@@ -29,11 +30,17 @@ carries its reasoning in the row it belongs to, not in a footnote.>
 <An empty inventory is a legitimate and important result. Write "No evidence recorded yet." rather
 than padding it with the Founder's reasoning restated as findings.>
 
-<Evidence strength grades one row. It is not the same scale as the Evidence Maturity Level below,
-which grades the venture. A single strength-4 row does not place the venture at maturity level 4.>
+<Evidence strength grades one row (Weak / Moderate / Strong). It is not the same scale as the
+Evidence Maturity Level below, which grades the venture on Levels 1–5. A single Strong row does not
+place the venture at maturity Level 4 or 5.>
+
+<Do not upgrade correlation into causation. If an interviewee lost a quote after a delayed
+follow-up but could not confirm the delay caused the loss, write it as a potential commercial
+consequence — not as a confirmed dollar loss caused by the problem.>
 
 <Several rows from the same person are still one customer. They may appear separately when they
-prove different claims, but they never count as separate interviews.>
+prove different claims, but they never count as separate interviews. One interview is a case, not a
+segment fact — write "suggests" / "one case shows", never "this segment always…".>
 
 ## Evidence Assessment
 
@@ -61,16 +68,17 @@ three items.>
 | 1 — Assumption | You think this might be a problem. |
 | 2 — Secondary research | You have read about it in research, articles or reports. |
 | 3 — Primary research | You have spoken directly to matching customers about their experience of it. |
-| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. A prompted demo, founder-scheduled call, or founder-initiated pilot invitation is **not** Level 4. |
-| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5. |
+| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, or attempting to pay. A prompted demo, founder-scheduled call, founder-initiated pilot invitation, or founder-sent landing-page / CTA click is **not** Level 4. |
+| 5 — Paying | At least one matching customer has paid this venture — deposit received, paid pilot signed, contract / PO in place, or actual payment cleared — for a solution to this exact problem. A verbal "sounds good, let's start on [date]", a free / unpaid scoped pilot, or a non-binding start date alone is **not** Level 5. |
 
 <Money spent on competitors, internal staff or workarounds is strong behavioural evidence, but it is
 not Level 5 for this venture. "Sounds useful" or "tell me when it is ready" is not, on its own,
 Level 4 — the step has to be unprompted and commercial. A prompted demo or founder-initiated pilot
 invitation is not Level 4. A free or unpaid scoped pilot is not Level 5.>
 
-<An attempted payment stays at Level 4 — Demand signal, and at row-level Evidence strength 4, until
-payment is received or a binding agreement is signed.>
+<An attempted payment stays at Level 4 — Demand signal until payment is received or a binding paid
+agreement is signed. Do not describe an attempted or promised payment as row-level Evidence strength
+using a maturity Level number.>
 
 <This level is the venture's current overall evidence maturity. It is not capped by the validation
 status recorded in any earlier module — those are historical snapshots taken before these
@@ -92,7 +100,7 @@ establishing what.>
 <What customers have been observed doing, not what they said. Behaviour outranks stated preference
 in every case: a workaround someone built beats any number of people saying they would use it.>
 
-| Behaviour | What it proves | Evidence strength (1–5) |
+| Behaviour | What it proves | Evidence strength |
 |---|---|---|
 | | | |
 | | | |
@@ -120,12 +128,14 @@ nothing.>
 
 ### Evidence-backed defence
 
-<The Founder's answer, with the evidence it rests on. Opinion is marked as opinion.>
+<The Founder's answer, with the evidence it rests on. Opinion is marked as opinion. One interview is
+one case — do not write as if a single person settles the segment.>
 
 ### Verdict
 
 <Whether the defence holds, partially holds, or does not hold on current evidence. State it plainly.
-"Does not hold yet" is a legitimate and useful verdict.>
+"Does not hold yet" is a legitimate and useful verdict. Prefer "one case suggests…" over "the
+evidence leans toward…".>
 
 ### What would make it watertight
 
@@ -146,7 +156,10 @@ the same six subsections as every other module's Validation Status — never let
 ### Based on observation
 
 <What is supported by customer conversations, observed behaviour, sales, usage or credible data.
-Verbatim customer language only where it was actually heard.>
+Verbatim customer language only where it was actually heard. Keep each interviewee's meaning
+distinct — do not merge cases that point different ways into one blended claim (e.g. delegated
+ownership alone failing is not the same evidence as dedicated ownership plus a working system
+succeeding).>
 
 ### Founder assumptions
 

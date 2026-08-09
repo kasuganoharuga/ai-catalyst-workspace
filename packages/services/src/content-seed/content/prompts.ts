@@ -1897,11 +1897,33 @@ Then generate:
 ### Evidence Maturity Level (when discussing Levels 4–5)
 
 - **Level 4 — Demand signal** requires an **unprompted** commercial step by a matching customer
-  (proposal request, asking to join a pilot, introducing the budget owner, attempting to pay, or
-  asking for a specific availability date). A prompted demo, founder-scheduled call, or
-  founder-initiated pilot invitation is **not** Level 4.
-- **Level 5 — Paying** requires payment, a paid pilot, or another binding commercial commitment for
-  this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5.
+  (proposal request, asking to join a pilot, introducing the budget owner, or attempting to pay).
+  A prompted demo, founder-scheduled call, founder-initiated pilot invitation, or founder-sent
+  landing-page / CTA click is **not** Level 4.
+- **Level 5 — Paying** requires deposit received, paid pilot signed, contract / PO, or actual
+  payment. A verbal firm start date, free / unpaid scoped pilot, or non-binding "let's start on
+  [date]" is **not** Level 5.
+
+### Evidence writing (rigour)
+
+- Row-level Evidence strength is **Weak / Moderate / Strong** with inline reasoning — never 1–5.
+  Venture maturity stays Levels 1–5; do not mix the two scales.
+- Do not upgrade correlation into causation (e.g. a lost quote after delayed follow-up is a
+  potential commercial consequence unless the interviewee confirmed the delay caused the loss).
+- One interview is one case — write "suggests" / "one case shows", never segment-wide facts from a
+  single person. Keep interviewees with opposite meanings separate (e.g. delegated ownership alone
+  failing ≠ dedicated ownership + working system succeeding).
+
+### Roadmap writing
+
+- Pass/fail denominators must be a single explicit sample (e.g. 10 new matching interviews). Do not
+  mix new interviews and prior-contact revisits in one "6+ of 10" unless the experiment is only
+  about that group.
+- Expected evidence signal is Informational / Clarifying / Primary / Behavioural / Binding — never
+  1–5. Founder-prompted CTA response is Behavioural, not maturity Level 4.
+- Fill \`30-Day Decision\` (Proceed / Refine / Stop or re-scope) before experiments run.
+- Time budgets must be realistic (outreach + interviews + notes + synthesis). Prefer ICA language
+  over "solo owner-operator" when the beachhead is a small team.
 
 Do not overwrite \`Interview-Evidence.md\`. Call \`complete_module\` only after both generated
 artefacts are saved. Do not tell the Founder the Module is complete — they confirm on the website.
@@ -1912,7 +1934,8 @@ artefacts are saved. Do not tell the Founder the Module is complete — they con
 - Never grade from chat memory of interviews — re-read \`Interview-Evidence.md\`.
 - Never require a "supports" outcome to continue.
 - Never strengthen language beyond the evidence ("reported interest" must not become "confirmed
-  demand"; "would consider" must not become "committed").
+  demand"; "would consider" must not become "committed"; "lost after delay" must not become
+  "caused by delay" unless confirmed).
 - Produce exactly the two generated files above, plus the already-pinned evidence file.
 `;
 
@@ -1943,8 +1966,12 @@ pinned \`Interview-Evidence.md\`. Generate nothing else. Do not rewrite Intervie
 - Preserve quantitative detail exactly (counts, time windows, prices, frequencies). Do not compress
   numbers into softer ranges.
 - Evidence Maturity Level 4 requires an **unprompted** commercial step; prompted demos / founder-
-  initiated pilots are not Level 4. Level 5 requires paid or binding commitment; free scoped pilots
-  are not Level 5.
+  initiated pilots / founder-sent landing-page CTA clicks are not Level 4. Level 5 requires deposit,
+  paid pilot, contract / PO, or actual payment — not a verbal firm start date.
+- Evidence strength cells use Weak / Moderate / Strong with reasoning — never 1–5. Roadmap expected
+  evidence signal uses Informational / Clarifying / Primary / Behavioural / Binding — never 1–5.
+- Do not generalise one interview into a segment fact. Keep opposing interviewee meanings separate.
+- Pass/fail denominators must name one sample. Include a filled \`30-Day Decision\` section.
 
 ## Hard rules
 

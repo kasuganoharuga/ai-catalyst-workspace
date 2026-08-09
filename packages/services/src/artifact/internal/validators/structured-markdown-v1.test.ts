@@ -410,6 +410,49 @@ describe("table_column_scored_reasoning — Evidence strength must carry reasoni
   });
 });
 
+describe("table_column_labeled_reasoning — Evidence strength uses Weak/Moderate/Strong", () => {
+  const RULE = {
+    key: "strength",
+    type: "table_column_labeled_reasoning",
+    level: 2,
+    heading: "Evidence Inventory",
+    column: "Evidence strength",
+    allowed: ["Weak", "Moderate", "Strong"],
+  };
+
+  function withCell(cell: string): string {
+    return `## Evidence Inventory\n\n| Source | Type | What it says | Evidence strength |\n|---|---|---|---|\n| Interview | conversation | Customer described the workaround. | ${cell} |\n`;
+  }
+
+  it("passes an em-dash-separated label with reasoning", () => {
+    expect(
+      draftCheck(
+        withCell(
+          "Strong — Matching customer described a specific past experience.",
+        ),
+        [RULE],
+      ).passed,
+    ).toBe(true);
+  });
+
+  it("rejects a bare label with no reasoning", () => {
+    expect(draftCheck(withCell("Strong"), [RULE]).passed).toBe(false);
+  });
+
+  it("rejects a numeric score leftover from the old 1–5 scale", () => {
+    expect(
+      draftCheck(withCell("4 — clear financial cost"), [RULE]).passed,
+    ).toBe(false);
+  });
+
+  it("rejects a label outside the allowed set", () => {
+    expect(
+      draftCheck(withCell("Decisive — Overstates a single interview."), [RULE])
+        .passed,
+    ).toBe(false);
+  });
+});
+
 describe("escaped pipes in table cells do not misalign columns", () => {
   const REQUIRED_CELLS = {
     key: "cells",

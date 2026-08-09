@@ -24,18 +24,18 @@ Whether operations leads will take a concrete step toward solving reconciliation
 
 ## Experiments
 
-| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal strength (1–5) | 30-day window |
+| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal | 30-day window |
 |---|---|---|---|---|---|---|---|
-| Concierge pilot | Leads will hand over a real run sheet for manual reconciliation | 3 of 8 leads send a run sheet within 48 hours | Fewer than 2 of 8 respond within a week | 4 hours/week | $0 | 4 | Week 1 |
-| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | 5 | Week 2–3 |
+| Concierge pilot | Leads will hand over a real run sheet for manual reconciliation | 3 of 8 leads send a run sheet within 48 hours | Fewer than 2 of 8 respond within a week | 4 hours/week | $0 | Behavioural | Week 1 |
+| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | Binding | Week 2–3 |
 
-### Expected evidence signal strength
+### Expected evidence signal
 
-- **1** — produces only general information or weak indirect evidence
-- **2** — clarifies an assumption but cannot establish customer behaviour
-- **3** — can produce direct primary evidence from matching customers
-- **4** — can produce an observable behavioural or commercial demand signal
-- **5** — can produce a binding commercial commitment or payment
+- **Informational** — produces only general information or weak indirect evidence
+- **Clarifying** — clarifies an assumption but cannot establish customer behaviour
+- **Primary** — can produce direct primary evidence from matching customers
+- **Behavioural** — can produce an observable behavioural or commercial demand signal, including founder-prompted outreach (a CTA click after the Founder sends a page is Behavioural, not Evidence Maturity Level 4)
+- **Binding** — can produce deposit paid, paid pilot signed, contract / PO, or actual payment (a verbal firm start date alone is not Binding)
 
 ## Start Here
 
@@ -46,6 +46,14 @@ Whether operations leads will take a concrete step toward solving reconciliation
 **What counts as a pass:** 3 of 8 leads send a run sheet within 48 hours
 
 **What counts as a fail:** Fewer than 2 of 8 respond within a week
+
+## 30-Day Decision
+
+**Proceed when:** Repeated pain confirmed, observable demand, and at least one deposit or paid pilot.
+
+**Refine when:** Problem confirmed but demand or segment signals are mixed.
+
+**Stop or re-scope when:** Narrow segment mostly reports manageable pain or no willingness to act.
 
 ## How to Record Results
 
@@ -70,9 +78,9 @@ describe("parseValidationRoadmap — happy path", () => {
     expect(model.experiments[1].name).toBe("Paid waitlist");
   });
 
-  it("parses signal strength as an integer", () => {
-    expect(model.experiments[0].signalStrength).toBe(4);
-    expect(model.experiments[1].signalStrength).toBe(5);
+  it("parses signal strength as a word label", () => {
+    expect(model.experiments[0].signalStrength).toBe("Behavioural");
+    expect(model.experiments[1].signalStrength).toBe("Binding");
   });
 
   it("extracts every required cell per experiment", () => {
@@ -100,6 +108,12 @@ describe("parseValidationRoadmap — happy path", () => {
     expect(model.startHere.fail).toContain("Fewer than 2 of 8");
   });
 
+  it("extracts 30-Day Decision", () => {
+    expect(model.day30Decision.proceedWhen).toContain("deposit or paid pilot");
+    expect(model.day30Decision.refineWhen).toContain("mixed");
+    expect(model.day30Decision.stopOrRescopeWhen).toContain("manageable pain");
+  });
+
   it("extracts How to Record Results", () => {
     expect(model.howToRecordResults).toContain("Keep the results with you");
   });
@@ -108,7 +122,7 @@ describe("parseValidationRoadmap — happy path", () => {
 describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RENDER_FAILED)", () => {
   it("throws with only 1 experiment", () => {
     const bad = fixture().replace(
-      "| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | 5 | Week 2–3 |\n",
+      "| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | Binding | Week 2–3 |\n",
       "",
     );
     expect(() => parseValidationRoadmap(bad)).toThrow(
@@ -118,82 +132,50 @@ describe("parseValidationRoadmap — negative cases (each must throw WORKBOOK_RE
 
   it("throws with 4 experiments", () => {
     const bad = fixture().replace(
-      "### Expected evidence signal strength",
-      "| Third experiment | Claim | Pass | Fail | 1 hour | $0 | 2 | Week 4 |\n" +
-        "| Fourth experiment | Claim | Pass | Fail | 1 hour | $0 | 2 | Week 4 |\n\n" +
-        "### Expected evidence signal strength",
+      "| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | Binding | Week 2–3 |",
+      `| Paid waitlist | Leads will pay a deposit to reserve a pilot slot | 2 of 8 leads pay a $50 deposit | Zero leads pay within 2 weeks | 2 hours/week | $50 | Binding | Week 2–3 |
+| Extra row | Claim | Pass | Fail | 1h | $0 | Primary | Week 4 |
+| Extra row 2 | Claim | Pass | Fail | 1h | $0 | Primary | Week 4 |`,
     );
     expect(() => parseValidationRoadmap(bad)).toThrow(
       /WORKBOOK_RENDER_FAILED.*Experiments/,
     );
   });
 
-  it("throws when signal strength is out of range", () => {
-    const bad = fixture().replace("| 4 | Week 1 |", "| 9 | Week 1 |");
-    expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*signal strength/,
-    );
-  });
-
-  it("throws when signal strength is not a number", () => {
-    const bad = fixture().replace("| 4 | Week 1 |", "| high | Week 1 |");
-    expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*signal strength/,
-    );
-  });
-
-  it("throws when there are only 4 signal strength anchors", () => {
-    const bad = fixture().replace(
-      "- **5** — can produce a binding commercial commitment or payment\n",
-      "",
-    );
-    expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*[Ss]ignal strength/,
-    );
-  });
-
-  it("throws when Start Here's pass condition does not match experiment 1's", () => {
+  it("throws when Start Here pass disagrees with experiment 1", () => {
     const bad = fixture().replace(
       "**What counts as a pass:** 3 of 8 leads send a run sheet within 48 hours",
-      "**What counts as a pass:** literally any response at all",
+      "**What counts as a pass:** Something completely different",
     );
     expect(() => parseValidationRoadmap(bad)).toThrow(
       /WORKBOOK_RENDER_FAILED.*pass condition/,
     );
   });
 
-  it("throws when Start Here's fail condition does not match experiment 1's", () => {
-    const bad = fixture().replace(
-      "**What counts as a fail:** Fewer than 2 of 8 respond within a week",
-      "**What counts as a fail:** nobody ever responds, ever",
-    );
+  it("throws on an invalid signal label", () => {
+    const bad = fixture().replace("| Behavioural | Week 1 |", "| 4 | Week 1 |");
     expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*fail condition/,
+      /WORKBOOK_RENDER_FAILED.*signal strength/,
     );
   });
 
-  it("throws when a required table column is missing", () => {
+  it("throws when the Expected evidence signal column is missing", () => {
     const bad = fixture().replace(
-      "| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal strength (1–5) | 30-day window |",
+      "| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal | 30-day window |",
       "| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | 30-day window |",
     );
-    expect(() => parseValidationRoadmap(bad)).toThrow(/WORKBOOK_RENDER_FAILED/);
+    expect(() => parseValidationRoadmap(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Expected evidence signal/,
+    );
   });
 
-  it("throws when Venture name is blank", () => {
+  it("throws when 30-Day Decision is missing", () => {
     const bad = fixture().replace(
-      "- Venture name: Kerbside",
-      "- Venture name:",
+      /## 30-Day Decision[\s\S]*?## How to Record Results/,
+      "## How to Record Results",
     );
     expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*Venture name/,
-    );
-  });
-
-  it("throws when Budget is missing", () => {
-    const bad = fixture().replace("**Budget:** $500\n\n", "");
-    expect(() => parseValidationRoadmap(bad)).toThrow(
-      /WORKBOOK_RENDER_FAILED.*Budget/,
+      /WORKBOOK_RENDER_FAILED.*30-Day Decision/,
     );
   });
 });

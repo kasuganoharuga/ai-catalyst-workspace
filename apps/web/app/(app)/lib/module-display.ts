@@ -111,12 +111,9 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
     validation_status: "How much of this is evidence, not assumption",
   },
   [MODULE_4_KEY]: {
-    evidence_additions: "What the interviews actually returned",
-    evidence_level: "The evidence level you have reached",
-    evidence_level_reasoning: "Why that level and not a higher one",
-    observed_behaviour: "What customers did, not what they said",
-    strongest_counterargument: "The strongest case against you",
-    counterargument_defence: "Your honest answer to that case",
+    evidence_outcome: "Whether the interviews support the hypothesis",
+    evidence_analysis: "What the interviews actually returned",
+    evidence_decision: "What should change next",
     validation_constraints: "The time, money and access you have",
   },
 };

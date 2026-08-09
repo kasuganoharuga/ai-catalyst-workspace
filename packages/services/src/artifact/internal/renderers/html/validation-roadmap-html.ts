@@ -29,7 +29,7 @@ function experimentCardHtml(experiment: Experiment, index: number): string {
     ${dlRow("Fail condition", experiment.failCondition)}
     ${dlRow("Time", experiment.time)}
     ${dlRow("Cost", experiment.cost)}
-    ${dlRow("Expected evidence signal strength", String(experiment.signalStrength))}
+    ${dlRow("Expected evidence signal", experiment.signalStrength)}
     ${dlRow("30-day window", experiment.window)}
   </dl>
 </article>`;
@@ -66,7 +66,7 @@ function bodyFromModel(model: ValidationRoadmapModel): string {
 <section>
   <h2>Experiments</h2>
   ${experimentCards}
-  <h3>Expected evidence signal strength</h3>
+  <h3>Expected evidence signal</h3>
   <ul>
     ${anchors}
   </ul>
@@ -78,6 +78,13 @@ function bodyFromModel(model: ValidationRoadmapModel): string {
   <p><strong>Who to contact, and how:</strong> ${escapeHtml(model.startHere.whoToContact)}</p>
   <p><strong>What counts as a pass:</strong> ${escapeHtml(model.startHere.pass)}</p>
   <p><strong>What counts as a fail:</strong> ${escapeHtml(model.startHere.fail)}</p>
+</section>
+
+<section class="decision-gate">
+  <h2>30-Day Decision</h2>
+  <p><strong>Proceed when:</strong> ${escapeHtml(model.day30Decision.proceedWhen)}</p>
+  <p><strong>Refine when:</strong> ${escapeHtml(model.day30Decision.refineWhen)}</p>
+  <p><strong>Stop or re-scope when:</strong> ${escapeHtml(model.day30Decision.stopOrRescopeWhen)}</p>
 </section>
 
 <section>
@@ -116,6 +123,10 @@ const EXTRA_CSS = `
     }
     .experiment-row dd {
       margin: 0;
+    }
+    .decision-gate {
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 `;
 

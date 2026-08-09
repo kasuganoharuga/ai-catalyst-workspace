@@ -116,6 +116,17 @@ const TableColumnScoredReasoningRuleSchema = RuleBaseSchema.extend({
   maximum: z.number().int(),
 }).strict();
 
+// Same inline-reasoning shape as scored_reasoning, but the grade is a word
+// label (Weak / Moderate / Strong) rather than a 1–5 integer — so row-level
+// signal strength never shares a numeric scale with Evidence Maturity Level.
+const TableColumnLabeledReasoningRuleSchema = RuleBaseSchema.extend({
+  type: z.literal("table_column_labeled_reasoning"),
+  level: z.number().int().min(1).max(6),
+  heading: z.string().min(1),
+  column: z.string().min(1),
+  allowed: z.array(z.string().min(1)).min(1),
+}).strict();
+
 // `scope` disambiguates a label that appears more than once in a template
 // (e.g. "Current level" under both Evidence Maturity Level and Validation
 // Status in Evidence-Of-Unmet-Need.md) — required whenever that is possible.
@@ -155,6 +166,7 @@ const DraftRuleSchema = z.discriminatedUnion("type", [
   TableColumnIntegerRangeRuleSchema,
   TableColumnEnumRuleSchema,
   TableColumnScoredReasoningRuleSchema,
+  TableColumnLabeledReasoningRuleSchema,
   LabelPresentRuleSchema,
   LabelEnumRuleSchema,
   LabelValueCompactRuleSchema,

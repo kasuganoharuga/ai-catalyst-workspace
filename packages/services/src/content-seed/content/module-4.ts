@@ -17,7 +17,7 @@ const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 
 ## Evidence Inventory
 
-| Source | Type | What it says | Evidence strength (1–5) |
+| Source | Type | What it says | Evidence strength |
 |---|---|---|---|
 | | | | |
 | | | | |
@@ -40,8 +40,8 @@ const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 | 1 — Assumption | You think this might be a problem. |
 | 2 — Secondary research | You have read about it in research, articles or reports. |
 | 3 — Primary research | You have spoken directly to matching customers about their experience of it. |
-| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, attempting to pay, or asking for a specific availability date. A prompted demo, founder-scheduled call, or founder-initiated pilot invitation is **not** Level 4. |
-| 5 — Paying | At least one matching customer has paid this venture, signed a paid pilot, or made another binding commercial commitment for a solution to this exact problem. A free, heavily scoped, or unpaid pilot is **not** Level 5. |
+| 4 — Demand signal | A matching customer has taken an **unprompted** commercial step toward this venture — requesting a proposal, asking to join a pilot, introducing the budget owner, or attempting to pay. A prompted demo, founder-scheduled call, founder-initiated pilot invitation, or founder-sent landing-page / CTA click is **not** Level 4. |
+| 5 — Paying | At least one matching customer has paid this venture — deposit received, paid pilot signed, contract / PO in place, or actual payment cleared — for a solution to this exact problem. A verbal "sounds good, let's start on [date]", a free / unpaid scoped pilot, or a non-binding start date alone is **not** Level 5. |
 
 ### Why this level
 
@@ -49,7 +49,7 @@ const EVIDENCE_OF_UNMET_NEED_TEMPLATE = `# Evidence of Unmet Need
 
 ## Behavioural Evidence Log
 
-| Behaviour | What it proves | Evidence strength (1–5) |
+| Behaviour | What it proves | Evidence strength |
 |---|---|---|
 | | | |
 | | | |
@@ -100,19 +100,19 @@ const VALIDATION_ROADMAP_TEMPLATE = `# 30-Day Validation Roadmap
 
 ## Experiments
 
-| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal strength (1–5) | 30-day window |
+| Experiment | Claim tested | Pass condition | Fail condition | Time | Cost | Expected evidence signal | 30-day window |
 |---|---|---|---|---|---|---|---|
 | | | | | | | | Week 1 |
 | | | | | | | | Week 2–3 |
 | | | | | | | | Week 3–4 |
 
-### Expected evidence signal strength
+### Expected evidence signal
 
-- **1** — produces only general information or weak indirect evidence
-- **2** — clarifies an assumption but cannot establish customer behaviour
-- **3** — can produce direct primary evidence from matching customers
-- **4** — can produce an observable behavioural or commercial demand signal
-- **5** — can produce a binding commercial commitment or payment
+- **Informational** — produces only general information or weak indirect evidence
+- **Clarifying** — clarifies an assumption but cannot establish customer behaviour
+- **Primary** — can produce direct primary evidence from matching customers
+- **Behavioural** — can produce an observable behavioural or commercial demand signal, including founder-prompted outreach (a CTA click after the Founder sends a page is Behavioural, not Evidence Maturity Level 4)
+- **Binding** — can produce deposit paid, paid pilot signed, contract / PO, or actual payment (a verbal firm start date alone is not Binding)
 
 ## Start Here
 
@@ -124,6 +124,14 @@ const VALIDATION_ROADMAP_TEMPLATE = `# 30-Day Validation Roadmap
 
 **What counts as a fail:**
 
+## 30-Day Decision
+
+**Proceed when:**
+
+**Refine when:**
+
+**Stop or re-scope when:**
+
 ## How to Record Results
 
 Results are not recorded in this roadmap. For each experiment, keep:
@@ -134,7 +142,8 @@ Results are not recorded in this roadmap. For each experiment, keep:
 - any contradicting evidence;
 - the decision made as a result.
 
-Keep the results with you and bring them into the review that follows.
+Keep the results with you and bring them into the review that follows. Use the 30-Day Decision
+lines above when combining Experiment 1–3 outcomes into Proceed / Refine / Stop.
 `;
 
 const INTERVIEW_EVIDENCE_TEMPLATE = `# Customer Interview Evidence
@@ -270,7 +279,7 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
           "Source",
           "Type",
           "What it says",
-          "Evidence strength (1–5)",
+          "Evidence strength",
         ],
       },
       {
@@ -282,13 +291,12 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         allowed: ["data", "conversation", "observation", "signal"],
       },
       {
-        key: "inventory_strength_scored",
-        type: "table_column_scored_reasoning",
+        key: "inventory_strength_labeled",
+        type: "table_column_labeled_reasoning",
         level: 2,
         heading: "Evidence Inventory",
-        column: "Evidence strength (1–5)",
-        minimum: 1,
-        maximum: 5,
+        column: "Evidence strength",
+        allowed: ["Weak", "Moderate", "Strong"],
       },
       {
         key: "behavioural_row_count",
@@ -303,20 +311,15 @@ const EVIDENCE_OF_UNMET_NEED_ARTIFACT: ArtifactContent = {
         type: "table_required_cells",
         level: 2,
         heading: "Behavioural Evidence Log",
-        requiredColumns: [
-          "Behaviour",
-          "What it proves",
-          "Evidence strength (1–5)",
-        ],
+        requiredColumns: ["Behaviour", "What it proves", "Evidence strength"],
       },
       {
-        key: "behavioural_strength_scored",
-        type: "table_column_scored_reasoning",
+        key: "behavioural_strength_labeled",
+        type: "table_column_labeled_reasoning",
         level: 2,
         heading: "Behavioural Evidence Log",
-        column: "Evidence strength (1–5)",
-        minimum: 1,
-        maximum: 5,
+        column: "Evidence strength",
+        allowed: ["Weak", "Moderate", "Strong"],
       },
       {
         key: "strongest_signal_present",
@@ -460,7 +463,7 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
   sequenceIndex: 3,
   name: "30-Day Validation Roadmap",
   description:
-    "Two or three experiments that fit the Founder's real time, budget and access constraints, each with a pre-set pass condition, fail condition and expected evidence signal strength. Start Here expands the first experiment; it never authors new criteria for it.",
+    "Two or three experiments that fit the Founder's real time, budget and access constraints, each with a pre-set pass condition, fail condition and expected evidence signal. Start Here expands the first experiment; 30-Day Decision sets Proceed / Refine / Stop before results arrive.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -487,8 +490,9 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Constraints" },
           { level: 2, heading: "What These Experiments Test" },
           { level: 2, heading: "Experiments" },
-          { level: 3, heading: "Expected evidence signal strength" },
+          { level: 3, heading: "Expected evidence signal" },
           { level: 2, heading: "Start Here" },
+          { level: 2, heading: "30-Day Decision" },
           { level: 2, heading: "How to Record Results" },
         ],
       },
@@ -542,24 +546,29 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
           "Fail condition",
           "Time",
           "Cost",
-          "Expected evidence signal strength (1–5)",
+          "Expected evidence signal",
           "30-day window",
         ],
       },
       {
-        key: "experiment_signal_strength_range",
-        type: "table_column_integer_range",
+        key: "experiment_signal_enum",
+        type: "table_column_enum",
         level: 2,
         heading: "Experiments",
-        column: "Expected evidence signal strength (1–5)",
-        minimum: 1,
-        maximum: 5,
+        column: "Expected evidence signal",
+        allowed: [
+          "Informational",
+          "Clarifying",
+          "Primary",
+          "Behavioural",
+          "Binding",
+        ],
       },
       {
         key: "signal_strength_anchors",
         type: "range_named_items",
         level: 3,
-        heading: "Expected evidence signal strength",
+        heading: "Expected evidence signal",
         minimum: 5,
         maximum: 5,
       },
@@ -586,6 +595,24 @@ const VALIDATION_ROADMAP_ARTIFACT: ArtifactContent = {
         type: "label_present",
         label: "What counts as a fail",
         scope: { level: 2, heading: "Start Here" },
+      },
+      {
+        key: "decision_proceed",
+        type: "label_present",
+        label: "Proceed when",
+        scope: { level: 2, heading: "30-Day Decision" },
+      },
+      {
+        key: "decision_refine",
+        type: "label_present",
+        label: "Refine when",
+        scope: { level: 2, heading: "30-Day Decision" },
+      },
+      {
+        key: "decision_stop",
+        type: "label_present",
+        label: "Stop or re-scope when",
+        scope: { level: 2, heading: "30-Day Decision" },
       },
       {
         key: "how_to_record_results_present",

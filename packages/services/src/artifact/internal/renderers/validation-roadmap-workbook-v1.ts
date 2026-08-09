@@ -19,8 +19,9 @@ const REQUIRED_SECTIONS: RequiredSection[] = [
   "Constraints",
   "What These Experiments Test",
   "Experiments",
-  "Expected evidence signal strength",
+  "Expected evidence signal",
   "Start Here",
+  "30-Day Decision",
   "How to Record Results",
 ];
 

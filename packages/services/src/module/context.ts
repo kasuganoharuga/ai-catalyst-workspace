@@ -313,6 +313,67 @@ function attemptHasAnsweredResponses(
   return false;
 }
 
+/**
+ * True when the Attempt has answered/skipped at least one of the Module's
+ * current Question keys. Prefer this over {@link attemptHasAnsweredResponses}
+ * for checklist hydration: a Retry that kept stale keys from an earlier
+ * schema must not "own" the checklist while every live key is blank.
+ */
+function attemptHasCurrentQuestionResponses(
+  attemptId: string,
+  questionKeys: readonly string[],
+  responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
+): boolean {
+  if (questionKeys.length === 0) {
+    return attemptHasAnsweredResponses(attemptId, responsesByAttemptId);
+  }
+  const responses = responsesByAttemptId.get(attemptId);
+  if (!responses) {
+    return false;
+  }
+  for (const key of questionKeys) {
+    const response = responses.get(key);
+    if (
+      response &&
+      (response.response_status === "answered" ||
+        response.response_status === "skipped")
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Walk active → based_on → … and return the nearest Attempt that still has
+ * usable Responses for the current Question keys. Empty Retries that reach
+ * ready_for_review by re-saving Artifacts keep the prior checklist visible
+ * even when the based_on chain is deeper than one hop.
+ */
+function resolveReadResponseAttemptId(
+  startAttemptId: string | null,
+  questionKeys: readonly string[],
+  attemptsById: Map<string, AttemptRow>,
+  responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
+): string | null {
+  let cursor = startAttemptId;
+  const seen = new Set<string>();
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    if (
+      attemptHasCurrentQuestionResponses(
+        cursor,
+        questionKeys,
+        responsesByAttemptId,
+      )
+    ) {
+      return cursor;
+    }
+    cursor = attemptsById.get(cursor)?.based_on_attempt_id ?? null;
+  }
+  return startAttemptId;
+}
+
 /** Attempts that have finished (or nearly finished) owning their own outputs. */
 function isAttemptArtifactOwner(status: ModuleAttemptStatus): boolean {
   return (
@@ -370,25 +431,18 @@ function assembleModuleContext(
 
   const questionRows =
     questionsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [];
-  // Question checklist: prefer the active Attempt's Responses when any
-  // exist. A Retry that reaches ready_for_review by re-saving Artifacts
-  // without re-answering every Question still needs the based_on answers
-  // visible (displayAttempt is already the active owner for status).
-  let readResponseAttemptId = displayAttempt?.id ?? null;
-  if (
-    activeAttempt &&
-    attemptHasAnsweredResponses(activeAttempt.id, responsesByAttemptId)
-  ) {
-    readResponseAttemptId = activeAttempt.id;
-  } else if (
-    activeAttempt?.basedOnAttemptId &&
-    attemptHasAnsweredResponses(
-      activeAttempt.basedOnAttemptId,
-      responsesByAttemptId,
-    )
-  ) {
-    readResponseAttemptId = activeAttempt.basedOnAttemptId;
-  }
+  const questionKeys = questionRows.map((row) => row.question_key);
+  // Question checklist: walk the based_on chain for the nearest Attempt
+  // that still has Responses for the current Question keys. A Retry that
+  // reaches ready_for_review by re-saving Artifacts without re-answering
+  // must keep the prior checklist visible (displayAttempt stays the
+  // artifact owner for status / Saved versions).
+  const readResponseAttemptId = resolveReadResponseAttemptId(
+    activeAttempt?.id ?? displayAttempt?.id ?? null,
+    questionKeys,
+    attemptsById,
+    responsesByAttemptId,
+  );
   const readResponseMap = readResponseAttemptId
     ? (responsesByAttemptId.get(readResponseAttemptId) ?? new Map())
     : new Map<string, ResponseLookupRow>();
@@ -476,17 +530,26 @@ async function buildModuleContextsFromRunModules(
     loadPromptsByModuleDefinitionIds([...new Set(moduleDefinitionIds)]),
   ]);
 
-  // Empty Retry Attempts still need their based_on Attempt loaded so
-  // prior answers remain visible on displayAttempt.
-  const basedOnIds = [...seedAttemptsById.values()]
+  // Empty Retry Attempts still need their based_on chain loaded so prior
+  // answers remain visible on the checklist (one hop is not enough when
+  // an intermediate Retry also never re-answered).
+  const attemptsById = new Map(seedAttemptsById);
+  let frontier = [...seedAttemptsById.values()]
     .map((row) => row.based_on_attempt_id)
-    .filter((id): id is string => id !== null);
-  const attemptIdsToLoad = [...new Set([...seedAttemptIds, ...basedOnIds])];
+    .filter((id): id is string => id !== null && !attemptsById.has(id));
+  while (frontier.length > 0) {
+    const next = await loadAttemptsByIds(frontier);
+    for (const [id, row] of next) {
+      attemptsById.set(id, row);
+    }
+    frontier = [...next.values()]
+      .map((row) => row.based_on_attempt_id)
+      .filter((id): id is string => id !== null && !attemptsById.has(id));
+  }
 
-  const [attemptsById, responsesByAttemptId] = await Promise.all([
-    loadAttemptsByIds(attemptIdsToLoad),
-    loadResponsesByAttemptIds(attemptIdsToLoad),
-  ]);
+  const attemptIdsToLoad = [...attemptsById.keys()];
+  const responsesByAttemptId =
+    await loadResponsesByAttemptIds(attemptIdsToLoad);
 
   // Artifacts follow the active Attempt whenever it owns its outputs
   // (submitted / ready_for_review / accepted) or already has answers.

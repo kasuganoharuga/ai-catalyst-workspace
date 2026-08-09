@@ -518,6 +518,69 @@ describe("getModuleContext — database integration", () => {
     ).toBe("Answered before failure.");
   });
 
+  it("ready_for_review Retry walks a multi-hop based_on chain for the checklist", async () => {
+    const { actor } = await createFounderWithActiveVenture(
+      "ready-review-multi-hop-responses",
+    );
+    const runModule = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    const { attempt: originalAttempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    await saveFounderResponse(actor, {
+      attemptId: originalAttempt.id,
+      questionKey: "first_question",
+      value: "Answered on the original Attempt.",
+    });
+    await pool.query(
+      `update module_attempts set status = 'validation_failed' where id = $1`,
+      [originalAttempt.id],
+    );
+    await pool.query(
+      `update program_run_modules set active_attempt_id = null where id = $1`,
+      [runModule.runModule.id],
+    );
+
+    const { attempt: emptyIntermediate } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    expect(emptyIntermediate.basedOnAttemptId).toBe(originalAttempt.id);
+    await pool.query(
+      `update module_attempts set status = 'validation_failed' where id = $1`,
+      [emptyIntermediate.id],
+    );
+    await pool.query(
+      `update program_run_modules set active_attempt_id = null where id = $1`,
+      [runModule.runModule.id],
+    );
+
+    const { attempt: readyRetry } = await startOrResumeAttempt(actor, {
+      programRunModuleId: runModule.runModule.id,
+    });
+    expect(readyRetry.basedOnAttemptId).toBe(emptyIntermediate.id);
+
+    await saveArtifactSubmission(actor, {
+      attemptId: readyRetry.id,
+      artifactKey: "verdict",
+      content: "# Fixture verdict\n\nSaved on the empty multi-hop Retry.\n",
+    });
+    await pool.query(
+      `update module_attempts set status = 'ready_for_review' where id = $1`,
+      [readyRetry.id],
+    );
+
+    const context = await getModuleContext(actor, {
+      moduleKey: "context-module-a",
+    });
+    expect(context.activeAttempt?.id).toBe(readyRetry.id);
+    expect(context.displayAttempt?.id).toBe(readyRetry.id);
+    expect(
+      context.questions.find((q) => q.questionKey === "first_question")
+        ?.answerText,
+    ).toBe("Answered on the original Attempt.");
+  });
+
   it("ready_for_review Retry prefers its own Responses over based_on", async () => {
     const { actor } = await createFounderWithActiveVenture(
       "ready-review-own-responses",

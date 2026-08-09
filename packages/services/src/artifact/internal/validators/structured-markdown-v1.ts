@@ -143,6 +143,25 @@ function parseScoredReasoningCell(
   return { score: Number.parseInt(match[1], 10), reasoning: match[2].trim() };
 }
 
+/**
+ * Parses `Label — reasoning` / `Label: reasoning` / `Label - reasoning`.
+ * The label must be a single token (letters only) so "Strong — …" matches
+ * and a bare hyphenated range like "Weak-Strong" does not.
+ */
+function parseLabeledReasoningCell(
+  raw: string,
+): { label: string; reasoning: string } | null {
+  const trimmed = raw.trim();
+  let match = /^([A-Za-z]+)\s*(?:—|:)\s*(.+)$/.exec(trimmed);
+  if (!match) {
+    match = /^([A-Za-z]+) - (.+)$/.exec(trimmed);
+  }
+  if (!match) {
+    return null;
+  }
+  return { label: match[1], reasoning: match[2].trim() };
+}
+
 function parseIntegerCell(raw: string): number | null {
   const trimmed = raw.trim();
   return /^-?\d+$/.test(trimmed) ? Number.parseInt(trimmed, 10) : null;
@@ -449,6 +468,48 @@ function checkTableColumnScoredReasoning(
   };
 }
 
+function checkTableColumnLabeledReasoning(
+  rule: Extract<DraftRule, { type: "table_column_labeled_reasoning" }>,
+  ctx: ValidationContext,
+): RuleCheck {
+  const headers = headersFor(ctx, rule.level, rule.heading);
+  const rows = rowsFor(ctx, rule.level, rule.heading);
+  if (rows.length === 0) {
+    return { key: rule.key, passed: true };
+  }
+  const idx = tableColumnIndex(headers, rule.column);
+  if (idx === -1) {
+    return {
+      key: rule.key,
+      passed: false,
+      message: `Column "${rule.column}" not found in "${rule.heading}".`,
+    };
+  }
+  const allowedNormalized = new Map(
+    rule.allowed.map((label) => [normalizeComparisonValue(label), label]),
+  );
+  const problems: string[] = [];
+  rows.forEach((row, rowIndex) => {
+    const raw = (row[idx] ?? "").trim();
+    const parsed = parseLabeledReasoningCell(raw);
+    if (
+      !parsed ||
+      !allowedNormalized.has(normalizeComparisonValue(parsed.label)) ||
+      !isSubstantiveText(parsed.reasoning)
+    ) {
+      problems.push(`row ${rowIndex + 1} has "${raw}"`);
+    }
+  });
+  return {
+    key: rule.key,
+    passed: problems.length === 0,
+    message:
+      problems.length === 0
+        ? undefined
+        : `"${rule.column}" in "${rule.heading}" must read "<${rule.allowed.join("|")}> — reasoning": ${problems.join("; ")}.`,
+  };
+}
+
 function checkLabelPresent(
   rule: Extract<DraftRule, { type: "label_present" }>,
   ctx: ValidationContext,
@@ -546,6 +607,8 @@ function runDraftRule(rule: DraftRule, ctx: ValidationContext): RuleCheck {
       return checkTableColumnEnum(rule, ctx);
     case "table_column_scored_reasoning":
       return checkTableColumnScoredReasoning(rule, ctx);
+    case "table_column_labeled_reasoning":
+      return checkTableColumnLabeledReasoning(rule, ctx);
     case "label_present":
       return checkLabelPresent(rule, ctx);
     case "label_enum":

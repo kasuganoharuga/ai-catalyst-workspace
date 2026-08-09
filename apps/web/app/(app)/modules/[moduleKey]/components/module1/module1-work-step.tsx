@@ -58,9 +58,17 @@ export function Module1WorkStep({
   const outputArtifacts = artifacts.filter(
     (artifact) => artifact.artifactKey !== prerequisiteKey,
   );
+  // One source of truth for the green "everything required" check: the
+  // conversational blocks must still read complete, and the required
+  // Claude outputs must be saved. READY FOR REVIEW alone is not enough —
+  // an empty Retry that only re-saved Artifacts must not look finished
+  // while the checklist still shows 0 / N.
+  const questionsComplete =
+    displayGroups.length === 0 || answered === displayGroups.length;
   const checksReady =
     (awaitingConfirmation || isCompleted) &&
-    requiredOutputArtifactsSaved(moduleKey, artifacts);
+    requiredOutputArtifactsSaved(moduleKey, artifacts) &&
+    questionsComplete;
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
   const previewBody =

@@ -129,7 +129,7 @@ function coverPage(layout: LayoutBuilder, model: ValidationRoadmapModel): void {
   sectionHeading(
     layout,
     "cover.signal_strength_heading",
-    "Expected evidence signal strength",
+    "Expected evidence signal",
   );
   model.signalStrengthAnchors.forEach((anchor, i) => {
     layout.lockedText(
@@ -164,6 +164,26 @@ function coverPage(layout: LayoutBuilder, model: ValidationRoadmapModel): void {
     "cover.start_here_fail",
     "What counts as a fail",
     model.startHere.fail,
+  );
+
+  sectionHeading(layout, "cover.day30_decision_heading", "30-Day Decision");
+  criterionLine(
+    layout,
+    "cover.day30_proceed",
+    "Proceed when",
+    model.day30Decision.proceedWhen,
+  );
+  criterionLine(
+    layout,
+    "cover.day30_refine",
+    "Refine when",
+    model.day30Decision.refineWhen,
+  );
+  criterionLine(
+    layout,
+    "cover.day30_stop",
+    "Stop or re-scope when",
+    model.day30Decision.stopOrRescopeWhen,
   );
 
   sectionHeading(
@@ -220,8 +240,8 @@ function experimentSection(
   criterionLine(
     layout,
     `${prefix}.signal_strength`,
-    "Expected evidence signal strength",
-    String(experiment.signalStrength),
+    "Expected evidence signal",
+    experiment.signalStrength,
   );
   criterionLine(layout, `${prefix}.window`, "30-day window", experiment.window);
 
@@ -431,6 +451,15 @@ export function assertValidationRoadmapPlan(
       model.startHere.fail,
     ],
     "Start Here field",
+  );
+  assertAllPresent(
+    plan,
+    [
+      model.day30Decision.proceedWhen,
+      model.day30Decision.refineWhen,
+      model.day30Decision.stopOrRescopeWhen,
+    ],
+    "30-Day Decision field",
   );
 
   for (const experiment of model.experiments) {

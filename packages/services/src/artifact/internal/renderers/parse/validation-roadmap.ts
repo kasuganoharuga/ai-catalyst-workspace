@@ -21,7 +21,7 @@ export interface Experiment {
   failCondition: string;
   time: string;
   cost: string;
-  signalStrength: number;
+  signalStrength: string;
   window: string;
 }
 
@@ -41,11 +41,23 @@ export interface ValidationRoadmapModel {
     pass: string;
     fail: string;
   };
+  day30Decision: {
+    proceedWhen: string;
+    refineWhen: string;
+    stopOrRescopeWhen: string;
+  };
   howToRecordResults: string;
 }
 
 const SOURCE_FILE = "Validation-Roadmap-30-Day.md";
 const EXPERIMENTS_HEADING = "Experiments";
+const SIGNAL_LABELS = [
+  "Informational",
+  "Clarifying",
+  "Primary",
+  "Behavioural",
+  "Binding",
+] as const;
 const REQUIRED_COLUMNS = [
   "Experiment",
   "Claim tested",
@@ -53,7 +65,7 @@ const REQUIRED_COLUMNS = [
   "Fail condition",
   "Time",
   "Cost",
-  "Expected evidence signal strength (1–5)",
+  "Expected evidence signal",
   "30-day window",
 ] as const;
 
@@ -154,13 +166,13 @@ function parseExperiments(markdown: string): Experiment[] {
       return stripMarkdownEmphasis(raw).trim();
     };
 
-    const signalStrengthRaw = cell("Expected evidence signal strength (1–5)");
-    const signalStrength = Number.parseInt(signalStrengthRaw, 10);
-    if (
-      !Number.isInteger(signalStrength) ||
-      signalStrength < 1 ||
-      signalStrength > 5
-    ) {
+    const signalStrengthRaw = cell("Expected evidence signal");
+    const signalStrength = SIGNAL_LABELS.find(
+      (label) =>
+        normalizeComparisonValue(label) ===
+        normalizeComparisonValue(signalStrengthRaw),
+    );
+    if (!signalStrength) {
       fail(
         `'s "${EXPERIMENTS_HEADING}" table row ${rowIndex + 1} has an invalid signal strength: "${signalStrengthRaw}".`,
       );
@@ -212,7 +224,7 @@ export function parseValidationRoadmap(
   const signalStrengthAnchors = requiredList(
     markdown,
     3,
-    "Expected evidence signal strength",
+    "Expected evidence signal",
     {
       minimum: 5,
       maximum: 5,
@@ -259,6 +271,21 @@ export function parseValidationRoadmap(
     );
   }
 
+  const day30Decision = {
+    proceedWhen: requiredLabel(markdown, "Proceed when", {
+      level: 2,
+      heading: "30-Day Decision",
+    }),
+    refineWhen: requiredLabel(markdown, "Refine when", {
+      level: 2,
+      heading: "30-Day Decision",
+    }),
+    stopOrRescopeWhen: requiredLabel(markdown, "Stop or re-scope when", {
+      level: 2,
+      heading: "30-Day Decision",
+    }),
+  };
+
   const howToRecordResults = requiredSection(
     markdown,
     2,
@@ -278,6 +305,7 @@ export function parseValidationRoadmap(
       string,
     ],
     startHere,
+    day30Decision,
     howToRecordResults,
   };
 }

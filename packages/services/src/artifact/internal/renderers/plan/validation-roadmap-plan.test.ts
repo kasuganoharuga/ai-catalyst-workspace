@@ -29,7 +29,7 @@ const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
       failCondition: "Fewer than 2 of 8 respond within a week",
       time: "4 hours/week",
       cost: "$0",
-      signalStrength: 4,
+      signalStrength: "Behavioural",
       window: "Week 1",
     },
     {
@@ -39,16 +39,16 @@ const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
       failCondition: "Zero leads pay within 2 weeks",
       time: "2 hours/week",
       cost: "$50",
-      signalStrength: 5,
+      signalStrength: "Binding",
       window: "Week 2–3",
     },
   ],
   signalStrengthAnchors: [
-    "1 — produces only general information or weak indirect evidence",
-    "2 — clarifies an assumption but cannot establish customer behaviour",
-    "3 — can produce direct primary evidence from matching customers",
-    "4 — can produce an observable behavioural or commercial demand signal",
-    "5 — can produce a binding commercial commitment or payment",
+    "Informational — produces only general information or weak indirect evidence",
+    "Clarifying — clarifies an assumption but cannot establish customer behaviour",
+    "Primary — can produce direct primary evidence from matching customers",
+    "Behavioural — can produce an observable behavioural or commercial demand signal, including founder-prompted outreach (a CTA click after the Founder sends a page is Behavioural, not Evidence Maturity Level 4)",
+    "Binding — can produce deposit paid, paid pilot signed, contract / PO, or actual payment (a verbal firm start date alone is not Binding)",
   ],
   startHere: {
     whatToDo:
@@ -56,6 +56,13 @@ const TWO_EXPERIMENT_MODEL: ValidationRoadmapModel = {
     whoToContact: "The 8 Melbourne depot contacts, by direct message.",
     pass: "3 of 8 leads send a run sheet within 48 hours",
     fail: "Fewer than 2 of 8 respond within a week",
+  },
+  day30Decision: {
+    proceedWhen:
+      "Repeated pain confirmed, observable demand, and at least one deposit or paid pilot.",
+    refineWhen: "Problem confirmed but demand or segment signals are mixed.",
+    stopOrRescopeWhen:
+      "Narrow segment mostly reports manageable pain or no willingness to act.",
   },
   howToRecordResults:
     "Keep the results with you and bring them into the review that follows.",
@@ -72,7 +79,7 @@ const THREE_EXPERIMENT_MODEL: ValidationRoadmapModel = {
       failCondition: "Fewer than 2 of 20 respond",
       time: "3 hours/week",
       cost: "$0",
-      signalStrength: 3,
+      signalStrength: "Primary",
       window: "Week 3–4",
     },
   ],
@@ -104,14 +111,15 @@ async function extractText(bytes: Buffer, pageNumber: number): Promise<string> {
 }
 
 describe("buildValidationRoadmapPlan — plan structure", () => {
-  it("produces 1 cover + 2 experiments * 2 pages = 5 pages for a 2-experiment model", () => {
+  it("produces cover material + 2 experiments * 2 pages for a 2-experiment model", () => {
     const plan = buildValidationRoadmapPlan(TWO_EXPERIMENT_MODEL, PROVENANCE);
-    expect(plan.pages).toHaveLength(5);
+    // Cover can spill to a second page once 30-Day Decision is included.
+    expect(plan.pages).toHaveLength(6);
   });
 
-  it("produces 1 cover + 3 experiments * 2 pages = 7 pages for a 3-experiment model, and never a blank page", () => {
+  it("produces cover material + 3 experiments * 2 pages for a 3-experiment model, and never a blank page", () => {
     const plan = buildValidationRoadmapPlan(THREE_EXPERIMENT_MODEL, PROVENANCE);
-    expect(plan.pages).toHaveLength(7);
+    expect(plan.pages).toHaveLength(8);
     expect(
       plan.lockedContent.some((e) => e.role.startsWith("experiment_3.")),
     ).toBe(true);
@@ -257,7 +265,7 @@ describe("buildValidationRoadmapPlan -> renderWorkbookPlan — full pipeline", (
     const bytes = await renderWorkbookPlan(plan);
     const doc = await PDFDocument.load(bytes);
 
-    expect(doc.getPageCount()).toBe(5);
+    expect(doc.getPageCount()).toBe(6);
     const fields = doc.getForm().getFields();
     const names = fields.map((f) => f.getName());
     expect(new Set(names).size).toBe(names.length);
