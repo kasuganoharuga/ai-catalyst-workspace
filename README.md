@@ -6,23 +6,25 @@ This repository is a development-ready foundation for the AI Catalyst Founder To
 
 ## V1 Scope
 
-The first version is Skill-first and workspace-ready:
+Skill-first Founder Toolkit with authenticated workspace flows:
 
-- Browse Toolkit modules
-- View module detail pages
-- Reserve future workspace and admin routes
-- Keep FastAPI available for later AI workflow execution
-- Run a Remote MCP Server skeleton (stateless Streamable HTTP, no tools registered yet) that future AI-agent (e.g. Claude) access to the same Toolkit workflows will build on
+- Browse Toolkit modules and work through module attempts
+- Persist progress in PostgreSQL (`module_attempts`, artifacts, interviews, …)
+- Better Auth login / invitations; MCP OAuth for AI-agent clients (e.g. Claude)
+- Remote MCP server (`apps/mcp`) exposing thin tool shells over Streamable HTTP
+- Shared business logic in `packages/services` (web and MCP both call it)
+- FastAPI reserved for future internal AI workflow execution (RAG, generation)
 
-V1 does not include login, databases, file uploads, RAG, investor matching, or live LLM execution.
+V1 does not include investor matching or browser-direct model-provider calls.
 
 ## Stack
 
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
 - Backend: FastAPI, Python (reserved internal AI service)
-- MCP: Remote MCP server, Node/TypeScript (skeleton — see [MCP & Services Architecture](#mcp--services-architecture))
+- MCP: Remote MCP server, Node/TypeScript (see [MCP & Services Architecture](#mcp--services-architecture))
 - Database: PostgreSQL via Docker Compose
-- Content: Markdown + JSON manifest in `packages/toolkit-content`
+- Content: Markdown + JSON manifest in `packages/toolkit-content` (seeded into DB)
+- Observability: `packages/observability` (JSON logs + redaction); Sentry optional via DSN
 - Tooling: Docker Compose for backend services, GitHub Actions CI
 
 ## Prerequisites
@@ -161,7 +163,7 @@ Developer → GitHub → Actions → ECR → ECS Fargate → ALB
                                       → RDS / S3 / SES / Secrets Manager
 ```
 
-- `develop` → Staging, `main` → Production (isolated buckets, RDS, secrets).
+- `develop` → Staging. The previous AWS production environment has been retired (`main` has no deploy target until a new prod stack exists).
 - Artifact downloads default to permissioned backend streaming, not browser → signed URL → S3.
 - Local/CI keep `STORAGE_PROVIDER=local` and `EMAIL_PROVIDER=noop`.
 
@@ -169,42 +171,45 @@ Developer → GitHub → Actions → ECR → ECS Fargate → ALB
 
 ```text
 apps/
-  web/              Next.js full-stack app for the V1 product
-  api/              Reserved FastAPI service for future AI workflows (internal only, see below)
-  mcp/              Remote MCP Server skeleton — stateless Streamable HTTP over /mcp, no tools registered yet
+  web/              Next.js full-stack product (pages + thin route handlers)
+  api/              Reserved FastAPI internal AI service
+  mcp/              Remote MCP server — Streamable HTTP over /mcp, thin tool shells
 packages/
-  toolkit-content/  Module metadata, markdown, Skills, templates, and examples
+  toolkit-content/  Module metadata, markdown, Skills, templates (seed-time only)
   shared/           Shared TypeScript types
-  services/         Reserved Application Service Layer — the single home for business logic (scaffold, no logic yet)
+  contracts/        Cross-cutting types (e.g. ActorContext)
+  services/         Application Service Layer — sole home for business logic
+  observability/    JSON logger, SERVICE_NAME constants, PII redaction (leaf)
+  db/               pg pool + migration runner (leaf)
+  clients/          Outbound HTTP clients to apps/api (scaffold until AI calls land)
 infra/
   docker/           Local Docker Compose setup
-  aws/              AWS Staging prep (Terraform, SES, S3, deploy runbook)
+  aws/              AWS Staging (Terraform, SES, S3, deploy runbook)
+  database/         SQL migrations
 ```
 
 ## Architecture Direction
 
-Next.js is the primary V1 full-stack application. It reads Toolkit content from `packages/toolkit-content` (the `manifest.json` is the source of truth) and serves the browsing and download experience.
+Next.js is the primary full-stack application. Toolkit catalog content is seeded from `packages/toolkit-content` into PostgreSQL at deploy/migrate time; runtime product paths go through `packages/services`, not disk reads of the content package.
 
-FastAPI is intentionally minimal in V1. It reserves the path for future AI orchestration, file processing, RAG, and artefact generation without duplicating the Toolkit data path. It ships with settings, logging, request-id, CORS, and error-handling infrastructure so future workflow endpoints have a stable foundation.
+FastAPI stays minimal in V1. It reserves the path for future AI orchestration, file processing, RAG, and artefact generation without duplicating the Toolkit data path. It ships with settings, JSON logging, request-id, CORS, and error-handling infrastructure so future workflow endpoints have a stable foundation.
 
 ## Service Boundary
 
-Next.js owns the product experience and product data (pages, Toolkit reads, Skill downloads, future workspace/admin). FastAPI owns AI/RAG/file-processing logic and should not become the general product backend. In V1 the browser never talks to model providers directly.
+Next.js owns the product experience (pages, auth, workspace/admin shells). FastAPI owns future AI/RAG/file-processing logic and must not become the general product backend. The browser never talks to model providers directly.
 
 ## MCP & Services Architecture
 
-`apps/mcp` is a stateless Streamable HTTP MCP server skeleton: a single `/mcp` endpoint (`POST` only — `GET`/`DELETE` return 405, since there's no session to resume or terminate), a `/health` check, and an empty `tools/list` — no real tools, resources, or prompts are registered yet, and it doesn't call `packages/services` yet either. It runs as its own container in `infra/docker/docker-compose.yml` (`pnpm docker:up` builds and starts it on `http://127.0.0.1:8787`). `packages/services` is still a structure-only scaffold (`package.json` + `tsconfig.json`, no implementation).
+`apps/mcp` is a standalone Streamable HTTP MCP server: a single `/mcp` endpoint (`POST` for MCP; unauthenticated calls return 401), `GET /health`, OAuth protected-resource metadata, and thin tool handlers that call `packages/services`. It runs as its own container in `infra/docker/docker-compose.yml` (`pnpm docker:up` → `http://127.0.0.1:8787`).
 
-Once fully implemented, the layering is:
+| Layer               | Owns                                                                                                                                                                                         |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                    |
+| `apps/mcp`          | Remote MCP server for AI-agent clients (e.g. Claude): tool shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                                   |
+| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit, interview, …) — both `apps/web` and `apps/mcp` call into this layer; only it may call `apps/api` |
+| `apps/api`          | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself           |
 
-| Layer               | Owns                                                                                                                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                        |
-| `apps/mcp`          | Remote MCP server for AI-agent clients (e.g. Claude): tool/resource/prompt shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                       |
-| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit) — both `apps/web` and `apps/mcp` call into this layer; it is the only thing that may call `apps/api` |
-| `apps/api`          | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself               |
-
-Framework rules once this is implemented:
+Framework rules:
 
 1. **No duplicate business logic.** `apps/web` route handlers and `apps/mcp` tool handlers both validate input and delegate to the same `packages/services` function — never two implementations of the same operation.
 2. **FastAPI is internal-only.** `packages/services → apps/api`, never `apps/web`/`apps/mcp → apps/api` directly, and FastAPI never writes business tables.
@@ -214,7 +219,9 @@ Framework rules once this is implemented:
 
 Official artifact validation is never exposed as an MCP tool — schema check constraints already gate it so it can't be MCP-triggered; MCP only ever exposes the non-authoritative `run_draft_check` path.
 
-Toolkit content is read at seed time only (`packages/services/src/content-seed/`); the public Skill-download gallery that used to read it at request time has been retired.
+Toolkit content is read at seed time only (`packages/services/src/content-seed/`).
+
+**Observability note:** process containers set `SERVICE_NAME` to `aicatalyst-web` / `aicatalyst-api` / `aicatalyst-mcp`. Library code in `packages/services` logs with `service: aicatalyst-services` so business-layer events stay filterable even when they run inside a web or MCP process. Domain history lives in Postgres (`module_events`); MCP tool audit is a separate best-effort table (`mcp_tool_audit_logs`) — do not merge the two.
 
 ## Frontend Conventions
 
@@ -222,6 +229,10 @@ Toolkit content is read at seed time only (`packages/services/src/content-seed/`
 - Add UI components with `pnpm dlx shadcn@latest add <component>` (primitives live in `apps/web/components/ui`).
 - Design tokens live in `apps/web/app/globals.css` and use the shadcn neutral theme; prefer semantic tokens over hardcoded colors.
 - Pages compose components and read content via `apps/web/lib` helpers; keep route handlers thin.
+
+## Code comments
+
+Prefer short **why** over restating **what**. File headers and non-obvious JSDoc stay in the 2–4 line range; field notes are usually one line. Keep security, lock-ordering, and state-machine invariants. Use `// --- Name ---` for section banners. Domain deep-dives belong in READMEs (e.g. `apps/web/lib/mcp-oauth-compat/`), not in every source file.
 
 ## Development Workflow
 

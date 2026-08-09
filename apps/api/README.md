@@ -1,30 +1,11 @@
 # AI Catalyst API
 
-Reserved FastAPI service for future AI workflow execution, file processing, and RAG features.
+Reserved FastAPI internal AI service (generation / rendering / RAG). Product
+boundaries live in the [root README](../../README.md) — this app must not become
+the general product backend, and must not write business tables.
 
-V1 uses Next.js as the primary full-stack application. This service intentionally exposes only a health check and an AI test stub.
-
-## Backend Foundation
-
-The API includes lightweight production-oriented infrastructure:
-
-- Settings are loaded from `.env` through `pydantic-settings`.
-- Logging uses Python's standard library and is controlled by `LOG_LEVEL`.
-- Every request gets an `X-Request-ID` response header.
-- Validation, HTTP, and unhandled errors return a consistent error envelope.
-- CORS origins are configured through `CORS_ORIGINS`.
-
-Error responses use this shape:
-
-```json
-{
-  "error": {
-    "code": "HTTP_ERROR",
-    "message": "Not Found",
-    "request_id": "..."
-  }
-}
-```
+V1 exposes a health check and an AI test stub, plus settings, JSON logging,
+request-id, CORS, and a consistent error envelope.
 
 ## Development
 
@@ -35,9 +16,11 @@ pip install -r requirements.txt
 python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
+Or from the repo root: `pnpm dev:api` / `pnpm dev`.
+
 ## Environment
 
-Copy `.env.example` to `.env` for local overrides.
+Copy [`.env.example`](.env.example) to `.env`.
 
 Key variables:
 
@@ -49,3 +32,5 @@ Key variables:
 - `CORS_ORIGINS`
 - `AI_PROVIDER`
 - `AI_API_KEY`
+- `SENTRY_DSN` (optional)
+- `RELEASE` / `GIT_SHA` (optional)

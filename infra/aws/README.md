@@ -55,19 +55,21 @@ Region default: `ap-southeast-2`. Pushing `main` does not deploy — see
 
 ## Modules
 
-| Module        | README                                                                         |
-| ------------- | ------------------------------------------------------------------------------ |
-| vpc           | [modules/vpc](terraform/modules/vpc/README.md)                                 |
-| alb           | [modules/alb](terraform/modules/alb/README.md)                                 |
-| ecr           | [modules/ecr](terraform/modules/ecr/README.md)                                 |
-| ecs_cluster   | [modules/ecs_cluster](terraform/modules/ecs_cluster/README.md)                 |
-| ecs_service   | [modules/ecs_service](terraform/modules/ecs_service/README.md) (parameterized) |
-| rds           | [modules/rds](terraform/modules/rds/README.md)                                 |
-| s3            | [modules/s3](terraform/modules/s3/README.md)                                   |
-| iam           | [modules/iam](terraform/modules/iam/README.md) (separate Task/Execution roles) |
-| ses           | [modules/ses](terraform/modules/ses/README.md)                                 |
-| secrets       | [modules/secrets](terraform/modules/secrets/README.md)                         |
-| observability | [modules/observability](terraform/modules/observability/README.md)             |
+Sources under [`terraform/modules`](terraform/modules). Summary (no per-module README stubs):
+
+| Module          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `vpc`           | Private + public subnets for ECS (public ALB) and RDS (private). Inputs: `name`, `cidr_block`, `azs`. Outputs: `vpc_id`, `public_subnet_ids`, `private_subnet_ids`.                                                                                                                                                                                                                                                                          |
+| `alb`           | Public ALB with target groups for `web` (3000) and `mcp` (8787). `api` stays private. Pass `certificate_arn` when ACM is ready for HTTPS.                                                                                                                                                                                                                                                                                                    |
+| `ecr`           | ECR repositories for `web`, `api`, `mcp`.                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `ecs_cluster`   | Single ECS cluster per environment (Container Insights enabled in staging wiring).                                                                                                                                                                                                                                                                                                                                                           |
+| `ecs_service`   | Parameterized Fargate service — instantiate once per container. Inputs include `name`, `cluster_arn`, `subnet_ids`, `security_group_ids`, `cpu`, `memory`, `container_port`, `image`, roles, `desired_count`, `environment`, optional `target_group_arn`. Outputs: `service_name`, `task_definition_arn`. Log groups: `/ecs/<service-name>`.                                                                                                 |
+| `rds`           | PostgreSQL 17 in private subnets. Password from Secrets Manager in real apply.                                                                                                                                                                                                                                                                                                                                                               |
+| `s3`            | Private artifact bucket (SSE, block public, versioning). Staging bucket names never shared with a future prod stack.                                                                                                                                                                                                                                                                                                                         |
+| `iam`           | Least-privilege ECS roles. **ExecutionRole**: ECR pull, CloudWatch logs, Secrets Manager inject. **TaskRole** (per service): S3 R/W, SES send, Secrets read. Outputs: `execution_role_arn`, `task_role_arns`.                                                                                                                                                                                                                                |
+| `ses`           | SESv2 email identity. Stay in sandbox until AWS approves production access; verify DKIM after apply.                                                                                                                                                                                                                                                                                                                                         |
+| `secrets`       | Secrets Manager placeholders for `database-url`, `better-auth-secret`, optional `oauth`. SES uses task-role credentials, not a static secret.                                                                                                                                                                                                                                                                                                |
+| `observability` | Shared SNS topic + P0 CloudWatch alarms. Per-service log groups stay owned by `ecs_service`. Adds: optional email on SNS; ALB unhealthy-host + 5xx (with min request volume); ECS CPU/memory (sustained 5m) + running-count; log metric filters on JSON `event` names (`module_checklist_state_mismatch`, `mcp_tool_failed`) on **web and mcp** log groups. API 5xx is not ALB-backed — use ECS/Sentry/logs until an internal metric exists. |
 
 ## Secrets & rotation
 
@@ -85,16 +87,17 @@ Providers never read `process.env` themselves. App wiring builds:
 - `StorageConfig` via `loadStorageConfigFromEnv` → `resolveProvider(config)`
 - `EmailConfig` via `loadEmailConfigFromEnv` → `createEmailSenderFromConfig`
 
-| Variable                        | Staging                 | Local default               |
-| ------------------------------- | ----------------------- | --------------------------- |
-| `STORAGE_PROVIDER`              | `s3`                    | `local`                     |
-| `STORAGE_CONTAINER`             | staging bucket          | n/a (`local-development`)   |
-| `EMAIL_PROVIDER`                | `ses` / `noop`          | `noop`                      |
-| `EMAIL_FROM`                    | staging identity        | —                           |
-| `AUTH_ISSUER_URL`               | `https://staging…`      | `http://localhost:3000`     |
-| `MCP_RESOURCE_URL`              | `https://staging…/mcp`  | `http://localhost:8787/mcp` |
-| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                  | unset                       |
-| `GOTENBERG_URL`                 | Cloud Map Gotenberg URL | `http://127.0.0.1:3001`     |
+| Variable                        | Staging                    | Local default               |
+| ------------------------------- | -------------------------- | --------------------------- |
+| `STORAGE_PROVIDER`              | `s3`                       | `local`                     |
+| `STORAGE_CONTAINER`             | staging bucket             | n/a (`local-development`)   |
+| `EMAIL_PROVIDER`                | `ses` / `noop`             | `noop`                      |
+| `EMAIL_FROM`                    | staging identity           | —                           |
+| `AUTH_ISSUER_URL`               | `https://staging…`         | `http://localhost:3000`     |
+| `MCP_RESOURCE_URL`              | `https://staging…/mcp`     | `http://localhost:8787/mcp` |
+| `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                     | unset                       |
+| `GOTENBERG_URL`                 | Cloud Map Gotenberg URL    | `http://127.0.0.1:3001`     |
+| `APP_ENV` / `SERVICE_NAME`      | `staging` / `aicatalyst-*` | `local` / unset             |
 
 ## Validate without applying
 
