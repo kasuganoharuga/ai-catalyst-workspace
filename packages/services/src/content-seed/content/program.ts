@@ -1,31 +1,8 @@
 import type { ProgramContent } from "../types.js";
 
-// version_number and version_label are fixed here rather than computed at
-// seed time, so a version's identity never depends on what else has been
-// created before it.
-//
-// This is a program_versions row under program_key "founder-toolkit-v1"
-// (content revision). It is not a second overall product Program — a future
-// product-line V2 would be a new programs.program_key.
-//
-// versionNumber/versionLabel are meant to stay fixed at 1/"v1" for the
-// entire living-V1 period — versionLabel is upsertProgramVersion's lookup
-// key, so changing it mid-stream would create a second program_versions
-// row instead of reconciling this one. They only move to 2/a new label
-// once V1 is frozen (`pnpm db:freeze`) and a genuinely new version starts;
-// see freeze-cli.ts's own printed runbook for that sequence. Until then,
-// every content edit — including this file's own releaseNotes below —
-// lands on this same row via db:seed, because contentLock is "mutable".
-//
-// This is the changelog for the living V1 row, editable in place — add a
-// new entry at the top on every content change from now on, the same way
-// a CHANGELOG.md would be updated, rather than writing a new
-// program_versions row per edit. It replaces the old per-version
-// releaseNotes text v1-v6 each carried (those program_versions rows,
-// and the release notes describing them, existed under the old
-// "one program_version per content revision" scheme this rollout
-// replaces — see infra/database/migrations/0012_content_lock.sql's own
-// comments for why).
+// versionNumber/versionLabel are fixed constants — versionLabel is the upsert lookup key.
+// Stay at 1/"v1" for living V1; bump only after db:freeze starts a new frozen generation.
+// releaseNotes below is the in-place changelog for this row, not per-edit program_versions.
 const V1_CHANGELOG = [
   "## Module 4 QA — source prerequisite, submit set, Evidence PDF, prompt fidelity",
   "interview_evidence is optional for official validators (is_required=false); complete_module still ",

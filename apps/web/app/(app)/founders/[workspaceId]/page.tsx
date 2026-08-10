@@ -151,13 +151,7 @@ export default async function MentorFounderDetailPage({
 }
 
 /**
- * One Module's row in a Founder's progress list — the same identity
- * treatment as the Founder Dashboard's own ModuleStatusCard (accent-coloured
- * sequence badge, title, status pill), condensed to a single row since a
- * Mentor is scanning six or seven of these at once rather than opening one.
- * Attempt-level sub-states ("Checking your work", "Needs another go") need
- * an Attempt status this page deliberately does not fetch — a Mentor sees
- * where the module stands, not the Founder's in-flight drafting.
+ * Condensed ModuleStatusCard row for Mentor scanning — no Attempt sub-states (this page does not fetch Attempt status).
  */
 function ModuleProgressRow({
   module,

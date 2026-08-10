@@ -10,9 +10,7 @@ export type ModuleCompletionMode =
   "artifact" | "confirmation" | "artifact_and_confirmation" | "system";
 
 /**
- * Section checklist for an expected artefact, derived from ## headings in
- * the Artifact Definition's `output_config.templateMarkdown`. `items` is
- * reserved for a denser outline later; V1 keeps it empty.
+ * Outline from template ## headings; items reserved for denser outline later.
  */
 export interface ModuleCatalogArtifactOutlineSection {
   heading: string;
@@ -26,21 +24,10 @@ export interface ModuleCatalogArtifact {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
-  /**
-   * False for supporting artefacts a Module accepts but never blocks on (e.g.
-   * Module 4's interview notes). Carried here so the pre-run catalog preview
-   * can say "optional" instead of assuming everything is required.
-   */
+  /** False for supporting artefacts that never block completion (e.g. Module 4 notes). */
   isRequired: boolean;
   outline: ModuleCatalogArtifactOutlineSection[];
-  /**
-   * Whether this Artifact Definition has a `rendererKey` configured at all —
-   * a catalog-level fact with no Attempt binding, so it can never say
-   * whether a *confirmed* version actually exists yet (that needs an
-   * Attempt; see ModuleContextArtifactSummary.workbookAvailable below).
-   * `rendererKey` itself stays server-side; no client code should ever have
-   * to recognise a specific renderer key.
-   */
+  /** rendererKey configured at catalog scope — confirmed workbook needs an Attempt. */
   workbookSupported: boolean;
   workbookFormat: WorkbookFormat | null;
 }

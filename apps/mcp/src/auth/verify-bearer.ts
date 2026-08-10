@@ -8,10 +8,7 @@ import { verifyMcpBearerToken } from "@ai-catalyst/services/mcp-auth";
 
 const log = loggerForService(SERVICE_NAMES.mcp);
 
-// The standard way to extend Express's Request type without a direct
-// dependency on the transitive `@types/express-serve-static-core` package
-// (module augmentation must target a module specifier this app can resolve
-// on its own).
+// Express Request augmentation without a direct @types/express-serve-static-core dependency.
 declare global {
   namespace Express {
     interface Request {
@@ -22,18 +19,9 @@ declare global {
 }
 
 export interface VerifyBearerOptions {
-  /**
-   * Absolute URL of this Resource Server's own
-   * `/.well-known/oauth-protected-resource` document (RFC 9728) — sent back
-   * in every 401/403's `WWW-Authenticate` header so a compliant client can
-   * discover which Authorization Server to use without being told out of
-   * band.
-   */
+  /** RFC 9728 protected-resource URL — sent in 401/403 WWW-Authenticate for AS discovery. */
   protectedResourceMetadataUrl: string;
-  /**
-   * Swappable for tests — defaults to the real
-   * `@ai-catalyst/services/mcp-auth` verification (a real database lookup).
-   */
+  /** Swappable for tests; defaults to verifyMcpBearerToken (DB lookup). */
   verify?: (rawToken: unknown) => Promise<ActorContext>;
 }
 
@@ -54,9 +42,7 @@ function jsonRpcAuthError(message: string) {
   };
 }
 
-// RFC 9728 discovery challenge, present on every 401/403 this middleware
-// returns — this is what lets an MCP client that only knows this server's
-// URL find the Authorization Server (apps/web) on its own.
+// RFC 9728 challenge on every 401/403 — lets MCP clients discover the Authorization Server.
 function resourceMetadataChallenge(
   protectedResourceMetadataUrl: string,
   extra?: string,
@@ -105,14 +91,7 @@ export function verifyBearerToken(
         }
 
         if (error instanceof ServiceError && error.code === "FORBIDDEN") {
-          // The /mcp/authorize before-hook (apps/web/lib/mcp-oauth-compat)
-          // always force-normalizes the granted scope to exactly
-          // "mcp:connect offline_access", so the missing-scope branch of
-          // verifyMcpBearerToken is only reachable via direct database
-          // tampering — but its error message is still distinct and
-          // checked here so a real client would still get an accurate
-          // RFC 6750 `insufficient_scope` challenge, not a generic 403, in
-          // that case.
+          // Scope errors get RFC 6750 insufficient_scope; otherwise generic 403 (see mcp-oauth-compat authorize hook).
           const isScopeError = error.message.includes("mcp:connect scope");
           res
             .status(403)

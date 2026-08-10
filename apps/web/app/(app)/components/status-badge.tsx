@@ -6,15 +6,7 @@ import {
   type StatusTone,
 } from "../lib/module-display";
 
-// States are told apart by fill, not by extra hues: the chrome stays ink /
-// white / lime, and the badge earns its emphasis from whether it is solid,
-// outlined, or flat grey.
-//
-// Solid lime marks the module that wants the founder's attention right
-// now — the same signal the dashboard's next-action button uses. Finished
-// work takes the module's own accent instead (see the "module" tone
-// below), which reads as settled and ties the badge back to the number
-// beside it, leaving lime free to mean "do this next".
+// Fill/outlined/flat grey distinguish states — lime solid = "do this next"; completed uses module accent (see "module" tone).
 const TONE_CLASSES: Record<Exclude<StatusTone, "module">, string> = {
   muted: "bg-muted text-muted-foreground",
   outline: "border border-foreground/25 text-foreground",

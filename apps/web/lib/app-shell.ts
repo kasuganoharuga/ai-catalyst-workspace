@@ -19,24 +19,11 @@ export type AppShellUser = {
   role: "founder" | "mentor";
   displayName: string;
   email: string;
-  /**
-   * Shown under the name in the sidebar — what a Venture is to a Founder, a
-   * count of Founders is to a Mentor. One field rather than two optional
-   * ones because AppSidebar renders exactly one subtitle regardless of
-   * role; which sentence fills it is decided here, once, rather than by
-   * the sidebar component branching on role a second time.
-   */
+  /** Sidebar subtitle — venture name for Founders, founder count for Mentors. */
   subtitle: string;
-  /**
-   * Null for a Mentor: the first-run onboarding dialog (assistant choice,
-   * invitation password, name) is a Founder-only concept, and this field is
-   * exactly what the layout keys that dialog's visibility off. Never
-   * fetched for a Mentor in the first place, rather than fetched and
-   * ignored.
-   */
+  /** Founder-only onboarding input; null for Mentors (never fetched). */
   preferredAiProvider: PreferredAiProvider | null;
-  /** Both name parts present. Decides whether the onboarding dialog asks
-   * for them — meaningless for a Mentor, who never sees that dialog. */
+  /** Both name parts present; drives Founder onboarding dialog visibility. */
   hasName: boolean;
 };
 
@@ -55,14 +42,9 @@ async function loadFounderShellUser(): Promise<AppShellUser> {
     role: "founder",
     displayName: resolveDisplayName(profile, session.user.name),
     email: session.user.email,
-    // "Venture" is the database's word for it. Founders have ideas — the
-    // whole Workspace page is written that way (see workspaceCopy), and
-    // this sits under their name on every single screen, so it was the most
-    // visible place the internal noun was still showing.
     subtitle: venture?.name ?? "No idea selected",
     preferredAiProvider: profile.preferredAiProvider,
-    // Same test as the dashboard's "Set up your profile" card, so the two
-    // never disagree about whether the founder still owes us a name.
+    // Same test as dashboard profile card — keep dialog and card in sync.
     hasName: Boolean(profile.firstName?.trim() && profile.lastName?.trim()),
   };
 }
@@ -89,11 +71,8 @@ async function loadMentorShellUser(): Promise<AppShellUser> {
 }
 
 /**
- * Loads the signed-in user's sidebar data for the shared (app) shell.
- * `role` is supplied by the caller (the layout already knows it from
- * requireFounderOrMentorUser) rather than re-derived here, so this never
- * has to make its own authorization decision — it only decides which of
- * the two role-specific loaders to run.
+ * Loads sidebar data for the shared (app) shell.
+ * Caller supplies `role` from layout guards — this only picks the role-specific loader.
  */
 export const loadAppShellUser = cache(
   async (role: "founder" | "mentor"): Promise<AppShellUser> => {

@@ -3,13 +3,8 @@ import { NextResponse } from "next/server";
 import { safeReturnTo } from "@/lib/safe-return-to";
 
 /**
- * mcp() loginPage target. Better Auth appends the full authorize query here
- * when signed out; this route folds it into `returnTo` so sign-in can resume
- * `/api/auth/mcp/authorize`, and clears the oidc_login_prompt replay cookie
- * (that path bypasses our authorize before-hook).
- *
- * Route Handler (not a page) so we can clear cookies. ChatGPT always hits
- * this path (isolated browser, no session); Claude usually skips it.
+ * mcp() loginPage: folds Better Auth authorize query into returnTo and clears oidc_login_prompt cookie.
+ * Route Handler (not page) for cookie clearing; ChatGPT always hits this, Claude usually skips.
  */
 export const runtime = "nodejs";
 

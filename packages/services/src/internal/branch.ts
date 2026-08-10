@@ -9,15 +9,9 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 // authenticated actor.
 export type BranchCreatedVia = "website" | "admin" | "system";
 
-// Listed under "./internal/branch" in package.json only so Turbopack can
-// resolve this module's cross-file imports (see internal/slug.ts for why) —
-// not part of the intended public API.
+// package.json export: Turbopack cross-file resolution only — not public API (see internal/slug.ts).
 //
-// An exhaustive switch (not a lookup with a silent default) so that if
-// `assertRole` for a Branch-creating call is ever loosened to admit a role
-// this mapping doesn't explicitly handle, that caller fails loudly with a
-// ServiceError instead of the Branch silently recording the wrong
-// created_via provenance for a source nobody has reviewed.
+// Exhaustive switch so a newly admitted role fails loudly instead of recording wrong created_via.
 export function mapBranchCreatedVia(role: ActorRole): BranchCreatedVia {
   switch (role) {
     case "founder":

@@ -16,43 +16,21 @@ import {
   type NextModuleUnlocked,
 } from "@ai-catalyst/services/module/completion";
 
-// Runs the setup Module (Module 0) to completion on the Founder's behalf,
-// server-side, so they never see it.
-//
-// Why this is not "skipping a step": Module 0 has no questions and
-// `completion_mode = 'system'`, and its one Artifact is rendered entirely
-// by renderSetupSummaryMarkdown from facts the platform already knows —
-// workspace, venture, run, and the outcome of a real storage write /
-// read-back / hash check. There is nothing in it for a Founder to decide,
-// so asking them to open Claude, wait for a document about their own
-// storage configuration, read it, and press Confirm was pure ceremony.
-// The checks themselves still happen here, through exactly the same
-// Attempt → submit → official validation → confirm path a Founder-driven
-// completion takes; only the human round trip is gone.
-//
-// Deliberately never throws for a state it can reasonably encounter.
-// This runs inline on the "open my programme" path, and a founder who has
-// just connected Claude must not be blocked by a setup summary failing to
-// render — the caller decides whether a failure is worth surfacing. Real
-// auth failures (no founder role, no workspace) still propagate, because
-// those mean the caller had no business making the call.
+// Completes setup Module (Module 0) server-side — real Attempt path, no Founder round trip.
+// Never throws for recoverable states; runs inline on "open my programme".
 
 export type AutoSetupResult =
-  // Completed by this call. `nextModuleUnlocked` is what the Founder
-  // should actually land on.
+  // Completed by this call.
   | {
       status: "completed";
       programRunModuleId: string;
       nextModuleUnlocked: NextModuleUnlocked | null;
     }
-  // Already done before this call — the common case on every visit after
-  // the first. Not an error, and not worth re-running.
+  // Already completed — common case after first visit.
   | { status: "already_completed"; programRunModuleId: string }
-  // This Run has no setup Module at all (a Program Version published
-  // without one). Nothing to do.
+  // No setup Module in this Program Version.
   | { status: "not_applicable" }
-  // Something went wrong that the Founder may need to know about. `reason`
-  // is diagnostic text for logs, not copy to show verbatim.
+  // Failed — reason is for logs, not user-facing copy.
   | { status: "failed"; reason: string; code: string | null };
 
 export interface AutoCompleteSetupModuleInput {
@@ -65,9 +43,7 @@ interface SetupRunModuleRow {
   active_attempt_id: string | null;
 }
 
-// Attempt statuses from which no further progress can be made without
-// opening a new Attempt. `validation_failed` is included: the Attempt is
-// finished, it just finished badly.
+// Terminal Attempt statuses — no further progress without a new Attempt.
 const TERMINAL_ATTEMPT_STATUSES: ReadonlySet<ModuleAttemptStatus> = new Set([
   "accepted",
   "rejected",
@@ -75,11 +51,7 @@ const TERMINAL_ATTEMPT_STATUSES: ReadonlySet<ModuleAttemptStatus> = new Set([
   "validation_failed",
 ]);
 
-// Scoped to the Run's active Branch: a Run that has been branched has more
-// than one snapshot of Module 0, and only the live one matters. The
-// `active_branch_id is null` arm covers the window inside
-// getOrCreateProgramRun where the Branch rows exist but the Run has not
-// been pointed at one yet.
+// Active Branch only — covers getOrCreateProgramRun window before active_branch_id is set.
 async function loadSetupRunModule(
   programRunId: string,
   workspaceId: string,
@@ -113,14 +85,7 @@ async function loadAttemptStatus(
 }
 
 /**
- * Completes this Run's setup Module without Founder involvement, and
- * returns what it unlocked.
- *
- * Idempotent at every stage, because it runs on a path the Founder can
- * re-enter freely (refresh, second tab, clicking Continue twice): an
- * already-completed Module short-circuits, an in-flight Attempt is resumed
- * rather than duplicated, and both `completeModuleAttempt` and
- * `confirmModuleCompletion` have their own replay short-circuits.
+ * Completes setup Module without Founder involvement. Idempotent — safe for refresh/double-click.
  */
 export async function autoCompleteSetupModule(
   actor: ActorContext,
@@ -140,9 +105,7 @@ export async function autoCompleteSetupModule(
   if (runModule.status === "completed") {
     return { status: "already_completed", programRunModuleId: runModule.id };
   }
-  // 'locked' or 'inherited' on a sequence-index-0 Module means the Run was
-  // built by something other than getOrCreateProgramRun. Report it rather
-  // than trying to force it open.
+  // locked/inherited on sequence-0 means Run was not created by getOrCreateProgramRun.
   if (runModule.status !== "available" && runModule.status !== "in_progress") {
     return {
       status: "failed",
@@ -157,9 +120,7 @@ export async function autoCompleteSetupModule(
       ? await loadAttemptStatus(attemptId, workspace.id)
       : null;
 
-    // No live Attempt to work with — open one. startOrResumeAttempt covers
-    // both the first-ever Initial Attempt and the Retry-after-failure case,
-    // and picks its own retry source, so there is nothing to decide here.
+    // No live Attempt — startOrResumeAttempt handles first attempt and retry.
     if (
       attemptId === null ||
       attemptStatus === null ||
@@ -172,8 +133,7 @@ export async function autoCompleteSetupModule(
       attemptStatus = started.attempt.status;
     }
 
-    // Already validated and waiting on a signature — skip straight to it.
-    // Re-running completeModuleAttempt here would be harmless but pointless.
+    // ready_for_review — skip completeModuleAttempt, go straight to confirm.
     if (attemptStatus !== "ready_for_review") {
       const completion = await completeModuleAttempt(actor, { attemptId });
       if (!completion.passed) {
@@ -203,9 +163,7 @@ export async function autoCompleteSetupModule(
     if (error instanceof ServiceError) {
       return { status: "failed", reason: error.message, code: error.code };
     }
-    // An unexpected failure here is a platform problem, not the Founder's
-    // — log it with enough context to find the Run, and let the caller
-    // degrade gracefully.
+    // Unexpected failure — log with context; caller degrades gracefully.
     log.error({
       event: "setup_module_auto_complete_failed",
       message: "autoCompleteSetupModule failed unexpectedly",

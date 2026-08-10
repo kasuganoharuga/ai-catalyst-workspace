@@ -8,18 +8,8 @@ import { cn } from "@/lib/utils";
 import { onboardingCopy } from "../../lib/copy";
 
 /**
- * The only step with nothing to save.
- *
- * It exists because the three that follow ask for things — a name, a new
- * password, a product choice — without ever having said what any of it is
- * for. Nothing here is persisted, so it reappears until the founder
- * finishes the run; that is the right trade for a screen this short.
- *
- * The arc is drawn rather than written. A founder one click into a product
- * they have already been accepted onto will not read a paragraph about how
- * modules work, and three labels carry the same shape in a glance. The end
- * node is the only one in lime: it is the thing they are here for, and the
- * two before it are the route.
+ * Orientation only — nothing persisted. Visual journey arc instead of prose;
+ * the end node is lime because it is what the founder is here for.
  */
 export function WelcomeStep({ onDone }: { onDone: () => void }) {
   const { start, middle, end } = onboardingCopy.welcomeJourney;
@@ -79,7 +69,7 @@ function JourneyNode({
   );
 }
 
-/** Sits level with the icons, not the labels, so the row reads as a line. */
+/** Aligned with icons, not labels. */
 function Arrow() {
   return (
     <ChevronRight

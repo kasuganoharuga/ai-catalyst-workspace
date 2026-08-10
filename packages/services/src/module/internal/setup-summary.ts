@@ -1,14 +1,6 @@
-// Renders Module 0's `Founder-Toolkit-Setup-Summary.md` — a pure,
-// DB/Storage-free function (same "pure function" convention as the
-// Validators in artifact/internal/validators) so it can be unit-tested
-// without a database. Mirrors the structure of
-// content-seed/content/module-0.ts's own SETUP_SUMMARY_TEMPLATE (kept as
-// a plain literal here rather than parsed from that stored template
-// string — there is exactly one caller, and hand-written Markdown is far
-// less fragile than templating a "- Label:" bullet list at runtime).
-//
-// Does not embed this document's own SHA-256 — bytes are not known until after save.
-// The Platform Storage section describes verification outcome in words instead.
+// --- Module 0 setup summary ---
+// Pure Markdown renderer for unit tests — mirrors module-0.ts template shape
+// as a literal (one caller). No self SHA-256; bytes unknown until after save.
 
 export interface SetupSummaryRenderInput {
   workspaceName: string;

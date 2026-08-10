@@ -30,23 +30,13 @@ import { resolveProvider as resolveProviderFromConfig } from "@ai-catalyst/servi
 
 import type { StorageProvider } from "./types.js";
 
-// StorageService owns `storage_objects` business state: authorization and
-// the pending → uploaded → verified choreography. Apps call into this
-// module; they do not re-implement it. The column name is `upload_status`
-// (not `status`) to match the baseline schema check constraint.
-//
-// Local provider is for single-process / test use. Staging and Production
-// inject `STORAGE_PROVIDER=s3` via StorageConfig. Artifact downloads use
-// getObject (stream through the backend), not createDownloadUrl.
+// Owns storage_objects business state (auth + pending→uploaded→verified).
+// Local provider for dev/test; staging/prod use STORAGE_PROVIDER=s3.
 
 export type QueryExecutor = Pool | PoolClient;
 
 export interface StorageServiceDependencies {
-  // Test-only seam: production builds a provider from StorageConfig
-  // (created lazily so nothing touches the filesystem / network at
-  // import time). Lets tests substitute a fake StorageProvider to
-  // deterministically exercise failure paths — same DI pattern as
-  // module/catalog.ts's ModuleCatalogDependencies.
+  // Test-only DI seam for a fake StorageProvider (same pattern as ModuleCatalogDependencies).
   provider?: StorageProvider;
   /** Override config used when `provider` is omitted (tests / custom roots). */
   storageConfig?: StorageConfig;
@@ -277,13 +267,8 @@ async function fetchStorageObjectRow(
   return result.rows[0] ?? null;
 }
 
-// system actors are trusted to state their target Workspace directly (no
-// further check is possible — there is no "system's own Workspace" to
-// compare against); a founder actor's own reachable Workspace is always
-// resolved and compared, so a cross-Workspace storageObjectId (or a
-// cross-Workspace target workspaceId on create) reads as NOT_FOUND, never
-// a distinguishable FORBIDDEN — same enumeration-safety convention as
-// venture/index.ts.
+// system actors state target Workspace directly; founders resolved and compared —
+// cross-workspace reads as NOT_FOUND, not FORBIDDEN (enumeration safety).
 async function loadAuthorizedStorageObject(
   actor: ActorContext,
   storageObjectId: string,
@@ -310,9 +295,7 @@ async function loadAuthorizedStorageObject(
 }
 
 /**
- * Internal read helper (also usable by tests/future callers) — fetches a
- * StorageObject by id with the same Workspace-scoped authorization every
- * write path uses.
+ * Workspace-scoped read by id — same authorization as write paths.
  */
 export async function getStorageObject(
   actor: ActorContext,
@@ -325,10 +308,7 @@ export async function getStorageObject(
   return mapStorageObjectRow(row);
 }
 
-// Read-only gate: founders, mentors, admins, and system sources. Kept
-// separate from assertFounderOrSystemActor so write paths stay
-// founder/system-only — a Mentor reads a Founder's deliverables and never
-// authors one. Admin is allowed here for cross-workspace validation reads.
+// Read gate: founder/mentor/admin/system; writes stay founder/system-only.
 function assertGeneratedContentReader(actor: ActorContext): void {
   if (
     actor.role === "founder" ||
@@ -371,12 +351,7 @@ export async function getGeneratedTextContent(
     }
   }
 
-  // Enforced here rather than trusted from the caller: this is the single
-  // choke point through which artefact bytes leave storage, so the scope
-  // check belongs where the read happens, not only in the Mentor service
-  // that happens to call it today. NOT_FOUND, not FORBIDDEN — a Mentor must
-  // not be able to confirm that another Mentor's Founder has saved a given
-  // object.
+  // Single choke point for artefact bytes — mentor scope enforced here as NOT_FOUND.
   if (actor.role === "mentor") {
     const mentored = await pool.query(
       `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
@@ -388,12 +363,7 @@ export async function getGeneratedTextContent(
   }
 
   if (row.upload_status !== "verified") {
-    // Only reachable if a caller passes a storageObjectId that was never
-    // taken through writeGeneratedTextContent's verified transition —
-    // every artifact_files row this Service links to a submission is
-    // created only after 'verified' (see artifact/index.ts's
-    // saveArtifactSubmission), so this is a deployment/caller bug, not a
-    // normal business state.
+    // Caller bug if not verified — artifact_files only link post-verified submissions.
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       `Storage object ${row.id} is "${row.upload_status}", not "verified" — only a verified object's content can be read.`,
@@ -406,12 +376,8 @@ export async function getGeneratedTextContent(
 }
 
 /**
- * Transaction A: inserts a `storage_objects` row in `upload_status =
- * 'pending'` and returns its stable id — this id is what
- * writeGeneratedTextContent's retry/idempotency semantics key off of.
- * `contentType` is not a caller parameter: V1 hardcodes generated text to
- * `GENERATED_TEXT_CONTENT_TYPE` server-side (a caller-declared MIME type
- * is not trusted any more than a caller-declared byte length is).
+ * Transaction A: insert pending row; id keys writeGeneratedTextContent retries.
+ * contentType is server-fixed — caller MIME is not trusted.
  */
 export async function createPendingGeneratedObject(
   actor: ActorContext,
@@ -482,21 +448,8 @@ async function markFailed(id: string): Promise<void> {
 }
 
 /**
- * Writes the actual bytes for a pending/retried Storage Object, driving
- * it through the pending → uploaded → verified choreography.
- *
- * Deliberately three independent Postgres transactions (A already ran in
- * createPendingGeneratedObject; B and C below) with uncommitted Provider
- * I/O in between each — a Postgres transaction is never held open across
- * a disk/network call:
- *
- *   B: lock the row, write real size/hash, upload_status = 'uploaded'.
- *   (Provider I/O, no transaction): re-fetch what was actually written.
- *   C: lock the row again, upload_status = 'verified'.
- *
- * Idempotency/retry is keyed on (storageObjectId, content hash): same id +
- * same hash resumes/no-ops; same id + different hash conflicts; failed or
- * deleted rows are not resurrected.
+ * Write bytes through pending→uploaded→verified in separate transactions
+ * (no Postgres txn across provider I/O). Idempotent on (storageObjectId, hash).
  */
 export async function writeGeneratedTextContent(
   actor: ActorContext,
@@ -563,11 +516,7 @@ export async function writeGeneratedTextContent(
 
   const provider = await resolveProvider(deps);
 
-  // Orphan-recovery check: a prior call may have completed the Provider
-  // write but failed before transaction B recorded it (see the module
-  // comment above) — headObject tells us whether the bytes are already
-  // there with the right hash, so a retry never re-does I/O it doesn't
-  // need to.
+  // Orphan recovery: prior call may have written provider bytes before txn B recorded them.
   const existingProviderObject = await provider.headObject(
     initialRow.object_key,
   );
@@ -636,12 +585,8 @@ export async function writeGeneratedTextContent(
 }
 
 /**
- * Soft-deletes an unfinished (never `verified`) upload. Never a physical
- * `delete from storage_objects` — the schema already carries
- * `upload_status = 'deleted'` + `deleted_at` for exactly this, and the
- * app's DB role is expected to lose DELETE grants on core tables in a
- * later iteration (4.5), so this code path must not depend on having
- * that privilege at all.
+ * Soft-delete unfinished uploads (upload_status='deleted') — never physical DELETE;
+ * verified objects are immutable via this API.
  */
 export async function deleteUnverifiedUpload(
   actor: ActorContext,

@@ -5,19 +5,10 @@ import type {
   RunModuleSummary,
 } from "@ai-catalyst/shared";
 
-// The program_run_modules read shape, shared by the Founder path
-// (packages/services/src/workflow, which reaches a Run through the actor's
-// own active context) and the Mentor path (packages/services/src/mentor,
-// which is handed a Workspace id after an ownership check). Extracted here
-// rather than duplicated so a column added for one is never silently missing
-// from the other — the two surfaces are supposed to describe the same Run.
-//
-// Nothing in this module authorizes anything. Callers do that first.
+// program_run_modules read shape — shared by Founder (workflow) and Mentor paths.
+// Authorization is the caller's responsibility.
 
-// Joins module_definitions for module_type/completion_mode — those are
-// content-level fields with no equivalent snapshot column on
-// program_run_modules itself (only module_key/title_snapshot are
-// snapshotted there).
+// Joins module_definitions for module_type/completion_mode (not snapshotted on run modules).
 export const RUN_MODULE_SUMMARY_COLUMNS = `
   m.id, m.workspace_id, m.program_run_id, m.program_run_branch_id, m.module_definition_id,
   m.module_key, m.title_snapshot, m.sequence_index, m.status,
@@ -76,21 +67,8 @@ export interface WorkspaceRunContext {
 }
 
 /**
- * Resolves a Workspace's current Run/Branch without consulting anyone's
- * active context.
- *
- * The Founder path reaches the same Run through `user_active_contexts`,
- * which is the right answer for "the Run I am working in" but the wrong
- * question entirely for a Mentor: their own active context says nothing
- * about the Founder they are looking at, and writing to it (which
- * getActiveContext does) would be a side effect of a read.
- *
- * Returns null when the Workspace has no Venture yet, or no non-archived
- * Run — a Founder who accepted their invitation but never started. That is
- * a normal state to render, not an error.
- *
- * Authorization is the caller's responsibility: this takes a Workspace id,
- * not an actor, and will happily read any Workspace it is given.
+ * Resolves a Workspace's current Run/Branch without active context.
+ * Mentor path must not read/write user_active_contexts. Caller must authorize.
  */
 export async function resolveWorkspaceRunContext(
   workspaceId: string,
@@ -120,10 +98,7 @@ export async function resolveWorkspaceRunContext(
   };
 }
 
-/**
- * Every Module of one Run/Branch, in sequence order. Authorization is the
- * caller's responsibility — see resolveWorkspaceRunContext.
- */
+/** All Modules of one Run/Branch in sequence order. Caller must authorize. */
 export async function listRunModulesForBranch(
   branchId: string,
 ): Promise<RunModuleSummary[]> {

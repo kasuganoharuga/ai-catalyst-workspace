@@ -17,7 +17,6 @@ import type {
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import {
-  ATTEMPT_COLUMNS,
   mapAttemptRow,
   type AttemptRow,
 } from "@ai-catalyst/services/attempt/internal/rows";
@@ -101,7 +100,9 @@ async function loadAttemptsByIds(
     return new Map();
   }
   const result = await pool.query<AttemptRow>(
-    `select ${ATTEMPT_COLUMNS} from module_attempts
+    `select id, program_run_module_id, attempt_number, attempt_type, status,
+            based_on_attempt_id, started_via, submitted_at, created_at, updated_at
+     from module_attempts
      where id = any($1::uuid[])`,
     [attemptIds],
   );

@@ -9,23 +9,13 @@ import { cn } from "@/lib/utils";
 import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
 import { module1Copy } from "../../../lib/copy";
 
-// Tall enough to show a verdict's opening section and prove the document is
-// real, short enough that the Confirm button stays reachable without a long
-// scroll. Anything past this is one click away.
+// Tall enough to prove the document is real; short enough to keep Confirm reachable.
 const COLLAPSED_MAX_PX = 420;
 
 /**
- * The saved document itself, on the page that asks the founder to sign it
- * off.
+ * Saved document on the confirm step — founders must see it before signing off.
  *
- * Confirming used to be a decision made against a filename and a version
- * number: the step said "read it over, then confirm" while showing neither
- * the document nor a way to read it without leaving. Anyone in a hurry
- * confirmed a document they had not seen, which is the one thing this step
- * exists to prevent.
- *
- * `children` is the Markdown already rendered upstream on the server, so
- * react-markdown never reaches the client bundle for this page.
+ * `children` is server-rendered Markdown so react-markdown stays out of the client bundle.
  */
 export function DocumentPreview({
   name,
@@ -38,18 +28,15 @@ export function DocumentPreview({
   name: string;
   /** Version and save time, already formatted. */
   meta: string | null;
-  /** Omit to hide the "Open full page" link (e.g. website-only evidence). */
+  /** Omit to hide "Open full page" (e.g. website-only evidence). */
   readHref?: string | null;
-  /** Omit to hide download controls when no submission exists yet. */
+  /** Omit when no submission exists yet. */
   downloadHref?: string | null;
-  /** A confirmed submission exists and a renderer is configured — shows the fillable PDF as the primary download, Markdown as secondary. */
+  /** Confirmed submission + renderer — PDF primary, Markdown secondary. */
   workbookAvailable?: boolean;
   children: ReactNode;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // Only worth a toggle if there is something hidden. Measured rather than
-  // guessed from content length: a short verdict with a table is taller
-  // than a long one without.
   const [overflows, setOverflows] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -96,8 +83,6 @@ export function DocumentPreview({
         >
           {children}
         </div>
-        {/* Fades the cut edge so it reads as "more below" rather than as a
-            document that stops mid-sentence. */}
         {!expanded && overflows ? (
           <div
             aria-hidden="true"

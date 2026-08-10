@@ -35,16 +35,7 @@ export interface ProviderObjectMetadata {
 }
 
 export interface StorageProvider {
-  /**
-   * Atomically makes the complete object available at `key`. A partial
-   * object must never be observable at the final key — implementations
-   * (e.g. LocalStorageProvider's temp-file-then-rename) enforce this
-   * entirely internally, within this single call; callers never see or
-   * manage a separate "promote"/"commit" step. Overwriting an existing
-   * key is allowed at this layer (the Service's hash-comparison /
-   * immutability rules for `verified` objects live above this
-   * interface, not here).
-   */
+  /** Atomic put at final key — partial objects never visible; verified immutability is above this layer. */
   putObject(input: PutObjectInput): Promise<ProviderObjectMetadata>;
 
   /** Throws if no object exists at `key`. */
@@ -63,11 +54,7 @@ export interface StorageProvider {
   /** A missing object at `key` is not an error — deletion is idempotent. */
   deleteObject(key: string): Promise<void>;
 
-  /**
-   * Optional time-limited URL for direct download. Product default remains
-   * permissioned streaming via getObject; do not call this from Artifact
-   * business flows unless a use case explicitly needs a signed/direct URL.
-   */
+  /** Optional signed URL — product default is permissioned getObject streaming. */
   createDownloadUrl(input: DownloadUrlInput): Promise<DownloadUrl>;
 
   /** Copy within the same container; destination overwrite is allowed. */

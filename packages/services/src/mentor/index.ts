@@ -16,24 +16,11 @@ import {
 } from "@ai-catalyst/services/internal/run-module";
 import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 
-// The Mentor supervision surface: read-only, and read-only on purpose.
-//
-// V1 has no accept/reject here. A Founder still signs their own Module off
-// through confirmModuleCompletion, so nothing in this module can advance,
-// block, or roll back anyone's progress — `module_attempts.review_notes` and
-// friends stay unwritten until a later phase adds a real review flow. Keeping
-// the first Mentor release inert means the progress state machine, which
-// everything else depends on, is untouched by it.
+// Mentor supervision surface — read-only; cannot advance or roll back Founder progress.
 
 /**
- * Every scoped read below starts here.
- *
- * A Mentor's authority is per-Workspace (`workspaces.mentor_user_id`), never
- * global: covering three Founders grants nothing over a fourth. Deliberately
- * NOT_FOUND rather than FORBIDDEN on a mismatch — FORBIDDEN would confirm
- * that the Workspace exists, turning this into an oracle a Mentor could walk
- * to enumerate colleagues' Founder rosters. An unmentored Workspace and
- * someone else's are equally "not found" from here.
+ * Mentor authority is per-Workspace (workspaces.mentor_user_id), never global.
+ * NOT_FOUND on mismatch — FORBIDDEN would confirm the Workspace exists (enumeration oracle).
  */
 async function assertMentorOwnsWorkspace(
   actor: ActorContext,
@@ -69,10 +56,7 @@ function mapFounderSummaryRow(row: FounderSummaryRow): MentorFounderSummary {
     founderUserId: row.founder_user_id,
     founderName: row.founder_name,
     founderEmail: row.founder_email,
-    // Postgres returns bigint counts as strings; null propagates from the
-    // left join when the Founder has no Run yet, and must stay null rather
-    // than collapsing to 0 — "not started" and "started, nothing done" read
-    // very differently to a Mentor deciding who needs a nudge.
+    // bigint counts as strings; null means no Run yet — distinct from "0 of N".
     totalModules: row.total_modules === null ? null : Number(row.total_modules),
     completedModules:
       row.completed_modules === null ? null : Number(row.completed_modules),
@@ -80,9 +64,7 @@ function mapFounderSummaryRow(row: FounderSummaryRow): MentorFounderSummary {
   };
 }
 
-// Prefers a display name from user_profiles, falling back to users.name —
-// which Better Auth seeds with the email address at registration, so it is
-// never null but is not always a name.
+// Prefers user_profiles display name; falls back to users.name (often email at registration).
 const FOUNDER_IDENTITY_COLUMNS = `
   w.id as workspace_id,
   w.name as workspace_name,
@@ -93,28 +75,9 @@ const FOUNDER_IDENTITY_COLUMNS = `
 `;
 
 /**
- * Every Founder this Mentor covers, with enough progress to triage who needs
- * attention.
- *
- * One query, not one per Founder: the module counts come from a lateral
- * aggregate over the Workspace's current Run/Branch rather than a follow-up
- * read per row, so a Mentor with thirty Founders still costs a single round
- * trip. Founders with no Run yet still appear (left join), with null counts.
- *
- * Two laterals rather than one, because `count(*)` over no rows is 0, not
- * null — folding the Run lookup into the aggregate would report a Founder who
- * never started as "0 of 0 modules" instead of "not started". The second
- * lateral's `on run.active_branch_id is not null` is what keeps those columns
- * null in that case.
- *
- * `d.module_type <> 'setup'` excludes Module 0 ("Setup and Connection") from
- * both counts: it is system-driven (`completion_mode = 'system'`, no Founder
- * judgement involved) and hidden from the Founder's own catalog behind
- * `SHOW_SETUP_MODULE` in apps/web/lib/feature-flags.ts. Counting it here
- * would show a Mentor "1 of 2 done" for a Founder who has not actually
- * started anything — a Mentor's view of progress should match what the
- * Founder themselves sees. If that flag is ever flipped back on, this
- * exclusion needs revisiting too.
+ * Every Founder this Mentor covers, with progress for triage.
+ * One query with lateral aggregates; null counts when no Run yet.
+ * Excludes setup Module 0 — system-driven, hidden from Founder's catalog.
  */
 export async function listMentorFounders(
   actor: ActorContext,
@@ -179,20 +142,8 @@ function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
   };
 }
 
-// The live version of each deliverable on one Run/Branch.
-//
-// `status in ('draft','submitted')` is what excludes superseded and deleted
-// rows: saveArtifactSubmission supersedes rather than overwrites, so without
-// this filter every past version of every artefact would be listed. DISTINCT
-// ON keeps the highest version per artefact should more than one somehow
-// survive.
-//
-// `md.module_type <> 'setup'` excludes Module 0's Setup Summary — machine-
-// written storage config, not Founder work, hidden from the Founder's own
-// artefacts list for the same reason (see apps/web's artefacts/page.tsx).
-//
-// Scoped to the branch, so a Mentor never sees work from a Run the Founder
-// has since abandoned.
+// Live deliverables on one Run/Branch — draft/submitted only; DISTINCT ON highest version.
+// Excludes setup Module 0 (machine-written, not Founder work).
 const MENTOR_ARTEFACT_QUERY = `
   select distinct on (d.artifact_key)
     m.module_key,
@@ -213,13 +164,8 @@ const MENTOR_ARTEFACT_QUERY = `
 `;
 
 /**
- * One supervised Founder's progress and deliverables.
- *
- * Returns Module state and saved artefacts only. `module_responses` — the
- * Founder's raw answers inside their AI assistant — and failed or cancelled
- * Attempts are deliberately not read here: a Mentor reviews finished work,
- * and a Founder who felt watched while drafting would stop drafting on the
- * platform.
+ * One Founder's progress and deliverables. Raw answers and failed Attempts excluded —
+ * Mentors review finished work, not in-progress drafting.
  */
 export async function getMentorFounderDetail(
   actor: ActorContext,
@@ -252,8 +198,7 @@ export async function getMentorFounderDetail(
 
   const run = await resolveWorkspaceRunContext(workspaceId);
   if (!run) {
-    // Accepted their invitation, never started. A real state to render, not
-    // an error — the counts stay null and both lists stay empty.
+    // Invitation accepted, Run never started — render empty state, not an error.
     return {
       founder: mapFounderSummaryRow(founderRow),
       modules: [],
@@ -266,9 +211,7 @@ export async function getMentorFounderDetail(
     pool.query<ArtefactSummaryRow>(MENTOR_ARTEFACT_QUERY, [run.activeBranchId]),
   ]);
 
-  // Same exclusion as listMentorFounders above: Module 0 is system-driven
-  // and hidden from the Founder's own catalog, so it is dropped here too —
-  // both from the counts and from the row list this page renders.
+  // Same setup Module exclusion as listMentorFounders.
   const modules = allModules.filter((module) => module.moduleType !== "setup");
   const completed = modules.filter((module) => module.status === "completed");
   const completedAts = completed
@@ -296,12 +239,8 @@ interface ArtefactDocumentRow extends ArtefactSummaryRow {
 }
 
 /**
- * One saved deliverable with its body, for the Mentor's read-only view.
- *
- * Returns null rather than throwing when the artefact has not been saved yet
- * — a Mentor arriving early at a module that is still in progress is normal.
- * A Workspace they do not cover is a NOT_FOUND from assertMentorOwnsWorkspace
- * long before this point.
+ * One saved deliverable with body for read-only Mentor view.
+ * Returns null when not saved yet; NOT_FOUND when Workspace is not covered.
  */
 export async function getMentorArtefactDocument(
   actor: ActorContext,
@@ -350,9 +289,7 @@ export async function getMentorArtefactDocument(
     return null;
   }
 
-  // getGeneratedTextContent re-checks the Mentor's claim on this object's
-  // Workspace independently — the ownership assertion above is not passed
-  // through to it, so the bytes are gated twice by different lookups.
+  // getGeneratedTextContent re-checks Workspace ownership independently.
   const content = await getGeneratedTextContent(
     actor,
     row.primary_storage_object_id,

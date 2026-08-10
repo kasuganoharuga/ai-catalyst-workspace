@@ -3,18 +3,9 @@ import { pool } from "@ai-catalyst/db";
 import { PROGRAM_CONTENT } from "../content-seed/content/program.js";
 import { reconcileProgramRun } from "./internal/reconcile-run-modules.js";
 
-// Batch front-fill for a "living" (content_lock='mutable') Program
-// Version: every non-archived Program Run for it gets the same lazy
-// front-fill getOrCreateProgramRun already applies on a Founder's next
-// Continue Programme click (see reconcile-run-modules.ts). Two reasons
-// this exists as its own CLI rather than relying purely on that lazy
-// path:
-//   1. A Founder who deep-links straight into a Module never goes through
-//      getOrCreateProgramRun's existing-Run branch, so their Run can stay
-//      un-reconciled indefinitely — this is the documented fallback.
-//   2. `pnpm db:freeze`'s preflight requires EVERY Run's reconciliation
-//      plan to already be empty before it will freeze — this is what you
-//      run first to make that true.
+// Batch front-fill for mutable program_versions — lazy Continue Programme
+// reconciliation misses deep-link-only Runs; db:freeze preflight requires
+// every Run's plan empty first.
 function parseArgs(argv: string[]): {
   programKey: string;
   versionLabel: string;

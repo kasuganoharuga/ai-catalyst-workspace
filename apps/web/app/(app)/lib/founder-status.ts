@@ -6,15 +6,8 @@ export interface FounderDisplayStatus {
 }
 
 /**
- * Maps a Founder's aggregate module progress (as seen by their Mentor) to a
- * status pill, using the same tone vocabulary as deriveModuleDisplayStatus
- * (see components/status-badge.tsx): muted for nothing to see yet, outline
- * for ready-but-untouched, lime for "this is worth a look", ink for
- * settled/finished.
- *
- * There is no per-Founder accent colour the way a Module has one, so "all
- * modules done" borrows ink rather than the "module" tone — that tone needs
- * a sequence index this has no equivalent of.
+ * Mentor-facing aggregate progress pill — same tone vocabulary as deriveModuleDisplayStatus.
+ * Complete uses ink, not "module" tone (no per-Founder accent index).
  */
 export function deriveFounderStatus(
   totalModules: number | null,

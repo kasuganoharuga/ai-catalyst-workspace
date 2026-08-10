@@ -27,23 +27,14 @@ import {
   RUN_MODULE_RECONCILE_LOCK_KEY,
   reconcileProgramRunInTransaction,
 } from "@ai-catalyst/services/workflow/internal/reconcile-run-modules";
-// Imports the Program's content constant directly rather than the whole
-// content-seed module, same reasoning as module/catalog.ts.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
 
 // Program Run / Branch / Module orchestration — shared by apps/web and apps/mcp.
 
-// Deliberately not the same concept as module/catalog.ts's V1_PROGRAM_KEY
-// resolution target: the catalog always reflects whatever is published
-// right now, while a Run binds to a fixed program_version_id at creation
-// and never moves off it, even after a newer version publishes (see
-// program_run_modules and resolvePublishedProgramVersionId's own comment).
+// Run binds to program_version_id at creation; catalog reflects whatever is published now.
 const V1_PROGRAM_KEY = PROGRAM_CONTENT.programKey;
 
-// Explicit column list (never `select *`) mapped through mapProgramRunRow —
-// a future internal-only column added to `program_runs` is never
-// accidentally exposed through the DTO just because a query forgot to name
-// its columns.
+// Explicit column list — never `select *` — so internal columns never leak into the DTO.
 const PROGRAM_RUN_COLUMNS = `
   id, workspace_id, venture_id, program_version_id, active_branch_id,
   run_number, name, status, started_by_user_id, started_at, paused_at,
@@ -88,8 +79,7 @@ function mapProgramRunRow(row: ProgramRunRow): ProgramRun {
   };
 }
 
-// Runtime validation of untrusted input crossing the API boundary — the
-// caller's declared parameter type only describes the happy path.
+// Runtime validation of untrusted API input.
 function normalizeGetOrCreateProgramRunInput(input: unknown): {
   ventureId: string;
 } {
@@ -115,10 +105,7 @@ interface ActiveModuleDefinitionRow {
   sequence_index: number;
 }
 
-// Only `status = 'active'` Module Definitions become program_run_modules —
-// a 'draft' Module Definition still shows up in the catalog as
-// "coming_soon" (module/catalog.ts), but must never become part of a real
-// Run's Branch structure until it's actually active.
+// Only active Module Definitions become program_run_modules — draft stays catalog-only.
 async function fetchActiveModuleDefinitions(
   client: PoolClient,
   programVersionId: string,
@@ -134,35 +121,19 @@ async function fetchActiveModuleDefinitions(
 }
 
 export interface GetOrCreateProgramRunDependencies {
-  // Test-only seam: production always resolves the real V1 Program. Lets
-  // tests exercise the create path against an isolated fixture Program
-  // without ever touching the real seeded rows (same pattern as
-  // module/catalog.ts's ModuleCatalogDependencies).
+  // Test seam: isolated fixture Program without touching seeded rows.
   programKey?: string;
 }
 
 export interface GetOrCreateProgramRunResult {
   run: ProgramRun;
-  // true only when this call inserted a brand-new Run (with its first
-  // Branch and program_run_modules) — false when an existing non-archived
-  // Run for this Venture was found and returned unchanged. Lets the HTTP
-  // route answer with 201 vs 200 without re-deriving it from timestamps.
+  // true only when this call inserted a new Run (201 vs 200 for HTTP callers).
   created: boolean;
 }
 
 /**
- * Idempotently ensures a Venture has exactly one non-archived Program Run
- * and returns it — creating the Run, its first Branch, and the Branch's
- * initial program_run_modules snapshot (from the currently published
- * Program Version) if none exists yet.
- *
- * `program_runs_one_active_per_venture` (a partial unique index added in
- * infra/database/migrations/0003_program_runs_one_active_per_venture.sql)
- * is the database-level backstop for "at most one non-archived Run per
- * Venture" — this function's own lookup-then-insert is what makes that
- * invariant race-free rather than just "usually true": the `for update`
- * lock on the Venture row below serializes concurrent calls for the same
- * Venture, so two simultaneous requests can never both decide to insert.
+ * Idempotently ensures a Venture has one non-archived Program Run, creating it if needed.
+ * Venture `for update` serializes concurrent creates; DB partial unique index is the backstop.
  */
 export async function getOrCreateProgramRun(
   actor: ActorContext,
@@ -180,12 +151,7 @@ export async function getOrCreateProgramRun(
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
-    // Locks the Venture row for the rest of this transaction — a
-    // concurrent getOrCreateProgramRun call for the same Venture blocks
-    // here until this transaction commits or rolls back, which is what
-    // makes both the run_number assignment and the "at most one
-    // non-archived Run" invariant below race-free without a separate
-    // advisory lock.
+    // Venture row lock — serializes run_number assignment and one-active-run invariant.
     const ventureResult = await client.query<{
       id: string;
       status: VentureStatus;
@@ -201,19 +167,7 @@ export async function getOrCreateProgramRun(
     }
     assertVentureWritable(venture.status);
 
-    // Shared content-seed advisory lock — acquired here, BEFORE either
-    // branch below reads any module_definitions row, and always in this
-    // order (Venture row lock, then this). Both branches read Module
-    // Definitions to build or reconcile this Run's program_run_modules,
-    // and a concurrent `pnpm db:seed`/`pnpm db:freeze` (which hold this
-    // same key exclusively while they resequence/archive/freeze that
-    // content) must never interleave with either read: reading mid-reseed
-    // could create a brand new Run from a half-shifted temporary sequence
-    // range, or let an existing Run's reconcile see a `mutable` lock that
-    // flips to `frozen` moments later — see
-    // workflow/internal/reconcile-run-modules.ts's lock-order doc comment
-    // for why the order must never reverse (Venture -> SEED_LOCK, never
-    // the other way).
+    // Shared SEED_LOCK before reading module_definitions — order: Venture -> SEED_LOCK, never reverse.
     await client.query("select pg_advisory_xact_lock_shared($1)", [
       RUN_MODULE_RECONCILE_LOCK_KEY,
     ]);
@@ -226,10 +180,7 @@ export async function getOrCreateProgramRun(
     );
     const existingRow = existingResult.rows[0];
     if (existingRow) {
-      // Defensive invariant check, not a normal business validation: every
-      // Run this function creates always gets an active_branch_id set
-      // within the same transaction below, so a null here would mean some
-      // other write path inserted a Run without one.
+      // Defensive: every Run we create sets active_branch_id in the same transaction.
       if (!existingRow.active_branch_id) {
         throw new ServiceError(
           "INTERNAL_INVARIANT_ERROR",
@@ -237,11 +188,7 @@ export async function getOrCreateProgramRun(
         );
       }
 
-      // Lazily front-fills this Run's program_run_modules with anything a
-      // "living" (content_lock='mutable') Program Version has grown since
-      // this Run was created or last reconciled — see
-      // reconcileProgramRunInTransaction's own doc comment for the full
-      // contract (it no-ops entirely, zero statements, once V1 is frozen).
+      // Front-fill program_run_modules for living (mutable) Program Versions; no-ops when frozen.
       await reconcileProgramRunInTransaction(client, {
         programRunId: existingRow.id,
         programVersionId: existingRow.program_version_id,
@@ -251,18 +198,13 @@ export async function getOrCreateProgramRun(
       return { run: mapProgramRunRow(existingRow), created: false };
     }
 
-    // Only a published Program Version may be bound when creating a Run —
-    // resolved on this same client so it participates in the transaction
-    // this function already holds, per program_runs' own column comment.
+    // Only a published Program Version may be bound at Run creation.
     const programVersionId = await resolvePublishedProgramVersionId(
       deps.programKey ?? V1_PROGRAM_KEY,
       client,
     );
 
-    // Not hard-coded to 1: an earlier Run for this Venture (now archived)
-    // may already occupy run_number 1 against this same program_version_id
-    // — program_runs_venture_version_number_unique would reject a second
-    // insert at the same number.
+    // Next run_number — prior archived Runs may already occupy lower numbers.
     const runNumberResult = await client.query<{ next_run_number: number }>(
       `select coalesce(max(run_number), 0) + 1 as next_run_number
        from program_runs
@@ -271,10 +213,7 @@ export async function getOrCreateProgramRun(
     );
     const runNumber = runNumberResult.rows[0].next_run_number;
 
-    // Created directly as 'active' (never left in 'draft') — this
-    // function's whole purpose is to hand the Founder a Run they can
-    // immediately start working in, not a placeholder needing a separate
-    // activation step.
+    // Created as 'active' — Founder gets a Run they can work in immediately.
     const runInsertResult = await client.query<ProgramRunRow>(
       `insert into program_runs (
          workspace_id, venture_id, program_version_id, run_number,
@@ -286,10 +225,7 @@ export async function getOrCreateProgramRun(
     );
     const runRow = runInsertResult.rows[0];
 
-    // Rejects loudly (via mapBranchCreatedVia) rather than silently
-    // defaulting to 'website' for a role nobody has reviewed as a Branch
-    // creator — currently a no-op given the assertRole(["founder"]) call
-    // above, but stays correct if that allow-list is ever widened.
+    // Rejects unknown roles via mapBranchCreatedVia rather than defaulting to 'website'.
     const createdVia = mapBranchCreatedVia(actor.role);
     const branchInsertResult = await client.query<{ id: string }>(
       `insert into program_run_branches (
@@ -306,10 +242,7 @@ export async function getOrCreateProgramRun(
       client,
       programVersionId,
     );
-    // A Program Version published with zero active Modules is a content
-    // configuration bug, not a normal state a Founder can recover from —
-    // this must fail the whole transaction (nothing gets created) rather
-    // than silently handing back an empty, unusable Run.
+    // Zero active Modules is a content bug — fail the transaction, not an empty Run.
     if (activeModules.length === 0) {
       throw new ServiceError(
         "INTERNAL_INVARIANT_ERROR",
@@ -361,13 +294,8 @@ export async function getOrCreateProgramRun(
   }
 }
 
-// ---------------------------------------------------------------------
-// Read-only Run/Module resolution — backs apps/mcp's list_modules,
-// get_module_status, and packages/services/src/module/context.ts's
-// getModuleContext. Never inserts (getOrCreateProgramRun above is the
-// only write path); a Founder with no Run yet simply sees an empty list,
-// not an error.
-// ---------------------------------------------------------------------
+// --- Read-only Run/Module resolution ---
+// Backs MCP list_modules/get_module_status and module/context.ts. Never inserts.
 
 export interface CurrentVentureRun {
   workspaceId: string;
@@ -376,8 +304,7 @@ export interface CurrentVentureRun {
   activeBranchId: string;
 }
 
-// Resolves the Founder's current Venture Run via user_active_contexts.
-// program_run_modules queries still filter by workspace_id.
+// Resolves current Venture Run via user_active_contexts.
 async function resolveCurrentVentureRun(
   actor: ActorContext,
 ): Promise<CurrentVentureRun | null> {
@@ -409,11 +336,7 @@ async function resolveCurrentVentureRun(
 }
 
 export interface ListRunModulesResult {
-  // All three null only when the Founder has no active Venture yet, or
-  // that Venture has no non-archived Program Run yet — list_modules (MCP)
-  // surfaces this as "nothing to show yet", not an error; creating a Run
-  // is the website's job (getOrCreateProgramRun above), never a read
-  // tool's side effect.
+  // All null when no active Venture or Run yet — empty list, not an error.
   workspaceId: string | null;
   ventureId: string | null;
   runId: string | null;
@@ -421,9 +344,7 @@ export interface ListRunModulesResult {
 }
 
 /**
- * Lists every program_run_modules row for the Founder's current active
- * Venture's current Run/Branch, in sequence order. Backs the MCP
- * Module list for the list_modules MCP tool.
+ * Lists program_run_modules for the Founder's current Run/Branch in sequence order.
  */
 export async function listRunModules(
   actor: ActorContext,
@@ -457,12 +378,7 @@ function normalizeModuleKeyInput(input: unknown): { moduleKey: string } {
 }
 
 /**
- * Reads a single program_run_modules row, by its content-stable
- * `moduleKey`, within the Founder's current active Venture's current
- * Run/Branch. Backs both the MCP `get_module_status` capability and
- * `getModuleContext` (packages/services/src/module/context.ts), which
- * calls this first to resolve the target Module before loading Attempt/
- * Question/Artifact detail around it.
+ * Reads one program_run_modules row by moduleKey for the Founder's current Run/Branch.
  */
 export async function getRunModuleByKey(
   actor: ActorContext,
@@ -497,14 +413,8 @@ export interface AttemptRunContext {
 }
 
 /**
- * Resolves the full Run/Branch/Module hierarchy above a given Attempt,
- * scoped to the Founder's own Workspace. Exists purely to let apps/mcp's
- * audit wrapper populate `mcp_tool_audit_logs`' run/branch/module columns
- * for the four Tools whose input is an `attemptId` rather than a
- * `programRunModuleId` (`save_founder_input`, `save_artifact`,
- * `complete_module`, `get_artifact`) — those Services' own DTOs
- * (`ModuleResponse`/`ModuleAttempt`/`ArtifactSubmission`) only carry partial
- * ids — this helper fills run/branch/module columns for audit logging.
+ * Resolves Run/Branch/Module hierarchy for an Attempt — used by MCP audit logging
+ * when the tool input is attemptId rather than programRunModuleId.
  */
 export async function resolveAttemptRunContext(
   actor: ActorContext,

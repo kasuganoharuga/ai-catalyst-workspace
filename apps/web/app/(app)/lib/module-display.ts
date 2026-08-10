@@ -22,21 +22,10 @@ export const DECISION_QUESTION_KEYS = new Set([
   "final_decision",
 ]);
 
-/**
- * Module 2's thirteen `module_questions` rows are the Facilitator's
- * per-field save points, but the founder-facing conversation runs as
- * eight blocks — this must mirror the actual conversation-block
- * boundaries (packages/toolkit-content/skills/module-02-customer-avatar/
- * prompts/module-02-prompt-set.md, §1 "Field ownership" / §2 "Conversation
- * blocks"), not module-2.ts's `questionGroup` values: those describe which
- * *document section* of the artefact a field renders under, which is a
- * different grouping (e.g. `customer_picture` and `beachhead_segment` are
- * one Field-ownership block but two document groups — "snapshot" and
- * "segment"). Using `questionGroup` here previously made row 2
- * ("segment"/beachhead) light up before row 1 ("snapshot"), because
- * Block 1 saves both fields together but Block 2 doesn't save the rest of
- * "snapshot" until later — see the QA report this comment replaced.
- */
+// Module 2 progress uses eight founder-facing conversation blocks (see
+// module-02-prompt-set.md §1–2), not `questionGroup` — that field maps
+// artefact sections and mis-orders the work-step list when blocks save
+// multiple fields together.
 const MODULE_2_QUESTION_BLOCKS: {
   group: string;
   label: string;
@@ -118,16 +107,7 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
   },
 };
 
-/**
- * The Artifact a Module is summarised by — what "Produces …" names on the
- * catalog card and what the dashboard tracks as saved/not saved.
- *
- * Not `artifacts[0]`. A Module can hold an inbound prerequisite that sorts
- * first but is not what it produces (Module 4's `interview_evidence`,
- * `isRequired: false`). The first *required* Artifact is the headline —
- * for Module 4 that is Evidence of Unmet Need. Falls back to the first of
- * any kind so a Module with only optional Artifacts still summarises.
- */
+/** Headline output artifact for catalog/dashboard — first required, not `artifacts[0]` (Module 4's inbound interview evidence sorts first but is not produced here). */
 export function headlineArtifact<T extends { isRequired: boolean }>(
   artifacts: readonly T[],
 ): T | null {
@@ -392,18 +372,7 @@ export const CHATGPT_SETTINGS_DESKTOP_URL = "codex://settings";
  */
 export const CHATGPT_APP_URL = "codex://";
 
-/**
- * Opens the desktop app with a prefilled composer — confirmed against
- * OpenAI's own command reference and cross-checked against a reverse
- * engineering of the app bundle (both describe `prompt=` on `codex://new`
- * as populating the chat box without sending it, the same "ready to send,
- * not sent" contract `claudeDesktopChatUrl` relies on). `codex://settings`
- * above is the same scheme family and is already known to work, which is
- * the strongest signal available that this one does too.
- *
- * No browser fallback, same reasoning as CHATGPT_APP_URL: nothing at
- * chatgpt.com can reach this workspace's MCP connector.
- */
+/** Desktop prefilled composer (`codex://new?prompt=…`) — same "ready to send" contract as Claude; no browser fallback because chatgpt.com cannot reach this MCP connector. */
 export function chatgptDesktopChatUrl(prompt: string): string {
   return `codex://new?prompt=${encodeURIComponent(prompt)}`;
 }

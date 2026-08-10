@@ -3,42 +3,23 @@ import { cache } from "react";
 import { getMcpConnectionStatus as getMcpConnectionStatusUncached } from "@ai-catalyst/services/mcp-auth";
 import type { McpConnectionStatus } from "@ai-catalyst/services/mcp-auth";
 
-// Thin Next.js shell over packages/services/mcp-auth's read path — same
-// pattern as lib/module-catalog.ts.
 export const getMcpConnectionStatus = cache(getMcpConnectionStatusUncached);
 
-// The public MCP endpoint Founders paste into Claude's custom-connector
-// settings. Read server-side only (this is not NEXT_PUBLIC_) and rendered
-// into the Connection page — it is not a secret, just deployment-specific.
+/** Public MCP endpoint for connector settings — server-side only, not a secret. */
 export function getMcpEndpointUrl(): string | null {
   const url = process.env.MCP_RESOURCE_URL;
   return url && url.trim().length > 0 ? url.trim() : null;
 }
 
 /**
- * How recently a tool call has to have landed for us to claim the client
- * is live. Presentation policy, not a business rule — hence its home
- * here rather than in the service.
+ * Presentation policy for "active" connection — 15 minutes.
  *
- * Fifteen minutes is deliberately generous: a Founder mid-module can
- * easily spend ten minutes composing one answer, and flipping to "not
- * recently used" while they are actively working would be worse than
- * useless. Anything staler than this we simply decline to vouch for.
+ * Generous enough that a founder composing one answer does not flip to idle mid-work.
  */
 const ACTIVE_WINDOW_MS = 15 * 60 * 1000;
 
 export type McpConnectionState =
-  // Never set up, or the authorisation is gone.
-  | "not_connected"
-  // Was authorised before; the token has since expired or been swept.
-  | "expired"
-  // Authorised, but no tool call has ever arrived — the redirect
-  // completed and nothing has exercised the path since.
-  | "never_used"
-  // Authorised and used before, but nothing recent enough to vouch for.
-  | "idle"
-  // Authorised and a tool call landed within the active window.
-  | "active";
+  "not_connected" | "expired" | "never_used" | "idle" | "active";
 
 export function deriveMcpConnectionState(
   status: McpConnectionStatus,

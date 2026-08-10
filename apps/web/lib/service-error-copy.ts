@@ -3,22 +3,10 @@ import type { ServiceErrorCode } from "@ai-catalyst/services/errors";
 
 import { errorCopy } from "@/app/(app)/lib/copy";
 
-// Service error messages are written for whoever is reading the logs, and
-// until now they reached founders untouched: `toActionResult` returned
-// `error.message` verbatim, so a founder could be shown
-// `Module is "locked" and cannot be started or resumed.` or
-// `contactEmail must be a valid email address.` — internal state names and
-// camelCase field names and all.
-//
-// This maps the code (stable) rather than the message (free to change) to
-// something a founder can act on. Anything unmapped falls back to the
-// generic line, which is the safe direction: a vague message is better
-// than one that leaks an identifier.
-//
-// Known limitation, deliberately not solved here: VALIDATION_ERROR loses
-// its specificity, because the underlying messages name raw field keys.
-// Per-field form errors are the real fix and are a larger change than this
-// pass — the generic line at least points at the right place.
+// Map ServiceError.code → founder-facing copy. Prefer the stable code over
+// log-oriented `error.message` (which can leak state names / field keys).
+// Unmapped codes fall back to a generic line. VALIDATION_ERROR stays generic
+// until per-field form errors exist.
 const FOUNDER_MESSAGE_BY_CODE: Partial<Record<ServiceErrorCode, string>> = {
   UNAUTHENTICATED: "Your session has expired. Sign in again to continue.",
   FORBIDDEN: "You don't have permission to do that.",

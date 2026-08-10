@@ -13,17 +13,9 @@ function displayName(founder: MentorFounderSummary): string {
 }
 
 /**
- * Owns the search box and the resulting filtered/sorted view of the
- * Mentor's Founders — the one interactive piece of an otherwise
- * server-rendered page, same split as ../modules-carousel.tsx.
+ * Search + filtered/sorted founder list for the mentor dashboard.
  *
- * Sorted here by display name rather than the service's own
- * `order by w.name` (workspace name): the row's primary visual is the
- * Founder's name, so ordering by anything else reads as random.
- *
- * `children` is the "Invite a founder" button, handed down from the server
- * component so it can share this toolbar row with the search field rather
- * than needing a line of its own above it.
+ * Sorted by display name (not workspace name). `children` is the invite button from the server page.
  */
 export function FounderList({
   founders,
@@ -83,8 +75,7 @@ export function FounderList({
         </div>
       ) : (
         <div className="mt-8">
-          {/* Column widths mirror FounderRow's — see the note there. Hidden
-              below sm, where the rows stack and have nothing to align to. */}
+          {/* Column widths mirror FounderRow — hidden below sm where rows stack. */}
           <div className="hidden items-center gap-6 border-b border-border pb-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground sm:flex">
             <span className="min-w-0 flex-1">
               {mentorOverviewCopy.columnFounder}

@@ -21,15 +21,7 @@ export interface ReconciledModule {
   isPublishable: boolean;
 }
 
-// sequence_index is deliberately NOT in these lists: ordering (including
-// archive/revive/resequence) is owned entirely by reconcile-ordered-rows.ts,
-// which always runs before the per-row upsert loops below. By the time
-// these loops SELECT a row, its sequence_index has already been finalized
-// — including it here too would be redundant at best, and could reissue a
-// conflicting UPDATE mid-loop at worst (the ordered-rows plan already
-// accounted for every row's final position as a single atomic sequence of
-// statements; a second, independent per-row sequence_index write bypasses
-// that entirely).
+// sequence_index omitted — ordering is owned by reconcile-ordered-rows.ts before these upsert loops; including it here could conflict.
 const MODULE_FIELDS = [
   "title",
   "subtitle",
@@ -507,17 +499,10 @@ async function reconcileArtifactDefinitions(
   }
 }
 
-// A module being archived takes its Questions, Artifact Definitions, and
-// Prompt Bindings out of the active content graph with it — otherwise
-// they'd become orphans still readable through their own tables even
-// though nothing links to them through an active Module (see the plan's
-// "cascade archive" note: loadArtifactDefinitionByKey only checks its own
-// status, not its parent Module's, so a non-cascaded archive would leave
-// an artifact reachable through direct API calls after its Module is gone).
-// Bindings are hard-deleted (no FK dependents, and a stale binding would
-// otherwise still be joined by module/context.ts's unfiltered prompt
-// lookup); Questions/Artifacts are archived, not deleted, since Artifact
-// Definitions are an artifact_submissions foreign-key target.
+// --- Cascade archive ---
+// Archiving a Module must cascade — child rows stay reachable by direct lookup
+// (loadArtifactDefinitionByKey ignores parent status). Bindings hard-deleted;
+// Questions/Artifacts archived (artifact_submissions FK).
 async function cascadeArchiveModules(
   client: PoolClient,
   archivedModuleIds: string[],
@@ -542,14 +527,8 @@ async function cascadeArchiveModules(
 }
 
 /**
- * Reconciles every Module in `modules` (plus their nested Questions and
- * Artifact Definitions) against `programVersionId`. A Module whose key is
- * no longer present is archived (and cascade-archives its Questions/
- * Artifact Definitions, and deletes its Prompt Bindings) rather than
- * rejected — but only when `isContentEditable`; otherwise any graph or
- * sequence change is a hard error, exactly as before. Archiving is itself
- * gated by `allowArchive`, a guardrail against an import bug or bad merge
- * silently archiving real content on deploy.
+ * Reconcile Modules plus nested Questions/Artifacts. Removed keys archive (with cascade)
+ * when content-editable and allowArchive; otherwise graph/sequence changes are hard errors.
  */
 export async function reconcileModules(
   client: PoolClient,

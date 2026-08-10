@@ -36,13 +36,8 @@ const METHOD_NOT_ALLOWED_BODY = {
 } as const;
 
 /**
- * Handles a single stateless MCP POST request: a fresh `McpServer` and
- * `StreamableHTTPServerTransport` are created per request (no session id,
- * no shared state across requests) and both are torn down once the
- * response closes, matching the SDK's stateless reference implementation.
- *
- * `req.actorContext` is set by verifyBearerToken. A fresh traceId is added
- * here to correlate service calls and audit rows for this request.
+ * One stateless MCP POST: fresh server + transport per request, torn down on response close.
+ * `req.actorContext` comes from verifyBearerToken; traceId correlates service calls and audit rows.
  */
 async function handleStatelessMcpRequest(
   req: Request,
@@ -50,10 +45,7 @@ async function handleStatelessMcpRequest(
 ): Promise<void> {
   const baseActor = req.actorContext;
   if (!baseActor) {
-    // Unreachable via the real `/mcp` route (verifyBearerToken never
-    // calls next() without setting this) — an explicit invariant check
-    // rather than a silent non-null assertion, in case a future route
-    // ever reuses this handler without that middleware.
+    // Invariant: real /mcp route always sets actorContext via verifyBearerToken.
     res.status(500).json({
       jsonrpc: "2.0",
       error: { code: -32603, message: "Internal server error." },
@@ -70,14 +62,11 @@ async function handleStatelessMcpRequest(
   const mcp = createMcpServerInstance(actor);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
-    // V1 has no long-running/streaming tools, so plain JSON responses are
-    // simpler for both us and MCP clients than SSE. Revisit once a tool
-    // needs to stream progress notifications.
+    // V1 has no streaming tools — plain JSON is simpler for clients than SSE.
     enableJsonResponse: true,
   });
 
-  // Register before handleRequest: with enableJsonResponse the response often
-  // finishes during that await, so a listener attached afterwards never fires.
+  // Attach before handleRequest — with enableJsonResponse the response may finish during await.
   let cleanedUp = false;
   const cleanup = () => {
     if (cleanedUp) return;
@@ -90,8 +79,6 @@ async function handleStatelessMcpRequest(
   try {
     await mcp.connect(transport);
     await transport.handleRequest(req, res, req.body);
-    // Belt-and-braces if `close` already fired before the listener attached
-    // (should not happen now) or the runtime omits the event after end.
     if (res.writableEnded) {
       cleanup();
     }
@@ -119,10 +106,8 @@ function methodNotAllowed(_req: Request, res: Response): void {
 }
 
 /**
- * Builds the Express app for the MCP Resource Server: a single stateless
- * `/mcp` endpoint plus a `/health` check. Kept separate from `startMcpServer`
- * so tests can exercise the app in-process (via supertest) without binding a
- * port.
+ * Express app for the MCP Resource Server: stateless `/mcp` plus `/health`.
+ * Separate from startMcpServer so tests can run in-process without binding a port.
  */
 export function createMcpApp(options: CreateMcpAppOptions): Express {
   const app = express();
@@ -132,12 +117,7 @@ export function createMcpApp(options: CreateMcpAppOptions): Express {
     options.resourceUrl,
   ).toString();
 
-  // Registered before the host/origin allowlists: health checks and OAuth
-  // discovery metadata are both probed by infrastructure/clients that may
-  // not send the same Host/Origin headers a real MCP client would, and
-  // expose no sensitive data, so neither should depend on those checks
-  // passing. RFC 9728 requires this document be servable with no
-  // authentication of its own.
+  // Before host/origin checks — health and RFC 9728 metadata are unauthenticated probes.
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", service: SERVICE_NAMES.mcp });
   });

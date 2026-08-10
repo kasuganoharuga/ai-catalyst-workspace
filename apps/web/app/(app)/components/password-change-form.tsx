@@ -11,28 +11,14 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { cn } from "@/lib/utils";
 
-// Better Auth's own floor for `emailAndPassword`. Mirrored here so the
-// user is told before a round trip, not after one, and again in
-// setInitialPasswordAction because a client-side check is not one.
+// Better Auth's minimum — mirrored here for client-side validation before round trip.
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
- * The password fields and their rules, shared by the profile page and the
- * first-run dialog. Everything either surface adds — headings, the
- * reset-by-email note — stays outside this component, so the validation
- * only exists once.
+ * Shared password fields for profile and first-run dialog.
  *
- * Two modes, because the two surfaces are answering different questions:
- *
- * - `"change"` — the profile page. Proves it is really you by asking for
- *   the current password, and signs out every other session on the way,
- *   because someone changing their password usually suspects the old one
- *   leaked.
- * - `"initial"` — the first-run dialog. The founder typed the invitation
- *   password seconds ago to get here, so asking for it again is friction
- *   that buys nothing; the session stands in for it. Bounded server-side
- *   to accounts still on that invitation password — see
- *   setInitialPasswordAction.
+ * `"change"` proves identity and revokes other sessions; `"initial"` skips current
+ * password (invitation password was just used) — bounded server-side in setInitialPasswordAction.
  */
 export function PasswordChangeForm({
   mode = "change",
@@ -45,7 +31,7 @@ export function PasswordChangeForm({
   mode?: "change" | "initial";
   submitLabel?: string;
   pendingLabel?: string;
-  /** Shown beside the button once the change lands. Omit to say nothing. */
+  /** Shown beside the button once saved. */
   successNote?: string;
   onSuccess?: () => void;
   className?: string;
@@ -87,8 +73,6 @@ export function PasswordChangeForm({
     setStatus("saving");
 
     if (needsCurrent) {
-      // Signs out anywhere else this account is open. This session
-      // survives, so a founder mid-setup is not thrown out of the flow.
       const { error: changeError } = await authClient.changePassword({
         currentPassword,
         newPassword,
@@ -104,15 +88,11 @@ export function PasswordChangeForm({
         return;
       }
 
-      // Client belt-and-braces; authoritative revoke is account.update.after
-      // (role-agnostic, so it already covers a Mentor). This one is
-      // Founder-only at the service layer — a Mentor never holds an MCP
-      // token to revoke — so it's expected to throw for them and is safe
-      // to ignore rather than surface.
+      // Best-effort MCP revoke; authoritative path is account.update.after hook.
       try {
         await revokeMcpConnectionAction();
       } catch {
-        // best-effort only, see comment above
+        // best-effort only
       }
     } else {
       const result = await setInitialPasswordAction(newPassword);

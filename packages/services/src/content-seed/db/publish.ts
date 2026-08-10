@@ -20,19 +20,8 @@ function fail(message: string): never {
 }
 
 /**
- * Idempotent activation pass: everything that used to be publishProgramVersion's
- * Steps 2-5/7/8, restructured so running it again on unchanged content is a
- * true no-op (zero UPDATEs) rather than re-asserting an exact rowCount that
- * would only ever be true the very first time. This is what makes it safe
- * to call on EVERY `pnpm db:seed`, not just the first one that flips a
- * program_version from draft to published — without this, a Module or
- * Prompt Version added to an already-published, content_lock='mutable'
- * ("living") program_version would sit at status='draft' forever, since
- * nothing else in the reconciler ever activates it.
- *
- * Steps 1 (program_version must be draft) and 9 (mark it published) are
- * NOT here — those only make sense the one time a program_version moves
- * out of draft; see markProgramVersionPublished below, called only then.
+ * Idempotent activation (old publish steps 2–5/7/8) — safe on every db:seed, not just first publish.
+ * Steps 1 and 9 (draft gate + mark published) live in markProgramVersionPublished.
  */
 export async function activateReconciledContent(
   client: PoolClient,
@@ -43,11 +32,7 @@ export async function activateReconciledContent(
   const publishableModules = modules.filter((module) => module.isPublishable);
   const placeholderModules = modules.filter((module) => !module.isPublishable);
 
-  // Step 2 — every publishable Module's content must be complete: at
-  // least one active Question and/or Artifact Definition. Filtered to
-  // status='active' so an archived child doesn't count toward this, and
-  // archiving every child of a still-publishable Module correctly fails
-  // here instead of silently leaving an empty shell active.
+  // Publishable modules need at least one active question or artifact child.
   for (const module of publishableModules) {
     const counts = await client.query<{
       question_count: string;
@@ -68,12 +53,7 @@ export async function activateReconciledContent(
     }
   }
 
-  // Step 3 — placeholder Modules must never be active. Unlike the
-  // original one-shot version of this check ("must still be draft"),
-  // 'archived' is also acceptable here — a placeholder that was archived
-  // and later revived comes back as 'draft' (see
-  // reconcile-ordered-rows.ts's applyOrderedRowsPlan revive-status for
-  // module_definitions), which still satisfies this.
+  // Placeholder modules must never be active ('draft' or 'archived' is fine).
   if (placeholderModules.length > 0) {
     const statuses = await client.query<{
       id: string;
@@ -91,8 +71,7 @@ export async function activateReconciledContent(
     }
   }
 
-  // Step 4 — required Prompt Definitions/Versions must exist for every
-  // Module that expects bindings.
+  // Every module with expected bindings must have that many rows.
   for (const [moduleKey, expectedCount] of expectedModulePromptBindingCounts) {
     const module = modules.find(
       (candidate) => candidate.moduleKey === moduleKey,
@@ -113,13 +92,7 @@ export async function activateReconciledContent(
     }
   }
 
-  // Step 5 — every reconciled Prompt Version must be in a publishable
-  // state. Prompt content is shared/global (keyed by prompt_key, not
-  // scoped to a Program Version), so an already-published Prompt Version
-  // being reused unchanged is expected, not an error; reconcilePrompts
-  // already rejected `retired` versions and content drift against
-  // `published` ones before returning, so any status reaching here is
-  // safe to proceed with.
+  // Reconciled prompt versions must be draft or published (retired already rejected upstream).
   const unpublishablePromptVersions = promptVersions.filter(
     (version) => version.status !== "draft" && version.status !== "published",
   );
@@ -131,12 +104,7 @@ export async function activateReconciledContent(
     );
   }
 
-  // Step 7 — publish every Prompt Version that is still draft (one
-  // already published by an earlier seed run, possibly under a different
-  // program_version, is left untouched). Idempotent: the follow-up SELECT
-  // asserts none of the *targeted* ids are left un-published, rather than
-  // asserting the UPDATE's rowCount equals the target count — the latter
-  // would only ever hold true the first time this runs.
+  // Publish draft prompt versions; already-published rows are left untouched.
   const draftPromptVersionIds = promptVersions
     .filter((version) => version.status === "draft")
     .map((version) => version.promptVersionId);
@@ -163,11 +131,7 @@ export async function activateReconciledContent(
     }
   }
 
-  // Step 8 — activate every publishable Module that isn't already active
-  // (covers both a brand new draft row and a previously-active-then-
-  // archived-then-revived one, which reconcile-ordered-rows.ts's
-  // applyOrderedRowsPlan always revives to 'draft' specifically so it
-  // lands back here). Idempotent for the same reason as Step 7 above.
+  // Activate publishable modules not yet active (including revived-as-draft rows).
   const publishableModuleIds = publishableModules.map(
     (module) => module.moduleId,
   );
@@ -198,17 +162,8 @@ export async function activateReconciledContent(
 }
 
 /**
- * The one-time transition of a program_version out of draft — Steps 1
- * (must currently be draft) and 9 (mark it published) of the original
- * publish sequence, combined into a single function called only when
- * `seedToolkitContent` observes `programVersionStatus === "draft"` at the
- * start of the run. Must run AFTER activateReconciledContent, so a
- * failure partway through activation never leaves the program_version
- * marked published while its content is still incomplete. Safe to run
- * after activation rather than locking the row first, because the whole
- * transaction already holds seedToolkitContent's exclusive
- * pg_advisory_xact_lock — nothing else can be racing this program_version
- * to `published` in between.
+ * One-time draft → published transition for program_version — runs after activateReconciledContent
+ * on first seed only, under the same SEED_LOCK transaction.
  */
 export async function markProgramVersionPublished(
   client: PoolClient,

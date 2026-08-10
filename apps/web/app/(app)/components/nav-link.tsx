@@ -39,15 +39,7 @@ export function NavLink({
 }: {
   item: NavItemConfig;
   withIcon?: boolean;
-  /**
-   * The mobile top bar's tighter sizing. Three full labels at the
-   * vertical sidebar's padding and text size need more width than the
-   * bar has once the logo and account menu take their share (measured:
-   * 269px of links in 243px of room at 375px wide), clipping the last
-   * tab against the account menu with no visual sign there was more.
-   * Smaller padding and text close that gap with room to spare, rather
-   * than landing exactly on the boundary at today's three label lengths.
-   */
+  /** Mobile top-bar sizing — full sidebar padding clips the last tab at ~375px. */
   compact?: boolean;
 }) {
   const isActive = useActiveNavItem(item.href);

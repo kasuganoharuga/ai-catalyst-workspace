@@ -8,15 +8,10 @@ import {
   upsertPreferredAiProvider,
 } from "@ai-catalyst/services/profile/internal/preferred-ai-provider";
 
-// Owns everything to do with `user_profiles`. The table is deliberately
-// separate from Better Auth's `users`: `users.name`/`users.email` are
-// authentication identity and are written by the auth library, while this
-// is the Founder's own editable profile. The two are never merged — the
-// website resolves a display name from this profile and falls back to
-// `users.name` (see resolveDisplayName in apps/web/lib/user-profile.ts).
+// Founder-editable profile — separate from Better Auth users (auth identity).
+// Display name resolves from here, falling back to users.name.
 
-// Explicit column list (never `select *`) so a future internal-only
-// column is never accidentally exposed through the DTO.
+// Explicit column list — never `select *`.
 const USER_PROFILE_COLUMNS = `
   user_id, first_name, last_name, contact_email, preferred_ai_provider,
   job_title, bio, linkedin_url, locale, created_at, updated_at
@@ -42,9 +37,7 @@ function mapUserProfileRow(row: UserProfileRow): UserProfile {
     firstName: row.first_name,
     lastName: row.last_name,
     contactEmail: row.contact_email,
-    // An unrecognised value can only mean the check constraint gained a
-    // provider this build doesn't know about — surface null rather than
-    // leaking a string the DTO's union says is impossible.
+    // Unknown provider value from DB — surface null rather than leak an invalid union member.
     preferredAiProvider: isPreferredAiProvider(row.preferred_ai_provider)
       ? row.preferred_ai_provider
       : null,
@@ -57,8 +50,7 @@ function mapUserProfileRow(row: UserProfileRow): UserProfile {
   };
 }
 
-// The shape returned when no row exists yet. Not an error: rows are
-// created on first save, so "never edited my profile" is a normal state.
+// Default shape when no row exists yet — rows are created on first save.
 function emptyProfile(userId: string): UserProfile {
   return {
     userId,
@@ -76,12 +68,7 @@ function emptyProfile(userId: string): UserProfile {
 }
 
 /**
- * Reads the signed-in user's own profile. Always returns a profile —
- * an all-null one when no `user_profiles` row exists yet.
- *
- * Scoped to the actor's own `user_id` by construction: there is no
- * parameter for reading somebody else's profile, so this can never be
- * used to enumerate other users.
+ * Reads the signed-in user's profile. Scoped to actor.userId — cannot enumerate others.
  */
 export async function getMyProfile(actor: ActorContext): Promise<UserProfile> {
   assertRole(actor, ["founder", "mentor", "admin"]);
@@ -94,33 +81,15 @@ export async function getMyProfile(actor: ActorContext): Promise<UserProfile> {
   return row ? mapUserProfileRow(row) : emptyProfile(actor.userId);
 }
 
-// ---------------------------------------------------------------------
-// hasChangedInvitationPassword
-// ---------------------------------------------------------------------
+// --- hasChangedInvitationPassword ---
 
-// Better Auth stamps `created_at` and `updated_at` from a single
-// `new Date()` when it inserts the credential row, so they start equal.
-// A second of slack keeps sub-millisecond clock noise from reading as a
-// password change; nobody changes their password inside a second of the
-// account being created.
+// Better Auth sets created_at === updated_at on credential insert; slack avoids clock noise.
 const PASSWORD_CHANGE_SLACK_SECONDS = 1;
 
 /**
- * Whether this user has replaced the password their invitation shipped
- * with.
- *
- * The signal is `accounts.updated_at` on the `credential` row: Better
- * Auth's core schema declares that column with an `onUpdate` hook, and
- * `changePassword` writes the row through `updateAccount`, so the
- * timestamp moves forward the first time a password is set by hand.
- *
- * (An earlier comment in apps/web's dashboard claimed this could not be
- * detected. It could; nothing was reading it.)
- *
- * Returns true when there is no credential row at all. That should not
- * happen for an invited Founder, but the alternative is nagging an
- * account that has no password to change — a prompt nobody can ever
- * satisfy is worse than a prompt occasionally not shown.
+ * Whether the user replaced their invitation password.
+ * Signal: accounts.updated_at on the credential row moves after changePassword.
+ * Returns true when no credential row — avoids nagging an account with no password.
  */
 export async function hasChangedInvitationPassword(
   actor: ActorContext,
@@ -139,9 +108,7 @@ export async function hasChangedInvitationPassword(
   return result.rows[0]?.changed ?? true;
 }
 
-// ---------------------------------------------------------------------
-// updateMyProfile
-// ---------------------------------------------------------------------
+// --- updateMyProfile ---
 
 const MAX_NAME_LENGTH = 120;
 const MAX_JOB_TITLE_LENGTH = 160;
@@ -149,9 +116,7 @@ const MAX_BIO_LENGTH = 2000;
 const MAX_URL_LENGTH = 500;
 const MAX_EMAIL_LENGTH = 320;
 
-// Deliberately permissive: this is a contact address the Founder chooses
-// to share, not a login credential, so it only has to look like an
-// address rather than satisfy the full RFC.
+// Contact email only — permissive pattern, not login credential validation.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const EDITABLE_FIELDS = [
@@ -184,11 +149,7 @@ const MAX_LENGTH_BY_FIELD: Record<EditableField, number> = {
 };
 
 /**
- * Normalises one field's incoming value.
- *
- * Blank strings collapse to `null` rather than being stored: the table's
- * `*_not_blank` check constraints reject whitespace-only values outright,
- * and "I cleared this field" is the user's intent anyway.
+ * Normalises one field. Blank strings become null (matches *_not_blank constraints).
  */
 function normalizeField(
   field: EditableField,
@@ -229,8 +190,7 @@ function normalizeField(
         "linkedinUrl must be a full URL, including https://.",
       );
     }
-    // http/https only — a `javascript:` or `data:` URL here would be
-    // rendered as a link and become a stored-XSS vector.
+    // http/https only — other schemes would be a stored-XSS vector when rendered as a link.
     if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
       throw new ServiceError(
         "VALIDATION_ERROR",
@@ -243,9 +203,7 @@ function normalizeField(
 }
 
 /**
- * Validates untrusted input crossing the API boundary and returns only
- * the fields the caller actually supplied, so an absent key means "leave
- * unchanged" while an explicit `null` means "clear this".
+ * Validates API input; absent keys are unchanged, explicit null clears a field.
  */
 function normalizeUpdateInput(
   input: unknown,
@@ -274,12 +232,7 @@ function normalizeUpdateInput(
 }
 
 /**
- * Creates or updates the signed-in user's own profile.
- *
- * Upserts rather than requiring a pre-existing row: `user_profiles` rows
- * are not created at sign-up or invitation acceptance, so the first save
- * is also the insert. Only the fields present in `input` are written —
- * a partial update never clears the fields it didn't mention.
+ * Creates or updates the signed-in user's profile. Partial updates never clear omitted fields.
  */
 export async function updateMyProfile(
   actor: ActorContext,
@@ -318,35 +271,11 @@ export async function updateMyProfile(
   return mapUserProfileRow(row);
 }
 
-// ---------------------------------------------------------------------
-// setPreferredAiProvider
-// ---------------------------------------------------------------------
+// --- setPreferredAiProvider ---
 
 /**
- * Records which AI assistant this user set the website up for.
- *
- * Deliberately its own writer rather than another entry in
- * `EDITABLE_FIELDS`. Three reasons, in increasing order of importance:
- * `normalizeField` is built around trim/length/URL/email checks on
- * nullable free text and an enum needs a different branch in three
- * separate lookup tables; `null` means "clear this" everywhere on that
- * path, but a chosen provider must never become unset again (the
- * first-run dialog keys off it being null, so clearing it would re-open
- * the dialog); and `ProfileForm` submits a whole object built from its
- * own `FormState`, so a field reachable through `updateMyProfile` would
- * be wiped by an ordinary profile save that never mentioned it.
- *
- * `UpdateUserProfileInput` therefore continues to exclude it, as its
- * comment in packages/shared already documents.
- *
- * The write itself is `upsertPreferredAiProvider` (profile/internal) —
- * this function's job is entirely the Founder-facing half: checking the
- * actor is allowed to do this and that `provider` is a value the column
- * can hold, then reading back the profile the caller needs returned. The
- * same write is also reachable from mcp-auth's recordMcpGrantIssued, when
- * connecting an assistant is how the choice got made rather than this
- * action — it calls the shared helper directly rather than going through
- * an ActorContext-shaped entry point it doesn't have one for.
+ * Records which AI assistant the user set up. Separate from updateMyProfile so
+ * profile saves cannot clear it and the first-run dialog cannot reopen.
  */
 export async function setPreferredAiProvider(
   actor: ActorContext,
@@ -363,9 +292,7 @@ export async function setPreferredAiProvider(
 
   await upsertPreferredAiProvider(pool, actor.userId, provider);
 
-  // upsertPreferredAiProvider doesn't return the row (its other caller,
-  // recordMcpGrantIssued, never wants one), so this function reads back
-  // the full profile itself, the same shape getMyProfile builds.
+  // upsertPreferredAiProvider has no return value — read back the full profile here.
   const result = await pool.query<UserProfileRow>(
     `select ${USER_PROFILE_COLUMNS} from user_profiles where user_id = $1`,
     [actor.userId],

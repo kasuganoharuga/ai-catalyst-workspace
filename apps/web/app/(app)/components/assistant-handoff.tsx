@@ -11,20 +11,7 @@ import { CopyButton } from "./copy-button";
 /**
  * Hand-off to the founder's chosen assistant.
  *
- * Two shapes, chosen by whether `assistant.desktopChatUrl` is set rather
- * than by a provider check here:
- *
- * - **Deep link** (both assistants currently): the button opens a chat
- *   with the message already in it. Claude additionally gets a browser
- *   link underneath, for when the desktop app isn't installed and the
- *   custom scheme silently no-ops — ChatGPT has none, because a chat at
- *   chatgpt.com has no route to this workspace's MCP connector regardless
- *   of whether the desktop app exists.
- * - **Copy first** (unused today, kept working): if an assistant's
- *   `desktopChatUrl` were ever null again — no verified scheme for a
- *   prefilled chat — copying becomes the primary action and opening the
- *   bare app secondary. This is what a wrong or since-changed URL scheme
- *   degrades to, not a dead branch.
+ * Deep link when `desktopChatUrl` is set; copy-first when it is null (no verified prefilled scheme).
  */
 export function AssistantHandoff({
   provider,
@@ -36,11 +23,11 @@ export function AssistantHandoff({
 }: {
   provider: PreferredAiProvider | null;
   prompt: string;
-  /** Swaps the calls to action for their "you've been here before" wording. */
+  /** "You've been here before" wording. */
   retry?: boolean;
-  /** The module's identity colour, applied to the primary button. */
+  /** Module accent colour for the primary button. */
   accent?: { backgroundColor: string };
-  /** Locked modules show the prompt for context but must not open anything. */
+  /** Locked modules show the prompt but must not open anything. */
   disabled?: boolean;
   disabledNote?: string;
 }) {
@@ -71,7 +58,6 @@ export function AssistantHandoff({
         <div className="border-t border-border px-4 py-4">
           {desktopChatUrl ? (
             <>
-              {/* White text on module accent; default lime uses text-primary-foreground */}
               <Button
                 asChild
                 size="lg"
@@ -81,7 +67,7 @@ export function AssistantHandoff({
                 )}
                 style={accent}
               >
-                {/* No target="_blank" — a custom scheme must stay in this tab */}
+                {/* Custom scheme must stay in this tab */}
                 <a href={desktopChatUrl(prompt)}>
                   {retry ? handoff.retryCta : handoff.openCta}
                   <ExternalLink aria-hidden="true" />
@@ -107,9 +93,6 @@ export function AssistantHandoff({
             </>
           ) : (
             <>
-              {/* Copying is the action that actually gets the founder
-                  moving here, so it takes the primary button rather than
-                  sitting as a small control in the header above. */}
               <CopyButton
                 value={prompt}
                 label={retry ? handoffCopy.copyRetryCta : handoffCopy.copyCta}

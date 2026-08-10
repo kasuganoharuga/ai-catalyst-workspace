@@ -21,14 +21,8 @@ import {
 import { toastCopy } from "../lib/copy";
 
 /**
- * Download control for a saved artefact. When only Markdown exists, this is
- * a single plain link — a dropdown with one option would just be noise.
- *
- * When a PDF workbook is also available, the two formats sit in a menu that
- * matches the rest of the app chrome (hairline border, card surface, no
- * soft popover glow). Markdown stays a plain `<a href>` (always works);
- * PDF goes through `fetch` so a `WORKBOOK_RENDER_FAILED` response surfaces
- * as a toast instead of a raw JSON error body.
+ * Artefact download: plain link when Markdown-only; dropdown when PDF workbook exists.
+ * PDF uses fetch so render failures surface as toasts instead of raw JSON.
  */
 export function ArtefactDownloadMenu({
   downloadHref,

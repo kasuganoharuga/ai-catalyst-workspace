@@ -33,29 +33,17 @@ import {
 } from "../../lib/copy";
 
 /**
- * Where the first-run choice can be changed.
+ * Where the first-run assistant choice can be changed.
  *
- * Switching signs the current assistant out. That is a deliberate choice
- * rather than a technical necessity — the preference and the OAuth grant
- * are independent, and leaving the old connection alive would work — but
- * only one assistant can be connected at a time, so a founder who switches
- * and keeps a live connection to the other one is looking at instructions
- * for a product that is not the one talking to their workspace. Ending it
- * here means the page they land on next tells the truth.
- *
- * Because it is destructive, it goes through a confirmation rather than
- * happening on the first click.
+ * Switching revokes the current connection so instructions match the product talking
+ * to the workspace. Destructive — goes through confirmation.
  */
 export function AssistantSection({
   current,
   connectedProvider,
 }: {
   current: PreferredAiProvider | null;
-  /**
-   * Which vendor is actually connected, by redirect host. `"other"` and
-   * `null` both mean we cannot name what is connected — the revoke still
-   * runs, but the confirmation can't promise which product loses access.
-   */
+  /** Live grant by redirect host; `"other"`/`null` = cannot name what disconnects. */
   connectedProvider: "claude" | "openai" | "other" | null;
 }) {
   const router = useRouter();
@@ -63,9 +51,6 @@ export function AssistantSection({
   const [saving, setSaving] = useState(false);
   const chosen = resolveAssistant(current);
 
-  // Named by vendor rather than by the client's own display name: DCR lets
-  // a client call itself anything, and "Claude (seeded test client) will be
-  // signed out" is not a sentence to put in front of a founder.
   const connected =
     connectedProvider === "claude" || connectedProvider === "openai"
       ? resolveAssistant(connectedProvider)
@@ -78,10 +63,7 @@ export function AssistantSection({
     setSaving(true);
 
     try {
-      // Preference first. If the revoke then fails, the founder is set up
-      // for the new assistant with the old one still connected — a state
-      // the connection page already explains. The other order would take
-      // their working connection away and leave them nothing for it.
+      // Preference first — revoke failure leaves mismatch the connection page explains.
       const saved = await setPreferredAiProviderAction(next.provider);
       if (!saved.ok) {
         toast.error(toastCopy.actionFailedTitle, {
@@ -183,8 +165,6 @@ export function AssistantSection({
       <Dialog
         open={pendingSwitch !== null}
         onOpenChange={(open) => {
-          // Not while the revoke is in flight: closing would leave the
-          // founder with no idea whether their connection survived.
           if (!open && !saving) setPendingSwitch(null);
         }}
       >
@@ -198,9 +178,6 @@ export function AssistantSection({
                 <DialogDescription>
                   {hasConnection
                     ? assistantSectionCopy.confirmBodyConnected(
-                        // Falls back to the assistant they are set up for
-                        // when the connected client is unrecognised — that
-                        // is the one whose instructions they've been given.
                         (connected ?? chosen).name,
                         pendingSwitch.name,
                       )

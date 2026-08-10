@@ -6,14 +6,8 @@ import { ConnectionSetupStep } from "./connection-setup-step";
 import { ConnectionWatcher } from "./connection-watcher";
 
 /**
- * Manual connector steps with the workspace address inline.
- *
- * There is deliberately no "have the assistant walk you through it"
- * disclosure any more. It handed the assistant a prefilled set of
- * instructions for settings it cannot see, so it could only ever
- * paraphrase what is already on this page — and it confidently reported
- * success it had no way to observe. The wireframes and the troubleshooting
- * list carry that weight instead.
+ * Manual connector steps with inline workspace address — no assistant walkthrough (cannot observe connection success).
+ * Wireframes and troubleshooting carry setup guidance instead.
  */
 export function ConnectionSetup({
   assistant,

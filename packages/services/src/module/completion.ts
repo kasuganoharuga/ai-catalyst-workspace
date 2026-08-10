@@ -35,10 +35,9 @@ import {
   loadGuideQuestionsForAttempt,
 } from "@ai-catalyst/services/interview";
 
-// Orchestrates module completion after a Founder calls complete_module:
-// submitAttempt, runOfficialValidation, then leave the Attempt at
-// ready_for_review for website confirmModuleCompletion (which unlocks
-// the next module for any Founder decision — AI is advisor, not gatekeeper).
+// Orchestrates module completion after complete_module: submitAttempt,
+// runOfficialValidation, then leave the Attempt at ready_for_review for
+// website confirmModuleCompletion — AI is advisor, not gatekeeper.
 
 async function loadAttemptRow(
   attemptId: string,
@@ -68,12 +67,7 @@ interface CompletionContextRow {
   next_module_title: string | null;
 }
 
-// One read-only, no-lock query covering everything both the "does this
-// Module auto-complete" branch and (for Module 0 only) the Setup Summary
-// renderer need. Re-checked for real under a row lock by
-// completeSystemModule/cancelAttemptForPivot before anything is written —
-// this is only ever used to decide which branch to take and what to put in
-// a system-generated document, never as the basis for a write itself.
+// One read-only query for auto-complete branch and Module 0 setup summary — re-checked under lock before writes.
 async function loadCompletionContext(
   runModuleId: string,
   workspaceId: string,
@@ -119,14 +113,7 @@ async function loadCompletionContext(
   return result.rows[0] ?? null;
 }
 
-// Founder-visible: this string is written into the Setup Summary's
-// "AI client:" line, so it has to name the assistant the Founder actually
-// connected. `actor.provider` is derived from the OAuth client's registered
-// redirect host, not from self-declared client_name, so it is safe to
-// display. Unlike the enum columns (module_responses.source_provider et al,
-// which only accept website/claude/openai), this is free text, so "other"
-// — a legitimately registered third client — gets an honest generic label
-// rather than being forced into one of the two known brands.
+// Founder-visible AI client label from actor.provider (redirect host), not self-declared name.
 function resolveAiClientLabel(actor: ActorContext): string {
   if (actor.source === "web") {
     return "Founder Toolkit (Web)";
@@ -188,22 +175,7 @@ async function assertModule4PinnedInterviewEvidence(
   }
 }
 
-// Module 0's Setup Summary Artifact is system-generated, not
-// Founder-authored, but it is still saved via the founder-scoped
-// saveArtifactSubmission (not a synthetic system actor) — that function's
-// own resolveSubmissionCreatedVia only supports the two source values a
-// `assertRole(actor, ["founder"])` caller can ever have (web/mcp), and
-// there is no product need for `created_via = 'system'` here: the
-// Founder's own complete_module call (via web or Claude) is what caused
-// this Artifact to be written, which is exactly what created_via already
-// records for every other Artifact.
-//
-// Idempotent by construction: only renders and saves when this Attempt has
-// no submission for the Artifact yet, so a retried completeModuleAttempt
-// call (e.g. after submitAttempt or runOfficialValidation failed
-// transiently) never re-renders with a fresh checkedAtIso and creates a
-// second Version — see setup-summary.ts's own comment on why this
-// document can't describe its own hash.
+// Module 0 setup summary via founder-scoped save — idempotent if submission already exists.
 async function ensureSetupSummarySubmission(
   actor: ActorContext,
   attemptId: string,
@@ -249,11 +221,7 @@ type CompletionEventType =
   | "module_unlocked"
   | "attempt_cancelled";
 
-// Deliberately its own event writer, not a reuse of attempt/index.ts's
-// private insertModuleEvent (which hardcodes actor_type = 'user') — the
-// system-completion branch below needs actor_type = 'system' for an
-// actor whose source has been forced to 'system', which that hardcode
-// cannot express.
+// System events need actor_type='system' — attempt/events hardcodes 'user'.
 async function insertCompletionEvent(
   client: PoolClient,
   input: {
@@ -302,15 +270,7 @@ export interface NextModuleUnlocked {
   title: string;
 }
 
-// Locks program_run_modules FIRST, then module_attempts — same
-// lock-ordering convention as attempt/index.ts. The Attempt must already
-// be at 'ready_for_review' (put there by runOfficialValidation); this
-// re-verifies that under the lock rather than trusting the caller's
-// now-stale read.
-//
-// `actor` is the Founder confirming their own output, not a system
-// actor: this is a deliberate human action, and the events and
-// accepted_by/completed_by columns record who took it.
+// Lock run_module then attempt; re-verify ready_for_review under lock — founder confirms, not system.
 async function completeSystemModule(
   client: PoolClient,
   actor: ActorContext,
@@ -526,15 +486,7 @@ function collectValidationErrors(
 }
 
 /**
- * Orchestrates the full "Founder is done with this Attempt" flow behind
- * the MCP `complete_module` tool: submitAttempt + runOfficialValidation,
- * then leave the Attempt at ready_for_review for website confirmation.
- *
- * Idempotency: an already-`accepted` Attempt short-circuits immediately.
- * Other repeat-call shapes are idempotent via submitAttempt /
- * runOfficialValidation short-circuits. Proceed / Pivot / Kill all share
- * the same success path — the Founder's decision does not auto-cancel or
- * start a Retry Attempt.
+ * MCP complete_module: submit + validate, stop at ready_for_review for website confirm.
  */
 export async function completeModuleAttempt(
   actor: ActorContext,
@@ -656,12 +608,9 @@ export async function completeModuleAttempt(
   };
 }
 
-// ---------------------------------------------------------------------
-// confirmModuleCompletion — the website's half of module completion.
-// ---------------------------------------------------------------------
+// --- confirmModuleCompletion ---
 
-// Takes programRunModuleId (not moduleKey) so the target is resolved by id
-// within the caller's workspace — active context is navigation, not auth.
+// programRunModuleId not moduleKey — auth by workspace id, not active context navigation.
 function normalizeConfirmInput(input: unknown): { programRunModuleId: string } {
   if (
     typeof input !== "object" ||
@@ -695,24 +644,8 @@ export interface ConfirmModuleCompletionResult {
 }
 
 /**
- * The Founder confirming, on the website, that they are happy with what a
- * Module produced — which is what actually completes it and unlocks the
- * next one.
- *
- * This exists because `complete_module` (MCP) deliberately stops at
- * `ready_for_review`. Letting the AI client both produce the output and
- * declare it good would take the Founder out of their own programme: they
- * could be three modules deep without ever having looked at what was
- * written in their name. So the AI does the work, and the person whose
- * business it is signs it off.
- *
- * Not a review in the PR 4.2 sense — that is a Mentor judging the content
- * and is still to come. This is the Founder acknowledging their own
- * output, so `accepted_by_user_id` is the Founder themselves.
- *
- * Idempotent: confirming an already-completed Module returns the current
- * state rather than erroring, so a double-click or a stale tab can't
- * produce a confusing failure.
+ * Founder confirms on website — completes module and unlocks next.
+ * MCP complete_module stops at ready_for_review so they sign off before advancing.
  */
 export async function confirmModuleCompletion(
   actor: ActorContext,

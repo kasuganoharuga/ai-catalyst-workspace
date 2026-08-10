@@ -4,19 +4,10 @@ import type { CSSProperties } from "react";
 import { Toaster as SonnerToaster } from "sonner";
 
 /**
- * App-wide toast host, themed from the same tokens as everything else.
+ * App-wide toast host themed via sonner CSS variables.
  *
- * The colours come through sonner's own CSS variables rather than utility
- * classes. Sonner styles `[data-sonner-toast]` itself, at the same
- * specificity a single utility class has, and its stylesheet wins on order
- * — so a `bg-popover` class silently loses and the toast stays light while
- * the rest of the page goes dark. Feeding the tokens into `--normal-*`
- * puts them where sonner already looks, and it keeps working through the
- * `.dark` class because each `var()` resolves against the cascade at the
- * toast's own position in the tree.
- *
- * Bottom-right, not top-centre: the primary actions on these pages sit low
- * in the card, so the message lands near where the founder is looking.
+ * Utility classes lose to sonner's stylesheet order. Bottom-right keeps messages
+ * near the primary actions at the bottom of each card.
  */
 export function Toaster() {
   return (
@@ -32,9 +23,6 @@ export function Toaster() {
       toastOptions={{
         classNames: {
           toast: "group rounded-lg shadow-lg",
-          // Important, and not optional: this is a border *colour* landing
-          // on the same element sonner has already given one, so without it
-          // an error toast looks exactly like a success.
           error: "border-destructive/50!",
           title: "text-sm font-medium",
           description: "text-sm text-muted-foreground",

@@ -2,18 +2,12 @@ import type { RunModuleSummary } from "@ai-catalyst/shared";
 
 import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 
-/**
- * Typed result from ensureActiveProgramDestinationAction — connection /
- * dashboard CTAs navigate from `ready.destination` only.
- */
+/** Result from ensureActiveProgramDestinationAction — CTAs navigate from `ready.destination`. */
 export type EnsureRunResult =
   | { status: "ready"; runId: string; destination: string }
   | { status: "not_connected" }
   | { status: "no_active_venture" }
   | { status: "venture_unavailable" }
-  // The Run exists and Claude is connected, but the server-side setup
-  // check did not pass, so no module was opened. Distinct from a generic
-  // error: nothing the Founder did is wrong, and retrying is the fix.
   | { status: "setup_failed" }
   | { status: "error"; message?: string };
 
@@ -23,15 +17,10 @@ export type NextModuleCandidate = Pick<
 >;
 
 /**
- * True when this Run still has a setup Module that nobody has completed.
+ * True when this run still has an incomplete setup module.
  *
- * A Run created before the setup Module was hidden still carries it, still
- * open, and every real Module after it stays locked behind it. With no UI
- * left pointing at Module 0, such a founder has no way forward at all —
- * they get "finish the previous module" about a module that no longer
- * appears anywhere. So this is what tells the UI to route them through
- * ensureActiveProgramDestinationAction (which completes it server-side)
- * instead of offering a plain link into a locked module.
+ * Without UI for Module 0, founders would be stuck behind an invisible gate —
+ * route through ensureActiveProgramDestinationAction instead.
  */
 export function hasPendingSetupModule(
   modules: Pick<RunModuleSummary, "status" | "moduleType">[],
@@ -45,14 +34,9 @@ export function hasPendingSetupModule(
 }
 
 /**
- * First incomplete module wins: in_progress (incl. awaiting Confirm),
- * then available / ready_to_unlock. All done → dashboard.
+ * First incomplete module wins; all done → dashboard.
  *
- * Setup modules are skipped while SHOW_SETUP_MODULE is off — they are
- * completed server-side by autoCompleteSetupModule before this runs, but
- * a Run whose setup check failed must not strand the Founder on a module
- * that has no UI entry point, so it is filtered here rather than relied
- * upon to always be `completed`.
+ * Setup modules skipped while SHOW_SETUP_MODULE is off (completed server-side).
  */
 export function resolveNextModuleDestination(
   modules: NextModuleCandidate[],

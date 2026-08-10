@@ -13,16 +13,9 @@ interface ActiveContextRow {
   active_venture_id: string | null;
 }
 
-// user_active_contexts only records the current UI selection (see the
-// table's own schema comment) — never a basis for authorization. Every
-// write path that actually mutates a Venture/Workspace must independently
-// re-check ownership and status; this module never asserts either.
+// UI selection only — never a basis for authorization. Write paths must re-check ownership.
 //
-// Deliberately three separate statements instead of a single
-// `on conflict (user_id) do update` — an unconditional upsert would rewrite
-// (and bump `updated_at` on) every plain read, including the common case
-// where nothing is actually wrong. The middle `update` only fires when the
-// stored Workspace has drifted from the Founder's real one.
+// Three statements, not one upsert — unconditional upsert would bump updated_at on every read.
 export async function getActiveContext(
   actor: ActorContext,
 ): Promise<ActiveContext> {
@@ -40,11 +33,7 @@ export async function getActiveContext(
       [actor.userId, workspaceId],
     );
 
-    // Only corrects a row whose stored Workspace no longer matches the
-    // Founder's real one (e.g. seeded/stale test data) — clears the
-    // now-incompatible Venture selection in the same statement. A row that
-    // is already correct is left completely untouched, including its
-    // `updated_at`.
+    // Correct stale workspace only — leave correct rows (and updated_at) untouched.
     await client.query(
       `update user_active_contexts
        set active_workspace_id = $2, active_venture_id = null, updated_at = now()
@@ -75,14 +64,7 @@ export async function getActiveContext(
   }
 }
 
-// Same upsert as setActiveVenture below, but callable on an
-// already-open client/transaction (no assertRole — the caller's actor is
-// still 'pending' mid-upgrade at that point) — used only by
-// acceptFounderInvitation, right after it creates the Founder's Workspace
-// and default Venture, so the new Venture is already the active selection
-// the first time the Founder loads the Dashboard. No caller may reuse this
-// for an ordinary switch — that path is setActiveVenture, which re-asserts
-// role and ownership on every call.
+// Invitation-accept path only — no assertRole (caller is still 'pending'). Not for ordinary switches.
 export async function setInitialActiveContext(
   client: PoolClient,
   userId: string,
@@ -100,12 +82,7 @@ export async function setInitialActiveContext(
   );
 }
 
-// Single function for both switching and explicitly clearing
-// (ventureId: null) the current selection, shared by every caller
-// (route handlers, MCP tools). Selecting an *archived* Venture is allowed
-// (read-only history browsing); the DB-level backstop is the composite FK
-// user_active_contexts_venture_fk (active_venture_id, active_workspace_id)
-// -> ventures(id, workspace_id).
+// Switch or clear (ventureId: null) the UI selection. Archived Ventures allowed for read-only browsing.
 export async function setActiveVenture(
   actor: ActorContext,
   ventureId: string | null,

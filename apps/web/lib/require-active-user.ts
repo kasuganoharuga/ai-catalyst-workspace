@@ -4,18 +4,8 @@ import { auth } from "./auth";
 import { safeReturnTo } from "./safe-return-to";
 
 /**
- * Route-level role guards for the app's page tree.
- *
- * Registration is public (see auth.ts) and every new account starts at role
- * 'pending'. Accepting an invitation is what promotes it to 'founder' or
- * 'mentor' — see packages/services/src/invitation — so 'pending' means
- * "signed up, invitation not yet redeemed" and belongs on /pending, not in
- * the app.
- *
- * None of these is the security boundary. They exist so a page renders the
- * right thing for whoever landed on it instead of erroring; authorization
- * itself is re-asserted by `assertRole` inside every packages/services call,
- * which runs regardless of which guard (if any) let the request this far.
+ * Route-level role guards — UX routing only, not the security boundary.
+ * `assertRole` in packages/services re-checks on every call regardless of which guard ran.
  */
 
 /** @param options.returnTo Same-origin path after sign-in (e.g. consent_code URL). */
@@ -52,10 +42,7 @@ export async function requireAdminUser() {
   return session;
 }
 
-// Guards the pages under (app) that are Mentor-exclusive — Founders list
-// detail, an individual Founder's artefact, and Mentor invitations. A
-// Founder is welcome inside the (app) shell generally (see
-// requireFounderOrMentorUser below), just not on these specific routes.
+// Mentor-only routes inside (app); Founders use the shell but not these pages.
 export async function requireMentorUser() {
   const session = await requireActiveUser();
 
@@ -66,13 +53,7 @@ export async function requireMentorUser() {
   return session;
 }
 
-// Guards pages that are Founder-exclusive even though a Mentor may be
-// signed in and inside the shared (app) shell generally — Modules,
-// Artefacts, Company profile, AI connection, the Workspace page, and
-// /dashboard's own Founder branch all call this themselves. Redirects to
-// /dashboard rather than "/": that route already renders the right thing
-// for whichever role actually landed here, without a second hop through
-// HomePage's ROLE_DESTINATION.
+// Founder-only routes; redirects to /dashboard which already branches by role.
 export async function requireFounderUser() {
   const session = await requireActiveUser();
 
@@ -83,15 +64,7 @@ export async function requireFounderUser() {
   return session;
 }
 
-// Guards the (app) layout itself. Founder and Mentor share this shell —
-// same sidebar chrome, different nav items and different content behind
-// /dashboard (see app/(app)/dashboard/page.tsx's own role branch) — so this
-// is deliberately more permissive than requireFounderUser. It is not,
-// however, the security boundary for any individual page: every
-// Founder-exclusive route inside (app) still calls requireFounderUser (via
-// getCurrentFounderActor) itself, and every Mentor-exclusive one calls
-// requireMentorUser, regardless of what this layout-level guard allowed
-// through.
+// Shared (app) layout — Founder and Mentor share the shell; each page still calls its own role guard.
 export async function requireFounderOrMentorUser() {
   const session = await requireActiveUser();
 

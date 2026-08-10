@@ -8,11 +8,8 @@ import type { ToolkitSeedContent } from "../types.js";
 export interface FreezeParams {
   content: ToolkitSeedContent;
   /**
-   * Proceed even if a prompt about to be cascade-frozen is also reachable
-   * from a DIFFERENT program_version that is itself still mutable — see
-   * assertNoUnsafeSharedMutablePromptDependencies below. Off by default:
-   * this is a real, if rare, cross-program interaction and deserves an
-   * explicit decision, not a silent cascade.
+   * Proceed when a prompt to freeze is still mutable under another program_version.
+   * Off by default — cross-program cascade deserves an explicit decision.
    */
   allowSharedPromptFreeze?: boolean;
 }
@@ -24,22 +21,8 @@ export interface FreezeResult {
 }
 
 /**
- * freeze is NOT just "flip content_lock to frozen" — it permanently
- * strands whatever every non-archived Program Run's program_run_modules
- * currently looks like. If any Run still has Modules/renames/reorders it
- * hasn't picked up yet, freezing now means it never will (see
- * planBranchReconciliation's read-only reconciliation plan — once
- * content_lock is frozen, it always returns skippedFrozen:true and never
- * writes anything again). So freeze refuses outright if any Run's plan is
- * non-empty, rather than quietly leaving that Run's drift permanent.
- *
- * Uses the SAME `planBranchReconciliation` (L1, read-only) that
- * `getOrCreateProgramRun`'s lazy front-fill and the `db:reconcile-runs`
- * batch CLI both use to actually apply changes — reusing the identical
- * algorithm here (rather than a separate "just check for missing rows"
- * query) is what makes this check catch every kind of drift
- * (missing/title/sequence/promotion), not just the narrower "some Module
- * hasn't been inserted yet" case a naive check would miss.
+ * Refuses freeze when any Run still has pending reconciliation — freezing strands
+ * unreconciled program_run_modules permanently.
  */
 async function assertNoPendingRunReconciliation(
   client: PoolClient,
@@ -52,9 +35,7 @@ async function assertNoPendingRunReconciliation(
 
   const pending: string[] = [];
   for (const run of runsResult.rows) {
-    // Only 'open' Branches — matches reconcileProgramRunInTransaction's
-    // own scope (see its doc comment for why 'completed'/'archived'
-    // Branches are out of scope).
+    // Open branches only — matches reconcileProgramRunInTransaction scope.
     const branchesResult = await client.query<{ id: string }>(
       `select id from program_run_branches where program_run_id = $1 and status = 'open'`,
       [run.id],
@@ -99,19 +80,8 @@ interface SharedMutablePromptRow {
 }
 
 /**
- * A prompt is global (prompt_definitions/prompt_versions have no
- * program_version_id column) and may be bound, via module_prompt_bindings,
- * to Modules under several different program_versions at once.
- * (program_prompt_bindings is schema-defined but unused by every current
- * write path — content-seed/db/prompts.ts never populates it — so it's
- * not queried here.)
- *
- * Freezing cascades to every mutable prompt_version reachable from THIS
- * program_version (see freezeProgramVersion below) — "reachable from a
- * different, still-mutable program_version too" is the one case where
- * that cascade has a side effect outside this program_version: it would
- * silently take editing rights away from whoever is still iterating on
- * that prompt under the other program_version.
+ * Prompts are global; freezing here cascades to mutable versions reachable from this
+ * program_version — including ones still edited under another mutable program_version.
  */
 async function findUnsafeSharedMutablePromptDependencies(
   client: PoolClient,
@@ -147,18 +117,8 @@ async function findUnsafeSharedMutablePromptDependencies(
 }
 
 /**
- * Freezes ONE program_version: seeds `content` one last time (so the DB
- * matches it exactly before anything is made immutable), verifies every
- * Run against it is already fully reconciled, cascades content_lock to
- * every mutable prompt_version it reaches (subject to the shared-mutable
- * preflight above), then freezes the program_version itself.
- *
- * Single transaction, held under `client`'s exclusive SEED_LOCK (acquired
- * by seedToolkitContent's own `pg_advisory_xact_lock` call below — freeze
- * does not acquire it a second time, the same key is simply re-entrant
- * within one session/transaction). Nothing here ever takes a Venture
- * lock — see reconcile-run-modules.ts's lock-order doc comment for why
- * that must stay true to avoid deadlocking against getOrCreateProgramRun.
+ * Re-seeds, verifies Runs are reconciled, optionally checks shared mutable prompts,
+ * cascades prompt freeze, then freezes the program_version — all under SEED_LOCK.
  */
 export async function freezeProgramVersion(
   client: PoolClient,
@@ -166,10 +126,7 @@ export async function freezeProgramVersion(
 ): Promise<FreezeResult> {
   const { content, allowSharedPromptFreeze = false } = params;
 
-  // Re-seed one last time: freeze is "make what's in the DB right now
-  // permanent", so the DB must match `content` exactly first. If content
-  // has drifted (or this program_version was never actually mutable),
-  // seedToolkitContent itself raises the appropriate ContentSeedError.
+  // Final seed so frozen state matches content exactly.
   const seedResult = await seedToolkitContent(client, content, {
     allowArchive: false,
   });
@@ -206,10 +163,7 @@ export async function freezeProgramVersion(
     );
   }
 
-  // Cascade: every mutable prompt_version reachable from this
-  // program_version's Modules, frozen in one statement — content_lock is
-  // the ONLY column this touches, per prompt_versions_freeze()'s "changed
-  // on its own" trigger rule (0012_content_lock.sql).
+  // Cascade content_lock to every mutable prompt_version reachable from this program_version.
   const frozenPromptsResult = await client.query<{
     prompt_key: string;
     version_number: number;
@@ -231,8 +185,7 @@ export async function freezeProgramVersion(
     [seedResult.programVersionId],
   );
 
-  // Freeze the program_version itself — content_lock is the ONLY column
-  // this touches, same trigger rule as above.
+  // content_lock only — per prompt_versions_freeze trigger rule.
   await client.query(
     `update program_versions set content_lock = 'frozen' where id = $1`,
     [seedResult.programVersionId],

@@ -7,18 +7,8 @@ import { MODULE_4_CONTENT } from "./module-4.js";
 import { MODULE_PROMPT_BINDINGS_CONTENT, PROMPTS_CONTENT } from "./prompts.js";
 import { PROGRAM_CONTENT } from "./program.js";
 
-// The full expected content set for this Program Version. This is the
-// canonical, reviewed content — not parsed from any Markdown spec at run
-// time.
-//
-// Modules 0-4 are the whole of V1's shipped content. Modules 5/6 exist in
-// packages/toolkit-content/manifest.json but are deliberately NOT seeded:
-// they previously appeared as label-only draft placeholders, which bought
-// a "coming soon" catalog row at the cost of a permanently draft Module
-// row that publish.ts has to keep special-casing. Add them here (as real
-// modules, with Questions/Artifacts) when their workflow spec exists; the
-// living reconciler front-fills them into every in-flight Run at that
-// point.
+// Canonical V1 seed content (Modules 0-4 only) — not parsed from Markdown at runtime.
+// Modules 5/6 stay out until real workflow specs exist; label-only placeholders forced publish.ts special-casing.
 export const DEFAULT_TOOLKIT_CONTENT: ToolkitSeedContent = {
   program: PROGRAM_CONTENT,
   modules: [

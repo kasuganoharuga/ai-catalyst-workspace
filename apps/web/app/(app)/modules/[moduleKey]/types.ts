@@ -10,26 +10,15 @@ export type ExpectedArtifact = {
   artifactKey: string;
   name: string;
   requiredFilename: string | null;
-  /**
-   * False for a supporting Artifact the Module accepts but never blocks
-   * completion on (Module 4's Interview Notes). Carried so an unsaved card
-   * can say which of the two it is instead of reading as a missing
-   * required document.
-   */
+  /** False for supporting artifacts that never block completion. */
   isRequired: boolean;
   outline: { heading: string; items: string[] }[];
-  /** A renderer is configured for this Artifact — no Run/Attempt binding here, so this alone never means a workbook can be downloaded yet (see ModuleArtifactView.workbookAvailable). */
+  /** Renderer configured — does not imply a download is available yet. */
   workbookSupported: boolean;
   workbookFormat: WorkbookFormat | null;
 };
 
-/**
- * One Module Artifact's rendering state — merges the catalog's static
- * `outline` with the Run's real submission data. A Module with more than
- * one Artifact (Modules 3 and 4 each have two) renders one of these per
- * Artifact rather than assuming there is only ever one; Module 1 and
- * Module 0 (which do have exactly one) just render an array of length 1.
- */
+/** One artifact's rendering state — catalog outline merged with Run submission data. */
 export type ModuleArtifactView = {
   artifactKey: string;
   name: string;
@@ -39,34 +28,23 @@ export type ModuleArtifactView = {
   versionNumber: number | null;
   savedAt: string | null;
   workbookSupported: boolean;
-  /** True only once a confirmed (non-draft) version exists to build a workbook from — see packages/shared's ModuleContextArtifactSummary.workbookAvailable. Always false in the pre-Run catalog preview. */
+  /** True once a confirmed version exists to build a workbook from. */
   workbookAvailable: boolean;
   workbookFormat: WorkbookFormat | null;
-  /**
-   * The saved document, already rendered on the server. Null until this
-   * Artifact has something saved — passed in rather than fetched here so
-   * this stays a client component without pulling react-markdown into its
-   * bundle.
-   */
+  /** Server-rendered document; null until saved. */
   documentPreview: ReactNode;
 };
 
-/**
- * Why this module is being shown read-only.
- *
- * "locked" — an earlier module has to be finished first.
- * "not-started" — no Run exists yet, usually because no assistant is
- *   connected. The founder can read everything; nothing can be saved.
- */
+/** Why the module is read-only: locked behind prior module, or no run yet. */
 export type ModulePreviewReason = "locked" | "not-started" | null;
 
-/** A module's identity colour, applied as an inline style. */
+/** Module identity colour as an inline style. */
 export type ModuleAccent = { backgroundColor: string };
 
 export type Module0SetupProps = {
   moduleKey: string;
   moduleIndex: number;
-  /** Which assistant the hand-off opens. Null until the founder chooses. */
+  /** Hand-off target; null until founder chooses. */
   provider: PreferredAiProvider | null;
   programRunModuleId: string | null;
   claudeProjectId: string | null;
@@ -87,7 +65,7 @@ export type Module0SetupProps = {
 export type Module1RunProps = {
   moduleKey: string;
   moduleIndex: number;
-  /** Which assistant the hand-off opens. Null until the founder chooses. */
+  /** Hand-off target; null until founder chooses. */
   provider: PreferredAiProvider | null;
   programRunModuleId: string | null;
   ventureId: string | null;
@@ -95,13 +73,12 @@ export type Module1RunProps = {
   connected: boolean;
   coreQuestions: ModuleContextQuestion[];
   decisionQuestions: ModuleContextQuestion[];
-  /** One entry per Artifact this Module produces, in sequence order. */
   artifacts: ModuleArtifactView[];
   hasAttempt: boolean;
   needsRetry: boolean;
   awaitingConfirmation: boolean;
   isCompleted: boolean;
-  /** `null` means the module is live and workable; otherwise preview-only. */
+  /** Null = live and workable; otherwise preview-only. */
   preview: ModulePreviewReason;
   startPrompt: string;
   nextModuleTitle: string | null;

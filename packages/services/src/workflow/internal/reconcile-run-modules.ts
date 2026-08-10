@@ -4,10 +4,7 @@ import { pool } from "@ai-catalyst/db";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 
-// Fixed advisory lock key — must be the SAME key content-seed/index.ts's
-// seedToolkitContent uses (SEED_LOCK_KEY there), not a new one: the two
-// only serialize against each other correctly if they contend on the same
-// lock. See the lock-order invariant on applyBranchReconciliation below.
+// Must match content-seed/index.ts SEED_LOCK_KEY so seed and reconcile serialize together.
 const SEED_LOCK_KEY = 727_310_101;
 
 // Postgres `sequence_index` on program_run_modules is a plain `integer`.
@@ -40,20 +37,9 @@ export interface ExistingRunModuleRow {
 export interface RunModuleReconciliationPlan {
   branchId: string;
   programVersionId: string;
-  /**
-   * True when the program_version is content_lock='frozen'. Every other
-   * field is forced empty and `isEmpty` is forced true — this is the
-   * mechanism that makes a frozen V1's Run permanently stop following
-   * content changes, restoring today's "bound at creation, never moves"
-   * semantics once V1 is frozen (see content-seed's db:freeze CLI).
-   */
+  /** True when content_lock='frozen'; plan is empty and no writes run. */
   skippedFrozen: boolean;
-  /**
-   * New program_run_modules rows to insert, already carrying their
-   * computed initial status — see computeBranchReconciliationPlan's
-   * single forward walk over the active chain for why a freshly inserted
-   * row's status can be computed in the same pass as everything else.
-   */
+  /** Rows to insert with computed initial status. */
   missing: Array<{
     moduleDefinitionId: string;
     moduleKey: string;
@@ -61,17 +47,17 @@ export interface RunModuleReconciliationPlan {
     finalSequenceIndex: number;
     status: "available" | "locked";
   }>;
-  /** Existing rows whose title_snapshot no longer matches module_definitions.title. */
+  /** title_snapshot out of sync with module_definitions.title. */
   titleUpdates: Array<{ id: string; title: string }>;
-  /** Existing rows (active-chain or orphaned) whose sequence_index is changing. */
+  /** sequence_index changes for active-chain or orphaned rows. */
   sequenceUpdates: Array<{ id: string; finalSequenceIndex: number }>;
-  /** Existing 'locked' rows to promote to 'available' — never any other transition; monotonic by construction (see the doc comment below). */
+  /** locked -> available only; monotonic by construction. */
   promotions: string[];
-  /** Rows whose module_definitions is archived — kept, never promoted/inserted-before, only possibly resequenced to the tail. Count only; nothing else acts on these ids. */
+  /** Archived-definition rows; resequenced to tail, status untouched. */
   orphanedIds: string[];
-  /** The temporary offset sequenceUpdates' shift step would use — 0 when isEmpty. */
+  /** Temporary offset for sequence shift; 0 when isEmpty. */
   offset: number;
-  /** False iff every array above is empty (aside from a true skippedFrozen, which always implies isEmpty). No write of any kind should be issued when this is true. */
+  /** True when no writes should run. */
   isEmpty: boolean;
 }
 
@@ -96,54 +82,9 @@ function emptyPlan(
 }
 
 /**
- * Pure computation core — no I/O. Takes already-fetched rows and produces
- * a plan; unit-testable in isolation without a database (see
- * reconcile-run-modules.test.ts), which matters here more than for most
- * of this codebase given how many subtle ordering bugs this exact
- * algorithm went through review to catch.
- *
- * ## Living-content access is monotonic
- *
- * New or reordered Modules may become `available`; an already
- * available/in_progress/ready_to_unlock/completed/inherited Module is
- * NEVER relocked. The single forward walk below only ever promotes an
- * existing row from `locked` to `available` — it never assigns any other
- * status to an existing row — so this invariant holds by construction,
- * not by a separate check.
- *
- * ## Why one forward walk handles both "insert" and "repair"
- *
- * `activeDefs` must already be every module_definitions row with
- * status='active', in module_definitions.sequence_index order — a total
- * order, since that column is unique per program_version. Walking it in
- * order and asking one question at each step — "does the immediately
- * preceding position in TODAY's chain allow access?" — automatically
- * covers every case a two-pass insert-then-repair design would need
- * separately:
- *   - two consecutive missing Modules: the first one's computed status
- *     becomes the second one's predecessor state in the very same walk,
- *     so "M2 available, M3 locked" falls out without a second pass.
- *   - archiving the first active Module: the walk simply starts at what
- *     is now index 0 of the chain with no predecessor at all, which
- *     counts as "allows access" — so a previously-locked second Module
- *     is promoted the moment it becomes the chain's head, with no special
- *     case for "was there ever a predecessor".
- *   - a stale "completed -> locked -> completed" chain left over from an
- *     old ordering: the locked row's predecessor in TODAY's chain is
- *     recomputed fresh, so if that predecessor is completed/inherited,
- *     the walk promotes it right there.
- *
- * ## Orphans never participate in the active chain
- *
- * A row whose moduleDefinitionId is not in `activeDefs` (its Module
- * Definition was archived) is excluded from the walk entirely — it can
- * never be a "predecessor" for access-check purposes, and its own status
- * is never touched. It is moved (if needed) to a sequence_index after
- * every active-chain position, in its own relative order, purely so
- * program_run_modules_branch_sequence_unique (which — unlike
- * module_definitions' equivalent — is NOT partial and does not exclude
- * archived-definition rows) never collides with an active-chain row that
- * needs its old slot.
+ * Pure plan computation — no I/O. Access is monotonic: existing rows are never relocked;
+ * only locked -> available promotions. Orphans skip the active-chain walk and are
+ * resequenced after the chain so branch_sequence_unique never collides.
  */
 export function computeBranchReconciliationPlan(
   branchId: string,
@@ -196,10 +137,7 @@ export function computeBranchReconciliationPlan(
       effectiveStatus === "completed" || effectiveStatus === "inherited";
   }
 
-  // Orphans: pushed after every active-chain position, preserving their
-  // relative order to each other (stable sort by their own current
-  // sequence_index) — never promoted, never a predecessor, status never
-  // touched.
+  // Orphans: tail after active chain, relative order preserved; status never touched.
   const orphaned = current
     .filter((row) => !activeDefIds.has(row.moduleDefinitionId))
     .slice()
@@ -227,13 +165,7 @@ export function computeBranchReconciliationPlan(
     return emptyPlan(branchId, programVersionId, false, orphanedIds);
   }
 
-  // Every row currently in the Branch competes for sequence_index
-  // uniqueness (program_run_modules_branch_sequence_unique has no partial
-  // predicate, unlike module_definitions' equivalent) — so, unlike
-  // content-seed/db/reconcile-ordered-rows.ts's definition-table
-  // algorithm, there is no "archived rows exit the competition"
-  // shortcut here. The temporary offset must clear space against every
-  // row currently in the Branch, not just the ones about to move.
+  // branch_sequence_unique is not partial — offset clears space against every row in the Branch.
   const currentMaxSequence = current.reduce(
     (max, row) => Math.max(max, row.sequenceIndex),
     0,
@@ -267,18 +199,8 @@ export function computeBranchReconciliationPlan(
 }
 
 /**
- * Read-only planner for ONE Branch — fetches the rows
- * computeBranchReconciliationPlan needs and delegates to it. Issues only
- * SELECTs.
- *
- * Caller MUST hold `SEED_LOCK_KEY` (shared or exclusive — either is fine,
- * since this never writes) before calling this, so the content-definition
- * graph it reads cannot change mid-computation. It does NOT require the
- * Venture/Run serialization lock `getOrCreateProgramRun` takes — that lock
- * exists to serialize *writes* to this Branch, which a read-only plan
- * doesn't need. This is exactly what lets db:freeze's preflight call this
- * directly under its own exclusive SEED_LOCK without ever taking a
- * Venture lock — see the lock-order note on applyBranchReconciliation.
+ * Read-only planner for one Branch. Caller MUST hold SEED_LOCK_KEY (shared or exclusive).
+ * Does not need the Venture lock — db:freeze preflight uses this under exclusive SEED_LOCK only.
  */
 export async function planBranchReconciliation(
   client: PoolClient,
@@ -344,24 +266,9 @@ export async function planBranchReconciliation(
 }
 
 /**
- * Applies a plan from planBranchReconciliation/computeBranchReconciliationPlan.
- * No-ops entirely (zero statements) when `plan.isEmpty`.
- *
- * Caller MUST hold BOTH the Venture/Run serialization lock (so no
- * concurrent write to this Branch races this one) AND `SEED_LOCK_KEY` in
- * shared mode — see planBranchReconciliation's doc comment for why the
- * read side only needs the latter.
- *
- * ## Lock order (deadlock avoidance)
- *
- * Run paths (getOrCreateProgramRun, and this function's own callers)
- * always acquire: Venture row lock -> SEED_LOCK_KEY (shared). seed/freeze
- * always acquire SEED_LOCK_KEY (exclusive) and never take a Venture lock
- * afterward. Reversing either order risks the classic deadlock: a Run
- * path holding the Venture lock and waiting on SEED_LOCK_KEY, while
- * seed/freeze holds SEED_LOCK_KEY and waits on the Venture lock. Nothing
- * in this module ever acquires a Venture lock — only this function's
- * *caller* does, before invoking it — so keep it that way.
+ * Applies a reconciliation plan; no-ops when plan.isEmpty.
+ * Caller MUST hold Venture row lock AND SEED_LOCK_KEY (shared).
+ * Lock order: Venture -> SEED_LOCK_KEY. seed/freeze take exclusive SEED_LOCK only — never reverse.
  */
 export async function applyBranchReconciliation(
   client: PoolClient,
@@ -394,16 +301,7 @@ export async function applyBranchReconciliation(
   }
 
   if (plan.promotions.length > 0) {
-    // `and status = 'locked'` guards against a stale decision: the plan
-    // was computed by an earlier, separate SELECT (planBranchReconciliation),
-    // not under a `for update` lock on these specific rows — unlike
-    // completion.ts's unlockNextModule, which re-verifies status='locked'
-    // immediately before its own write, under a row lock, in the same
-    // transaction. Between this plan and this apply, a concurrent Founder
-    // completion could have already moved one of these rows off 'locked'
-    // (e.g. straight to 'available' via that same unlockNextModule). The
-    // guard turns a would-be stale overwrite into a correct no-op instead
-    // of clobbering forward progress back to 'available'.
+    // Re-verify status='locked' — plan came from an earlier SELECT, not under row lock.
     await client.query(
       `update program_run_modules
        set status = 'available', unlocked_at = now(), updated_at = now()
@@ -413,11 +311,7 @@ export async function applyBranchReconciliation(
   }
 
   if (plan.missing.length > 0) {
-    // workspace_id/program_run_id are the Branch's own — looked up once
-    // here rather than threaded through the plan, so plans stay cheap,
-    // JSON-serializable data with no caller-specific fields baked in
-    // (every caller — getOrCreateProgramRun, the batch CLI — can produce
-    // a plan the exact same way).
+    // Branch workspace_id/program_run_id looked up here so plans stay serializable.
     const branchResult = await client.query<{
       workspace_id: string;
       program_run_id: string;
@@ -481,29 +375,14 @@ function emptyRunReconciliationSummary(
 }
 
 /**
- * L2 — reconciles every 'open' Branch of ONE Program Run. Requires
- * `client` to already be inside a transaction that holds BOTH the
- * Venture/Run serialization lock and `SEED_LOCK_KEY` (shared) — this
- * function issues no lock acquisition, no BEGIN/COMMIT of its own, and
- * must never be called any other way; see applyBranchReconciliation's
- * lock-order doc comment for why.
- *
- * Only 'open' Branches: 'archived' ones are dead and 'completed' ones
- * would need to be un-completed to grow a new Module, which is out of
- * scope here — in practice there is only ever one Branch per Run today
- * (no fork feature is live yet), so this covers the real case; the
- * per-Branch loop exists so this stays correct once forking ships.
+ * Reconciles every 'open' Branch of one Run. Caller must already hold Venture lock + SEED_LOCK_KEY.
+ * Only 'open' branches — archived/completed branches are out of scope.
  */
 export async function reconcileProgramRunInTransaction(
   client: PoolClient,
   params: { programRunId: string; programVersionId: string },
 ): Promise<RunReconciliationSummary> {
-  // Checked once here rather than relying solely on each Branch's own
-  // planBranchReconciliation check — content_lock is a program_version-level
-  // property, so every Branch of this Run would get the identical answer;
-  // this short-circuits N redundant SELECTs into 1 for the common case.
-  // planBranchReconciliation still re-checks on its own, so calling it
-  // directly (bypassing this function) stays correct too.
+  // content_lock is per program_version — one check avoids N redundant SELECTs per Branch.
   const lockResult = await client.query<{ content_lock: "mutable" | "frozen" }>(
     `select content_lock from program_versions where id = $1`,
     [params.programVersionId],
@@ -535,20 +414,8 @@ export async function reconcileProgramRunInTransaction(
 }
 
 /**
- * L3 — standalone convenience wrapper around reconcileProgramRunInTransaction:
- * owns its own transaction, Venture lock, and shared SEED_LOCK acquisition.
- * For callers that are NOT already inside a transaction holding those locks
- * — today, only the `db:reconcile-runs` batch CLI (see
- * content-seed/reconcile-runs-cli.ts). `getOrCreateProgramRun` is already
- * inside such a transaction and must call reconcileProgramRunInTransaction
- * (L2) directly instead — calling this L3 wrapper from there would attempt
- * a nested transaction and double-acquire the Venture lock this same
- * transaction already holds.
- *
- * Lock order: Venture row lock, THEN SEED_LOCK_KEY (shared) — matching
- * getOrCreateProgramRun's own order, so this can never deadlock against it
- * or against a concurrent `pnpm db:seed`/`pnpm db:freeze` (which acquire
- * SEED_LOCK_KEY exclusively and never take a Venture lock at all).
+ * Standalone wrapper: owns transaction, Venture lock, and shared SEED_LOCK.
+ * getOrCreateProgramRun must call reconcileProgramRunInTransaction directly instead.
  */
 export async function reconcileProgramRun(
   programRunId: string,

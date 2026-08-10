@@ -188,16 +188,8 @@ export interface CreateVentureDependencies {
   createSlugSuffix?: () => string;
 }
 
-// `ventures_workspace_slug_unique` is a plain (workspace-scoped) unique
-// constraint, so `on conflict (workspace_id, slug) do nothing` never aborts
-// the transaction the way a raised 23505 would — a slug collision here
-// just returns zero rows and this loop tries again with a fresh suffix,
-// all on the same client/transaction that already holds the Workspace
-// lookup above. (Unlike a try/catch on a raised 23505, which would leave
-// the transaction aborted and unable to retry without a full rollback —
-// incompatible with keeping the Workspace-active check and the insert in
-// one transaction.) Any *other* unique violation on `ventures` is not
-// targeted by this ON CONFLICT clause and would raise normally.
+// ON CONFLICT DO NOTHING on (workspace_id, slug) lets slug collisions retry in-transaction without aborting (23505 would poison the tx).
+// Other unique violations on ventures still raise normally.
 async function insertVentureWithRetry(
   client: PoolClient,
   workspaceId: string,

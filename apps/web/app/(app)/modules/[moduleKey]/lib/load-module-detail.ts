@@ -26,13 +26,7 @@ import {
 } from "../../../lib/module-display";
 import type { ExpectedArtifact, ModuleArtifactView } from "../types";
 
-/**
- * Everything a `ModuleArtifactView` needs except the rendered
- * `documentPreview` — the Markdown content stays a plain string here, and
- * module-detail-body.tsx (a Server Component) wraps it in
- * `<MarkdownDocument>` right before handing it to `Module1Run`, the same
- * split the original single-artifact `artifactDocumentContent` field kept.
- */
+/** ModuleArtifactView metadata; Markdown content stays a plain string for server-side rendering. */
 export type ModuleArtifactDetail = Omit<
   ModuleArtifactView,
   "documentPreview"
@@ -45,15 +39,7 @@ export type ModuleDetailModel = {
   context: ModuleContext | null;
   connection: McpConnectionStatus | null;
   runModule: RunModuleSummary | null;
-  /**
-   * A Run already exists (the Founder is past setup) but it has no row for
-   * this Module — reachable only when this Module's program_version postdates
-   * the one the Founder's Run was created against (e.g. a v2 Run after v3
-   * activates Modules 2-4). `ensureProgramDestination`/`ContinueProgrammeButton`
-   * cannot fix this: it finds the existing Run and returns, so the founder
-   * would click "Open module" and land right back here. Rendered as its own
-   * honest state instead of the ordinary "needs a Run" gate.
-   */
+  /** Run exists but this module postdates its program_version — not fixable by ensureProgramDestination. */
   moduleMissingFromExistingRun: boolean;
   activeAttempt: ModuleContext["activeAttempt"];
   displayAttempt: NonNullable<ModuleContext["displayAttempt"]> | null;
@@ -63,32 +49,23 @@ export type ModuleDetailModel = {
   isCompleted: boolean;
   awaitingConfirmation: boolean;
   nextModuleTitle: string | null;
-  /** One entry per Artifact whose latest official validation failed. */
+  /** One entry per artifact whose latest official validation failed. */
   failedValidations: ArtifactValidation[];
   setupPending: boolean;
   venture: Venture | null;
   coreQuestions: ModuleContextQuestion[];
   decisionQuestions: ModuleContextQuestion[];
   startPrompt: string;
-  /** One entry per Artifact this Module produces, in sequence order. */
+  /** One entry per artifact this module produces, in sequence order. */
   artifacts: ModuleArtifactDetail[];
 };
 
 type ArtifactMetadata = Omit<ModuleArtifactView, "documentPreview">;
 
 /**
- * Merges the catalog's static `outline` (Artifact structure, known even
- * before a Run exists) with the Run's real submission data (version,
- * saved-at) into one ordered view per Artifact — pure and unit-testable on
- * its own, with no document content or Markdown rendering involved.
+ * Merges catalog outline with Run submission data into one ordered view per artifact.
  *
- * `contextArtifacts === null` means no Run exists yet (the catalog-only
- * preview path): every Artifact renders unsaved, in the catalog's own
- * order. Otherwise `contextArtifacts` is already the authoritative,
- * sequence-ordered list (one row per `artifact_definitions` row for this
- * Module — see packages/services/src/module/context.ts's
- * `loadArtifactsByModuleAttempts`), and `catalogArtifacts` is consulted
- * only for the `outline`, which `ModuleContextArtifactSummary` doesn't carry.
+ * `contextArtifacts === null` = no Run yet (catalog-only preview).
  */
 export function buildArtifactMetadata(
   contextArtifacts: ModuleContextArtifactSummary[] | null,
@@ -111,9 +88,6 @@ export function buildArtifactMetadata(
       versionNumber: null,
       savedAt: null,
       workbookSupported: artifact.workbookSupported,
-      // No Run/Attempt exists yet in this preview path, so no confirmed
-      // version can exist either — always false here regardless of
-      // workbookSupported.
       workbookAvailable: false,
       workbookFormat: artifact.workbookFormat,
     }));
@@ -149,7 +123,6 @@ export async function loadModuleDetail(
 
   const runModule = context?.runModule ?? null;
   const activeAttempt = context?.activeAttempt ?? null;
-  // After validation_failed, activeAttemptId is cleared; displayAttempt still holds answers.
   const displayAttempt = context?.displayAttempt ?? activeAttempt;
   const needsRetry =
     runModule !== null &&
@@ -168,11 +141,7 @@ export async function loadModuleDetail(
         ?.title ?? null)
     : null;
 
-  // Show validation issues only for the attempt that currently blocks
-  // progress. After a Retry, displayAttempt can still be the prior
-  // validation_failed attempt while activeAttempt is a new draft /
-  // ready_for_review — never surface the old failure as if it belonged
-  // to the current writable attempt.
+  // Only surface validation for the attempt that currently blocks progress.
   const validationAttempt =
     activeAttempt?.status === "validation_failed"
       ? activeAttempt
@@ -184,7 +153,6 @@ export async function loadModuleDetail(
     needsRunSetup && runResult.runId !== null;
   const setupPending = hasPendingSetupModule(runResult.modules);
 
-  // Needed for Claude deep-links whenever a live module can open a project.
   const needsVenture = needsRunSetup || (isLive && runModule !== null);
   const activeContextPromise = needsVenture
     ? getActiveContext(actor)
@@ -216,7 +184,6 @@ export async function loadModuleDetail(
           ),
         )
       : Promise.resolve([]),
-    // Load Markdown on the server so react-markdown stays out of the client bundle.
     isLive
       ? Promise.all(
           artifactMetadata.map((artifact) =>

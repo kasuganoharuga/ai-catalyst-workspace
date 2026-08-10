@@ -21,15 +21,7 @@ export const metadata: Metadata = {
   },
 };
 
-// Shared shell for Founder and Mentor accounts — same sidebar chrome, one
-// URL for each nav item (both roles' first item is /dashboard; see
-// nav-items.ts), the actual content behind it decided by each page's own
-// role branch (app/(app)/dashboard/page.tsx is the main example). This
-// redirect is a route-level convenience, not the security boundary — every
-// packages/services call re-asserts the actor's role on its own regardless
-// of what this layout already checked, and every individual page here that
-// must stay Founder- or Mentor-exclusive (Modules, Artefacts, Founders,
-// Invitations, …) calls its own narrower guard besides.
+// Shared Founder/Mentor shell — role-specific content decided per page; services re-assert role regardless of this layout guard.
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const actor = await getCurrentAppActor();
   const role = actor.role === "mentor" ? "mentor" : "founder";

@@ -23,12 +23,7 @@ export interface ReconciledProgram {
   contentLock: ContentLock;
 }
 
-// The database's own content_lock is authoritative for whether an
-// *existing* program_version's content may be edited in place —
-// ProgramContent.contentLock only decides the initial value written when
-// the row is first created (see upsertProgramVersion's INSERT branch).
-// Shared with content-seed/index.ts, which applies the same formula to
-// decide whether Modules/Questions/Artifacts/Bindings are editable.
+// DB content_lock is authoritative for existing rows; constant only sets initial insert value.
 export function isProgramVersionContentEditable(
   row: Pick<ProgramVersionRow, "status" | "content_lock">,
 ): boolean {
@@ -38,24 +33,7 @@ export function isProgramVersionContentEditable(
   );
 }
 
-// Cross-checks the content constant's contentLock against the database's
-// actual content_lock for an existing row. Four quadrants:
-//
-//   DB       | constant | outcome
-//   ---------|----------|----------------------------------------------
-//   mutable  | mutable  | editable (isProgramVersionContentEditable
-//            |          | handles the rest)
-//   mutable  | frozen   | ERROR — only `pnpm db:freeze` may move
-//            |          | mutable -> frozen; this seed script never does
-//   frozen   | mutable  | allowed, read-only: exact match -> no-op,
-//            |          | diff -> PUBLISHED_CONTENT_MISMATCH below
-//   frozen   | frozen   | normal frozen
-//
-// Only the second row is a real inconsistency. "Frozen in the DB, mutable
-// in the constant" (row 3) is the *ordinary* state right after
-// `db:freeze`, before someone gets around to bumping the constant for
-// V2 — it must not be an error, or freezing immediately breaks the very
-// next unchanged `pnpm db:seed`.
+// Reject mutable→frozen via seed (use db:freeze). DB frozen + constant mutable is normal post-freeze.
 function assertContentLockDirectionValid(
   row: Pick<ProgramVersionRow, "content_lock">,
   content: ProgramContent,

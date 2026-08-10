@@ -7,16 +7,10 @@ import { pool } from "@ai-catalyst/db";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 
-// Shared fixtures for every DB-backed test suite in the workspace. apps/mcp
-// depends on this specifically because dependency-cruiser forbids it from
-// importing @ai-catalyst/db directly; packages/services suites use it to avoid
-// each keeping its own copy of the same setup and teardown.
+// Shared DB fixtures for workspace tests. apps/mcp must use this path —
+// dependency-cruiser forbids it from importing @ai-catalyst/db directly.
 
-/**
- * A Founder actor for services that only read `userId`/`role` off it. The id is
- * random rather than a real fixture user's, so it must not be used by anything
- * that resolves the actor against the `users` table.
- */
+/** Random Founder actor for services that only read userId/role — not a real users row. */
 export function founderActor(): ActorContext {
   return { userId: randomUUID(), role: "founder" };
 }
@@ -51,16 +45,8 @@ export interface FixtureFounderAccount {
 }
 
 /**
- * Inserts a fixture Founder user + Workspace directly, bypassing invitation
- * acceptance (out of scope for the suites that use this).
- *
- * Callers that need to clean up afterwards should record the returned `userId`
- * themselves — this helper deliberately keeps no registry, so each suite stays
- * in charge of its own teardown ordering.
- *
- * `slugPrefix` only affects the Workspace slug, which no assertion depends on;
- * it exists so a row left behind by a failed run still identifies the suite
- * that created it.
+ * Fixture Founder + Workspace, bypassing invitation flow. No cleanup registry —
+ * suites own teardown. slugPrefix tags failed-run leftovers for debugging only.
  */
 export async function createFixtureFounderAccount(params: {
   label: string;
@@ -163,13 +149,8 @@ export async function getFixtureModuleAttemptStatus(
 }
 
 /**
- * Deletes every row this module's fixture helpers may have created for
- * the given fixture `userIds`/`programKey`, in dependency order — mirrors
- * the `afterAll` cleanup duplicated across every packages/services
- * *.db.test.ts suite that builds a Founder/Workspace/Venture/Run/Attempt
- * fixture (see e.g. artifact/index.db.test.ts's own afterAll comment for
- * why artifact_submissions/user_active_contexts must be deleted
- * explicitly ahead of the ventures cascade).
+ * Dependency-ordered teardown for fixture userIds/programKey — artifact_submissions
+ * and user_active_contexts must precede the ventures cascade.
  */
 export async function cleanupFixtureAccounts(params: {
   userIds: string[];

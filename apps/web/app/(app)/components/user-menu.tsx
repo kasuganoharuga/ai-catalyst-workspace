@@ -28,14 +28,8 @@ function initials(name: string): string {
 }
 
 /**
- * Account menu, and the only route out of the session.
- *
- * `includeAccountLinks` tracks which shell is rendering it: the top bar
- * has no room for the account pages so it carries them here, while the
- * sidebar already lists them a few pixels above and would just be
- * repeating itself — there, this is a sign-out menu and nothing else.
- * `role` decides which account pages that is — see nav-items.ts — and is
- * only read when `includeAccountLinks` is true.
+ * Account menu and sign-out. includeAccountLinks: top bar carries account pages; sidebar omits duplicates.
+ * role selects which account links when includeAccountLinks is true (see nav-items.ts).
  */
 export function UserMenu({
   name,

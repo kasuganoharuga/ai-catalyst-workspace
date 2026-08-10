@@ -5,53 +5,30 @@ import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 
 const log = loggerForService(SERVICE_NAMES.services);
 
-// Owns writes to `mcp_tool_audit_logs`. Called independently of business
-// transactions — a failure here must not change the tool call outcome for
-// the caller.
+// Writes to mcp_tool_audit_logs — independent of business transactions; failures must not affect tool outcomes.
 
 export type McpToolCallOutcome =
   "success" | "denied" | "validation_error" | "system_error";
 
-// Which AI client made the call, carried on the ActorContext that
-// verifyMcpBearerToken built (derived there from the OAuth client's
-// registered redirect host — see mcpProviderForRedirectUris).
-//
-// This was hardcoded to "claude" while V1 had one AI client, which meant
-// every ChatGPT tool call was recorded as Claude — the audit log could not
-// answer "which assistant did this" at all. "other" is the honest default
-// for a web/system actor or an unrecognised client, and is accepted by
-// mcp_tool_audit_logs_provider_check as of migration 0008.
+// From ActorContext.provider (OAuth redirect host). "other" for web/system or unknown clients.
 function auditProviderFor(actor: ActorContext): string {
   return actor.provider ?? "other";
 }
 
 export interface RecordMcpToolCallInput {
-  // A fresh id per call *attempt* (apps/mcp's audit wrapper generates one
-  // with randomUUID() before invoking the tool handler) —
-  // mcp_tool_audit_logs_request_unique means this must never be reused
-  // across a client-side retry expecting an upsert; each attempt gets
-  // its own row, by design.
+  // Fresh id per attempt — mcp_tool_audit_logs_request_unique; no upsert on retry.
   requestId: string;
   actor: ActorContext;
   toolName: string;
   outcome: McpToolCallOutcome;
   durationMs: number;
-  // Full Run/Branch/Module/Attempt hierarchy, when known — left null on
-  // any call that failed before resolving that far (e.g. NOT_FOUND on a
-  // cross-Workspace attemptId), which is still a fully valid, auditable
-  // outcome. mcp_tool_audit_logs_context_hierarchy_check requires a
-  // non-null child to have every non-null ancestor; callers must resolve
-  // and pass the whole chain together, never a child alone.
+  // Run hierarchy when known; null when resolution failed early. Pass full chain together.
   workspaceId?: string | null;
   programRunId?: string | null;
   programRunBranchId?: string | null;
   programRunModuleId?: string | null;
   moduleAttemptId?: string | null;
-  // Redacted metadata only, per this table's own header comment ("Not
-  // stored by default: Full chat history / Full Prompt / File content /
-  // OAuth token / Presigned URL") — callers pass small identifiers (e.g.
-  // { moduleKey } or { attemptId, artifactKey, versionNumber }), never a
-  // Founder's answer text or an Artifact's content.
+  // Redacted metadata only — identifiers, never answer text or file content.
   requestMetadata?: Record<string, unknown>;
   resultMetadata?: Record<string, unknown>;
   errorCode?: string | null;
@@ -59,22 +36,13 @@ export interface RecordMcpToolCallInput {
 }
 
 /**
- * Writes one `mcp_tool_audit_logs` row. Deliberately swallows its own
- * failures (logging to stderr instead of throwing/rejecting) — an
- * audit-write failure must never turn a real tool result (success or a
- * normal business error) into an unrelated 500 for the MCP client. This
- * is the one Service function in this package that is allowed to fail
- * silently, and only for this reason.
+ * Writes one audit row. Swallows failures — audit must never turn a tool result into a 500.
  */
 export async function recordMcpToolCall(
   input: RecordMcpToolCallInput,
 ): Promise<void> {
   try {
-    // clientId/scopes/traceId have no dedicated columns on this table
-    // (the real, already-merged 0001 baseline schema — this table
-    // predates ActorContext's traceId field and is MCP-only in practice)
-    // — folded into request_metadata instead of widening result_metadata,
-    // which stays reserved for the tool's own outcome summary.
+    // clientId/scopes/traceId folded into request_metadata — no dedicated columns on this table.
     const requestMetadata = {
       ...(input.requestMetadata ?? {}),
       clientId: input.actor.clientId ?? null,

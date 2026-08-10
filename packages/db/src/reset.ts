@@ -1,19 +1,8 @@
 import { Pool } from "pg";
 
-// Destructive: drops and recreates the entire `public` schema — every
-// table, every row, gone. This is the tool that makes the living-V1
-// rollout's PR2 possible (staging must go from "six retired
-// program_versions" to "one, fresh, v1" — see the migration plan's own
-// notes on why that requires a real reset rather than an in-place
-// migration), but it is exactly as destructive as it sounds and has NO
-// undo.
-//
-// Three gates below are this script's own; a fourth (GitHub Environment +
-// a typed confirmation phrase) wraps it when run via
-// .github/workflows/reset-staging-db.yml — that workflow is
-// workflow_dispatch-only and is never wired into the normal deploy
-// pipeline. Never invoke this against a database you have not personally
-// verified is the intended target.
+// Destructive: drops and recreates entire `public` schema — no undo.
+// Gated below; staging workflow adds a fourth GitHub Environment confirmation.
+// Never run against a database you have not verified is the intended target.
 function parseDatabaseName(connectionString: string): string {
   const url = new URL(connectionString);
   const name = url.pathname.replace(/^\//, "");

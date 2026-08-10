@@ -1,15 +1,7 @@
 import type { RunModuleSummary } from "./run-module.js";
 import type { WorkspaceStatus } from "./workspace.js";
 
-// External DTOs for the Mentor supervision surface — JSON-safe throughout
-// (ISO string timestamps, never `Date`), same convention as RunModuleSummary.
-//
-// What is deliberately absent is as much the contract as what is present.
-// A Mentor sees where a Founder has got to and what they produced; they do
-// not see `module_responses` (the Founder's raw, unpolished answers inside
-// their AI assistant) or failed/cancelled Attempt history. Supervision is
-// not surveillance, and a Founder who felt watched mid-draft would start
-// drafting somewhere else.
+// Mentor supervision DTOs — JSON-safe ISO timestamps. Mentors see progress and deliverables, not raw module_responses or failed Attempt history.
 
 /** One supervised Founder, as shown on the Mentor's overview. */
 export interface MentorFounderSummary {

@@ -102,18 +102,9 @@ async function reconcilePromptDefinition(
   return row.id;
 }
 
-// prompt_versions has its own draft -> published -> retired lifecycle
-// (enforced additionally by a `prompt_versions_freeze` DB trigger),
-// independent of the parent program_version's status — a prompt is global
-// and may be bound to several program_versions at once.
-//
-// `programContentLock` is used for exactly one thing: a brand new row
-// inherits it as its initial content_lock (mirroring
-// db/program.ts's upsertProgramVersion), and an *existing* row is
-// cross-checked against it for the one real inconsistency — see
-// CONTENT_LOCK_INCONSISTENT below. It never overrides this prompt_version's
-// own content_lock for editability, which is always
-// isPromptVersionContentEditable's call.
+// prompt_versions lifecycle is independent (global, multi-program) — editability
+// follows isPromptVersionContentEditable. programContentLock only seeds new rows
+// and cross-checks CONTENT_LOCK_INCONSISTENT when a frozen program still has a mutable prompt.
 async function reconcilePromptVersion(
   client: PoolClient,
   promptDefinitionId: string,
@@ -255,15 +246,9 @@ export async function reconcilePrompts(
 }
 
 /**
- * Reconciles module_prompt_bindings for every Module that has expected
- * bindings. Performs its own graph completeness check per Module — a
- * binding no longer present in the content constants is hard-deleted (not
- * archived: module_prompt_bindings has no FK dependents, and a leftover
- * row would still be joined by module/context.ts's unfiltered prompt
- * lookup and hand a founder a stale facilitator prompt) when the
- * program_version is content-editable, gated by `allowArchive` the same
- * way reconcileModules gates archiving Modules/Questions/Artifacts;
- * otherwise it's rejected exactly as before.
+ * Reconciles module_prompt_bindings per Module. Stale bindings are hard-deleted
+ * (not archived — module/context.ts would still serve them) when content-editable
+ * and allowArchive; otherwise rejected like reconcileModules graph changes.
  */
 export async function reconcileModulePromptBindings(
   client: PoolClient,

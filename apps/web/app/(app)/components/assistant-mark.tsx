@@ -3,19 +3,10 @@ import type { PreferredAiProvider } from "@ai-catalyst/shared";
 import { cn } from "@/lib/utils";
 
 /**
- * The two assistants' brand marks, wherever a founder is choosing between
- * them by name.
+ * Brand marks for assistant choice UI.
  *
- * Inlined rather than pulled from a package. Simple Icons no longer ships
- * an OpenAI mark (it was removed on trademark grounds), and @lobehub/icons
- * — which has both — peer-depends on antd and @lobehub/ui, which is a
- * design system's worth of dependency for two glyphs in a Tailwind app.
- * The paths below come from @lobehub/icons-static-svg, unmodified.
- *
- * Both use `fill="currentColor"`, so they take the surrounding text colour
- * and work on the lime selected state as well as on plain card
- * backgrounds. Decorative: every use sits beside the assistant's name, so
- * announcing it again would just repeat the label.
+ * Inlined — Simple Icons dropped OpenAI; @lobehub/icons pulls antd. Paths from
+ * @lobehub/icons-static-svg. `fill="currentColor"` for theme compatibility.
  */
 
 const MARKS: Record<PreferredAiProvider, string> = {

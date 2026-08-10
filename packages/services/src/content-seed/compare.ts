@@ -26,15 +26,8 @@ export function canonicalJsonEquals(a: unknown, b: unknown): boolean {
 }
 
 /**
- * Compares two records field-by-field using canonical JSON equality per
- * field (so jsonb/array columns are compared structurally, not by
- * reference or raw string form) and returns the names of every field that
- * differs. An empty result means the two records are content-equivalent.
- *
- * Deliberately typed as `Record<string, unknown>` rather than a shared
- * generic `T` for both sides: callers compare a camelCase content object
- * against a snake_case database row, which are two different TypeScript
- * shapes by construction.
+ * Field-wise canonical JSON diff — empty means content-equivalent.
+ * Record<string, unknown> because callers compare camelCase constants to snake_case rows.
  */
 export function diffFields(
   expected: Record<string, unknown>,
@@ -51,13 +44,8 @@ export function diffFields(
 }
 
 /**
- * Full-graph completeness check for a set of natural keys (module keys,
- * question keys, artifact keys, prompt binding keys, ...). Returns which
- * expected keys are missing from the database and which keys exist in the
- * database but are not expected by this content set. Both directions are
- * errors — the reconciler must never silently accept a database that has
- * *more* rows than expected, or a second concurrent/older run's extra
- * writes would go unnoticed.
+ * Bidirectional key-set diff — both missing and extra keys are errors so
+ * stale or concurrent rows cannot hide from the reconciler.
  */
 export function diffKeySets(
   expectedKeys: readonly string[],

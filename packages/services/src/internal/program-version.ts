@@ -3,21 +3,9 @@ import { pool } from "@ai-catalyst/db";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import type { QueryExecutor } from "@ai-catalyst/services/workspace";
 
-// Listed under "./internal/program-version" in package.json only so
-// Turbopack can resolve this module's cross-file imports (see
-// internal/slug.ts for why) — not part of the intended public API.
-//
-// Selects by a stable program_key, never "the latest published version
-// across every Program" — a second Program publishing a version later
-// must never change what an existing caller resolves. Picks the highest
-// version_number if more than one version of this Program is published.
-//
-// Takes a QueryExecutor (defaults to the shared pool) rather than always
-// querying on the module-level pool directly, so a caller that needs this
-// resolution to happen inside its own already-open transaction (e.g.
-// getOrCreateProgramRun, which must resolve the version and insert the Run
-// atomically) can pass its PoolClient instead of opening a second,
-// unsynchronized connection.
+// package.json export for Turbopack only — not public API.
+// Resolve published version by stable program_key (highest version_number), not "latest anywhere".
+// Accepts QueryExecutor so callers can resolve inside an open transaction.
 export async function resolvePublishedProgramVersionId(
   programKey: string,
   executor: QueryExecutor = pool,

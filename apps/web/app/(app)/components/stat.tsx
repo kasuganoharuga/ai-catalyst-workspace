@@ -32,13 +32,7 @@ export function Stat({
 }
 
 /**
- * Wraps 2–3 Stat children in the divider grid both dashboards use.
- *
- * Stacked below sm, three equal columns from sm up — a row layout at
- * phone widths leaves too little room per Stat once a value can be a
- * whole word rather than a short number (the Founder dashboard's
- * connection-status stat, for instance); stacking gives every Stat the
- * page's full width instead of a third of it.
+ * Divider grid for 2–3 Stat children. Stacks below sm; three columns from sm up — phone row layout is too cramped for word-sized values.
  */
 export function StatRow({ children }: { children: ReactNode }) {
   return (

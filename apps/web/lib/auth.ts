@@ -8,12 +8,8 @@ import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
 import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
 
 /**
- * Better Auth is the platform Authorization Server (users, sessions, MCP OAuth).
- *
- * Registration is temporarily public (see the `pending` role default below
- * and apps/web/lib/require-active-user.ts) until invitation-gated
- * registration lands — see README.md's "Temporary: public registration"
- * note for the full rationale.
+ * Better Auth: platform Authorization Server (users, sessions, MCP OAuth).
+ * Registration is temporarily public — new accounts start at role `pending` until invitation acceptance.
  */
 function requireEnv(name: string): string {
   const value = process.env[name];
@@ -23,12 +19,7 @@ function requireEnv(name: string): string {
   return value.trim();
 }
 
-// The OAuth "issuer" — apps/web's own base URL. Named to match the OAuth/
-// OIDC spec term (and apps/mcp's identically-purposed env var) rather than
-// Better Auth's own generic `BETTER_AUTH_URL` convention, since this value
-// is load-bearing for the MCP Authorization Server role specifically (it's
-// what apps/mcp's protected-resource metadata points MCP clients back to —
-// see apps/mcp/src/well-known/protected-resource.ts).
+// OAuth issuer — apps/web base URL; MCP protected-resource metadata points clients here.
 const authIssuerUrl = requireEnv("AUTH_ISSUER_URL");
 
 export const auth = betterAuth({
@@ -42,9 +33,7 @@ export const auth = betterAuth({
 
   advanced: {
     database: {
-      // The schema's `id uuid primary key default gen_random_uuid()`
-      // already lets Postgres generate the value; setting this explicitly
-      // documents that as an intentional choice rather than an default.
+      // Postgres already defaults ids to gen_random_uuid(); explicit for clarity.
       generateId: "uuid",
     },
   },
@@ -57,9 +46,7 @@ export const auth = betterAuth({
       updatedAt: "updated_at",
     },
     additionalFields: {
-      // `role` is never client-settable (`input: false`) — it starts at
-      // 'pending' and is only ever upgraded server-side, inside the
-      // invitation-acceptance transaction (packages/services/src/invitation).
+      // Never client-settable — starts `pending`, upgraded only in invitation acceptance.
       role: {
         type: "string",
         input: false,
@@ -94,8 +81,7 @@ export const auth = betterAuth({
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-    // Required by infra/database/migrations/0001_aidb_v5_baseline.sql's
-    // section-1 comment: OAuth tokens must never be stored in plaintext.
+    // OAuth tokens must never be stored in plaintext (see migration baseline).
     encryptOAuthTokens: true,
   },
 
@@ -106,15 +92,7 @@ export const auth = betterAuth({
       createdAt: "created_at",
       updatedAt: "updated_at",
     },
-    // Cross-layer contract, pinned explicitly rather than relying on the
-    // (currently matching) default: packages/services/src/mcp-auth's
-    // getPendingMcpConsentRequest and checkAuthorizationCodeIsRedeemable
-    // both query `verifications.identifier` directly via packages/db,
-    // bypassing Better Auth's own storage adapter — which only works if
-    // the identifier Better Auth stores is the exact plain consent_code /
-    // code it handed to the client. If this is ever changed to "hashed",
-    // every one of those lookups silently starts missing every real code.
-    // See apps/web/lib/mcp-oauth-compat/README.md.
+    // Must stay `plain` — mcp-auth lookups query identifier directly; hashing would break consent/code redemption.
     storeIdentifier: "plain",
   },
 
@@ -122,12 +100,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          // Force-normalize regardless of client input: `name` always
-          // starts equal to `email` (per the schema comment), and `role`
-          // always starts 'pending' even though additionalFields.input:
-          // false already blocks it from the public signup payload — this
-          // is a defense-in-depth backstop against any other creation path
-          // (e.g. OAuth implicit signup) reaching this hook.
+          // Defense in depth: name = email, role = pending on every creation path.
           return {
             data: {
               ...user,
@@ -168,15 +141,13 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // OAuth 2.1 Authorization Server for MCP. apps/mcp verifies Bearer tokens
-    // issued here — see packages/services/src/mcp-auth.
+    // OAuth 2.1 Authorization Server for MCP; apps/mcp verifies Bearer tokens issued here.
     mcp({
-      // Route Handler: preserves authorize query across sign-in (see /oauth/continue).
+      // Preserves authorize query across sign-in (see /oauth/continue).
       loginPage: "/oauth/continue",
       oidcConfig: {
-        // Required by OIDCOptions even though mcp() already sets opts.loginPage.
         loginPage: "/oauth/continue",
-        // offline_access is added by the authorize before-hook, not listed here.
+        // offline_access added by authorize before-hook, not listed here.
         scopes: ["mcp:connect"],
         defaultScope: "mcp:connect",
         requirePKCE: true,
@@ -184,21 +155,15 @@ export const auth = betterAuth({
         allowDynamicClientRegistration: true,
         consentPage: "/oauth/consent",
         codeExpiresIn: 600,
-        // Short-lived bearer; connection lifetime is idle/absolute in mcp-auth.
         accessTokenExpiresIn: 3600,
-        // Sliding 30d ceiling; real limits are idle 14d / absolute 90d in mcp-auth.
         refreshTokenExpiresIn: 2_592_000,
       },
     }),
-    // Must come after mcp() in this array — see that file's top-of-file
-    // comment for why table/field renaming for the mcp() plugin's schema
-    // can only be applied this way in better-auth@1.6.25.
+    // Must follow mcp() — schema override only works after mcp() registers tables (better-auth@1.6.25).
     mcpOAuthSchemaOverridePlugin,
-    // Every before-hook that hardens the mcp()/oidc-provider endpoints
-    // above — see apps/web/lib/mcp-oauth-compat/README.md.
+    // Hardens mcp()/oidc endpoints — see mcp-oauth-compat/README.md.
     mcpOAuthSecurityPlugin,
-    // Must stay last: lets server actions (e.g. the /login and /register
-    // forms) set the session cookie automatically.
+    // Must stay last so server actions set the session cookie automatically.
     nextCookies(),
   ],
 });
