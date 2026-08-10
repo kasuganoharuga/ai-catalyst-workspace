@@ -10,6 +10,7 @@
     "./attempt": "./src/attempt/index.ts",
     "./attempt/internal/interaction-provider": "./src/attempt/internal/interaction-provider.ts",
     "./attempt/internal/retry": "./src/attempt/internal/retry.ts",
+    "./attempt/internal/rows": "./src/attempt/internal/rows.ts",
     "./module/catalog": "./src/module/catalog.ts",
     "./module/context": "./src/module/context.ts",
     "./module/completion": "./src/module/completion.ts",
