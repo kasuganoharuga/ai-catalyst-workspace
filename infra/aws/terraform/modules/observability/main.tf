@@ -55,29 +55,24 @@ resource "aws_sns_topic_subscription" "alarms_email" {
 # ALB — unhealthy hosts + 5xx with minimum request volume
 # -------------------------------------------------------------------------
 
-resource "aws_cloudwatch_metric_alarm" "web_unhealthy_hosts" {
-  alarm_name          = "${var.name}-web-unhealthy-hosts"
-  alarm_description   = "Web target group has unhealthy hosts"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  metric_name         = "UnHealthyHostCount"
-  namespace           = "AWS/ApplicationELB"
-  period              = 60
-  statistic           = "Maximum"
-  threshold           = 0
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alarms.arn]
-  ok_actions          = [aws_sns_topic.alarms.arn]
-
-  dimensions = {
-    LoadBalancer = var.alb_arn_suffix
-    TargetGroup  = var.web_target_group_arn_suffix
+locals {
+  alb_targets = {
+    web = {
+      target_group_arn_suffix = var.web_target_group_arn_suffix
+      label                   = "Web5xxWhenVolume"
+    }
+    mcp = {
+      target_group_arn_suffix = var.mcp_target_group_arn_suffix
+      label                   = "Mcp5xxWhenVolume"
+    }
   }
 }
 
-resource "aws_cloudwatch_metric_alarm" "mcp_unhealthy_hosts" {
-  alarm_name          = "${var.name}-mcp-unhealthy-hosts"
-  alarm_description   = "MCP target group has unhealthy hosts"
+resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
+  for_each = local.alb_targets
+
+  alarm_name          = "${var.name}-${each.key}-unhealthy-hosts"
+  alarm_description   = "${upper(each.key)} target group has unhealthy hosts"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 2
   metric_name         = "UnHealthyHostCount"
@@ -91,15 +86,17 @@ resource "aws_cloudwatch_metric_alarm" "mcp_unhealthy_hosts" {
 
   dimensions = {
     LoadBalancer = var.alb_arn_suffix
-    TargetGroup  = var.mcp_target_group_arn_suffix
+    TargetGroup  = each.value.target_group_arn_suffix
   }
 }
 
 # 5xx count over 5 minutes, but only when RequestCount exceeds a floor so
 # idle/low-traffic periods do not page on a handful of errors.
-resource "aws_cloudwatch_metric_alarm" "web_target_5xx" {
-  alarm_name          = "${var.name}-web-target-5xx"
-  alarm_description   = "Web ALB target 5xx with minimum request volume"
+resource "aws_cloudwatch_metric_alarm" "target_5xx" {
+  for_each = local.alb_targets
+
+  alarm_name          = "${var.name}-${each.key}-target-5xx"
+  alarm_description   = "${upper(each.key)} ALB target 5xx with minimum request volume"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = 1
   threshold           = 5
@@ -119,7 +116,7 @@ resource "aws_cloudwatch_metric_alarm" "web_target_5xx" {
 
       dimensions = {
         LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.web_target_group_arn_suffix
+        TargetGroup  = each.value.target_group_arn_suffix
       }
     }
   }
@@ -136,7 +133,7 @@ resource "aws_cloudwatch_metric_alarm" "web_target_5xx" {
 
       dimensions = {
         LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.web_target_group_arn_suffix
+        TargetGroup  = each.value.target_group_arn_suffix
       }
     }
   }
@@ -144,59 +141,7 @@ resource "aws_cloudwatch_metric_alarm" "web_target_5xx" {
   metric_query {
     id          = "errors_when_volume"
     expression  = "IF(requests >= 20, errors, 0)"
-    label       = "Web5xxWhenVolume"
-    return_data = true
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "mcp_target_5xx" {
-  alarm_name          = "${var.name}-mcp-target-5xx"
-  alarm_description   = "MCP ALB target 5xx with minimum request volume"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1
-  threshold           = 5
-  treat_missing_data  = "notBreaching"
-  alarm_actions       = [aws_sns_topic.alarms.arn]
-  ok_actions          = [aws_sns_topic.alarms.arn]
-
-  metric_query {
-    id          = "errors"
-    return_data = false
-
-    metric {
-      metric_name = "HTTPCode_Target_5XX_Count"
-      namespace   = "AWS/ApplicationELB"
-      period      = 300
-      stat        = "Sum"
-
-      dimensions = {
-        LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.mcp_target_group_arn_suffix
-      }
-    }
-  }
-
-  metric_query {
-    id          = "requests"
-    return_data = false
-
-    metric {
-      metric_name = "RequestCount"
-      namespace   = "AWS/ApplicationELB"
-      period      = 300
-      stat        = "Sum"
-
-      dimensions = {
-        LoadBalancer = var.alb_arn_suffix
-        TargetGroup  = var.mcp_target_group_arn_suffix
-      }
-    }
-  }
-
-  metric_query {
-    id          = "errors_when_volume"
-    expression  = "IF(requests >= 20, errors, 0)"
-    label       = "Mcp5xxWhenVolume"
+    label       = each.value.label
     return_data = true
   }
 }
@@ -283,9 +228,20 @@ resource "aws_cloudwatch_metric_alarm" "ecs_running_count_low" {
 # Log metric filters on stable `event` field (JSON logs)
 # -------------------------------------------------------------------------
 
+locals {
+  # services library logs use service=aicatalyst-services but still land in
+  # the hosting process log group (web or mcp).
+  public_log_groups = {
+    web = "/ecs/${var.web_service_name}"
+    mcp = "/ecs/${var.mcp_service_name}"
+  }
+}
+
 resource "aws_cloudwatch_log_metric_filter" "module_checklist_state_mismatch" {
-  name           = "${var.name}-module-checklist-state-mismatch"
-  log_group_name = "/ecs/${var.web_service_name}"
+  for_each = local.public_log_groups
+
+  name           = "${var.name}-${each.key}-module-checklist-state-mismatch"
+  log_group_name = each.value
   pattern        = "{ $.event = \"module_checklist_state_mismatch\" }"
 
   metric_transformation {
@@ -309,8 +265,17 @@ resource "aws_cloudwatch_log_metric_filter" "mcp_tool_failed" {
   }
 }
 
+output "log_groups" {
+  value = {
+    web = "/ecs/${var.web_service_name}"
+    api = "/ecs/${var.api_service_name}"
+    mcp = "/ecs/${var.mcp_service_name}"
+  }
+}
+
 output "log_prefix" {
-  value = "/ecs/${var.name}"
+  value       = "/ecs/${var.name}"
+  description = "Env-level prefix approximation; prefer log_groups for real paths."
 }
 
 output "alarm_topic_arn" {
