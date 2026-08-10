@@ -1,39 +1,32 @@
-import { isDeniedLogKey, redactValue } from "@ai-catalyst/observability/redact";
+import {
+  isDeniedLogKey,
+  redactUnknown,
+} from "@ai-catalyst/observability/redact";
 
 type MutableRecord = Record<string, unknown>;
 
-function scrubRecord(record: MutableRecord | undefined): void {
-  if (!record) return;
-  for (const key of Object.keys(record)) {
-    if (isDeniedLogKey(key)) {
-      record[key] = "[Redacted]";
-      continue;
-    }
-    const value = record[key];
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      scrubRecord(value as MutableRecord);
-    } else {
-      record[key] = redactValue(value, key);
-    }
-  }
-}
-
 /**
- * Framework-agnostic Sentry event scrubber aligned with the logger deny-list.
- * Mutates and returns the event. Never throws.
+ * Framework-agnostic Sentry event scrubber. Mutates denied keys in place via
+ * the shared redact helpers, then returns the event. Never throws.
  */
-export function scrubSentryEvent<T extends MutableRecord>(event: T): T {
+export function scrubSentryEvent(event: MutableRecord): MutableRecord {
   try {
-    scrubRecord(event.extra as MutableRecord | undefined);
-    scrubRecord(event.contexts as MutableRecord | undefined);
-    scrubRecord(event.tags as MutableRecord | undefined);
+    for (const section of ["extra", "contexts", "tags"] as const) {
+      const value = event[section];
+      if (value && typeof value === "object") {
+        event[section] = redactUnknown(value);
+      }
+    }
     const request = event.request as MutableRecord | undefined;
-    if (request) {
-      scrubRecord(request.headers as MutableRecord | undefined);
-      scrubRecord(request.data as MutableRecord | undefined);
-      scrubRecord(request.cookies as MutableRecord | undefined);
-      if (typeof request.headers === "object" && request.headers) {
-        const headers = request.headers as MutableRecord;
+    if (request && typeof request === "object") {
+      for (const part of ["headers", "data", "cookies"] as const) {
+        const value = request[part];
+        if (value && typeof value === "object") {
+          request[part] = redactUnknown(value);
+        }
+      }
+      const headers = request.headers as MutableRecord | undefined;
+      if (headers) {
         for (const key of Object.keys(headers)) {
           if (isDeniedLogKey(key)) {
             headers[key] = "[Redacted]";

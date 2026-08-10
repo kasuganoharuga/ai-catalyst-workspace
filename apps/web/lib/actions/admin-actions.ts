@@ -13,6 +13,7 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import { webLog } from "@/lib/web-logger";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -34,7 +35,11 @@ function toActionResult(error: unknown): ActionResult {
   if (error instanceof ServiceError) {
     return { ok: false, message: error.message };
   }
-  console.error("Unhandled server action error:", error);
+  webLog.error({
+    event: "web_unhandled_action_error",
+    message: "Unhandled admin server action error",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return { ok: false, message: "Something went wrong." };
 }
 
@@ -51,7 +56,11 @@ export async function createInvitationAction(input: {
     if (error instanceof ServiceError) {
       return { ok: false, message: error.message };
     }
-    console.error("Unhandled server action error:", error);
+    webLog.error({
+      event: "web_unhandled_action_error",
+      message: "Unhandled admin createInvitationAction error",
+      error_name: error instanceof Error ? error.name : typeof error,
+    });
     return { ok: false, message: "Something went wrong." };
   }
 }
@@ -87,7 +96,11 @@ export async function createMentorInvitationAction(input: {
     if (error instanceof ServiceError) {
       return { ok: false, message: error.message };
     }
-    console.error("Unhandled server action error:", error);
+    webLog.error({
+      event: "web_unhandled_action_error",
+      message: "Unhandled admin createMentorInvitationAction error",
+      error_name: error instanceof Error ? error.name : typeof error,
+    });
     return { ok: false, message: "Something went wrong." };
   }
 }

@@ -40,6 +40,7 @@ import {
   type EnsureRunResult,
   resolveNextModuleDestination,
 } from "@/lib/ensure-program-destination";
+import { webLog } from "@/lib/web-logger";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
 
@@ -59,10 +60,19 @@ function toActionResult(error: unknown): ActionResult {
   if (error instanceof ServiceError) {
     // Log the real message, show the founder the mapped one — service copy
     // is written for whoever reads the logs, not for them.
-    console.error("Service error in server action:", error.code, error.message);
+    webLog.error({
+      event: "web_service_action_error",
+      message: "Service error in founder server action",
+      code: error.code,
+      detail: error.message,
+    });
     return { ok: false, message: founderMessageForServiceError(error) };
   }
-  console.error("Unhandled server action error:", error);
+  webLog.error({
+    event: "web_unhandled_action_error",
+    message: "Unhandled founder server action error",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return { ok: false, message: errorCopy.generic };
 }
 
@@ -87,12 +97,8 @@ export async function skipProfilePromptAction(): Promise<ActionResult> {
 }
 
 /**
- * Drops every MCP access token this Founder holds.
- *
- * The only path that makes the two sides agree. Removing the connector in
- * Claude is client-side and reaches nothing here, so without this a
- * Founder who disconnected still had a live token against their own
- * workspace and a website insisting they were connected.
+ * Revokes every MCP access token for this Founder.
+ * Claude-side disconnect does not reach our DB — this is the only path that clears server-side grants.
  */
 export async function revokeMcpConnectionAction(): Promise<ActionResult> {
   try {
@@ -106,34 +112,13 @@ export async function revokeMcpConnectionAction(): Promise<ActionResult> {
   }
 }
 
-// Better Auth's own floor for `emailAndPassword`, mirrored in
-// components/password-change-form.tsx so the founder is told before a
-// round trip rather than after one.
+// Mirrors Better Auth's emailAndPassword floor and password-change-form.tsx.
 const MIN_PASSWORD_LENGTH = 8;
 
 /**
- * Replaces the invitation password without asking for it again.
- *
- * The normal change-password path requires the current password, and for
- * good reason: it stops a stolen session from locking the real owner out.
- * This one takes the session as proof instead, which is a weaker check —
- * so it is deliberately only reachable in the one window where the trade
- * is favourable.
- *
- * That window is "the founder has never replaced the password their
- * invitation shipped with". In it, the secret the current-password check
- * would be verifying is one a program lead sent them over email, so it
- * protects very little; and the founder typed it seconds ago to reach the
- * first-run dialog, so asking again is friction with no security bought.
- * `hasChangedInvitationPassword` is the gate, and it is the same signal
- * that decides whether the dialog shows this step at all — once it flips,
- * this action refuses and /profile's current-password form takes over.
- *
- * Sessions are deliberately left alone. Better Auth's change-password
- * revokes the *other* ones; there is no equivalent here that doesn't also
- * end the caller's own session, and a founder signed out halfway through
- * an uncloseable dialog is a worse outcome than a stale session on an
- * account that was minted minutes ago.
+ * Sets the invitation password without asking for the current one.
+ * Only allowed while `hasChangedInvitationPassword` is false — weaker than change-password, so gated to first-run.
+ * Does not revoke other sessions; sign-out mid-dialog is worse than a fresh account keeping this session.
  */
 export async function setInitialPasswordAction(
   newPassword: unknown,
@@ -158,21 +143,14 @@ export async function setInitialPasswordAction(
       );
     }
 
-    // Same two calls Better Auth's own reset-password route makes, so the
-    // hash format is whatever this version expects rather than something
-    // guessed here (see dist/api/routes/password.mjs).
+    // Same adapter calls as Better Auth's reset-password route (correct hash format).
     const authContext = await auth.$context;
     await authContext.internalAdapter.updatePassword(
       actor.userId,
       await authContext.password.hash(newPassword),
     );
 
-    // The account.update hook in lib/auth.ts only fires for the
-    // /change-password and /reset-password routes, and this is neither, so
-    // the revoke it would have done is done here. A founder at this step
-    // has nothing connected yet, which makes this a no-op in practice —
-    // but it keeps "the password changed" and "the grants are gone" from
-    // ever coming apart.
+    // auth.ts account.update hook skips this path — revoke MCP grants here to match password-change behaviour.
     await revokeMcpConnectionForUser(actor);
 
     revalidateFounderAppShell();
@@ -183,12 +161,8 @@ export async function setInitialPasswordAction(
 }
 
 /**
- * Records which AI assistant the founder set the website up for.
- *
- * Deliberately does not redirect: `redirect()` works by throwing, and the
- * `catch` below would swallow it (see the comment in app/page.tsx). The
- * caller navigates or closes the dialog once this returns `{ ok: true }`,
- * the same way DisconnectButton and ProfileForm do.
+ * Records the founder's preferred AI assistant.
+ * Does not redirect — `redirect()` throws and would be caught below; caller navigates on `{ ok: true }`.
  */
 export async function setPreferredAiProviderAction(
   provider: unknown,
@@ -286,10 +260,7 @@ export async function ensureActiveProgramDestinationAction(): Promise<EnsureRunR
       return { status: "venture_unavailable" };
     }
 
-    // The archived check above is a read, so a Venture archived between
-    // then and now still reaches assertVentureWritable. The actor is
-    // already known to be a Founder by this point, so FORBIDDEN here can
-    // only mean the Venture — never a role failure.
+    // FORBIDDEN here means archived venture, not role failure (Founder already verified).
     let run;
     try {
       ({ run } = await getOrCreateProgramRun(actor, { ventureId: venture.id }));
@@ -301,15 +272,15 @@ export async function ensureActiveProgramDestinationAction(): Promise<EnsureRunR
       throw error;
     }
 
-    // Module 0 is completed here, on the server, instead of being handed to
-    // the Founder as a step (see SHOW_SETUP_MODULE). It never throws for a
-    // state it can encounter, so a failure is reported rather than caught.
+    // Module 0 auto-completes server-side (SHOW_SETUP_MODULE); failures are reported, not thrown.
     const setup = await autoCompleteSetupModule(actor, {
       programRunId: run.id,
     });
     if (setup.status === "failed") {
-      console.error("Automatic setup module completion failed:", {
-        runId: run.id,
+      webLog.error({
+        event: "web_setup_module_failed",
+        message: "Automatic setup module completion failed",
+        run_id: run.id,
         code: setup.code,
         reason: setup.reason,
       });
@@ -325,14 +296,19 @@ export async function ensureActiveProgramDestinationAction(): Promise<EnsureRunR
     return { status: "ready", runId: run.id, destination };
   } catch (error) {
     if (error instanceof ServiceError) {
-      console.error(
-        "ensureActiveProgramDestinationAction service error:",
-        error.code,
-        error.message,
-      );
+      webLog.error({
+        event: "web_ensure_program_destination_error",
+        message: "ensureActiveProgramDestinationAction service error",
+        code: error.code,
+        detail: error.message,
+      });
       return { status: "error", message: founderMessageForServiceError(error) };
     }
-    console.error("ensureActiveProgramDestinationAction failed:", error);
+    webLog.error({
+      event: "web_ensure_program_destination_error",
+      message: "ensureActiveProgramDestinationAction failed",
+      error_name: error instanceof Error ? error.name : typeof error,
+    });
     return { status: "error", message: errorCopy.generic };
   }
 }

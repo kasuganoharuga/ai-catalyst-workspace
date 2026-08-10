@@ -18,6 +18,7 @@ import { errorCopy } from "@/app/(app)/lib/copy";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
+import { webLog } from "@/lib/web-logger";
 
 export type InterviewActionResult =
   { ok: true; recordId?: string } | { ok: false; message: string };
@@ -36,14 +37,19 @@ async function requireFounderActor() {
 
 function toResult(error: unknown): InterviewActionResult {
   if (error instanceof ServiceError) {
-    console.error(
-      "Service error in interview action:",
-      error.code,
-      error.message,
-    );
+    webLog.error({
+      event: "web_service_action_error",
+      message: "Service error in interview action",
+      code: error.code,
+      detail: error.message,
+    });
     return { ok: false, message: founderMessageForServiceError(error) };
   }
-  console.error("Unhandled interview action error:", error);
+  webLog.error({
+    event: "web_unhandled_action_error",
+    message: "Unhandled interview action error",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return { ok: false, message: errorCopy.generic };
 }
 

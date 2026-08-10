@@ -1,0 +1,41 @@
+{
+  "secretKeys": [
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "api_key",
+    "api-key",
+    "access_token",
+    "access-token",
+    "refresh_token",
+    "refresh-token",
+    "id_token",
+    "id-token",
+    "bearer",
+    "private_key",
+    "private-key",
+    "client_secret",
+    "client-secret",
+    "session"
+  ],
+  "contentKeys": [
+    "answer",
+    "answer_text",
+    "answers",
+    "prompt",
+    "prompts",
+    "claude_response",
+    "claude-response",
+    "response_body",
+    "artifact_body",
+    "markdown",
+    "confirmed_markdown",
+    "body",
+    "email",
+    "phone"
+  ]
+}

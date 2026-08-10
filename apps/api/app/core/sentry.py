@@ -3,49 +3,14 @@ from sentry_sdk.integrations.fastapi import FastApiIntegration
 from sentry_sdk.integrations.starlette import StarletteIntegration
 
 from app.core.config import Settings
+from app.core.denied_keys import redact_value
 from app.core.logging import SERVICE_NAME
-
-_DENIED_KEYS = {
-    "password",
-    "passwd",
-    "secret",
-    "token",
-    "authorization",
-    "cookie",
-    "set-cookie",
-    "api_key",
-    "api-key",
-    "access_token",
-    "refresh_token",
-    "id_token",
-    "bearer",
-    "private_key",
-    "client_secret",
-    "session",
-    "answer",
-    "answer_text",
-    "answers",
-    "prompt",
-    "prompts",
-    "markdown",
-    "email",
-    "phone",
-}
 
 
 def _scrub_event(event: dict, _hint: dict) -> dict | None:
-    def scrub(value: object, key: str | None = None) -> object:
-        if key and key.lower().replace("-", "_") in _DENIED_KEYS:
-            return "[Redacted]"
-        if isinstance(value, dict):
-            return {k: scrub(v, k) for k, v in value.items()}
-        if isinstance(value, list):
-            return [scrub(item) for item in value]
-        return value
-
     for section in ("extra", "contexts", "tags", "request"):
         if section in event and isinstance(event[section], dict):
-            event[section] = scrub(event[section])  # type: ignore[assignment]
+            event[section] = redact_value(event[section])  # type: ignore[assignment]
     return event
 
 

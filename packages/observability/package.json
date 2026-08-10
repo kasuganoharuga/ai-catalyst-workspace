@@ -3,14 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Shared structured logging, service-name constants, and PII redaction for web/mcp/services. External sinks (CloudWatch via stdout, Sentry) must stay best-effort.",
+  "description": "Shared structured logging, service-name constants, and PII redaction for web/mcp/services. External sinks (CloudWatch via stdout, Sentry) must stay best-effort. Library logs use service aicatalyst-services even inside web/mcp processes.",
   "exports": {
-    ".": "./src/index.ts",
     "./logger": "./src/logger.ts",
     "./service-names": "./src/service-names.ts",
     "./env": "./src/env.ts",
     "./redact": "./src/redact.ts",
-    "./sentry-scrub": "./src/sentry-scrub.ts"
+    "./sentry-scrub": "./src/sentry-scrub.ts",
+    "./sentry-init": "./src/sentry-init.ts",
+    "./denied-keys.json": "./denied-keys.json"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

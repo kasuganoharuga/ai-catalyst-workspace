@@ -9,6 +9,7 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
+import { webLog } from "@/lib/web-logger";
 
 // The Founder/Mentor overlap: both have a profile page and a password, and
 // packages/services/profile already allows either role through
@@ -34,10 +35,19 @@ async function requireAccountActor() {
 
 function toActionResult(error: unknown): ActionResult {
   if (error instanceof ServiceError) {
-    console.error("Service error in server action:", error.code, error.message);
+    webLog.error({
+      event: "web_service_action_error",
+      message: "Service error in account server action",
+      code: error.code,
+      detail: error.message,
+    });
     return { ok: false, message: founderMessageForServiceError(error) };
   }
-  console.error("Unhandled server action error:", error);
+  webLog.error({
+    event: "web_unhandled_action_error",
+    message: "Unhandled account server action error",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return { ok: false, message: "That didn't save. Try again in a moment." };
 }
 

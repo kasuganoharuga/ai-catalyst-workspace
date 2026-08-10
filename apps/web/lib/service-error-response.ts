@@ -5,9 +5,9 @@ import {
   type ServiceErrorCode,
 } from "@ai-catalyst/services/errors";
 
-// Exhaustive switch (not a Record lookup with a `?? 400` fallback) so
-// TypeScript fails to compile if a new ServiceErrorCode is added without a
-// status mapping here.
+import { webLog } from "@/lib/web-logger";
+
+// Exhaustive switch so new ServiceErrorCode without a mapping fails compile.
 function statusForCode(code: ServiceErrorCode): number {
   switch (code) {
     case "FORBIDDEN":
@@ -23,8 +23,6 @@ function statusForCode(code: ServiceErrorCode): number {
     case "INVITATION_NOT_PENDING":
       return 409;
     case "INVITATION_EMAIL_MISMATCH":
-      // Closer to "this account has no right to use this invitation" than a
-      // generic state conflict.
       return 403;
     case "FOUNDER_WORKSPACE_ALREADY_EXISTS":
       return 409;
@@ -39,8 +37,6 @@ function statusForCode(code: ServiceErrorCode): number {
     case "MODULE_4_INTERVIEW_EVIDENCE_MISSING":
       return 409;
     case "INTERNAL_INVARIANT_ERROR":
-      // Never the caller's fault (e.g. content misconfiguration) — a 500,
-      // not a 4xx, even though it's a typed ServiceError.
       return 500;
     case "STORAGE_CONTENT_CONFLICT":
       return 409;
@@ -55,8 +51,6 @@ function statusForCode(code: ServiceErrorCode): number {
       return 409;
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
     case "WORKBOOK_RENDER_FAILED":
-      // Never the caller's fault — a renderer/content bug or a storage
-      // integrity failure, same rationale as INTERNAL_INVARIANT_ERROR.
       return 500;
     default: {
       const _exhaustive: never = code;
@@ -65,10 +59,7 @@ function statusForCode(code: ServiceErrorCode): number {
   }
 }
 
-// Shared by every Admin API route: maps a ServiceError to a structured
-// `{ error: { code, message } }` body with the right HTTP status, and turns
-// anything else into a generic logged 500 — no stack traces ever reach the
-// browser (quality-and-git.mdc).
+// Maps ServiceError to structured JSON + HTTP status; unknown errors become logged 500s (no stack traces).
 export function serviceErrorResponse(error: unknown): NextResponse {
   if (error instanceof ServiceError) {
     return NextResponse.json(
@@ -77,7 +68,11 @@ export function serviceErrorResponse(error: unknown): NextResponse {
     );
   }
 
-  console.error("Unhandled error in Admin API route:", error);
+  webLog.error({
+    event: "web_unhandled_route_error",
+    message: "Unhandled error in Admin API route",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return NextResponse.json(
     { error: { code: "INTERNAL_ERROR", message: "Something went wrong." } },
     { status: 500 },

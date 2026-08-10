@@ -11,6 +11,7 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import { webLog } from "@/lib/web-logger";
 
 import type { ActionResult, CreateInvitationResult } from "./admin-actions";
 
@@ -36,7 +37,11 @@ function toActionResult(error: unknown): { ok: false; message: string } {
   if (error instanceof ServiceError) {
     return { ok: false, message: error.message };
   }
-  console.error("Unhandled server action error:", error);
+  webLog.error({
+    event: "web_unhandled_action_error",
+    message: "Unhandled mentor server action error",
+    error_name: error instanceof Error ? error.name : typeof error,
+  });
   return { ok: false, message: "Something went wrong." };
 }
 

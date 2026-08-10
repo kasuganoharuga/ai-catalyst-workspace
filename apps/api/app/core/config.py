@@ -6,8 +6,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     app_name: str = "AI Catalyst API"
     app_env: str = "local"
-    # Locked canonical value — see packages/observability SERVICE_NAMES.
-    service_name: str = "aicatalyst-api"
     log_level: str = "INFO"
     release: str | None = None
     sentry_dsn: str | None = None

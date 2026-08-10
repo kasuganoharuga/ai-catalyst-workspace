@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.core.config import Settings
+from app.core.denied_keys import redact_value
 
 SERVICE_NAME = "aicatalyst-api"
 
@@ -68,7 +69,7 @@ class JsonFormatter(logging.Formatter):
         if record.exc_info:
             payload["exc_info"] = self.formatException(record.exc_info)
 
-        return json.dumps(payload, default=str)
+        return json.dumps(redact_value(payload), default=str)
 
 
 def configure_logging(settings: Settings) -> None:

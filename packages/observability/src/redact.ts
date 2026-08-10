@@ -1,28 +1,20 @@
-/**
- * Keys that must never appear in structured logs or Sentry extras.
- * Matching is case-insensitive on the final path segment.
- */
-const DENY_KEY_PATTERN =
-  /^(password|passwd|secret|token|authorization|cookie|set-cookie|api[_-]?key|access[_-]?token|refresh[_-]?token|id[_-]?token|bearer|private[_-]?key|client[_-]?secret|session)$/i;
-
-/** Nested object paths that often hold Founder / LLM content. */
-const DENY_CONTENT_KEYS =
-  /^(answer(_text)?|answers|prompt|prompts|claude_?response|response_body|artifact_body|markdown|confirmed_markdown|body|email|phone|authorization)$/i;
+import deniedKeys from "../denied-keys.json" with { type: "json" };
 
 const REDACTED = "[Redacted]";
 
+function normalizeKey(key: string): string {
+  return key.toLowerCase().replace(/-/g, "_");
+}
+
+const DENIED_NORMALIZED = new Set(
+  [...deniedKeys.secretKeys, ...deniedKeys.contentKeys].map(normalizeKey),
+);
+
 export function isDeniedLogKey(key: string): boolean {
-  return DENY_KEY_PATTERN.test(key) || DENY_CONTENT_KEYS.test(key);
+  return DENIED_NORMALIZED.has(normalizeKey(key));
 }
 
-export function redactValue(value: unknown, keyHint?: string): unknown {
-  if (keyHint && isDeniedLogKey(keyHint)) {
-    return REDACTED;
-  }
-  return redactUnknown(value);
-}
-
-function redactUnknown(value: unknown): unknown {
+export function redactUnknown(value: unknown): unknown {
   if (value === null || value === undefined) {
     return value;
   }
@@ -51,6 +43,13 @@ function redactUnknown(value: unknown): unknown {
     return out;
   }
   return String(value);
+}
+
+export function redactValue(value: unknown, keyHint?: string): unknown {
+  if (keyHint && isDeniedLogKey(keyHint)) {
+    return REDACTED;
+  }
+  return redactUnknown(value);
 }
 
 /**

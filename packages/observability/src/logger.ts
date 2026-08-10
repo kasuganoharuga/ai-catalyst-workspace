@@ -159,9 +159,6 @@ export function createLogger(options: CreateLoggerOptions = {}): Logger {
   return logger;
 }
 
-/** Process-wide default logger (SERVICE_NAME / APP_ENV from env). */
-export const logger = createLogger();
-
 export function loggerForService(service: ServiceName): Logger {
   return createLogger({ service });
 }

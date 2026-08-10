@@ -28,6 +28,17 @@ export function resolveAppEnv(
   return "local";
 }
 
+/** Browser / Next client: prefer NEXT_PUBLIC_* then fall back to server names. */
+export function resolveBrowserAppEnv(): AppEnv {
+  return resolveAppEnv(readEnv("NEXT_PUBLIC_APP_ENV") ?? readEnv("APP_ENV"));
+}
+
+export function resolveBrowserRelease(): string | undefined {
+  return resolveRelease(
+    readEnv("NEXT_PUBLIC_RELEASE") ?? readEnv("RELEASE") ?? readEnv("GIT_SHA"),
+  );
+}
+
 export function resolveServiceName(
   raw: string | undefined = readEnv("SERVICE_NAME"),
   fallback: ServiceName = SERVICE_NAMES.services,
