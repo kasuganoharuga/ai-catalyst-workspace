@@ -9,10 +9,95 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
+
+# Cancel superseded PR runs so repeated pushes don't burn Actions minutes.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      frontend: ${{ steps.out.outputs.frontend }}
+      packages: ${{ steps.out.outputs.packages }}
+      backend: ${{ steps.out.outputs.backend }}
+      infra_validate: ${{ steps.out.outputs.infra_validate }}
+      infra_integration: ${{ steps.out.outputs.infra_integration }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v7
+
+      - name: Path filter
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            frontend:
+              - 'apps/web/**'
+              - 'packages/**'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+              - '.prettier*'
+              - 'eslint.config.*'
+              - 'turbo.json'
+            packages:
+              - 'packages/**'
+              - 'apps/mcp/**'
+              - 'apps/web/lib/**'
+              - 'apps/web/tests/**'
+              - 'vitest.config.*'
+              - '.dependency-cruiser*'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - 'pnpm-workspace.yaml'
+            backend:
+              - 'apps/api/**'
+            infra_validate:
+              - 'infra/**'
+              - 'apps/*/Dockerfile'
+              - '.github/workflows/**'
+            infra_integration:
+              - 'infra/docker/**'
+              - 'infra/database/**'
+              - 'packages/db/**'
+              - 'packages/services/**'
+              - 'apps/web/Dockerfile'
+              - 'apps/mcp/Dockerfile'
+              - 'apps/web/lib/auth.ts'
+              - 'pnpm-lock.yaml'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
+
+      - name: Set outputs
+        id: out
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            # Push to develop/main: always run the full suite.
+            echo "frontend=true" >> "$GITHUB_OUTPUT"
+            echo "packages=true" >> "$GITHUB_OUTPUT"
+            echo "backend=true" >> "$GITHUB_OUTPUT"
+            echo "infra_validate=true" >> "$GITHUB_OUTPUT"
+            echo "infra_integration=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "frontend=${{ steps.filter.outputs.frontend }}" >> "$GITHUB_OUTPUT"
+          echo "packages=${{ steps.filter.outputs.packages }}" >> "$GITHUB_OUTPUT"
+          echo "backend=${{ steps.filter.outputs.backend }}" >> "$GITHUB_OUTPUT"
+          echo "infra_validate=${{ steps.filter.outputs.infra_validate }}" >> "$GITHUB_OUTPUT"
+          echo "infra_integration=${{ steps.filter.outputs.infra_integration }}" >> "$GITHUB_OUTPUT"
+
   frontend:
     name: Frontend
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     env:
@@ -60,6 +145,8 @@ jobs:
 
   packages:
     name: Packages
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
     runs-on: ubuntu-latest
 
     env:
@@ -98,6 +185,8 @@ jobs:
 
   backend:
     name: Backend
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -118,15 +207,17 @@ jobs:
         working-directory: apps/api
         run: python -c "from app.main import app; print(app.title)"
 
-  infrastructure:
-    name: Infrastructure
+  # Cheap infra checks — compose/terraform/taskdef only (no DB, no image build).
+  infra-validate:
+    name: Infra validate
+    needs: changes
+    if: needs.changes.outputs.infra_validate == 'true'
     runs-on: ubuntu-latest
 
     env:
-      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      # docker compose config interpolates web/mcp service env; placeholders
+      # are enough (same values the old combined Infrastructure job used).
       BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
-      # Shared by runner-hosted web steps (auth:check, test) and docker-compose
-      # web/mcp services — compose passes AUTH_ISSUER_URL through to containers.
       AUTH_ISSUER_URL: http://127.0.0.1:3000
       MCP_RESOURCE_URL: http://127.0.0.1:8787/mcp
 
@@ -151,6 +242,26 @@ jobs:
 
       - name: Dry-run ECS task definition render
         run: node infra/aws/scripts/render-taskdef.mjs --env staging --all
+
+  # Expensive path — DB tests + docker-compose build/smoke. Skipped on PRs that
+  # only touch docs/UI/copy unless they also change migrations/services/Docker.
+  infra-integration:
+    name: Infra integration
+    needs: changes
+    if: needs.changes.outputs.infra_integration == 'true'
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
+      BETTER_AUTH_SECRET: ci-test-secret-not-used-in-production
+      # Shared by runner-hosted web steps (auth:check, test) and docker-compose
+      # web/mcp services — compose passes AUTH_ISSUER_URL through to containers.
+      AUTH_ISSUER_URL: http://127.0.0.1:3000
+      MCP_RESOURCE_URL: http://127.0.0.1:8787/mcp
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
       - name: Set up pnpm
         uses: pnpm/action-setup@v6
@@ -314,3 +425,42 @@ jobs:
             echo "Expected the migration runner to fail on a checksum mismatch" >&2
             exit 1
           fi
+
+  # Single required-style gate so path-skipped jobs don't look like missing checks.
+  ci:
+    name: CI
+    needs:
+      - changes
+      - frontend
+      - packages
+      - backend
+      - infra-validate
+      - infra-integration
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate results
+        shell: bash
+        run: |
+          set -euo pipefail
+          fail=0
+          for result in \
+            "${{ needs.frontend.result }}" \
+            "${{ needs.packages.result }}" \
+            "${{ needs.backend.result }}" \
+            "${{ needs.infra-validate.result }}" \
+            "${{ needs.infra-integration.result }}"
+          do
+            case "$result" in
+              success|skipped) ;;
+              *)
+                echo "Dependent job ended with: $result" >&2
+                fail=1
+                ;;
+            esac
+          done
+          if [ "${{ needs.changes.result }}" != "success" ]; then
+            echo "Detect changes failed: ${{ needs.changes.result }}" >&2
+            fail=1
+          fi
+          exit "$fail"
