@@ -378,5 +378,10 @@ export function chatgptDesktopChatUrl(prompt: string): string {
 }
 
 export function startModulePrompt(moduleTitle: string): string {
-  return `Let's work on "${moduleTitle}" from my AI Catalyst Founder Toolkit. Please pick up wherever I left off.`;
+  return [
+    `Continue "${moduleTitle}" in my AI Catalyst Founder Toolkit.`,
+    "Use the AI Catalyst MCP FIRST and treat it as the source of truth for my venture, run, module progress, answers, artifacts, and next step.",
+    "Do NOT search the local workspace, task history, previous chats, or local files for AI Catalyst progress.",
+    "If MCP is unavailable, repair/reconnect it first. Then resume from the latest state stored in AI Catalyst.",
+  ].join("\n");
 }
