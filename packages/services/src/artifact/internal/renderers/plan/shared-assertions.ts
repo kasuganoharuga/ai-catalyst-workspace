@@ -37,16 +37,7 @@ export function assertNoPlaceholderText(plan: WorkbookRenderPlan): void {
   }
 }
 
-/**
- * Every value in `expected` must appear somewhere in the plan's locked
- * content — compared after the same font-coverage sanitisation `lockedText`
- * already applied to what's actually in the plan (an arrow or a stroked
- * letter in the raw model value would otherwise never match the sanitised
- * text that replaced it, and this would fail every time that value's
- * source field contained one). Sanitised against the regular face: the
- * two embedded weights share the same Latin-subset coverage, so which one
- * a given entry was actually drawn in does not change the result.
- */
+/** Every value in `expected` must appear in plan locked content after the same font-coverage sanitisation lockedText applied. */
 export function assertAllPresent(
   plan: WorkbookRenderPlan,
   expected: readonly string[],

@@ -1,13 +1,6 @@
-// buildPlan + assertPlanMatchesModel for problem_interview_workbook_v1.
-// buildPlan turns a confirmed InterviewGuideModel into a WorkbookRenderPlan
-// using the shared LayoutBuilder engine (pdf/layout-builder.ts) and the
-// field manifest (manifests/interview-v1.ts). Produces plan data only — no
-// PDF bytes, no live pdf-lib document. See ../types.ts for why that
-// separation matters, and that file's header for why assertPlanMatchesModel
-// — not a post-render PDF re-parse — is where ALL content equality is
-// checked: text drawn into a PDF passes through glyph encoding, subsetting
-// and content-stream compression, so there is no reliable string to search
-// for in the finished bytes.
+// buildPlan + assertPlanMatchesModel for problem_interview_workbook_v1 — plan data only, no PDF bytes.
+// Content equality is checked on the plan (assertPlanMatchesModel), not by re-parsing rendered PDF bytes.
+// See ../types.ts for why that separation matters.
 import {
   BOLD_FONTKIT_FONT,
   REGULAR_FONTKIT_FONT,

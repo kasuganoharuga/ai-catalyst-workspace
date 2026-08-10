@@ -262,15 +262,8 @@ export type LegacyValidationConfig = z.infer<
 const EmptyConfigSchema = z.object({}).strict();
 
 /**
- * Parses `validationConfig` against the schema for `validatorKey`, throwing
- * a zod error on any mismatch. Called from content-seed/db/modules.ts before
- * every write, so a malformed rule fails the seed rather than surfacing
- * later at a Founder's `complete_module`.
- *
- * Dispatches on the artifact's own `validator_key`, not on
- * `validationConfig.validatorKey` — that field lives in exactly one place
- * (`ArtifactContent.validatorKey`); the legacy config's optional copy of it
- * is checked for agreement, never treated as the source of truth.
+ * Seed-time validationConfig parse — fail at seed, not at complete_module.
+ * Dispatches on artifact `validator_key`, not the legacy optional copy inside the config.
  */
 export function validateConfigForValidator(
   validatorKey: string | null,

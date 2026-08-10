@@ -1,21 +1,7 @@
-// The registry for workbook renderers — mirrors
-// artifact/internal/validators/registry.ts's resolveValidator pattern
-// exactly (same `overrides` DI seam, same INTERNAL_INVARIANT_ERROR for an
-// unregistered key).
-//
-// Two-tier design: WorkbookRenderer<TModel> is what each renderer module
-// authors (problem-interview-workbook-v1.ts, validation-roadmap-workbook-v1.ts)
-// — fully typed, TModel is real, so parse/buildPlan/assertPlanMatchesModel
-// stay safely tied to the same model type. RegisteredWorkbookRenderer is
-// what this registry stores and the service sees — no generic, no model in
-// any signature, so the calling service carries no per-renderer branching
-// or `as unknown as` casts. registerWorkbookRenderer() bridges the two, and
-// is also where both pipeline assertion gates
-// (assertPlanMatchesModel, assertPdfStructure) are wired in — no caller of
-// `.build()` can skip either.
-//
-// Contract types live in ./types.js (not here) so renderer modules can
-// import them without a circular dependency back into this registry.
+// Workbook renderer registry — mirrors resolveValidator (overrides DI seam, INTERNAL_INVARIANT_ERROR).
+// WorkbookRenderer<TModel> is per-renderer typed code; RegisteredWorkbookRenderer is what services call.
+// registerWorkbookRenderer wires assertPlanMatchesModel and assertPdfStructure — callers cannot skip either.
+// Contract types live in ./types.js to avoid import cycles.
 import { ServiceError } from "@ai-catalyst/services/errors";
 
 // Package subpath imports for Turbopack resolution when apps/web bundles services.
@@ -92,15 +78,8 @@ const WORKBOOK_RENDERERS: Record<string, RegisteredWorkbookRenderer> = {
 };
 
 /**
- * Resolves a RegisteredWorkbookRenderer by `artifact_definitions.renderer_key`.
- * `overrides` is a test-only DI seam (same pattern as `resolveValidator`)
- * letting tests register a fixture renderer without touching the real
- * registrations.
- *
- * Throws INTERNAL_INVARIANT_ERROR (never NOT_FOUND/VALIDATION_ERROR) when
- * unresolved — content has seeded a `renderer_key` that no deployed code
- * registers here, which is a deployment inconsistency, not a normal
- * business error the caller can act on.
+ * Resolves by artifact_definitions.renderer_key. `overrides` is test-only DI.
+ * Throws INTERNAL_INVARIANT_ERROR when unregistered — deployment mismatch, not a user error.
  */
 export function resolveWorkbookRenderer(
   rendererKey: string,

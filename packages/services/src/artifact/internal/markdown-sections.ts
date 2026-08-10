@@ -1,13 +1,6 @@
-// Markdown structure helpers. Originally written only for
-// validators/pressure-test-verdict-v1.ts, on the grounds that a future
-// Validator's template has a different heading/label vocabulary and a
-// shared "generic Markdown artifact parser" would be premature
-// generalization for a single caller. structured-markdown-v1.ts (Modules
-// 2, 3 and 4) is the second and third and fourth caller that condition
-// anticipated — it shares every function below rather than re-implementing
-// them. Every function here is pure and takes plain strings — no
-// DB/Storage/ActorContext involvement, matching the Validator contract's
-// own "synchronous pure function" requirement.
+// Pure Markdown structure helpers shared by structured-markdown-v1 and legacy
+// verdict validators. Kept generic enough for multiple callers, but still
+// string-in/string-out — no DB or ActorContext, matching the Validator contract.
 
 interface HeadingLine {
   level: number;
@@ -30,13 +23,7 @@ function parseHeadingLines(lines: string[]): HeadingLine[] {
   return result;
 }
 
-/**
- * Returns the body text of the first heading at exactly `level` whose
- * text matches `headingText` (case-insensitive), up to (not including)
- * the next heading at that level or shallower. `null` when no such
- * heading exists at all — distinct from an empty string, which means the
- * heading exists but has no content under it yet.
- */
+/** Section body under the first matching heading; `null` if missing, empty string if present but blank. */
 export function getSection(
   content: string,
   level: number,
@@ -82,12 +69,7 @@ export function isSectionNonEmpty(
   return body !== null && body.trim().length > 0;
 }
 
-// The bullet branch requires the marker NOT be followed by another `*`
-// (a `**bold**` label like `**Evidence note:**` must never be
-// misread as a `*`-bulleted list item) and requires at least one space
-// after the marker — the numbered branch keeps `\s*` (optional) since a
-// numbered placeholder line like "1." with nothing after it is still a
-// valid (if unfilled) list item.
+// Exclude `**bold**` labels from the bullet branch; numbered placeholders like "1." still match.
 const LIST_ITEM_PATTERN = /^\s*(?:\d+[.)]\s*|[-*](?!\*)\s+)(.*)$/;
 
 /** Every markdown list-item line within `sectionBody`, trimmed (may be empty strings for unfilled placeholder lines like "1."). */
@@ -103,23 +85,9 @@ export function nonEmptyListItems(sectionBody: string): string[] {
   return listItems(sectionBody).filter((item) => item.length > 0);
 }
 
-// ---------------------------------------------------------------------------
-// Substantive-content detection
-// ---------------------------------------------------------------------------
-//
-// The authoring templates under packages/toolkit-content carry
-// `<angle-bracket authoring hints>`, unfilled placeholder lines and blank
-// table rows. Every rule in structured-markdown-v1.ts that checks "is this
-// present" must reject those, or a Founder (or a model) saving the raw
-// template — or a naively stripped test skeleton — would clear validation.
-// Legacy validators (pressure-test-verdict-v1/v2) do not use this: their
-// frozen v1/v2 content never contained hint markup in the first place.
-
-// This authoring convention never uses literal angle brackets in
-// Founder-facing content, so a `<...>` span anywhere is read as an unfilled
-// hint — including a hint embedded inside otherwise-real text, such as a
-// Five Whys rung's own heading line `**Why <the question as it was
-// asked>?**`, where only part of the line is the placeholder.
+// --- Substantive-content detection ---
+// Reject unfilled template hints/placeholders so raw toolkit templates never pass validation.
+// Angle-bracket spans are always hints — even when embedded inside otherwise-real text.
 const CONTAINS_HINT_PATTERN = /<[^<>]*>/;
 const TRIVIAL_FILLER_PATTERN = /^(?:tbd|todo|placeholder|n\/a|na)$/i;
 const DASH_OR_ELLIPSIS_ONLY_PATTERN = /^[-—–.\s]+$/;
@@ -152,21 +120,10 @@ export function isSectionSubstantive(
   return body !== null && isSubstantiveText(body);
 }
 
-// ---------------------------------------------------------------------------
-// Markdown tables
-// ---------------------------------------------------------------------------
-//
-// Five of the templates (Why This Is Urgent, What Customers Do Today,
-// Evidence Inventory, Behavioural Evidence Log, Experiments, and the
-// Evidence Maturity Level reference table) are tables, not lists — the
-// list-oriented helpers above cannot see their rows.
+// --- Markdown tables ---
+// Several templates are tables, not lists — list helpers cannot see their rows.
 
-/**
- * Splits one `| a | b | c |` line into cells, respecting an escaped pipe
- * (`\|`) inside a cell — verbatim customer quotes, pass/fail conditions and
- * contradicting-evidence text can legitimately contain a literal `|`, and a
- * naive `line.split("|")` would misalign every column after it.
- */
+/** Split a table row on `|`, honouring escaped `\|` inside cells. */
 function tokenizeTableRow(line: string): string[] {
   const cells: string[] = [];
   let current = "";
@@ -188,13 +145,7 @@ function tokenizeTableRow(line: string): string[] {
   return cells;
 }
 
-// Strips simple Markdown emphasis markers (`**bold**`, `*italic*`) so
-// comparisons — and, for the workbook renderers, drawn PDF content — see
-// the underlying text rather than literal asterisks. Exported: several
-// locked template strings (e.g. Pass Bar's preamble, the Expected evidence
-// signal strength anchors) are entirely wrapped in `**...**` in the source
-// Markdown, and a renderer drawing that text verbatim onto a page would
-// show the asterisks.
+// Strip emphasis markers so comparisons and PDF rendering see plain text, not literal `**`.
 export function stripMarkdownEmphasis(text: string): string {
   return text.replace(/\*\*([^*]*)\*\*/g, "$1").replace(/\*([^*]*)\*/g, "$1");
 }
@@ -202,8 +153,7 @@ export function stripMarkdownEmphasis(text: string): string {
 function parseTableRowCells(rawLine: string): string[] {
   const trimmed = rawLine.trim();
   const rawCells = tokenizeTableRow(trimmed);
-  // A well-formed `| a | b |` row tokenizes to ["", " a ", " b ", ""] — drop
-  // the empty leading/trailing cells produced by the frame pipes.
+  // Drop empty leading/trailing cells from the frame pipes.
   const inner =
     rawCells.length >= 2 &&
     rawCells[0].trim().length === 0 &&
@@ -229,13 +179,7 @@ export interface ParsedTable {
   rows: string[][];
 }
 
-/**
- * Parses a Markdown table out of a section body. `null` when the section
- * has no header+separator+row structure at all (e.g. an empty section, or
- * one that is not a table). Returns `{ headers, rows: [] }` — not `null` —
- * when the table exists but every data row is blank; whether an empty
- * table is legal is a row-count rule's job, not this parser's.
- */
+/** Parse a table from section body; `null` if not a table, empty rows if scaffold-only. */
 export function parseTable(sectionBody: string): ParsedTable | null {
   const lines = sectionBody.split("\n");
   const tableLineIndexes = lines.reduce<number[]>((acc, line, index) => {
@@ -276,10 +220,7 @@ export function tableColumnIndex(
   );
 }
 
-// Everything in `sectionBody` except table-row lines (header, separator and
-// data rows alike) — used so an unfilled-table's header/`|---|` scaffolding
-// is never mistaken for the Founder's own "no evidence recorded yet" prose
-// when matching against RECORDED_UNKNOWN_PATTERNS below.
+// Prose outside table scaffolding — so empty `|---|---|` rows are not mistaken for honest-unknown text.
 export function extractNonTableProse(sectionBody: string): string {
   return sectionBody
     .split("\n")
@@ -288,15 +229,8 @@ export function extractNonTableProse(sectionBody: string): string {
     .trim();
 }
 
-// ---------------------------------------------------------------------------
-// Honest-unknown markers
-// ---------------------------------------------------------------------------
-//
-// A count rule's `orRecordedUnknown` escape must not accept any non-empty
-// prose with no list items — that would pass "TBD" or a confident but
-// unevidenced assertion. It only accepts prose that names the gap
-// explicitly, matched against the literal phrasings the templates ship —
-// see docs on `orRecordedUnknown` in the Module 3/4 prompt sets.
+// --- Honest-unknown markers ---
+// `orRecordedUnknown` only accepts explicit gap phrasing from the templates, not generic filler.
 export const RECORDED_UNKNOWN_PATTERNS: RegExp[] = [
   /\bunknown\b/i,
   /\bnot yet known\b/i,
@@ -313,9 +247,7 @@ export function matchesRecordedUnknown(text: string): boolean {
   return RECORDED_UNKNOWN_PATTERNS.some((pattern) => pattern.test(text));
 }
 
-// ---------------------------------------------------------------------------
-// Labels — `**Bold:**` and `- List item:` forms
-// ---------------------------------------------------------------------------
+// --- Labels ---
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -329,15 +261,7 @@ function isLabelBoundaryLine(line: string): boolean {
   );
 }
 
-/**
- * Finds an inline `**Label:**` marker, or a `- Label:` list-item marker
- * (the form every "Venture name" field uses), and returns the text that
- * follows it: inline text on the same line if present, otherwise the
- * following paragraph (collected until a blank line, the next heading, or
- * another label marker of either form). `null` when the marker itself is
- * entirely absent — distinct from an empty string, which means the marker
- * is present but nothing follows it yet.
- */
+/** Value after a `**Label:**` or `- Label:` marker; `null` if absent, empty string if present but blank. */
 export function extractLabelValue(
   content: string,
   label: string,
@@ -369,9 +293,7 @@ export function extractLabelValue(
     return inline;
   }
 
-  // Skip a blank line (or a few) between the marker and the value block so
-  // compact Snapshot cards can sit under `**WHO:**` / `**STAGE:**` without
-  // looking like an empty label to the draft check.
+  // Skip blank lines between marker and value block (compact Snapshot cards).
   let i = markerIndex + 1;
   while (i < lines.length && lines[i].trim().length === 0) {
     i += 1;
@@ -403,23 +325,8 @@ export function sectionHasSubstantiveLabel(
   return value !== null && isSubstantiveText(value);
 }
 
-// ---------------------------------------------------------------------------
-// The save protocol
-// ---------------------------------------------------------------------------
-//
-// Modules 2-4 persist every confirmed answer wrapped in metadata:
-//
-//   CONFIRMED ANSWER
-//   assumed
-//
-//   OBSERVATION BASIS
-//   None recorded.
-//   ...
-//
-// `label_matches_response` and similar rules must compare against the
-// CONFIRMED ANSWER body, never the whole `answerText` — Module 1's plain,
-// unwrapped answers still work, since a string with no such block returns
-// unchanged.
+// --- Save protocol ---
+// Modules 2-4 wrap answers in metadata blocks; rules compare CONFIRMED ANSWER only.
 const SAVE_PROTOCOL_LABELS = [
   "CONFIRMED ANSWER",
   "OBSERVATION BASIS",
@@ -446,11 +353,7 @@ export function extractConfirmedAnswer(answerText: string): string {
   return body.join("\n").trim();
 }
 
-// Normalises a value for equality comparison: trim, case-fold, strip a
-// leading numeric level prefix ("3 — ", "2 - ", "1: "), then collapse
-// underscore/hyphen/whitespace runs to a single space. Makes
-// "secondary_research", "Secondary research" and "2 — Secondary research"
-// compare equal.
+// Normalise for equality: case-fold, strip level prefixes, collapse separators.
 export function normalizeComparisonValue(text: string): string {
   let value = text.trim().toLowerCase();
   value = value.replace(/^\d+\s*(?:—|-|:)\s*/, "");

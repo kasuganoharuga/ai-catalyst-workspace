@@ -4,16 +4,8 @@ import type { ArtifactSubmissionCreatedVia } from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 
-// Deliberately local to the artifact module, not a reuse of
-// attempt/internal/interaction-provider.ts's resolveInteractionProvider
-// or storage/internal's resolveStorageCreatedVia — same "don't share
-// mappers across modules" convention those two already establish
-// (storage/index.ts's own comment on resolveStorageCreatedVia spells out
-// why). `artifact_submissions.created_via` has its own enum
-// (website/claude/openai/other/renderer/system/import), a superset of the
-// other two columns' domains, but this function only needs to produce
-// the values actually reachable through saveArtifactSubmission's
-// `assertRole(actor, ["founder"])` gate.
+// Local mapper for artifact_submissions.created_via — not shared with attempt or storage mappers (same per-module convention).
+// Only values reachable through saveArtifactSubmission's founder gate: website, claude, openai, other.
 export function resolveSubmissionCreatedVia(
   actor: ActorContext,
 ): ArtifactSubmissionCreatedVia {

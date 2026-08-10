@@ -1,27 +1,6 @@
-// The reusable, renderer-agnostic plan-building engine: a cursor that walks
-// down a page, wrapping text and deciding page breaks using real font
-// metrics (pdf/metrics.ts), and appends the result to a WorkbookRenderPlan
-// as pure data — no pdf-lib PDFDocument is touched here. Both renderers'
-// buildPlan() functions (commit 3+) drive this with their own content and
-// ordering; this module owns only the shared mechanics.
-//
-// Structural bugs found while building the first real multi-page layout are
-// encoded directly into this design, not left as something a future caller
-// could get wrong:
-//
-// 1. A footer label set "after a section's content" misses any page that
-//    section's content overflowed onto — `ensure()` can create a new page
-//    mid-section, and that new page becomes `current` immediately. Fix:
-//    every `newPage()` call captures the section's *current* footer label
-//    at creation time, and `setFooterLabel()` changes what "current" means
-//    for every page created after it, not just the page open when it's
-//    called.
-// 2. A code label meant to sit beside an already-positioned field (e.g. a
-//    checkbox placed via `checkboxAt` at an explicit rect) must NOT be
-//    drawn through the normal cursor-advancing path — `lockedText`'s
-//    default behaviour draws at the *current* cursor, which can be a whole
-//    row away from the field it is meant to label. `lockedText` accepts an
-//    explicit `y` for exactly this case.
+// Reusable plan-building engine: cursor layout with real font metrics, no pdf-lib drawing.
+// Footer labels are captured at newPage() so overflow pages inherit the current section.
+// lockedText accepts explicit y for labels beside already-positioned fields.
 import type { Font as FontkitFont } from "fontkit";
 
 import {
@@ -56,12 +35,7 @@ export interface TextStyle {
   color?: { r: number; g: number; b: number };
 }
 
-/**
- * Cursor-based layout builder producing plan data (`pages`, `fields`,
- * `lockedContent`) rather than drawing into a live document. Call
- * `toPlanParts()` once done to get the three arrays a `WorkbookRenderPlan`
- * needs (the caller still supplies `provenance`).
- */
+/** Cursor-based layout builder producing plan data; call toPlanParts() when done. */
 export class LayoutBuilder {
   readonly margin: number;
   readonly usableWidth: number;
@@ -101,11 +75,7 @@ export class LayoutBuilder {
     return this.pageIndex;
   }
 
-  /**
-   * Sets the footer label for the *rest* of this build, applied
-   * retroactively to the page currently open (so calling this immediately
-   * after `newPage()` labels that page too) and to every page opened after.
-   */
+  /** Sets footer label for the current page and all pages opened after. */
   setFooterLabel(label: string | null): void {
     this.currentFooterLabel = label;
     this.pages[this.pageIndex].footerLabel = label;
@@ -144,18 +114,8 @@ export class LayoutBuilder {
   }
 
   /**
-   * Records one block of locked (non-editable) text.
-   *
-   * Default mode reads and advances the cursor, page-breaking first if the
-   * block would not fit (the whole block moves to the next page rather
-   * than splitting a heading from its first line — pass `allowSplit: true`
-   * to page-break mid-block instead, for content long enough to span
-   * multiple pages on its own).
-   *
-   * `options.y`, when provided, places the block at that exact position
-   * instead — used for a label that must sit beside an already-positioned
-   * field (see this file's header, point 2). Neither reads nor advances
-   * the cursor.
+   * Records locked text at the cursor (or explicit y). Page-breaks before the
+   * block unless allowSplit splits mid-block for long content.
    */
   lockedText(
     role: string,
@@ -172,11 +132,7 @@ export class LayoutBuilder {
     const maxWidth = options.maxWidth ?? this.usableWidth;
     const x = options.x ?? this.margin;
     const font = this.fontFor(style);
-    // Sanitised once, here, so the height computed for pagination and the
-    // text actually pushed into lockedContent (later drawn verbatim by
-    // render-plan.ts) can never disagree about what a line wraps to — see
-    // sanitizeForFontCoverage's own comment for why this must happen
-    // before any measurement at all, not just before drawing.
+    // Sanitise before measurement so pagination height matches lockedContent text.
     const sanitizedText = sanitizeForFontCoverage(font, text);
     const height = blockHeight(font, sanitizedText, style.size, maxWidth);
 
@@ -246,13 +202,7 @@ export class LayoutBuilder {
     this.y -= options.gap ?? 0;
   }
 
-  /**
-   * Records a solid-colour background fill at an already-decided rect —
-   * never advances or reads the cursor, so callers place it either before
-   * laying out the content that sits on top (most cases) or after
-   * measuring where that content landed (e.g. a card background sized to
-   * the text it ends up containing).
-   */
+  /** Records a background fill at a fixed rect — does not move the cursor. */
   rectAt(
     rect: { x: number; y: number; width: number; height: number },
     color: { r: number; g: number; b: number },

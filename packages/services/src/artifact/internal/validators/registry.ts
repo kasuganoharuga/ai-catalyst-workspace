@@ -13,18 +13,7 @@ const VALIDATORS: Record<string, Validator> = {
   [structuredMarkdownV1.validatorKey]: structuredMarkdownV1,
 };
 
-/**
- * Resolves a Validator by `artifact_definitions.validator_key`.
- * `overrides` is a test-only DI seam (same pattern as
- * ModuleCatalogDependencies/StorageServiceDependencies) letting
- * artifact/index.db.test.ts register a fixture Validator without
- * touching the real content's registrations.
- *
- * Throws INTERNAL_INVARIANT_ERROR (never NOT_FOUND/VALIDATION_ERROR) when
- * unresolved — content has seeded a `validator_key` that no deployed
- * code registers here, which is a deployment inconsistency, not a normal
- * business error the caller can act on.
- */
+/** Resolves by `validator_key`; `overrides` is test-only DI. Unresolved keys throw INTERNAL_INVARIANT_ERROR — seeded content without a deployed Validator is a deployment bug, not a caller-facing validation error. */
 export function resolveValidator(
   validatorKey: string,
   overrides?: Record<string, Validator>,

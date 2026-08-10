@@ -1,15 +1,7 @@
-// buildPlan for ideal_customer_avatar_export_v1: turns a confirmed
-// IdealCustomerAvatarModel into a WorkbookRenderPlan. Ported from the
-// "Ideal Customer Avatar.dc.html" Claude Design mockup (navy masthead,
-// Snapshot band, Situation, two-column Unmet Needs, tiered Buying Signal
-// cards, Disqualifiers + Core Promise band) — see
-// plan/interview-workbook-plan.ts's header for the shared architecture note.
-//
-// Layout QA (2026-08): single continuous document flow like the Capital-
-// Raise handout example — no forced page-2 kicker. Pagination only happens
-// when content actually overflows. Printed footer stays (product + page
-// numbers); technical provenance stays in the PDF Info dict. Typography
-// is sized for PDF reading.
+// --- Ideal Customer Avatar plan ---
+// buildPlan for ideal_customer_avatar_export_v1 — layout ported from the
+// Design mockup; continuous flow (no forced page break), footer in chrome,
+// provenance in PDF Info. See interview-workbook-plan.ts for shared architecture.
 import {
   BOLD_FONTKIT_FONT,
   REGULAR_FONTKIT_FONT,

@@ -1,14 +1,6 @@
-// The shared emitter: replays an already-computed WorkbookRenderPlan onto a
-// fresh pdf-lib PDFDocument and returns the resulting bytes. Every renderer's
-// `render(plan)` (commit 4) is a thin wrapper around this — nothing about
-// physically drawing a plan differs between renderers, only the plan's
-// *content* does, and that was already decided by buildPlan().
-//
-// Because the plan carries absolute, already-decided positions (see
-// ../types.ts), this module makes no layout decisions of its own: it wraps
-// each LockedContentEntry's text with the same `wrapText` buildPlan used
-// (guaranteeing identical line breaks) and draws the result; it places each
-// field at its already-decided rect.
+// --- Workbook plan emitter ---
+// Replays a pre-computed WorkbookRenderPlan onto pdf-lib — no layout here,
+// only draw at absolute positions with the same wrapText buildPlan used.
 import {
   PDFDict,
   PDFDocument,

@@ -1,31 +1,11 @@
-// Field manifest for problem_interview_workbook_v1 — see the
-// operational-workbooks plan §5.1/§5.2. This is the single source of truth
-// for every field this renderer produces; buildPlan() and (in commit 4)
-// assert-pdf-structure.ts both walk it via ../manifest-fields.ts, so they
-// can never independently disagree about what fields should exist.
-//
-// Capacities were derived from pdf-lib's REAL multiline line pitch
-// (pdf/metrics.ts's `linePitch`, verified against pdf-lib's own generated
-// appearance streams — see that module's header for the bug an earlier,
-// wrong assumption would have caused) by binary-searching the largest
-// character count of realistic worst-case content that still fits each
-// field's rectangle, then backing off 15% for viewer-rendering variance.
-// None of these is a placeholder: every `capacity` here is real and this
-// manifest may not ship with `capacity: undefined` or `"spike"` on any
-// field (see plan §6, §12).
+// Field manifest for problem_interview_workbook_v1 — single source for buildPlan and PDF asserts.
+// Capacities derived from pdf/metrics linePitch with 15% headroom for viewer variance.
 import type { FieldManifest } from "../types.js";
 
-// Interview sections span two pages: A (the conversation) and B (evidence
-// and assessment) — see plan §5.1's note on why this collapsed from an
-// earlier three-page design once Pass Bar/Kill Criteria moved to a
-// two-column layout.
+// Each interview spans pages A (conversation) and B (evidence/assessment).
 export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
   sectionPrefix: "interview",
-  // Founder-chosen at download time (plan §5.2) — NOT derivable from the
-  // Markdown, which has no "how many people do you expect to interview"
-  // field. ROUND_SIZE (5) stays fixed regardless of this count; see
-  // plan/interview-workbook-plan.ts for why sections beyond 5 are titled
-  // "Additional interview N" rather than renumbered into the round.
+  // Founder-chosen at download (5–10); not derivable from Markdown.
   sectionCount: { kind: "option", minimum: 5, maximum: 10, default: 5 },
   fields: [
     // Page A — the conversation
@@ -45,12 +25,7 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
       kind: "family",
       type: "text",
       suffixTemplate: "question_{n}_notes",
-      // Always exactly 5 — the confirmed guide always has exactly 5
-      // questions (parse/interview-guide.ts throws otherwise), so this is
-      // "fromModel" in spirit but fixed in practice; expressed as fixed
-      // because the field count must not silently vary if a future
-      // Markdown template relaxed that constraint without this manifest
-      // being revisited.
+      // Always 5 — parse/interview-guide.ts enforces exactly five questions.
       count: { kind: "fixed", value: 5 },
       capacity: 400,
     },
@@ -80,9 +55,7 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
       kind: "family",
       type: "checkbox",
       suffixTemplate: "pass_bar_{n}",
-      // 3–4, driven by how many conditions the confirmed Pass Bar actually
-      // has (parse/interview-guide.ts's passBar.conditions.length) — never
-      // an empty 4th field when the guide has three.
+      // 3–4 from confirmed Pass Bar conditions — never an empty 4th when guide has three.
       count: {
         kind: "fromModel",
         source: "passBarConditions",
@@ -94,8 +67,7 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
       kind: "family",
       type: "checkbox",
       suffixTemplate: "kill_criterion_{n}_observed",
-      // Always exactly 3 — Module 3's Kill Criteria section is always
-      // exactly 3 patterns (parse/interview-guide.ts enforces this).
+      // Always 3 — Module 3 Kill Criteria section is fixed at three patterns.
       count: { kind: "fixed", value: 3 },
     },
     { kind: "fixed", type: "text", suffix: "evidence_extracts", capacity: 400 },

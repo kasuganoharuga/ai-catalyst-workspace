@@ -1,21 +1,7 @@
-// Embeds the two committed font faces (regular, bold) into a live pdf-lib
-// PDFDocument, and wires the AcroForm-level default resources (/DR) and
-// default appearance (/DA) that AcroForm fields need. This is emission-time
-// work — it runs once per render(), against a real PDFDocument — unlike
-// pdf/metrics.ts's coverage/measurement functions, which run at plan-build
-// time against a bare fontkit font with no PDFDocument involved.
-//
-// Both faces are pre-decompressed TTF (see the generated fonts/*.ts modules
-// and scripts/generate-workbook-fonts.mjs for why: embedding raw WOFF2 bytes
-// produces a corrupt ToUnicode CMap — glyphs draw correctly but text
-// extraction reads back the wrong characters).
+// Embeds committed TTF faces at render time (plan-build uses bare fontkit via pdf/metrics.ts).
+// Pre-decompressed TTF avoids corrupt ToUnicode CMaps from raw WOFF2 bytes.
 import fontkit from "@pdf-lib/fontkit";
-// `fontkit`'s real ESM build (dist/module.mjs) exports `create` as a NAMED
-// export with no default — a plain `import fontkitCore from "fontkit"`
-// resolves at compile time (its .d.ts declares a default, written for the
-// CJS interop shape) but fails at runtime under a real ESM loader (Vitest,
-// Node with `type: module`), since there is nothing to synthesise a default
-// from. Import the function by name instead.
+// fontkit ESM exports `create` as a named export — default import fails under Vitest/Node ESM.
 import { create as createFontkitFont, type Font as FontkitFont } from "fontkit";
 import {
   PDFDict,
@@ -31,9 +17,7 @@ import { NOTO_SANS_BOLD_TTF_BASE64 } from "@ai-catalyst/services/artifact/intern
 const REGULAR_TTF_BYTES = Buffer.from(NOTO_SANS_REGULAR_TTF_BASE64, "base64");
 const BOLD_TTF_BYTES = Buffer.from(NOTO_SANS_BOLD_TTF_BASE64, "base64");
 
-// The bare fontkit-parsed fonts, for coverage/measurement (pdf/metrics.ts)
-// against the identical bytes that get embedded — parsed once per module
-// load, not per render.
+// Bare fontkit fonts for pdf/metrics.ts — same bytes as embedded faces, parsed once per load.
 export const REGULAR_FONTKIT_FONT: FontkitFont = createFontkitFont(
   REGULAR_TTF_BYTES,
 ) as FontkitFont;
@@ -50,31 +34,14 @@ const REGULAR_RESOURCE_NAME = "WorkbookSans";
 const BOLD_RESOURCE_NAME = "WorkbookSansBold";
 
 /**
- * Embeds both faces into `doc` and wires /DR + /DA at the AcroForm level.
- *
- * Neither `field.addToPage({ font })` nor `field.updateAppearances(font)`
- * registers a font in the AcroForm's shared default resources on its own —
- * inspecting a generated PDF's AcroForm dictionary showed only `/Fields`,
- * no `/DR` at all. This matters because a viewer that later regenerates a
- * field's appearance (e.g. after the Founder edits previously-typed text)
- * resolves the font through `/DR`, not through whatever
- * `updateAppearances()` pre-rendered at generation time.
- *
- * Deliberately does NOT set `/NeedAppearances: true` — pre-generated
- * appearances via `updateAppearances()` are the tested, verified path, and
- * shifting rendering responsibility onto the viewer would trade a proven
- * path for one with inconsistent, unverifiable cross-viewer support.
+ * Embeds both faces and wires AcroForm /DR + /DA so viewers can regenerate
+ * field appearances from shared font resources — not just pre-rendered AP streams.
  */
 export async function embedWorkbookFonts(
   doc: PDFDocument,
 ): Promise<EmbeddedFonts> {
   doc.registerFontkit(fontkit);
-  // { subset: false } is required, not optional: AcroForm field input is
-  // arbitrary Founder text unknowable at generation time, and a subset
-  // trimmed to only the drawn locked text would be wrong the moment a
-  // Founder typed a character that was never drawn. (Subsetting a
-  // WOFF2-decompressed font also throws outright in this pdf-lib version —
-  // moot here, since full embedding is required regardless.)
+  // { subset: false } — Founder field input is arbitrary; subsetting to drawn text would truncate typing.
   const regular = await doc.embedFont(REGULAR_TTF_BYTES, { subset: false });
   const bold = await doc.embedFont(BOLD_TTF_BYTES, { subset: false });
 
@@ -94,9 +61,7 @@ export async function embedWorkbookFonts(
       }),
     }),
   );
-  // The AcroForm-level default: individual fields still get their own /DA
-  // (see pdf/render-plan.ts) so each can pick its own size, but every field
-  // needs a fallback that resolves through /DR.
+  // AcroForm-level default; per-field /DA in render-plan.ts overrides size.
   acroForm.set(
     PDFName.of("DA"),
     PDFString.of(`/${REGULAR_RESOURCE_NAME} 10 Tf 0 g`),
