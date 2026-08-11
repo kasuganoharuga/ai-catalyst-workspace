@@ -9,7 +9,7 @@ import { ArtefactDownloadMenu } from "../../components/artefact-download-menu";
 import { StatusBadge } from "../../components/status-badge";
 import { artefactsCopy } from "../../lib/copy";
 import { moduleAccentStyle } from "../../lib/module-display";
-import type { ArtefactCardModel } from "../types";
+import type { ArtefactCardModel, ArtefactLinkOptions } from "../types";
 
 function statusFor(row: ArtefactCardModel) {
   if (row.versionNumber !== null) {
@@ -53,17 +53,20 @@ function detailFor(row: ArtefactCardModel): string {
 export function ArtefactDocumentRow({
   artefact,
   className,
+  artefactsBasePath,
+  showDownload = true,
 }: {
   artefact: ArtefactCardModel;
   className?: string;
-}) {
+} & ArtefactLinkOptions) {
   const status = statusFor(artefact);
   const saved = artefact.versionNumber !== null;
   const websiteReadable = artefact.websiteEvidence != null;
+  const artefactPath = `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}`;
   const readHref = saved
-    ? `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}`
+    ? `${artefactsBasePath ?? ""}${artefactPath}`
     : `/modules/${encodeURIComponent(artefact.moduleKey)}`;
-  const downloadHref = `/artefacts/${encodeURIComponent(artefact.moduleKey)}/${encodeURIComponent(artefact.artifactKey)}/download`;
+  const downloadHref = `${artefactPath}/download`;
 
   return (
     <div
@@ -94,13 +97,15 @@ export function ArtefactDocumentRow({
           >
             <Link href={readHref}>{artefactsCopy.readCta}</Link>
           </Button>
-          <ArtefactDownloadMenu
-            downloadHref={downloadHref}
-            workbookAvailable={artefact.workbookAvailable}
-            downloadLabel={artefactsCopy.downloadCta}
-            pdfLabel={artefactsCopy.downloadWorkbookCta}
-            markdownLabel={artefactsCopy.downloadSourceCta}
-          />
+          {showDownload ? (
+            <ArtefactDownloadMenu
+              downloadHref={downloadHref}
+              workbookAvailable={artefact.workbookAvailable}
+              downloadLabel={artefactsCopy.downloadCta}
+              pdfLabel={artefactsCopy.downloadWorkbookCta}
+              markdownLabel={artefactsCopy.downloadSourceCta}
+            />
+          ) : null}
         </div>
       ) : websiteReadable ? (
         <div className="flex shrink-0 items-center">

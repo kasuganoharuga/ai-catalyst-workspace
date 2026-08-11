@@ -1,14 +1,16 @@
 import { NotebookPen } from "lucide-react";
 
 import { moduleAccentStyle } from "../../lib/module-display";
-import type { ArtefactModuleGroupModel } from "../types";
+import type { ArtefactLinkOptions, ArtefactModuleGroupModel } from "../types";
 import { ArtefactDocumentRow } from "./artefact-card";
 
 export function ArtefactModuleGroup({
   group,
+  artefactsBasePath,
+  showDownload = true,
 }: {
   group: ArtefactModuleGroupModel;
-}) {
+} & ArtefactLinkOptions) {
   const savedCount = group.artefacts.filter(
     (row) =>
       row.versionNumber !== null || row.websiteEvidence?.status === "confirmed",
@@ -52,7 +54,11 @@ export function ArtefactModuleGroup({
       <ul className="divide-y divide-border">
         {group.artefacts.map((artefact) => (
           <li key={artefact.artifactKey}>
-            <ArtefactDocumentRow artefact={artefact} />
+            <ArtefactDocumentRow
+              artefact={artefact}
+              artefactsBasePath={artefactsBasePath}
+              showDownload={showDownload}
+            />
           </li>
         ))}
       </ul>

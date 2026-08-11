@@ -34,6 +34,18 @@ export type ArtefactCardModel = {
 };
 
 /**
+ * How artefact rows resolve Read / Download URLs. Founder pages use the
+ * default `/artefacts/...` paths; Mentor supervision prefixes with
+ * `/founders/{workspaceId}` and hides downloads (read-only V1).
+ */
+export type ArtefactLinkOptions = {
+  /** Prefix before `/artefacts/...` — e.g. `/founders/{workspaceId}`. */
+  artefactsBasePath?: string;
+  /** When false, saved rows only show Read (Mentor review). Defaults to true. */
+  showDownload?: boolean;
+};
+
+/**
  * "handoff" is an artefact a Founder carries between two modules rather than
  * one a module produces — it gets its own card, with no step number, so it
  * reads as the thing passed across the gap instead of either module's output.

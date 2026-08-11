@@ -1,7 +1,9 @@
 import type {
+  MentorArtefactSummary,
   ModuleCatalogEntry,
   ModuleContext,
   RunModuleStatus,
+  RunModuleSummary,
 } from "@ai-catalyst/shared";
 import {
   INTERVIEW_EVIDENCE_ARTIFACT_KEY,
@@ -325,4 +327,54 @@ export function artefactCounts(groups: ArtefactModuleGroupModel[]) {
     0,
   );
   return { totalArtefacts, savedCount };
+}
+
+/**
+ * Mentor detail: saved deliverables only, grouped like the Founder Artefacts
+ * page. Mentors review finished work — no Start/Locked CTAs, no empty slots.
+ */
+export function buildMentorArtefactGroups(
+  modules: RunModuleSummary[],
+  artefacts: MentorArtefactSummary[],
+): ArtefactModuleGroupModel[] {
+  if (artefacts.length === 0) return [];
+
+  const moduleByKey = new Map(modules.map((entry) => [entry.moduleKey, entry]));
+  const byModule = new Map<string, MentorArtefactSummary[]>();
+
+  for (const artefact of artefacts) {
+    const list = byModule.get(artefact.moduleKey) ?? [];
+    list.push(artefact);
+    byModule.set(artefact.moduleKey, list);
+  }
+
+  return [...byModule.entries()]
+    .map(([moduleKey, moduleArtefacts]) => {
+      const runModule = moduleByKey.get(moduleKey);
+      const sequenceIndex = runModule?.sequenceIndex ?? 0;
+      return {
+        kind: "module" as const,
+        moduleKey,
+        title: runModule?.title ?? moduleKey,
+        subtitle: null,
+        sequenceIndex,
+        sortIndex: sequenceIndex,
+        artefacts: moduleArtefacts.map((artefact) => ({
+          moduleKey: artefact.moduleKey,
+          moduleTitle: runModule?.title ?? moduleKey,
+          moduleSubtitle: null,
+          sequenceIndex,
+          artifactKey: artefact.artifactKey,
+          name: artefact.name,
+          requiredFilename: artefact.requiredFilename,
+          isRequired: true,
+          versionNumber: artefact.versionNumber,
+          submissionStatus: null,
+          savedAt: artefact.savedAt,
+          workbookAvailable: false,
+          workbookFormat: null,
+        })),
+      };
+    })
+    .sort((a, b) => a.sortIndex - b.sortIndex);
 }

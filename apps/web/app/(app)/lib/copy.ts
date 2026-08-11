@@ -1178,9 +1178,9 @@ export const mentorFounderDetailCopy = {
   statArtefacts: "Artefacts saved",
   statLastActivity: "Last activity",
   never: "None yet",
-  modulesHeading: "Modules",
+  /** Same section label as the Founder Artefacts page — outputs by module. */
+  artefactsHeading: "By module",
   noArtefacts: "No deliverables saved yet.",
-  readCta: "Read",
 } as const;
 
 export const mentorArtefactDocumentCopy = {
