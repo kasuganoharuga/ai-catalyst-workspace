@@ -16,9 +16,11 @@ not as settled fact.>
 
 ### Root-cause version
 
-<One sentence, in the form: [Beachhead customer] struggles with [problem] because [root cause],
-which results in [impact or consequence]. The [root cause] slot holds the structural or behavioural
-cause the Five Whys reached — not the surface complaint the Founder started with.>
+<One sentence framed as a current hypothesis, not settled fact. Prefer: The current hypothesis is
+that [Beachhead customer] struggles with [problem] because [root cause], which results in [impact
+or consequence]. The [root cause] slot holds the structural or behavioural cause the Five Whys
+reached as a testable hypothesis — not the surface complaint the Founder started with, and not a
+proven fact.>
 
 ### Draft version
 
@@ -85,9 +87,13 @@ customer cycle.>
 
 ## What Customers Do Today
 
-<Every workaround, tool, spreadsheet, manual process and market solution the customer uses now —
-including the ones that half-work and the ones they gave up on. This is the real competition. Later
-competitor work reads this section.>
+<Keep this heading. Immediately under it, state section-level evidence status from this field's own
+OBSERVATION BASIS vs ASSUMPTIONS — not from module-level validation_status alone. If this section
+has supporting observation: "Evidence status: Observed or reported in matching firms." Otherwise:
+"Evidence status: Founder hypothesis; not yet observed in matching firms." Then list every
+workaround, tool, spreadsheet, manual process and market solution the customer uses now — including
+the ones that half-work and the ones they gave up on. This is the real competition. Later competitor
+work reads this section.>
 
 | Tool or workaround | What it does | Where it falls short |
 |---|---|---|

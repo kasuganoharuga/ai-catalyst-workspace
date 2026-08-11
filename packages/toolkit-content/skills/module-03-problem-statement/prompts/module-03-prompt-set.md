@@ -171,7 +171,8 @@ BEFORE
     [problem_draft]
 
 AFTER
-    [proposed root-cause-hypothesis statement]
+    [proposed root-cause-hypothesis statement — open with "The current hypothesis is that…" so the
+    because-clause cannot be read as established fact]
 
 The second version is narrower, because it names a cause you can go and test — not a proven fact.
 
@@ -543,11 +544,14 @@ Record the gap under UNKNOWNS in the save protocol.
 
 ## Save protocol
 
-Confirmed Responses are the only reliable state. This attempt can resume in a different chat, after
-a reconnect, or days later — raw conversation is a within-session convenience and is never the state
-of record. Anything a later question needs must be persisted the moment it is first heard.
+Confirmed Responses from the AI Catalyst Module context are the only reliable state. This attempt
+can resume in a different chat, after a reconnect, or days later — raw conversation is a
+within-session convenience and is never the state of record. Do **not** reconstruct progress,
+answers, or artifacts from local chat history, task folders, previous Codex/Claude threads, or
+workspace files. If MCP or Module context is unavailable, repair the connection first, then resume
+from AI Catalyst. Anything a later question needs must be persisted the moment it is first heard.
 
-Every `save_founder_input` writes one answer in this shape:
+For `long_text` and `short_text`, every `save_founder_input` writes one answer in this shape:
 
     CONFIRMED ANSWER
     [the text that goes into the artefact section]
@@ -566,6 +570,11 @@ Every `save_founder_input` writes one answer in this shape:
 
     CARRY-FORWARD CONTEXT
     — [Later field]: [relevant confirmed detail]
+
+**`single_choice` exception.** For `validation_status` (and any other `single_choice` field),
+`value` must be exactly one allowed option token for **that question** — e.g. `"assumed"`,
+`"interviewed"`, or `"validated"`. Do not wrap it in CONFIRMED ANSWER, do not send an object, and do
+not send the human label. Wrong shape fails the save.
 
 Carry-forward entries are dynamic — list only what the answer actually produced, naming the field it
 is for:
@@ -619,6 +628,14 @@ For `root_cause`:
 - If the ladder did not reach something structural, say so in the field itself and record the gap
   under UNKNOWNS. "The ladder reached a staffing constraint but not the reason it persists" is a
   better answer than a confident invention.
+
+For `problem_statement`:
+
+- CONFIRMED ANSWER is the root-cause version of the statement, confirmed by the Founder.
+- Open with hypothesis framing — prefer "The current hypothesis is that [beachhead] struggles
+  with [problem] because [root-cause mechanism], which results in [impact]."
+- Do not write a bare `because …` clause that reads as established fact when the cause is still
+  Founder inference.
 
 For `pain_intensity`:
 
@@ -716,6 +733,9 @@ were you describing your product at the time?
 `validation_status` records where the problem honestly stands today. It is not a test the Founder
 can fail, and `assumed` is the expected answer — the interview guide this module produces is how
 they move off it.
+
+When saving, call `save_founder_input` with `value` set to exactly one of: `assumed`, `interviewed`,
+`validated`. Plain option token only — see the Save protocol `single_choice` exception.
 
 The three levels are about **this problem**, not the customer, and about interviews the Founder has
 **already** run — not the ones this module is preparing:
@@ -863,15 +883,32 @@ saved.
 | Section | Source |
 |---|---|
 | Venture | Venture name only, from context |
-| Statement → Root-cause version | `problem_statement`, verbatim |
+| Statement → Root-cause version | `problem_statement`, verbatim — must read as a **current hypothesis**, not settled fact (see below) |
 | Statement → Draft version | `problem_draft`, verbatim as first given — never improved in hindsight |
 | Five Whys Ladder | `five_whys_ladder` — each rung that was asked, in order, root-cause layer marked. Render three to five rungs; never add one to reach five |
 | Root Cause | `root_cause` — one short paragraph stating the current root-cause hypothesis (locked H2 stays `## Root Cause`) |
 | Why This Is Urgent | `pain_intensity` — three rows, each with the Founder's description, the confirmed score, the anchor it matched, and the evidence basis. Verdict line from `priority_evidence`, judged against the working threshold rather than computed |
-| What Customers Do Today | `current_alternatives` — one row per alternative, including doing nothing where recorded. Three columns only |
+| What Customers Do Today | `current_alternatives` — one row per alternative, including doing nothing where recorded. Three columns only. Provenance is **section-level** (see below) |
 
-No inline evidence tags anywhere in the sections above. The body stays clean; all bookkeeping goes
-in Validation Status.
+**Root-cause version must open as a hypothesis.** Prefer wording such as "The current hypothesis is
+that [beachhead] struggles with [problem] because [root-cause mechanism], which results in
+[impact]." Do not write a bare `because …` clause that reads as established fact when the cause is
+still Founder inference. The Root Cause section alone is not enough if the headline already sounds
+settled.
+
+**What Customers Do Today — section-level provenance.** Keep the locked heading. Immediately under
+it, state evidence status from this section's own OBSERVATION BASIS vs ASSUMPTIONS — **not** from
+module-level `validation_status` alone:
+
+- If `current_alternatives` has supporting OBSERVATION BASIS → present rows as observed/reported;
+  you may add `Evidence status: Observed or reported in matching firms.`
+- Otherwise → retain Founder-hypothesis provenance, e.g.
+  `Evidence status: Founder hypothesis; not yet observed in matching firms.`
+
+A module marked `interviewed` or `validated` for the problem does **not** automatically clear this
+disclaimer for alternatives.
+
+No other inline evidence tags in the sections above. Remaining bookkeeping goes in Validation Status.
 
 **A blank score stays blank.** Where `pain_intensity` recorded that the Founder did not know an
 axis, write their statement in the description column, leave the score cell empty, and record the
@@ -1009,11 +1046,17 @@ At least one question must surface what they have already paid for or abandoned.
 abandoned alternatives as **especially strong evidence when they appear** — not as the only strong
 signal; hiring, executive escalation, or lost customers can be equally strong.
 
-**Pass bar rules.** Keep a single `## Pass Bar` section. The preamble must say the round is graded
-in three lanes, and every list item must start with one of: `Problem —`, `Root cause —`, or
-`Urgency —`. Typical shape: at least 3 of 5 interviews satisfy each lane (calibrate counts if the
-Confirmed scores demand it). A founder who completes three conversations has an incomplete round,
-not worthless data.
+**Pass bar rules.** Keep a single `## Pass Bar` section. Open with a Founder-facing AI-proposed
+disclaimer on its own bold line (do not invent a new H2), then the lane-grading preamble:
+
+    **Working validation thresholds:** The following pass/kill thresholds are AI-proposed for this
+    validation round. They are not market benchmarks or existing customer evidence.
+
+Then say the round is graded in three lanes, and every list item must start with one of:
+`Problem —`, `Root cause —`, or `Urgency —`. Typical shape: at least 3 of 5 interviews satisfy each
+lane (calibrate counts if the Confirmed scores demand it). A founder who completes three
+conversations has an incomplete round, not worthless data. Counts and time windows are working
+thresholds you propose — label them as such in the opening line above, never as market standards.
 
 Every condition must be checkable from the interview notes by someone who was not on the call, and
 must be about behaviour rather than stated intent:

@@ -15,7 +15,8 @@ channel or account list.>
 ## Snapshot
 
 **WHO:** <one short recognition line — Capital Raise density. Role / life situation / team shape.
-Include user / champion / buyer only as compact clauses when material. No motivations or prose.>
+Include user / champion / buyer only as compact natural labels when material
+(Primary users: … · Champion: … · Buyer: …), not schema-like equals-sign lists. No motivations or prose.>
 
 **WHERE:** <one short recognition line: country, market, ecosystem, and one or two named communities
 or networks>

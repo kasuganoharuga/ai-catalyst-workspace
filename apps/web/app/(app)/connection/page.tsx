@@ -163,7 +163,11 @@ export default async function ConnectionPage() {
           ) : null}
 
           {endpointUrl ? (
-            <ConnectionSetup assistant={assistant} endpointUrl={endpointUrl} />
+            <ConnectionSetup
+              assistant={assistant}
+              endpointUrl={endpointUrl}
+              repair={connectionExpired}
+            />
           ) : (
             <section className="mt-10 rounded-xl border border-destructive/30 bg-destructive/5 p-6">
               <h2 className="text-sm font-semibold text-foreground">

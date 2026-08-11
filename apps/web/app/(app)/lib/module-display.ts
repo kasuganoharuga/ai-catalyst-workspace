@@ -382,6 +382,7 @@ export function startModulePrompt(moduleTitle: string): string {
     `Continue "${moduleTitle}" in my AI Catalyst Founder Toolkit.`,
     "Use the AI Catalyst MCP FIRST and treat it as the source of truth for my venture, run, module progress, answers, artifacts, and next step.",
     "Do NOT search the local workspace, task history, previous chats, or local files for AI Catalyst progress.",
+    "Do NOT reconstruct or re-save answers from local chat history, task folders, or prior threads — only persist what Module context / MCP returns as current state.",
     "If MCP is unavailable, repair/reconnect it first. Then resume from the latest state stored in AI Catalyst.",
   ].join("\n");
 }

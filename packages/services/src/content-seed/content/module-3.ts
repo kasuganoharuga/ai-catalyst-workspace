@@ -92,6 +92,9 @@ const PROBLEM_INTERVIEW_GUIDE_TEMPLATE = `# Problem Interview Guide
 
 ## Pass Bar
 
+**Working validation thresholds:** The following pass/kill thresholds are AI-proposed for this
+validation round. They are not market benchmarks or existing customer evidence.
+
 **For this five-interview validation round, grade each lane separately. Label every condition
 Problem, Root cause, or Urgency. Typical bar: at least 3 of 5 interviews satisfy each lane's
 conditions below (calibrate windows to the confirmed pain cadence):**

@@ -100,7 +100,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Save founder input",
       description:
-        "Validates and persists a Founder's structured answer to one Question within an Attempt. Idempotent for the same (attemptId, questionKey).",
+        "Validates and persists a Founder's structured answer to one Question within an Attempt. Idempotent for the same (attemptId, questionKey). For single_choice questions, value must be a plain option token from that question's options (e.g. \"assumed\") — not a CONFIRMED ANSWER envelope and not an arbitrary object.",
       inputSchema: SAVE_FOUNDER_INPUT_SHAPE,
     },
     async (args) => {

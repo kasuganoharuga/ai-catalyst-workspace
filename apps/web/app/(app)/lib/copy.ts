@@ -62,9 +62,20 @@ export const connectionCopy = {
   // "expired" was a guess, and after a deliberate switch it read as
   // something having gone wrong.
   expiredTitle: "You'll need to connect again",
+  repairTitle: "Repair connection",
+  repairBody:
+    "Follow the steps below to reconnect. Leave this tab open — it refreshes as soon as access is approved, including when you switch back to it.",
 
   troubleshootingTitle: "If something doesn't look right",
   watchRetry: "Try again",
+
+  // Shown only for the ChatGPT/OpenAI path, and only as a Codex CLI
+  // fallback — ordinary ChatGPT desktop setup stays the primary path.
+  codexCliTitle: "If you're connecting through Codex",
+  codexCliBody:
+    "When the desktop Plugins flow fails, add and log in to the MCP server from the Codex CLI, then return to this tab.",
+  codexCliAddLabel: "Add the server",
+  codexCliLoginLabel: "Log in",
 
   disconnectCta: "Disconnect",
   disconnectPending: "Disconnecting…",
@@ -149,7 +160,7 @@ export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
     introConnected:
       "Claude is connected to this workspace. Everything below is here if you want to check on it or end access.",
     expiredBody:
-      "Your saved work is safe. Set Claude up again with the address below.",
+      "Your saved work is safe. Use Repair connection below to set Claude up again with the same address.",
 
     setupTitle: "Add the connector in Claude",
     setupBody: "Five steps, once. You'll approve access at the end.",
@@ -212,7 +223,7 @@ export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
 
     waitingTitle: "Waiting for Claude",
     waitingBody:
-      "Leave this page open. Your first module opens automatically once Claude is connected.",
+      "Leave this tab open while you finish approval. It checks every few seconds and again as soon as you switch back here. Your first module opens automatically once Claude is connected.",
     connectedTitle: "Claude is connected",
     connectedBody: "Opening your first module.",
 
@@ -257,7 +268,7 @@ export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
     introConnected:
       "ChatGPT is connected to this workspace. Everything below is here if you want to check on it or end access.",
     expiredBody:
-      "Your saved work is safe. Set ChatGPT up again with the address below.",
+      "Your saved work is safe. Use Repair connection below to set ChatGPT up again with the same address.",
 
     setupTitle: "Add the server in ChatGPT",
     setupBody: "Five steps, once. You'll approve access at the end.",
@@ -324,7 +335,7 @@ export const assistantCopy: Record<PreferredAiProvider, AssistantCopy> = {
 
     waitingTitle: "Waiting for ChatGPT",
     waitingBody:
-      "Leave this page open. Your first module opens automatically once ChatGPT is connected.",
+      "Leave this tab open while you finish approval. It checks every few seconds and again as soon as you switch back here. Your first module opens automatically once ChatGPT is connected.",
     connectedTitle: "ChatGPT is connected",
     connectedBody: "Opening your first module.",
 

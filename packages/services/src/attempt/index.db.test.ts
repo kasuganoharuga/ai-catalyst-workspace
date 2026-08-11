@@ -778,6 +778,87 @@ describe("attempt service — database integration", () => {
       });
     });
 
+    it("rejects a single_choice token that is valid elsewhere but not on this field", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "foreign-option-token",
+      );
+
+      // "validated" is a Module 3 validation_status option, not current_stage.
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: "validated",
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("idea_only"),
+      });
+    });
+
+    it("accepts single_choice via known wrapper fields", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-wrapper",
+      );
+
+      const response = await saveFounderResponse(actor, {
+        attemptId,
+        questionKey: "current_stage",
+        value: { value: "idea_only" },
+      });
+
+      expect(response.answerText).toBe("idea_only");
+    });
+
+    it("coerces a CONFIRMED ANSWER envelope that names exactly one allowed option", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-envelope",
+      );
+
+      const response = await saveFounderResponse(actor, {
+        attemptId,
+        questionKey: "current_stage",
+        value: "CONFIRMED ANSWER\nidea_only\n\nOBSERVATION BASIS\nNone.",
+      });
+
+      expect(response.answerText).toBe("idea_only");
+    });
+
+    it("rejects an object that only mentions an option under an unknown key", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-incidental",
+      );
+
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: { status: "idea_only" },
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("rejects ambiguous text that mentions more than one allowed option", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-ambiguous",
+      );
+
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: "Could be idea_only or pivot",
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
+    });
+
     it("rejects skipped when the question does not allow_skip", async () => {
       const { actor, attemptId } = await createDraftAttempt("skip-not-allowed");
 

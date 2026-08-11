@@ -631,11 +631,14 @@ Record the gap under UNKNOWNS in the save protocol.
 
 ## Save protocol
 
-Confirmed Responses are the only reliable state. This attempt can resume in a different chat, after
-an OAuth reconnect, or days later — raw conversation is a within-session convenience and is never
-the state of record. Anything a later question needs must be persisted the moment it is first heard.
+Confirmed Responses from the AI Catalyst Module context are the only reliable state. This attempt
+can resume in a different chat, after an OAuth reconnect, or days later — raw conversation is a
+within-session convenience and is never the state of record. Do **not** reconstruct progress,
+answers, or artifacts from local chat history, task folders, previous Codex/Claude threads, or
+workspace files. If MCP or Module context is unavailable, repair the connection first, then resume
+from AI Catalyst. Anything a later question needs must be persisted the moment it is first heard.
 
-Every `save_founder_input` writes one answer in this shape:
+For `long_text` and `short_text`, every `save_founder_input` writes one answer in this shape:
 
     CONFIRMED ANSWER
     [the text that goes into the customer-facing artefact section]
@@ -654,6 +657,11 @@ Every `save_founder_input` writes one answer in this shape:
 
     CARRY-FORWARD CONTEXT
     — [Later field]: [relevant confirmed detail]
+
+**`single_choice` exception.** For `validation_status` (and any other `single_choice` field),
+`value` must be exactly one allowed option token for **that question** — e.g. `"assumed"`,
+`"interviewed"`, or `"paying"`. Do not wrap it in CONFIRMED ANSWER, do not send an object, and do
+not send the human label. Wrong shape fails the save.
 
 Carry-forward entries are dynamic — list only what the answer actually produced, naming the field it
 is for:
@@ -689,8 +697,9 @@ Do not add descriptors, motivations or implications that were not explicitly con
 
 Keep explanations out of this card. For example,
 "Sarah is the champion because she feels the pain most directly" should preserve a short WHO fact
-such as "Ops manager; users = admin/ops; champion = Sarah; buyer = managing partner" — not the
-because-clause. The explanation may be carried forward to evidence / assumptions if relevant.
+such as "Primary users: Admin & ops · Champion: Sarah · Buyer: Managing partner" — not the
+because-clause and not schema-like `users = …; champion = …` equals-sign lists. The explanation may
+be carried forward to evidence / assumptions if relevant.
 
 Detailed daily routine, pressure, goals and prior attempts go to CARRY-FORWARD CONTEXT, named for
 the field they belong to.
@@ -916,6 +925,9 @@ Never write it into Core Promise, which describes what the customer gets.
 `assumed` is a completely legitimate answer — most Founders reach this module with a hypothesis, which
 is exactly what Module 2 is for.
 
+When saving, call `save_founder_input` with `value` set to exactly one of: `assumed`, `interviewed`,
+`paying`. Plain option token only — see the Save protocol `single_choice` exception.
+
 Do not require five interviews, a 30-day window, or formal research. One real conversation with a
 closely matching person is enough for `interviewed`.
 
@@ -1082,6 +1094,8 @@ it again downstream.
 - Do not render WHO as an explanatory paragraph.
 - Identify who they are in scannable terms (role / life situation / team shape). Include
   user / champion / buyer only as compact clauses when material — never as a narrative of motives.
+- Prefer natural compact labels (`Primary users: … · Champion: … · Buyer: …`) over schema-like
+  equals-sign lists (`users = …; champion = …`).
 - Move reasons, motivations and evidence provenance to Situation or Validation Status
   (Founder assumptions when the rationale is an inference).
 

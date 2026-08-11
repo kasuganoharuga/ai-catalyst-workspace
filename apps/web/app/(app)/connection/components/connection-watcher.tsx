@@ -28,8 +28,14 @@ export function ConnectionWatcher({
   if (state.phase === "failed") {
     return (
       <div className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-4">
-        <p role="alert" className="text-sm leading-6 text-foreground">
+        <p className="text-sm font-semibold text-foreground">
+          {connectionCopy.repairTitle}
+        </p>
+        <p role="alert" className="mt-1 text-sm leading-6 text-foreground">
           {state.message}
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          {connectionCopy.repairBody}
         </p>
         <Button
           type="button"
