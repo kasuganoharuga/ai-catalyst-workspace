@@ -2,11 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import type { CompanyProfile } from "@ai-catalyst/shared";
 
+import { toastCopy } from "@/app/(app)/lib/copy";
 import { Button } from "@/components/ui/button";
 import { updateCompanyProfileAction } from "@/lib/actions/founder-actions";
+import { firstZodMessage } from "@/lib/validation/common";
+import { updateCompanyProfileInputSchema } from "@/lib/validation/company-profile";
 import { cn } from "@/lib/utils";
 
 type FormState = {
@@ -55,15 +59,16 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   const isArchived = profile.status === "archived";
   const saveDisabled =
     isArchived || !isDirty || status === "saving" || isPending;
+  const isFirstSave = !profile.id;
 
   function update(key: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
     setStatus("idle");
+    if (error) setError(null);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("saving");
     setError(null);
 
     const payload: Record<string, string | number | null> = {};
@@ -76,28 +81,51 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
       payload[key] = raw === "" ? null : raw;
     }
 
+    const parsed = updateCompanyProfileInputSchema.safeParse(payload);
+    if (!parsed.success) {
+      const message = firstZodMessage(parsed.error);
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
+      return;
+    }
+
+    if (isFirstSave && !parsed.data.name) {
+      const message = "Company name is required.";
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
+      return;
+    }
+
+    setStatus("saving");
+
     try {
-      const result = await updateCompanyProfileAction(payload);
+      const result = await updateCompanyProfileAction(parsed.data);
 
       if (!result.ok) {
         setError(result.message);
         setStatus("idle");
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
         return;
       }
 
       setSaved(form);
       setStatus("saved");
+      toast.success(toastCopy.companyProfileSaved);
       startTransition(() => {
         router.refresh();
       });
     } catch {
-      setError("That didn't save. Try again in a moment.");
+      const message = "That didn't save. Try again in a moment.";
+      setError(message);
       setStatus("idle");
+      toast.error(toastCopy.actionFailedTitle, { description: message });
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
+    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl" noValidate>
       {isArchived ? (
         <p className="mb-6 border-l-2 border-muted-foreground/40 bg-muted/40 py-2 pl-3 text-sm leading-6 text-muted-foreground">
           This company profile is archived and can no longer be edited.
@@ -115,7 +143,6 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           onChange={(value) => update("name", value)}
           autoComplete="organization"
           placeholder="Acme Pty Ltd"
-          required={!profile.id}
           className="sm:col-span-2"
         />
         <Field
@@ -225,7 +252,6 @@ function Field({
   placeholder,
   autoComplete,
   hint,
-  required,
   inputMode,
   className,
 }: {
@@ -237,7 +263,6 @@ function Field({
   placeholder?: string;
   autoComplete?: string;
   hint?: string;
-  required?: boolean;
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   className?: string;
 }) {
@@ -252,7 +277,6 @@ function Field({
           rows={4}
           value={value}
           placeholder={placeholder}
-          required={required}
           onChange={(event) => onChange(event.target.value)}
           className={inputClass}
         />
@@ -262,7 +286,6 @@ function Field({
           value={value}
           placeholder={placeholder}
           autoComplete={autoComplete}
-          required={required}
           inputMode={inputMode}
           onChange={(event) => onChange(event.target.value)}
           className={inputClass}

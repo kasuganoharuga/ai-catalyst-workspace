@@ -36,6 +36,9 @@ import { auth } from "@/lib/auth";
 import { errorCopy } from "@/app/(app)/lib/copy";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
 import { setProfilePromptSkipped } from "@/lib/profile-prompt-dismissal";
+import { firstZodMessage } from "@/lib/validation/common";
+import { updateCompanyProfileInputSchema } from "@/lib/validation/company-profile";
+import { createVentureInputSchema } from "@/lib/validation/venture";
 import {
   type EnsureRunResult,
   resolveNextModuleDestination,
@@ -181,9 +184,14 @@ export async function setPreferredAiProviderAction(
 export async function updateCompanyProfileAction(
   input: unknown,
 ): Promise<ActionResult> {
+  const parsed = updateCompanyProfileInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: firstZodMessage(parsed.error) };
+  }
+
   try {
     const actor = await requireFounderActor();
-    await updateMyCompanyProfile(actor, input);
+    await updateMyCompanyProfile(actor, parsed.data);
     revalidateFounderAppShell();
     revalidatePath("/company-profile");
     return { ok: true };
@@ -318,9 +326,18 @@ export async function createVentureAction(input: {
   oneLiner?: string;
   summary?: string;
 }): Promise<ActionResult> {
+  const parsed = createVentureInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: firstZodMessage(parsed.error) };
+  }
+
   try {
     const actor = await requireFounderActor();
-    await createVenture(actor, input);
+    await createVenture(actor, {
+      name: parsed.data.name,
+      oneLiner: parsed.data.oneLiner ?? undefined,
+      summary: parsed.data.summary ?? undefined,
+    });
     revalidateFounderAppShell();
     return { ok: true };
   } catch (error) {

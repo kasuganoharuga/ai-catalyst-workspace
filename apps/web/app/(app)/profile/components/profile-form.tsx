@@ -2,11 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import type { UserProfile } from "@ai-catalyst/shared";
 
+import { toastCopy } from "@/app/(app)/lib/copy";
 import { Button } from "@/components/ui/button";
 import { updateProfileAction } from "@/lib/actions/account-actions";
+import { firstZodMessage } from "@/lib/validation/common";
+import { updateProfileInputSchema } from "@/lib/validation/profile";
 import { cn } from "@/lib/utils";
 
 // `bio` is deliberately absent: the field was removed from the form, and
@@ -45,11 +49,11 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
   function update(key: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
     setStatus("idle");
+    if (error) setError(null);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("saving");
     setError(null);
 
     // Empty strings are sent as null so clearing a field actually clears
@@ -61,28 +65,44 @@ export function ProfileForm({ profile }: { profile: UserProfile }) {
       ]),
     );
 
+    const parsed = updateProfileInputSchema.safeParse(payload);
+    if (!parsed.success) {
+      const message = firstZodMessage(parsed.error);
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
+      return;
+    }
+
+    setStatus("saving");
+
     try {
-      const result = await updateProfileAction(payload);
+      const result = await updateProfileAction(parsed.data);
 
       if (!result.ok) {
         setError(result.message);
         setStatus("idle");
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
         return;
       }
 
       setSaved(form);
       setStatus("saved");
+      toast.success(toastCopy.profileSaved);
       startTransition(() => {
         router.refresh();
       });
     } catch {
-      setError("That didn't save. Try again in a moment.");
+      const message = "That didn't save. Try again in a moment.";
+      setError(message);
       setStatus("idle");
+      toast.error(toastCopy.actionFailedTitle, { description: message });
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl">
+    <form onSubmit={handleSubmit} className="mt-8 max-w-2xl" noValidate>
       <fieldset className="grid gap-5 border-t border-border pt-6 sm:grid-cols-2">
         <legend className="sr-only">Your details</legend>
         <Field

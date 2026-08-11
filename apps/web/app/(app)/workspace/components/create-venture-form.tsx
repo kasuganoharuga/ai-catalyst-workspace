@@ -27,11 +27,10 @@ export function CreateVentureForm() {
 
   return (
     <div className="mt-8 rounded-xl border border-border bg-card p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Field label="Name">
           <input
             type="text"
-            required
             value={name}
             onChange={(event) => setName(event.target.value)}
             placeholder="Investor pipeline for founders"
