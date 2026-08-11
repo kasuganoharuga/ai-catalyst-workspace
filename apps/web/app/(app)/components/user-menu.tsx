@@ -15,7 +15,7 @@ import {
 import { useSignOut } from "@/lib/use-sign-out";
 import { cn } from "@/lib/utils";
 
-import { accountNavItems } from "./nav-items";
+import { accountNavItems, type NavItemConfig } from "./nav-items";
 import { NavMenuIcon } from "./nav-link";
 
 function initials(name: string): string {
@@ -29,7 +29,8 @@ function initials(name: string): string {
 
 /**
  * Account menu and sign-out. includeAccountLinks: top bar carries account pages; sidebar omits duplicates.
- * role selects which account links when includeAccountLinks is true (see nav-items.ts).
+ * role selects Founder/Mentor account links; accountItems covers Admin (and any
+ * caller that wants an explicit list without going through role).
  */
 export function UserMenu({
   name,
@@ -38,6 +39,7 @@ export function UserMenu({
   showDetails = true,
   includeAccountLinks = false,
   role,
+  accountItems,
   align = "start",
   side = "top",
 }: {
@@ -47,11 +49,14 @@ export function UserMenu({
   showDetails?: boolean;
   includeAccountLinks?: boolean;
   role?: "founder" | "mentor";
+  accountItems?: NavItemConfig[];
   align?: "start" | "end";
   side?: "top" | "bottom";
 }) {
   const { isSigningOut, signOut } = useSignOut();
-  const items = includeAccountLinks && role ? accountNavItems(role) : [];
+  const items = includeAccountLinks
+    ? (accountItems ?? (role ? accountNavItems(role) : []))
+    : [];
 
   return (
     <DropdownMenu>

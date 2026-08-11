@@ -4,10 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  revokeInvitationAction,
-  revokeMentorInvitationAction,
-} from "@/lib/actions/admin-actions";
+import { toastCopy } from "@/app/(app)/lib/copy";
+import { softDeleteUserAction } from "@/lib/actions/admin-actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,16 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toastCopy } from "@/app/(app)/lib/copy";
 
 import { adminActionCopy } from "../lib/copy";
 
-export function RevokeInvitationButton({
-  invitationId,
-  inviteRole,
+export function SoftDeleteUserButton({
+  userId,
+  email,
 }: {
-  invitationId: string;
-  inviteRole: "founder" | "mentor";
+  userId: string;
+  email: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,12 +39,7 @@ export function RevokeInvitationButton({
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const revoke =
-        inviteRole === "mentor"
-          ? revokeMentorInvitationAction
-          : revokeInvitationAction;
-
-      const result = await revoke(invitationId);
+      const result = await softDeleteUserAction(userId);
       if (!result.ok) {
         setError(result.message);
         toast.error(toastCopy.actionFailedTitle, {
@@ -56,7 +48,7 @@ export function RevokeInvitationButton({
         return;
       }
       setOpen(false);
-      toast.success(adminActionCopy.inviteRevoked);
+      toast.success(adminActionCopy.userDeleted);
       router.refresh();
     });
   }
@@ -65,15 +57,15 @@ export function RevokeInvitationButton({
     <div className="flex flex-col items-end gap-1">
       <Button
         type="button"
-        variant="outline"
         size="sm"
+        variant="outline"
         onClick={() => {
           setError(null);
           setOpen(true);
         }}
         disabled={isPending}
       >
-        Revoke
+        Delete
       </Button>
 
       <Dialog
@@ -85,10 +77,11 @@ export function RevokeInvitationButton({
       >
         <DialogContent showCloseButton={!isPending}>
           <DialogHeader>
-            <DialogTitle>Revoke invitation?</DialogTitle>
+            <DialogTitle>Delete user?</DialogTitle>
             <DialogDescription>
-              The one-time code will stop working. You can send a new invite
-              later if needed.
+              Soft-delete{" "}
+              <span className="font-medium text-foreground">{email}</span>. They
+              will lose access immediately. This cannot be undone from the UI.
             </DialogDescription>
           </DialogHeader>
 
@@ -113,7 +106,7 @@ export function RevokeInvitationButton({
               onClick={handleConfirm}
               disabled={isPending}
             >
-              {isPending ? "Revoking…" : "Revoke"}
+              {isPending ? "Deleting…" : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -70,3 +70,9 @@ export type {
   MentorArtefactSummary,
   MentorArtefactDocument,
 } from "./mentor.js";
+export type {
+  AdminUserListItem,
+  AssignableMentor,
+  AdminDashboardStats,
+  AdminRecentUser,
+} from "./admin.js";

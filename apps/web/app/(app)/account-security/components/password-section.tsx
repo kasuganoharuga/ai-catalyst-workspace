@@ -2,7 +2,19 @@ import { Button } from "@/components/ui/button";
 
 import { PasswordChangeForm } from "../../components/password-change-form";
 
-export function PasswordSection() {
+const DEFAULT_SUCCESS_NOTE =
+  "Password updated. Other devices have been signed out and your AI assistant disconnected.";
+
+const DEFAULT_FORGOT_COPY =
+  "Reset-by-email isn't switched on yet. Until it is, ask your program lead and they'll sort it out for you.";
+
+export function PasswordSection({
+  successNote = DEFAULT_SUCCESS_NOTE,
+  forgotPasswordCopy = DEFAULT_FORGOT_COPY,
+}: {
+  successNote?: string;
+  forgotPasswordCopy?: string;
+} = {}) {
   return (
     <section className="mt-8 max-w-2xl">
       <h2 className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -11,7 +23,7 @@ export function PasswordSection() {
 
       <PasswordChangeForm
         className="mt-3 border-t border-border pt-6"
-        successNote="Password updated. Other devices have been signed out and your AI assistant disconnected."
+        successNote={successNote}
       />
 
       {/* Reset-by-email is styled but deliberately inert: no SMTP is wired
@@ -23,8 +35,7 @@ export function PasswordSection() {
           Forgotten your password?
         </p>
         <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-          Reset-by-email isn&apos;t switched on yet. Until it is, ask your
-          program lead and they&apos;ll sort it out for you.
+          {forgotPasswordCopy}
         </p>
         <Button
           type="button"

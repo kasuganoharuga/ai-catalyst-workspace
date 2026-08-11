@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 import {
+  assignWorkspaceMentor,
+  softDeleteUser,
+} from "@ai-catalyst/services/admin";
+import {
   createFounderInvitation,
   createMentorInvitation,
   revokeFounderInvitation,
@@ -13,6 +17,10 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import {
+  createInvitationInputSchema,
+  firstZodMessage,
+} from "@/lib/validation/invitation";
 import { webLog } from "@/lib/web-logger";
 
 export type ActionResult = { ok: true } | { ok: false; message: string };
@@ -47,9 +55,15 @@ export async function createInvitationAction(input: {
   email: string;
   personalMessage?: string;
 }): Promise<CreateInvitationResult> {
+  const parsed = createInvitationInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: firstZodMessage(parsed.error) };
+  }
+
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createFounderInvitation(actor, input);
+    const { rawToken } = await createFounderInvitation(actor, parsed.data);
+    revalidatePath("/admin");
     revalidatePath("/admin/invitations");
     return { ok: true, rawToken };
   } catch (error) {
@@ -71,6 +85,7 @@ export async function revokeInvitationAction(
   try {
     const actor = await requireAdminActor();
     await revokeFounderInvitation(actor, invitationId);
+    revalidatePath("/admin");
     revalidatePath("/admin/invitations");
     return { ok: true };
   } catch (error) {
@@ -87,9 +102,15 @@ export async function createMentorInvitationAction(input: {
   email: string;
   personalMessage?: string;
 }): Promise<CreateInvitationResult> {
+  const parsed = createInvitationInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: firstZodMessage(parsed.error) };
+  }
+
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createMentorInvitation(actor, input);
+    const { rawToken } = await createMentorInvitation(actor, parsed.data);
+    revalidatePath("/admin");
     revalidatePath("/admin/invitations");
     return { ok: true, rawToken };
   } catch (error) {
@@ -111,6 +132,37 @@ export async function revokeMentorInvitationAction(
   try {
     const actor = await requireAdminActor();
     await revokeMentorInvitation(actor, invitationId);
+    revalidatePath("/admin");
+    revalidatePath("/admin/invitations");
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+export async function assignWorkspaceMentorAction(input: {
+  workspaceId: string;
+  mentorUserId: string | null;
+}): Promise<ActionResult> {
+  try {
+    const actor = await requireAdminActor();
+    await assignWorkspaceMentor(actor, input);
+    revalidatePath("/admin");
+    revalidatePath("/admin/users");
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+export async function softDeleteUserAction(
+  userId: string,
+): Promise<ActionResult> {
+  try {
+    const actor = await requireAdminActor();
+    await softDeleteUser(actor, userId);
+    revalidatePath("/admin");
+    revalidatePath("/admin/users");
     revalidatePath("/admin/invitations");
     return { ok: true };
   } catch (error) {

@@ -119,7 +119,8 @@
     "./mcp-auth/internal/lookups": "./src/mcp-auth/internal/lookups.ts",
     "./testing/db-fixtures": "./src/testing/db-fixtures.ts",
     "./internal/run-module": "./src/internal/run-module.ts",
-    "./mentor": "./src/mentor/index.ts"
+    "./mentor": "./src/mentor/index.ts",
+    "./admin": "./src/admin/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
