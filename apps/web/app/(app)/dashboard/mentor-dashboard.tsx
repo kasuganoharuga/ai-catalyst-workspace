@@ -1,79 +1,71 @@
-import Link from "next/link";
-
-import { Button } from "@/components/ui/button";
-import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
+import {
+  getCurrentMentorActor,
+  getCurrentMentorSession,
+} from "@/lib/current-mentor-actor";
 import { listMentorFounders } from "@/lib/mentor";
+import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
 
 import { PageShell } from "../components/page-shell";
-import { mentorOverviewCopy } from "../lib/copy";
-import { FounderList } from "./components/founder-list";
+import { Stat, StatRow } from "../components/stat";
+import { mentorDashboardCopy } from "../lib/copy";
+import { MentorProgressMix } from "./components/mentor-progress-mix";
+import { MentorRecentActivity } from "./components/mentor-recent-activity";
+import { buildMentorDashboardView } from "./lib/mentor-dashboard-state";
 
 /**
- * The /dashboard content for a Mentor — the counterpart to
- * FounderDashboard, moved here from what was originally a standalone
- * app/mentor/page.tsx. Calls its own getCurrentMentorActor(), same as
- * every other Mentor-only page in this route group.
+ * Mentor stats overview at /dashboard. The founder directory lives at
+ * /founders — this page summarises coverage and recent activity.
  */
 export async function MentorDashboard() {
-  const actor = await getCurrentMentorActor();
-  const founders = await listMentorFounders(actor);
+  const [actor, session] = await Promise.all([
+    getCurrentMentorActor(),
+    getCurrentMentorSession(),
+  ]);
 
-  const started = founders.filter((founder) => founder.totalModules !== null);
-  const modulesCompleted = founders.reduce(
-    (sum, founder) => sum + (founder.completedModules ?? 0),
-    0,
-  );
+  const [founders, profile] = await Promise.all([
+    listMentorFounders(actor),
+    getMyProfile(actor),
+  ]);
+
+  const view = buildMentorDashboardView({ founders });
+  const greetingName = resolveGreetingName(profile, session.user.name);
 
   return (
     <PageShell>
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {mentorOverviewCopy.kicker}
+          {mentorDashboardCopy.kicker}
         </p>
         <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {mentorOverviewCopy.title}
+          {mentorDashboardCopy.greeting(greetingName)}
         </h1>
         <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {mentorOverviewCopy.intro}
+          {mentorDashboardCopy.intro}
         </p>
       </div>
 
-      {founders.length === 0 ? (
-        <>
-          <div className="mt-8">
-            <Button asChild>
-              <Link href="/invitations">{mentorOverviewCopy.inviteCta}</Link>
-            </Button>
-          </div>
-          <div className="mt-10 rounded-xl border border-border bg-card px-6 py-14 text-center">
-            <p className="text-[15px] font-semibold text-foreground">
-              {mentorOverviewCopy.emptyTitle}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {mentorOverviewCopy.emptyBody}
-            </p>
-          </div>
-        </>
-      ) : (
-        <>
-          {/* Sits with the intro as part of the header block rather than
-              beside the invite button — it is context for the heading, not
-              a control. The button moves down into FounderList's toolbar. */}
-          <p className="mt-5 font-mono text-[11px] tabular-nums text-muted-foreground">
-            {mentorOverviewCopy.summaryLine(
-              founders.length,
-              started.length,
-              modulesCompleted,
-            )}
-          </p>
+      <StatRow>
+        <Stat value={`${view.founderCount}`}>
+          {mentorDashboardCopy.statFounders}
+        </Stat>
+        <Stat
+          value={
+            view.averageProgressPct === null
+              ? mentorDashboardCopy.statAverageProgressEmpty
+              : `${view.averageProgressPct}`
+          }
+          suffix={view.averageProgressPct === null ? undefined : "%"}
+        >
+          {mentorDashboardCopy.statAverageProgress}
+        </Stat>
+        <Stat value={`${view.activeThisWeek}`}>
+          {mentorDashboardCopy.statActiveWeek}
+        </Stat>
+      </StatRow>
 
-          <FounderList founders={founders}>
-            <Button asChild>
-              <Link href="/invitations">{mentorOverviewCopy.inviteCta}</Link>
-            </Button>
-          </FounderList>
-        </>
-      )}
+      <MentorProgressMix progress={view.progress} total={view.founderCount} />
+
+      <MentorRecentActivity items={view.recentActivity} />
     </PageShell>
   );
 }

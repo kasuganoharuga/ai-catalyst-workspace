@@ -9,6 +9,7 @@ import {
   Mail,
   Plug,
   UserRound,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -22,7 +23,8 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   "/dashboard": LayoutDashboard,
   "/modules": Layers,
   "/artefacts": FileText,
-  // Mentor-only nav item — see nav-items.ts's MENTOR_PRIMARY_NAV_ITEMS.
+  // Mentor-only nav items — see nav-items.ts's MENTOR_PRIMARY_NAV_ITEMS.
+  "/founders": Users,
   "/invitations": Mail,
   "/profile": UserRound,
   // Same icon the dashboard's invitation-password nudge already uses
@@ -30,6 +32,9 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   "/account-security": KeyRound,
   "/company-profile": Building2,
   "/connection": Plug,
+  // Admin account pages (UserMenu on the admin mobile header).
+  "/admin/profile": UserRound,
+  "/admin/account-security": KeyRound,
 };
 
 export function NavLink({

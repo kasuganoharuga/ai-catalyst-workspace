@@ -66,10 +66,7 @@ export default async function MentorFounderDetailPage({
     <PageShell>
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          <Link
-            href="/dashboard"
-            className="underline-offset-2 hover:underline"
-          >
+          <Link href="/founders" className="underline-offset-2 hover:underline">
             {mentorFounderDetailCopy.backLink}
           </Link>
           <span aria-hidden="true"> / </span>

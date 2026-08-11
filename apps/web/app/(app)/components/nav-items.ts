@@ -3,12 +3,9 @@ export type NavItemConfig = {
   label: string;
 };
 
-// A Mentor's shell has no Modules/Artefacts of their own and no account
-// sub-pages to reach (no profile/company-profile/AI connection) — "Dashboard"
-// becomes "My founders", and their one other area is "Invitations". The
-// shared /dashboard href for both roles' first item is deliberate: it's
-// one URL, and DashboardPage (app/(app)/dashboard/page.tsx) is what
-// branches on role to decide what actually renders there.
+// Founder and Mentor share /dashboard as the first item (role-aware content
+// in app/(app)/dashboard/page.tsx). Mentors also get /founders for the
+// directory that used to live on that same URL.
 const FOUNDER_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/modules", label: "Modules" },
@@ -16,7 +13,8 @@ const FOUNDER_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
 ];
 
 const MENTOR_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
-  { href: "/dashboard", label: "My founders" },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/founders", label: "My founders" },
   { href: "/invitations", label: "Invitations" },
 ];
 

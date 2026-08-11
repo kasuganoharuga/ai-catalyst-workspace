@@ -1133,6 +1133,9 @@ export const toastCopy = {
   interviewSubmittedForReview: "Interviews submitted for review",
   evidenceConfirmed: "Evidence confirmed",
   evidenceReopened: "Evidence reopened for editing",
+  profileSaved: "Profile saved",
+  companyProfileSaved: "Company profile saved",
+  ventureCreated: "Idea added",
   actionFailedTitle: "That didn't work",
   /** PDF workbook download failed; Markdown remains available from the same control. */
   pdfDownloadFailedFallback: "Couldn't generate the PDF. Try Markdown instead.",
@@ -1150,15 +1153,38 @@ export const profilePromptCopy = {
 
 // ── Mentor ──────────────────────────────────────────────────────────────
 //
-// Strings for the Mentor half of the shared (app) shell: /dashboard's
-// mentor branch, a Founder's progress detail, their artefact document, and
-// Mentor invitations. Grouped separately from the Founder-facing copy
-// above rather than interleaved with it, since the two personas never
-// share a screen.
+// Strings for the Mentor half of the shared (app) shell: /dashboard stats,
+// /founders list + detail, artefact document, and invitations. Grouped
+// separately from the Founder-facing copy above rather than interleaved
+// with it, since the two personas never share a screen.
+
+export const mentorDashboardCopy = {
+  kicker: "Mentor",
+  greeting: (name: string) => `Hi ${name}`,
+  intro: "Where your founders stand, and what moved recently.",
+  statFounders: "Founders under you",
+  statAverageProgress: "Average progress",
+  statAverageProgressEmpty: "—",
+  statActiveWeek: "Active this week",
+  progressHeading: "Progress mix",
+  progressTotal: (count: number) => `${count} founder${count === 1 ? "" : "s"}`,
+  progressLabels: {
+    notStarted: "Not started",
+    justStarted: "Just started",
+    inProgress: "In progress",
+    complete: "Complete",
+  },
+  recentHeading: "Recent activity",
+  recentViewAll: "My founders",
+  recentEmpty:
+    "No module completions yet — activity shows up here as founders finish work.",
+  recentLine: (progress: string, date: string) =>
+    `${progress} modules · last activity ${date}`,
+} as const;
 
 export const mentorOverviewCopy = {
   kicker: "Mentor",
-  title: "Your founders",
+  title: "My founders",
   intro:
     "Track how each founder is progressing and read what they've saved — sign-off stays with them, not you.",
   summaryLine: (founders: number, started: number, completed: number) =>
@@ -1213,6 +1239,15 @@ export const mentorInvitationsCopy = {
   formEmailPlaceholder: "founder@company.com",
   formSubmitIdle: "Invite founder",
   formSubmitPending: "Sending invitation…",
+  confirmTitle: "Send founder invitation?",
+  confirmBody: (email: string) =>
+    `Create a one-time invite for ${email}. You will need to share the code yourself — there is no email delivery yet.`,
+  confirmCancel: "Cancel",
+  confirmSubmit: "Send invitation",
+  confirmSubmitPending: "Creating…",
+  inviteCreated: "Founder invitation created",
+  inviteCreatedDescription:
+    "Copy the one-time code below and share it manually.",
   tokenHeading: "One-time code — copy it now",
   tokenNote:
     "This code is shown once and cannot be retrieved again. Send it to the founder yourself.",
@@ -1220,6 +1255,12 @@ export const mentorInvitationsCopy = {
   emptyBody: "You haven't invited anyone yet.",
   revokeCta: "Revoke",
   revokePending: "Revoking…",
+  revokeConfirmTitle: "Revoke invitation?",
+  revokeConfirmBody:
+    "The one-time code will stop working. You can send a new invite later if needed.",
+  revokeConfirmCancel: "Cancel",
+  revokeConfirmSubmit: "Revoke",
+  inviteRevoked: "Invitation revoked",
   // Same column-header treatment as the founders list — the two Mentor
   // pages are read one after the other and should scan the same way.
   columnEmail: "Email",

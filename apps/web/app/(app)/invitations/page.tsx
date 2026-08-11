@@ -26,10 +26,7 @@ export default async function MentorInvitationsPage() {
     <PageShell>
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          <Link
-            href="/dashboard"
-            className="underline-offset-2 hover:underline"
-          >
+          <Link href="/founders" className="underline-offset-2 hover:underline">
             {mentorInvitationsCopy.backLink}
           </Link>
         </p>
@@ -61,7 +58,7 @@ export default async function MentorInvitationsPage() {
       ) : (
         <div className="mt-5">
           {/* Same column-header + border-b row treatment as the founders
-              list (dashboard/components/founder-list.tsx) — column widths
+              list (founders/components/founder-list.tsx) — column widths
               here and in the rows below have to stay in step. Headers are
               hidden below sm, where the rows stack. */}
           <div className="hidden items-center gap-6 border-b border-border pb-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground sm:flex">

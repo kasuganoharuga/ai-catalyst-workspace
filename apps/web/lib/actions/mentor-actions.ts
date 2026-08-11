@@ -11,6 +11,10 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import {
+  createInvitationInputSchema,
+  firstZodMessage,
+} from "@/lib/validation/invitation";
 import { webLog } from "@/lib/web-logger";
 
 import type { ActionResult, CreateInvitationResult } from "./admin-actions";
@@ -53,13 +57,17 @@ export async function createFounderInvitationAction(input: {
   email: string;
   personalMessage?: string;
 }): Promise<CreateInvitationResult> {
+  const parsed = createInvitationInputSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: firstZodMessage(parsed.error) };
+  }
+
   try {
     const actor = await requireMentorActor();
-    const { rawToken } = await createFounderInvitation(actor, input);
+    const { rawToken } = await createFounderInvitation(actor, parsed.data);
     revalidatePath("/invitations");
-    // The dashboard's Mentor branch counts pending invitations, so it goes
-    // stale too.
     revalidatePath("/dashboard");
+    revalidatePath("/founders");
     return { ok: true, rawToken };
   } catch (error) {
     return toActionResult(error);
@@ -74,6 +82,7 @@ export async function revokeFounderInvitationAction(
     await revokeFounderInvitation(actor, invitationId);
     revalidatePath("/invitations");
     revalidatePath("/dashboard");
+    revalidatePath("/founders");
     return { ok: true };
   } catch (error) {
     return toActionResult(error);

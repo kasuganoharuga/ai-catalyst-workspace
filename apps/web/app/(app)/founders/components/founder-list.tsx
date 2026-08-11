@@ -13,7 +13,7 @@ function displayName(founder: MentorFounderSummary): string {
 }
 
 /**
- * Search + filtered/sorted founder list for the mentor dashboard.
+ * Search + filtered/sorted founder list for My founders.
  *
  * Sorted by display name (not workspace name). `children` is the invite button from the server page.
  */

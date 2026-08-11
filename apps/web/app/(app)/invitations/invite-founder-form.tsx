@@ -2,32 +2,75 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
 import { createFounderInvitationAction } from "@/lib/actions/mentor-actions";
+import {
+  firstZodMessage,
+  invitationEmailSchema,
+} from "@/lib/validation/invitation";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-import { mentorInvitationsCopy } from "../lib/copy";
+import { mentorInvitationsCopy, toastCopy } from "../lib/copy";
 
 export function InviteFounderForm() {
   const router = useRouter();
   const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const parsed = invitationEmailSchema.safeParse(email);
+    if (!parsed.success) {
+      const message = firstZodMessage(parsed.error);
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
+      return;
+    }
+    setError(null);
+    setIssuedToken(null);
+    setConfirmEmail(parsed.data);
+  }
+
+  function handleCancel() {
+    if (isPending) return;
+    setConfirmEmail(null);
+    setError(null);
+  }
+
+  function handleConfirm() {
+    if (!confirmEmail) return;
     setError(null);
     startTransition(async () => {
-      const result = await createFounderInvitationAction({ email });
+      const result = await createFounderInvitationAction({
+        email: confirmEmail,
+      });
 
       if (!result.ok) {
         setError(result.message);
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
         return;
       }
 
       setIssuedToken(result.rawToken);
       setEmail("");
+      setConfirmEmail(null);
+      toast.success(mentorInvitationsCopy.inviteCreated, {
+        description: mentorInvitationsCopy.inviteCreatedDescription,
+      });
       router.refresh();
     });
   }
@@ -42,6 +85,7 @@ export function InviteFounderForm() {
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-3 sm:flex-row sm:items-center"
+        noValidate
       >
         <label className="block w-full sm:max-w-sm">
           <span className="sr-only">
@@ -49,21 +93,23 @@ export function InviteFounderForm() {
           </span>
           <input
             type="email"
-            required
+            autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
+            onChange={(event) => {
+              setEmail(event.target.value);
+              if (error) setError(null);
+            }}
             placeholder={mentorInvitationsCopy.formEmailPlaceholder}
+            aria-invalid={error !== null && confirmEmail === null}
             className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
         </label>
         <Button type="submit" disabled={isPending} className="shrink-0">
-          {isPending
-            ? mentorInvitationsCopy.formSubmitPending
-            : mentorInvitationsCopy.formSubmitIdle}
+          {mentorInvitationsCopy.formSubmitIdle}
         </Button>
       </form>
 
-      {error ? (
+      {error && confirmEmail === null ? (
         <p role="alert" className="mt-3 text-sm text-destructive">
           {error}
         </p>
@@ -84,6 +130,46 @@ export function InviteFounderForm() {
           </p>
         </div>
       ) : null}
+
+      <Dialog
+        open={confirmEmail !== null}
+        onOpenChange={(open) => {
+          if (!open) handleCancel();
+        }}
+      >
+        <DialogContent showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>{mentorInvitationsCopy.confirmTitle}</DialogTitle>
+            <DialogDescription>
+              {confirmEmail
+                ? mentorInvitationsCopy.confirmBody(confirmEmail)
+                : null}
+            </DialogDescription>
+          </DialogHeader>
+
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isPending}
+            >
+              {mentorInvitationsCopy.confirmCancel}
+            </Button>
+            <Button type="button" onClick={handleConfirm} disabled={isPending}>
+              {isPending
+                ? mentorInvitationsCopy.confirmSubmitPending
+                : mentorInvitationsCopy.confirmSubmit}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
