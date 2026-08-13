@@ -27,13 +27,6 @@ import {
   type ArtifactServiceDependencies,
 } from "@ai-catalyst/services/artifact";
 import { renderSetupSummaryMarkdown } from "@ai-catalyst/services/module/internal/setup-summary";
-import {
-  INTERVIEW_EVIDENCE_ARTIFACT_KEY,
-  MODULE_3_KEY,
-  MODULE_4_KEY,
-  createInterviewActivityFromGuide,
-  loadGuideQuestionsForAttempt,
-} from "@ai-catalyst/services/interview";
 
 // Orchestrates module completion after complete_module: submitAttempt,
 // runOfficialValidation, then leave the Attempt at ready_for_review for
@@ -125,53 +118,6 @@ function resolveAiClientLabel(actor: ActorContext): string {
       return "ChatGPT (Remote MCP)";
     default:
       return "AI assistant (Remote MCP)";
-  }
-}
-
-/**
- * Module 4 completion requires the exact pinned interview-evidence
- * snapshot for *this* attempt — not confirmed-but-unpinned activity
- * evidence, and not a pin from another attempt.
- */
-async function assertModule4PinnedInterviewEvidence(
-  workspaceId: string,
-  attemptId: string,
-  programRunId: string,
-): Promise<void> {
-  const pinResult = await pool.query<{
-    source_interview_evidence_artifact_id: string | null;
-    pin_attempt_id: string | null;
-    artifact_key: string | null;
-    pin_program_run_id: string | null;
-  }>(
-    `select
-       a.source_interview_evidence_artifact_id,
-       s.module_attempt_id as pin_attempt_id,
-       d.artifact_key,
-       m.program_run_id as pin_program_run_id
-     from module_attempts a
-     left join artifact_submissions s
-       on s.id = a.source_interview_evidence_artifact_id
-      and s.workspace_id = a.workspace_id
-     left join artifact_definitions d
-       on d.id = s.artifact_definition_id
-     left join program_run_modules m
-       on m.id = a.program_run_module_id
-      and m.workspace_id = a.workspace_id
-     where a.id = $1 and a.workspace_id = $2`,
-    [attemptId, workspaceId],
-  );
-  const row = pinResult.rows[0];
-  if (
-    !row?.source_interview_evidence_artifact_id ||
-    row.pin_attempt_id !== attemptId ||
-    row.artifact_key !== INTERVIEW_EVIDENCE_ARTIFACT_KEY ||
-    row.pin_program_run_id !== programRunId
-  ) {
-    throw new ServiceError(
-      "MODULE_4_INTERVIEW_EVIDENCE_MISSING",
-      "Module 4 cannot complete without the interview-evidence snapshot pinned on this attempt.",
-    );
   }
 }
 
@@ -543,14 +489,6 @@ export async function completeModuleAttempt(
     );
   }
 
-  if (context.module_key === MODULE_4_KEY) {
-    await assertModule4PinnedInterviewEvidence(
-      workspace.id,
-      attemptId,
-      context.program_run_id,
-    );
-  }
-
   await submitAttempt(actor, { attemptId });
 
   // Only runOfficialValidation itself needs `source: 'system'` (its own
@@ -744,11 +682,6 @@ export async function confirmModuleCompletion(
     [programRunModuleId, workspace.id],
   );
   const completingModule = moduleKeyResult.rows[0];
-  const guideQuestions =
-    completingModule?.module_key === MODULE_3_KEY
-      ? await loadGuideQuestionsForAttempt(actor, attempt.id)
-      : null;
-
   const client = await pool.connect();
   let nextModuleUnlocked: NextModuleUnlocked | null = null;
   try {
@@ -760,15 +693,6 @@ export async function confirmModuleCompletion(
       runModule.id,
       attempt.id,
     );
-    if (completingModule?.module_key === MODULE_3_KEY && guideQuestions) {
-      await createInterviewActivityFromGuide({
-        client,
-        workspaceId: workspace.id,
-        programRunId: completingModule.program_run_id,
-        sourceModuleAttemptId: attempt.id,
-        questions: guideQuestions,
-      });
-    }
     await client.query("commit");
   } catch (error) {
     await client.query("rollback");
