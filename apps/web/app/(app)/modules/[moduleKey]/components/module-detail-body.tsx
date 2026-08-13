@@ -86,6 +86,11 @@ export async function ModuleDetailBody({
         sizeBytes: document.sizeBytes,
       }))
     : [];
+<<<<<<< HEAD
+=======
+
+  const isModule4 = moduleKey === MODULE_4_KEY;
+>>>>>>> origin/develop
 
   return (
     <>
