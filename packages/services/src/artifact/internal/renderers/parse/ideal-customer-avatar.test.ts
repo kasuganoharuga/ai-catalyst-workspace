@@ -45,7 +45,7 @@ Has proven the product works and now needs capital to hire and scale, but the ra
 
 ## Buying Signals
 
-### Tier 1 — high intent, act within 24–48 hours
+### Tier 1 — high intent (act in 24–48 hrs)
 
 - Searches "how to raise a seed round" or "SAFE vs convertible note".
 - Downloads a capital-raising guide or white paper.

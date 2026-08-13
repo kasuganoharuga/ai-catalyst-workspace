@@ -174,7 +174,6 @@ describe("seedToolkitContent", () => {
       "customer_picture",
       "beachhead_segment",
       "customer_where",
-      "customer_stage",
       "commercial_moment",
       "customer_situation",
       "functional_needs",

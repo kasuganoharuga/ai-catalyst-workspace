@@ -28,9 +28,9 @@ const MODULE_2_QUESTION_BLOCKS: {
     questionKeys: ["customer_picture", "beachhead_segment"],
   },
   {
-    group: "where_stage_moment",
-    label: "Where they are, their stage, and what they're moving towards",
-    questionKeys: ["customer_where", "customer_stage", "commercial_moment"],
+    group: "where_and_moment",
+    label: "Where they are, and what they're moving towards",
+    questionKeys: ["customer_where", "commercial_moment"],
   },
   {
     group: "situation",
@@ -44,7 +44,7 @@ const MODULE_2_QUESTION_BLOCKS: {
   },
   {
     group: "buying_signals",
-    label: "The signs they are ready to act",
+    label: "What they do without you, and what's coming",
     questionKeys: ["tier1_signals", "tier2_signals"],
   },
   {

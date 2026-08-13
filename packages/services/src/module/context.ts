@@ -498,11 +498,13 @@ function assembleModuleContext(
 }
 
 /**
- * Founder-uploaded prep files per run module, live rows only.
+ * Prep documents per run module, live rows only — an uploaded file or an
+ * assistant-saved summary (no storage_objects row for the latter, hence
+ * the left join).
  *
- * Metadata only, deliberately. The bytes are never inlined into Module
+ * Metadata only, deliberately. Content is never inlined into Module
  * context: a 20 MB PDF would swamp the payload, and the reader fetches
- * exactly the files it decides to open via get_prep_document.
+ * exactly the documents it decides to open via get_prep_document.
  */
 async function loadPrepDocumentsByRunModuleIds(
   runModuleIds: string[],
@@ -523,7 +525,7 @@ async function loadPrepDocumentsByRunModuleIds(
     `select d.id, d.program_run_module_id, d.original_filename,
             d.content_type, s.size_bytes, d.created_at
      from module_prep_documents d
-     join storage_objects s on s.id = d.storage_object_id
+     left join storage_objects s on s.id = d.storage_object_id
      where d.program_run_module_id = any($1::uuid[])
        and d.withdrawn_at is null
      order by d.created_at asc`,

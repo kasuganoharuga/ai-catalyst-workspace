@@ -25,8 +25,6 @@ const IDEAL_CUSTOMER_AVATAR_TEMPLATE = `# Ideal Customer Avatar
 
 **WHERE:**
 
-**STAGE:**
-
 **CURRENT COMMERCIAL MOMENT:**
 
 ## Situation
@@ -47,7 +45,7 @@ const IDEAL_CUSTOMER_AVATAR_TEMPLATE = `# Ideal Customer Avatar
 
 ## Buying Signals
 
-### Tier 1 — high intent, act within 24–48 hours
+### Tier 1 — high intent (act in 24–48 hrs)
 
 -
 -
@@ -141,22 +139,8 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     conditions: {},
   },
   {
-    questionKey: "customer_stage",
-    sequenceIndex: 4,
-    questionGroup: "snapshot",
-    questionText:
-      "What must already be true in the customer's world before this problem becomes urgent, and who is too early or too far along?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
     questionKey: "commercial_moment",
-    sequenceIndex: 5,
+    sequenceIndex: 4,
     questionGroup: "snapshot",
     questionText:
       "What event or deadline is this customer moving toward that creates a reason to act now rather than later?",
@@ -170,7 +154,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "customer_situation",
-    sequenceIndex: 6,
+    sequenceIndex: 5,
     questionGroup: "situation",
     questionText:
       "What concrete moment makes the problem urgent — the trigger, the goal, what they tried, why it fell short, and the cost of doing nothing?",
@@ -184,7 +168,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "functional_needs",
-    sequenceIndex: 7,
+    sequenceIndex: 6,
     questionGroup: "unmet_needs",
     questionText:
       "What outcomes does this customer need but cannot reliably achieve today?",
@@ -198,7 +182,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "emotional_needs",
-    sequenceIndex: 8,
+    sequenceIndex: 7,
     questionGroup: "unmet_needs",
     questionText:
       "What is emotionally and socially at stake for this customer in this problem?",
@@ -212,10 +196,10 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "tier1_signals",
-    sequenceIndex: 9,
+    sequenceIndex: 8,
     questionGroup: "buying_signals",
     questionText:
-      "What observable actions show this customer is acting on the problem within 24–48 hours?",
+      "What would this customer currently be doing to address the problem without this idea?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -226,7 +210,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "tier2_signals",
-    sequenceIndex: 10,
+    sequenceIndex: 9,
     questionGroup: "buying_signals",
     questionText:
       "What observable events show this customer will need a solution within four to twelve weeks?",
@@ -240,7 +224,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "disqualifiers",
-    sequenceIndex: 11,
+    sequenceIndex: 10,
     questionGroup: "disqualifiers",
     questionText:
       "Who looks like this customer but should be excluded, and why?",
@@ -254,7 +238,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "core_promise",
-    sequenceIndex: 12,
+    sequenceIndex: 11,
     questionGroup: "core_promise",
     questionText:
       "What result, reduced risk or retained capability is this customer actually buying?",
@@ -268,7 +252,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "validation_status",
-    sequenceIndex: 13,
+    sequenceIndex: 12,
     questionGroup: "validation",
     questionText:
       "What is the highest evidence level reached for this exact customer profile?",
@@ -374,20 +358,6 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         scope: { level: 2, heading: "Snapshot" },
       },
       {
-        key: "snapshot_stage",
-        type: "label_present",
-        label: "STAGE",
-        scope: { level: 2, heading: "Snapshot" },
-      },
-      {
-        key: "snapshot_stage_compact",
-        type: "label_value_compact",
-        label: "STAGE",
-        maxChars: 180,
-        maxSentences: 2,
-        scope: { level: 2, heading: "Snapshot" },
-      },
-      {
         key: "snapshot_commercial_moment",
         type: "label_present",
         label: "CURRENT COMMERCIAL MOMENT",
@@ -423,7 +393,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         key: "tier1_signals_range",
         type: "range_named_items",
         level: 3,
-        heading: "Tier 1 — high intent, act within 24–48 hours",
+        heading: "Tier 1 — high intent (act in 24–48 hrs)",
         minimum: 3,
         maximum: 5,
         orRecordedUnknown: true,

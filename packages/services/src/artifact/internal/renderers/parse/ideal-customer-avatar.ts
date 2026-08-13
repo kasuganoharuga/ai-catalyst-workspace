@@ -166,7 +166,7 @@ export function parseIdealCustomerAvatar(
     tier1: requiredItemsOrUnknown(
       markdown,
       3,
-      "Tier 1 — high intent, act within 24–48 hours",
+      "Tier 1 — high intent (act in 24–48 hrs)",
       {
         minimum: 3,
         maximum: 5,

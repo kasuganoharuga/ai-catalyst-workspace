@@ -21,6 +21,7 @@ import {
   MAX_PREP_DOCUMENTS_PER_MODULE,
   listPrepDocuments,
   readPrepDocument,
+  savePrepExtract,
   uploadPrepDocument,
   withdrawPrepDocument,
 } from "./index.js";
@@ -170,7 +171,88 @@ describe("module prep documents — database integration", () => {
     // The bytes come back exactly as uploaded — the whole point of
     // file-only storage is that nothing rewrites the Founder's material.
     const { content } = await readPrepDocument(actor, saved.id);
-    expect(content.equals(body)).toBe(true);
+    expect(content).not.toBeNull();
+    expect(content?.equals(body)).toBe(true);
+  });
+
+  it("saves an assistant-transcribed extract with no storage object", async () => {
+    const { actor, programRunModuleId } = await newRunModule("extract");
+
+    const saved = await savePrepExtract(actor, {
+      programRunModuleId,
+      filename: "pitch-deck.pdf",
+      extractedText:
+        "They pay $400/month. Six interviews, all ANZ accounting firms.",
+      note: "shared directly in chat",
+    });
+
+    expect(saved.filename).toBe("pitch-deck.pdf");
+    expect(saved.storageObjectId).toBeNull();
+    expect(saved.extractedText).toBe(
+      "They pay $400/month. Six interviews, all ANZ accounting firms.",
+    );
+    expect(saved.sizeBytes).toBeNull();
+    expect(saved.note).toBe("shared directly in chat");
+
+    // No storage object to read — the saved text is the only content.
+    const { document, content } = await readPrepDocument(actor, saved.id);
+    expect(content).toBeNull();
+    expect(document.extractedText).toBe(saved.extractedText);
+  });
+
+  it("rejects an empty extract", async () => {
+    const { actor, programRunModuleId } = await newRunModule("empty-extract");
+    await expect(
+      savePrepExtract(actor, {
+        programRunModuleId,
+        filename: "notes.txt",
+        extractedText: "   ",
+      }),
+    ).rejects.toThrow(/must not be empty/);
+  });
+
+  it("lists an uploaded file and a saved extract side by side", async () => {
+    const { actor, programRunModuleId } = await newRunModule("mixed");
+    const uploaded = await uploadPrepDocument(actor, {
+      programRunModuleId,
+      filename: "keep.txt",
+      contentType: "text/plain",
+      content: Buffer.from("keep", "utf8"),
+    });
+    const extracted = await savePrepExtract(actor, {
+      programRunModuleId,
+      filename: "shared-in-chat.pdf",
+      extractedText: "Transcribed from the Founder's deck.",
+    });
+
+    const documents = await listPrepDocuments(actor, programRunModuleId);
+    expect(documents.map((d) => d.id).sort()).toEqual(
+      [uploaded.id, extracted.id].sort(),
+    );
+    const extractRow = documents.find((d) => d.id === extracted.id)!;
+    expect(extractRow.storageObjectId).toBeNull();
+    expect(extractRow.extractedText).toBe(
+      "Transcribed from the Founder's deck.",
+    );
+  });
+
+  it("counts a saved extract toward the per-module cap", async () => {
+    const { actor, programRunModuleId } = await newRunModule("extract-cap");
+    for (let i = 0; i < MAX_PREP_DOCUMENTS_PER_MODULE; i += 1) {
+      await savePrepExtract(actor, {
+        programRunModuleId,
+        filename: `note-${i}.txt`,
+        extractedText: `transcribed note ${i}`,
+      });
+    }
+
+    await expect(
+      savePrepExtract(actor, {
+        programRunModuleId,
+        filename: "one-too-many.txt",
+        extractedText: "nope",
+      }),
+    ).rejects.toThrow(/already has/);
   });
 
   it("lists only live documents and hides withdrawn ones", async () => {
@@ -332,6 +414,26 @@ describe("module prep documents — database integration", () => {
     await withdrawPrepDocument(actor, saved.id);
     const after = await getModuleContext(actor, { moduleKey: MODULE_KEY });
     expect(after.prepDocuments).toHaveLength(0);
+  });
+
+  it("surfaces a saved extract through get_module_context — a plain inner join would silently hide it", async () => {
+    const { actor, programRunModuleId, ventureId } =
+      await newRunModule("context-extract");
+    await setActiveVenture(actor, ventureId);
+
+    const saved = await savePrepExtract(actor, {
+      programRunModuleId,
+      filename: "shared-in-chat.pdf",
+      extractedText: "Extracted from the Founder's deck.",
+    });
+
+    const context = await getModuleContext(actor, { moduleKey: MODULE_KEY });
+
+    expect(context.prepDocuments).toHaveLength(1);
+    expect(context.prepDocuments[0]).toMatchObject({
+      id: saved.id,
+      filename: "shared-in-chat.pdf",
+    });
   });
 
   it("treats an unknown run module id as not found", async () => {

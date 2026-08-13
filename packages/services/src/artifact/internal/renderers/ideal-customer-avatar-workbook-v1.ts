@@ -31,7 +31,7 @@ const REQUIRED_SECTIONS: RequiredSection[] = [
   "Functional — what they need done",
   "Emotional and social — what they feel",
   "Buying Signals",
-  "Tier 1 — high intent, act within 24–48 hours",
+  "Tier 1 — high intent (act in 24–48 hrs)",
   "Tier 2 — building intent, nurture over 4–12 weeks",
   "Disqualifiers",
   "Core Promise",

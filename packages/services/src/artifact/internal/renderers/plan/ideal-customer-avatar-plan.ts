@@ -449,7 +449,7 @@ function buyingSignals(
     "buying_signals.tier1",
     layout.margin,
     colWidth,
-    "Tier 1 — high intent, act within 24–48 hours",
+    "Tier 1 — high intent (act in 24–48 hrs)",
     model.buyingSignals.tier1,
     ACCENT,
   );

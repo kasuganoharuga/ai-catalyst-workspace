@@ -213,7 +213,7 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Get prep document",
       description:
-        "Reads one Founder-uploaded prep document listed in get_module_context's prepDocuments. Text formats (Markdown, plain text, CSV, RTF) are returned inline as `content`. Binary formats (PDF, Word, images) are NOT converted — they come back with `readable: false` and no content, because this server does not extract text. When a document is not readable, say so plainly and ask the Founder to paste the relevant part; never infer what a file contains from its filename.",
+        "Reads one prep document listed in get_module_context's prepDocuments — either a Founder-uploaded file or an assistant-transcribed extract (from save_prep_extract), distinguished by `source`. For an uploaded file: text formats (Markdown, plain text, CSV, RTF) are returned inline as `content`; binary formats (PDF, Word, images) are NOT converted — they come back with `readable: false` and no content, because this server does not extract text. For an assistant-transcribed extract, `content` is always the saved text. When a document is not readable, say so plainly and ask the Founder to paste the relevant part; never infer what a file contains from its filename.",
       inputSchema: PREP_DOCUMENT_SHAPE,
     },
     async (args) => {
@@ -228,7 +228,9 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
             actor,
             args.prepDocumentId,
           );
-          const readable = INLINE_TEXT_CONTENT_TYPES.has(document.contentType);
+          const isExtract = document.storageObjectId === null;
+          const readable =
+            isExtract || INLINE_TEXT_CONTENT_TYPES.has(document.contentType);
 
           return {
             response: jsonToolResponse({
@@ -236,8 +238,13 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
               filename: document.filename,
               contentType: document.contentType,
               sizeBytes: document.sizeBytes,
+              source: isExtract ? "assistant_extract" : "uploaded_file",
               readable,
-              content: readable ? content.toString("utf8") : null,
+              content: isExtract
+                ? document.extractedText
+                : readable && content
+                  ? content.toString("utf8")
+                  : null,
               note: readable
                 ? document.note
                 : `This server does not extract text from ${document.contentType}. ` +

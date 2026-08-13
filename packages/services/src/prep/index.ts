@@ -12,23 +12,30 @@ import {
 import {
   MAX_PREP_DOCUMENTS_PER_MODULE,
   type PrepDocument,
+  type SavePrepExtractInput,
   type UploadPrepDocumentInput,
 } from "@ai-catalyst/services/prep/types";
 
-// Founder-uploaded prep material for a Module's Work step (step 2).
+// Founder-uploaded prep material for a Module's Work step (step 2), or —
+// for a Module with no website Documents step — the assistant's own
+// faithful transcription of a file the Founder shared directly in chat.
 //
 // This service owns the join between a program_run_module and the stored
-// bytes; storage/ owns the bytes themselves. Nothing here extracts or
-// summarises content: the reading client parses the file, so the record
-// stays a pointer rather than a second, staler copy of what the file says.
+// bytes; storage/ owns the bytes themselves. For an uploaded file, nothing
+// here extracts or summarises content: the reading client parses the
+// file, so the record stays a pointer rather than a second, staler copy
+// of what the file says. `savePrepExtract` is the one deliberate
+// exception — for Modules with no upload path at all, the assistant's
+// transcription is the only copy there is, so it is instructed to
+// transcribe faithfully rather than condense.
 
 // Explicit column list — never `select *` — so internal columns
 // (workspace_id, withdrawn_at, uploaded_by_user_id) never leak into the
 // DTO. Two spellings because the reads join storage_objects and need the
 // alias, while the insert's `returning` has no alias to qualify.
 const PREP_COLUMN_NAMES = `
-  id, program_run_module_id, storage_object_id, original_filename,
-  content_type, note, created_at
+  id, program_run_module_id, storage_object_id, extracted_text,
+  original_filename, content_type, note, created_at
 `;
 const PREP_COLUMNS = PREP_COLUMN_NAMES.trim()
   .split(/,\s*/)
@@ -38,7 +45,8 @@ const PREP_COLUMNS = PREP_COLUMN_NAMES.trim()
 interface PrepRow {
   id: string;
   program_run_module_id: string;
-  storage_object_id: string;
+  storage_object_id: string | null;
+  extracted_text: string | null;
   original_filename: string;
   content_type: string;
   note: string;
@@ -51,6 +59,7 @@ function mapPrepRow(row: PrepRow): PrepDocument {
     id: row.id,
     programRunModuleId: row.program_run_module_id,
     storageObjectId: row.storage_object_id,
+    extractedText: row.extracted_text,
     filename: row.original_filename,
     contentType: row.content_type,
     // bigint arrives as a string from `pg`; parsed at the DTO boundary.
@@ -101,7 +110,7 @@ export async function listPrepDocuments(
   const result = await pool.query<PrepRow>(
     `select ${PREP_COLUMNS}, s.size_bytes
      from module_prep_documents d
-     join storage_objects s on s.id = d.storage_object_id
+     left join storage_objects s on s.id = d.storage_object_id
      where d.program_run_module_id = $1 and d.withdrawn_at is null
      order by d.created_at asc`,
     [programRunModuleId],
@@ -194,11 +203,16 @@ export async function withdrawPrepDocument(
   }
 }
 
-/** Bytes for one prep document — used by download and by the MCP read tool. */
+/**
+ * Content for one prep document — used by download and by the MCP read
+ * tool. An uploaded file's bytes come from Storage; an assistant-saved
+ * transcription has no storage object at all, so its own text is the
+ * content.
+ */
 export async function readPrepDocument(
   actor: ActorContext,
   prepDocumentIdRaw: string,
-): Promise<{ document: PrepDocument; content: Buffer }> {
+): Promise<{ document: PrepDocument; content: Buffer | null }> {
   assertRole(actor, ["founder"]);
   const prepDocumentId = parseEntityIdOrNotFound(
     prepDocumentIdRaw,
@@ -209,7 +223,7 @@ export async function readPrepDocument(
   const result = await pool.query<PrepRow>(
     `select ${PREP_COLUMNS}, s.size_bytes
      from module_prep_documents d
-     join storage_objects s on s.id = d.storage_object_id
+     left join storage_objects s on s.id = d.storage_object_id
      where d.id = $1 and d.workspace_id = $2 and d.withdrawn_at is null`,
     [prepDocumentId, workspace.id],
   );
@@ -218,15 +232,81 @@ export async function readPrepDocument(
     throw new ServiceError("NOT_FOUND", "Document not found.");
   }
 
+  const document = mapPrepRow(row);
+  if (document.storageObjectId === null) {
+    return { document, content: null };
+  }
+
   const { content } = await readStorageObjectContent(
     actor,
-    row.storage_object_id,
+    document.storageObjectId,
   );
-  return { document: mapPrepRow(row), content };
+  return { document, content };
+}
+
+/**
+ * Persists the assistant's own faithful transcription of a file the
+ * Founder shared directly in chat, for a Module with no website
+ * Documents step. Shares the same per-Module cap and authorization as an
+ * uploaded file, but writes no storage_objects row — extractedText is
+ * the only copy, so callers (the facilitator prompt) are expected to
+ * have the Founder confirm it before calling this, the same as any other
+ * save.
+ */
+export async function savePrepExtract(
+  actor: ActorContext,
+  input: SavePrepExtractInput,
+): Promise<PrepDocument> {
+  const { programRunModuleId, workspaceId } = await authorizeRunModule(
+    actor,
+    input.programRunModuleId,
+  );
+
+  const extractedText = input.extractedText.trim();
+  if (extractedText.length === 0) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "extractedText must not be empty.",
+    );
+  }
+
+  const existing = await pool.query<{ count: string }>(
+    `select count(*)::text as count
+     from module_prep_documents
+     where program_run_module_id = $1 and withdrawn_at is null`,
+    [programRunModuleId],
+  );
+  if (Number(existing.rows[0].count) >= MAX_PREP_DOCUMENTS_PER_MODULE) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      `This module already has ${MAX_PREP_DOCUMENTS_PER_MODULE} prep documents. ` +
+        "Remove one before adding another.",
+    );
+  }
+
+  const result = await pool.query<PrepRow>(
+    `insert into module_prep_documents (
+       workspace_id, program_run_module_id, extracted_text,
+       original_filename, content_type, note, uploaded_by_user_id
+     )
+     values ($1, $2, $3, $4, 'text/plain', $5, $6)
+     returning ${PREP_COLUMN_NAMES}`,
+    [
+      workspaceId,
+      programRunModuleId,
+      extractedText,
+      input.filename,
+      input.note?.trim() ?? "",
+      actor.userId,
+    ],
+  );
+
+  return mapPrepRow({ ...result.rows[0], size_bytes: null });
 }
 
 export {
   MAX_PREP_DOCUMENTS_PER_MODULE,
   type PrepDocument,
+  type SavePrepExtractInput,
   type UploadPrepDocumentInput,
 };

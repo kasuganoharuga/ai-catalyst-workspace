@@ -208,11 +208,6 @@ const AVATAR_RESPONSES: { questionKey: string; answerText: string }[] = [
       "ANZ, found through CPA Australia / CA ANZ member directories and Xero/MYOB user communities.",
   },
   {
-    questionKey: "customer_stage",
-    answerText:
-      "Already using 3+ disconnected tools, before hiring a dedicated ops person.",
-  },
-  {
     questionKey: "commercial_moment",
     answerText:
       "The upcoming quarter-end close, the first with a new client included.",
@@ -235,7 +230,7 @@ const AVATAR_RESPONSES: { questionKey: string; answerText: string }[] = [
   {
     questionKey: "tier1_signals",
     answerText:
-      'Searching "automate client onboarding accounting firm"\nDownloading a Zapier or Make template\nPosting in a CPA Australia forum asking what others use',
+      "Manually copying client details between email and the practice-management tool\nKeeping a shared spreadsheet to track onboarding status\nThe managing partner personally chasing missed steps",
   },
   {
     questionKey: "tier2_signals",
@@ -274,8 +269,6 @@ Small accounting firms, 5-20 people, already using 3+ disconnected tools.
 
 **WHERE:** ANZ, found through CPA Australia / CA ANZ member directories and Xero/MYOB user communities.
 
-**STAGE:** Already using 3+ disconnected tools, before hiring a dedicated ops person.
-
 **CURRENT COMMERCIAL MOMENT:** The upcoming quarter-end close, the first with a new client included.
 
 ## Situation
@@ -298,11 +291,11 @@ A new client comes on during busy season. The ops person tries to move the clien
 
 ## Buying Signals
 
-### Tier 1 — high intent, act within 24–48 hours
+### Tier 1 — high intent (act in 24–48 hrs)
 
-- Searching "automate client onboarding accounting firm"
-- Downloading a Zapier or Make template
-- Posting in a CPA Australia forum asking what others use
+- Manually copying client details between email and the practice-management tool
+- Keeping a shared spreadsheet to track onboarding status
+- The managing partner personally chasing missed steps
 
 ### Tier 2 — building intent, nurture over 4–12 weeks
 

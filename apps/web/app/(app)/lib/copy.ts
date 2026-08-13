@@ -800,14 +800,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
       },
     ],
-    documentsBody:
-      "Anything that shows who has actually been showing interest. Real names and real behaviour narrow a customer faster than describing them from memory.",
-    documentsSuggestions: [
-      "Notes from conversations with potential customers",
-      "A waitlist, customer list or CRM export",
-      "Personas or segment definitions you have written before",
-      "Survey results, or anything showing who has been signing up",
-    ],
     questionsLabel: "Eight customer-avatar blocks",
     progressVerdict: "Avatar saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

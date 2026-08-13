@@ -20,10 +20,12 @@ And it is not Module 1's shape either: Module 1 collects six narrow answers and 
 to the end, while Module 2 asks broadly and narrows in the room, because the skill it teaches is
 choosing a beachhead.
 
-**Website prep before Work:** the Founder may submit notes or files before Continue in Claude. Read
-them at open and weave into probes when useful — **do not skip or reorder blocks**. Material from
-prep alone is **assumed** until the Founder explicitly confirms it as evidence (OBSERVATION BASIS /
-`interviewed` / `paying`).
+**No website Documents step.** Module 2 does not offer a website upload — if the Founder has
+material to share, they hand it to the assistant directly in chat, and the assistant asks for it
+before Block 1, reads it natively, shows the Founder what it transcribed, and after they confirm it
+calls `save_prep_extract` to keep a record. Weave it into
+probes when useful — **do not skip or reorder blocks**. Material from prep alone is **assumed** until
+the Founder explicitly confirms it as evidence (OBSERVATION BASIS / `interviewed` / `paying`).
 
 ---
 
@@ -39,7 +41,6 @@ does not own.
 | 1 | `customer_picture` | Snapshot → WHO | Situation, Functional needs, Disqualifiers | inherits Module 1 context |
 | 1 | `beachhead_segment` | Segment | — | inherits Module 1 context |
 | 2 | `customer_where` | Snapshot → WHERE | — | |
-| 2 | `customer_stage` | Snapshot → STAGE | Disqualifiers | assisted |
 | 2 | `commercial_moment` | Snapshot → CURRENT COMMERCIAL MOMENT | Tier 2 signals | assisted |
 | 3 | `customer_situation` | Situation | Functional needs | inherits Module 1 context |
 | 4 | `functional_needs` | Unmet Needs → Functional | Core Promise | inherits Module 1 context |
@@ -50,12 +51,12 @@ does not own.
 | 7 | `core_promise` | Core Promise | — | inherits Module 1 context |
 | 8 | `validation_status` | Validation Status → Current level | — | single_choice |
 
-Thirteen stored fields, **eight founder-facing conversation blocks**. A block asks once, converges
+Twelve stored fields, **eight founder-facing conversation blocks**. A block asks once, converges
 into every field it covers, takes one confirmation, then saves each field separately. No conditional
 rows — every block runs for every Founder.
 
-Thirteen separate ask-probe-converge-confirm cycles would be heavier than this module needs. The
-deliverable is a complete, correctly structured Avatar, not thirteen interrogations, and the
+Twelve separate ask-probe-converge-confirm cycles would be heavier than this module needs. The
+deliverable is a complete, correctly structured Avatar, not twelve interrogations, and the
 previous generation of this module reached a comparable output in roughly seven founder-facing
 turns. Grouping keeps the artefact intact and the conversation reasonable.
 
@@ -81,7 +82,7 @@ something Module 1 already captured.
 | `target_customer` | Starting point for WHO and for the beachhead Segment |
 | `customer_problem` | Starting point for Situation, Functional needs and Emotional needs |
 | `business_model` | Helps identify who pays, who approves, and who should be excluded |
-| `current_stage` | **The venture's stage, not the customer's.** Never reuse it for `customer_stage`, which asks what must be true in the *customer's* world before the problem bites. Two different facts that happen to share a word. |
+| `current_stage` | Read for context; reconciled against `validation_status` in Block 8 (see the facilitator's Evidence level section) — not itself a customer fact. |
 | `competitors_alternatives` | Starting point for what the customer has already tried, and for how living with those alternatives feels |
 
 ---
@@ -121,31 +122,27 @@ customer experiences the problem, makes the decision or pays.
 
 ### Block 2 — Where and when are they a fit?
 
-*Resolves `customer_where`, `customer_stage`, `commercial_moment`. `customer_stage` and
-`commercial_moment` are assisted fields — see the facilitator's assisted-question rules.*
+*Resolves `customer_where`, `commercial_moment`. `commercial_moment` is an assisted field — see the
+facilitator's assisted-question rules.*
 
-*Three distinct lines of thinking: facilitate in up to three short turns (where → stage →
-commercial moment) rather than reading the whole thing out at once. One confirmation at the end.*
+*Two distinct lines of thinking: facilitate in up to two short turns (where → commercial moment)
+rather than reading the whole thing out at once. One confirmation at the end.*
 
 ```
-Three things about where this customer can be identified, and when they become a strong fit.
+Two things about where this customer can be identified, and when they become a strong fit.
 
 Where do they actually exist? The country, city or market they operate in, the industry ecosystem
 they sit inside, and one or two specific communities or networks where you could identify real
 examples. Be specific — "LinkedIn" is not enough, while "the founder channel in the Stone & Chalk
 community" is.
 
-What has to already be true in their world before your problem becomes urgent — customers,
-revenue, a team, a system, a licence, a contract? And what makes someone too early, or already too
-far along, to be a fit? This is the customer's stage, not your venture's stage.
-
 And what are they moving toward right now — the event or deadline that turns "someday" into "this
 quarter"? A funding round, a renewal, a launch, an audit, a board meeting, a new budget year, a
 compliance date, a season. What matters is that it creates a real reason to act now rather than
 later.
 
-If you are unsure about the stage boundary or the timing, say so and I will put up a few options
-drawn from what you have already told me.
+If you are unsure about the timing, say so and I will put up a few options drawn from what you have
+already told me.
 ```
 
 ### Block 3 — What situation makes the problem urgent?
@@ -211,13 +208,10 @@ them defensibly, I will say so rather than invent an order.
 *Resolves `tier1_signals`, `tier2_signals`.*
 
 ```
-Two timescales, both observable from the outside.
+Two angles, both observable from the outside.
 
-Right now: how would we recognise this customer at the moment they are actively trying to solve the
-problem — not interested, actually acting? What would they do in the next 24 to 48 hours? Searches
-they run, things they download, questions they post, templates they grab, people they ask. And what
-observable commitment would show they have moved beyond interest — paying, approving the spend,
-booking the next step, or bringing in the decision-maker?
+Right now: if this idea did not exist, what would this customer currently be doing instead to deal
+with the problem — the workaround, the tool, the manual process, or simply living with it?
 
 Earlier: what events mean this customer will need you in four to twelve weeks, even though they are
 not looking yet? A hire, a funding event, a new contract, a deadline appearing on the calendar, a
@@ -290,7 +284,7 @@ Which level best describes the profile today?
 
 ## 3. Question rows
 
-Thirteen `module_questions` rows. These `question_text` values are the **canonical statement of what
+Twelve `module_questions` rows. These `question_text` values are the **canonical statement of what
 each field must establish** — they are stored in the database, returned by `get_module_context`, and
 snapshotted onto each Response for the audit trail. They are **not read aloud**; the conversation
 blocks in §2 are what the Founder hears.
@@ -300,16 +294,15 @@ blocks in §2 are what the Founder hears.
 | 1 | `customer_picture` | Who is this customer — their role or life situation, the environment they operate in, and the relationship between the user, the decision-maker and the economic buyer? | long_text |
 | 2 | `beachhead_segment` | Which specific customer type inside that group is the beachhead, and what makes it the strongest starting point? | short_text |
 | 3 | `customer_where` | Where does this customer exist — country, market, ecosystem, and one or two places where a real example could be identified? | long_text |
-| 4 | `customer_stage` | What must already be true in the customer's world before this problem becomes urgent, and who is too early or too far along? | long_text |
-| 5 | `commercial_moment` | What event or deadline is this customer moving toward that creates a reason to act now rather than later? | long_text |
-| 6 | `customer_situation` | What concrete moment makes the problem urgent — the trigger, the goal, what they tried, why it fell short, and the cost of doing nothing? | long_text |
-| 7 | `functional_needs` | What outcomes does this customer need but cannot reliably achieve today? | long_text |
-| 8 | `emotional_needs` | What is emotionally and socially at stake for this customer in this problem? | long_text |
-| 9 | `tier1_signals` | What observable actions show this customer is acting on the problem within 24–48 hours? | long_text |
-| 10 | `tier2_signals` | What observable events show this customer will need a solution within four to twelve weeks? | long_text |
-| 11 | `disqualifiers` | Who looks like this customer but should be excluded, and why? | long_text |
-| 12 | `core_promise` | What result, reduced risk or retained capability is this customer actually buying? | long_text |
-| 13 | `validation_status` | What is the highest evidence level reached for this exact customer profile? | single_choice |
+| 4 | `commercial_moment` | What event or deadline is this customer moving toward that creates a reason to act now rather than later? | long_text |
+| 5 | `customer_situation` | What concrete moment makes the problem urgent — the trigger, the goal, what they tried, why it fell short, and the cost of doing nothing? | long_text |
+| 6 | `functional_needs` | What outcomes does this customer need but cannot reliably achieve today? | long_text |
+| 7 | `emotional_needs` | What is emotionally and socially at stake for this customer in this problem? | long_text |
+| 8 | `tier1_signals` | What would this customer currently be doing to address the problem without this idea? | long_text |
+| 9 | `tier2_signals` | What observable events show this customer will need a solution within four to twelve weeks? | long_text |
+| 10 | `disqualifiers` | Who looks like this customer but should be excluded, and why? | long_text |
+| 11 | `core_promise` | What result, reduced risk or retained capability is this customer actually buying? | long_text |
+| 12 | `validation_status` | What is the highest evidence level reached for this exact customer profile? | single_choice |
 
 `validation_status` options: `assumed`, `interviewed`, `paying`.
 
@@ -335,28 +328,39 @@ confirm the narrowing. You are helping them choose, not testing them.
 - The Founder supplies the raw material. You do the narrowing. Never invent customers, quotations,
   traction or market evidence. Quotation marks are reserved for words a customer actually said.
 
-## Founder-submitted prep materials
+## Prep materials
 
-Before Continue in Claude (the Work step), the Founder may have submitted notes, files, or other
-materials on the website for this Module.
+Module 2 has no website Documents step. There is no MCP tool that reads a file for you here — if the
+Founder has anything relevant, they share it directly in this chat, and you read it yourself with
+your own native file-reading ability.
 
-1. **Read them at open.** After `get_module_context`, check Module context / artifacts for any
-   Founder-submitted prep for this Attempt. Summarise briefly what you found (or say none). Do not
-   ask them to paste it again.
-2. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
+1. **Ask first, before anything else.** Immediately after `get_module_context` — before the
+   Module 1 summary, before Block 1 — ask the Founder plainly whether they have any notes, files, or
+   other material about their customer they would like to share before you begin. This is the only
+   chance to bring prep material in; there is no later step that surfaces it if you skip asking now.
+2. **If they share something, read the whole thing yourself.** You have your own native ability to
+   read whatever they paste or attach in this chat — there is no MCP tool that reads it for you.
+3. **Transcribe, do not summarise.** Prepare a faithful transcription of what you read — a short
+   filename/title and an `extractedText` that preserves the Founder's own words and specific facts.
+   This is not a condensed gist: there is no uploaded file behind it, so your transcription is the
+   only copy that will ever exist. Compressing away a detail now means it is gone for good.
+4. **Show it and confirm before saving.** Show the Founder the transcription you prepared and ask
+   them to confirm it is accurate and complete before you call `save_prep_extract` — the same
+   discipline as every block below: never persist something the Founder has not seen. Only after they
+   confirm, call `save_prep_extract`.
+5. **If they have nothing to share, move straight on** to the Module 1 summary and Block 1. Do not
+   ask again later in the conversation.
+6. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
    required ask. Every conversation block still runs.
-3. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
+7. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
    answers ("You already noted X — is that still right?"). Prefer their words when they confirm.
-4. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
+8. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
    until the Founder explicitly confirms it as evidence in this Module (real customer conversation
    under OBSERVATION BASIS, or `interviewed` / `paying` on `validation_status`). Confidence in prep
    notes is not evidence. Do not upgrade prep into validated claims in the Avatar.
-
-5. **Say so when you cannot read one.** Uploaded files are stored as-is and are not
-   converted for you. `get_prep_document` returns text formats inline; for a PDF, Word file or
-   image it returns `readable: false` and no content. When that happens, name the file, tell the
-   Founder plainly that you could not read it, and ask them to paste the part that matters. Never
-   infer a file's contents from its filename, and never treat an unread file as evidence.
+9. **A saved extract can be re-read on resume.** It shows up in `get_module_context`'s
+   `prepDocuments` the same as an uploaded file would; `get_prep_document` returns your own saved
+   text back if the conversation continues in a new session.
 
 ## Inherited context
 
@@ -369,12 +373,12 @@ something Module 1 already captured.**
 | `target_customer` | Starting point for WHO and the beachhead Segment |
 | `customer_problem` | Starting point for Situation, Functional needs and Emotional needs |
 | `business_model` | Who pays, who approves, who should be excluded |
-| `current_stage` | **The venture's stage, not the customer's.** Never reuse it for `customer_stage`. |
+| `current_stage` | Read for context; reconciled against `validation_status` in Block 8 (see Evidence level) — not itself a customer fact. |
 | `competitors_alternatives` | What the customer has already tried, and how living with it feels |
 
-Read all six before starting. Open with a **concise summary** of the inherited hypothesis — do not
-reproduce long answers in full. Each question later replays only the prior Response relevant to its
-own field:
+Read all six before starting. After the prep-materials check above, open with a **concise summary**
+of the inherited hypothesis — do not reproduce long answers in full. Each question later replays only
+the prior Response relevant to its own field:
 
     In Module 1, you described:
 
@@ -389,14 +393,14 @@ own field:
     what is missing.
 
 `current_stage` is read but deliberately left out of the opening summary. It has little to do with
-the customer profile; its job is to stop the venture's stage being written into `customer_stage`.
+the customer profile; its only job here is the `validation_status` reconciliation in Block 8.
 
 Several conversation block openers contain a `[Module 1: <key>]` placeholder. Substitute the
 relevant confirmed Module 1 Response before speaking the block. When that Response is missing from
 the Module context, drop the replay line and ask the remainder as an open question — never say "you
 previously said" about something that was never said.
 
-The placeholders belong to the block openers only. The thirteen `question_text` values in
+The placeholders belong to the block openers only. The twelve `question_text` values in
 `module_questions` are short canonical field statements and contain no placeholders — do not put
 them back there.
 
@@ -425,14 +429,14 @@ to resolve it:
 grouped.** A `question_text` is the canonical statement of what a field must establish — not a script
 to read out, and not a turn the Founder has to sit through on its own.
 
-The Founder experiences **eight conversation blocks**, not thirteen questions. Each block resolves
+The Founder experiences **eight conversation blocks**, not twelve questions. Each block resolves
 one to three fields, takes one answer, converges into every field it covers, takes one confirmation,
 and then saves each field separately.
 
 This differs from Module 1 deliberately. Module 1 is a collect-only interview where rephrasing could
 bias a first answer, so it reads its questions verbatim, one at a time. Module 2 inherits Module 1's
 answers and narrows them, so verbatim delivery would make the Founder repeat themselves and
-thirteen separate cycles would make a customer-definition exercise feel like a form. Do not "correct"
+twelve separate cycles would make a customer-definition exercise feel like a form. Do not "correct"
 this back to one-question-at-a-time verbatim delivery.
 
 For every block:
@@ -536,13 +540,12 @@ padding it with instructions to the Founder ("think about...", "take your time a
 own words"). A short answer is what these turns are built for; do not invite an essay from a question
 that has one clear answer.
 
-Block 2 covers three distinct lines of thinking, not one bundle: where they are, what stage makes the
-problem bite, and what deadline they are moving toward. Three separate atomic turns, asked in this
-order — never combine two into one message:
+Block 2 covers two distinct lines of thinking, not one bundle: where they are, and what deadline they
+are moving toward. Two separate atomic turns, asked in this order — never combine them into one
+message:
 
 1. WHERE — where do they actually exist, and where could you find real examples?
-2. Customer stage — what stage boundary makes this problem theirs?
-3. Commercial moment — what are they moving toward right now?
+2. Commercial moment — what are they moving toward right now?
 
 If the Founder's answer to an earlier turn already covers a later one — they name the deadline while
 describing where they are — skip that turn rather than asking it again.
@@ -572,14 +575,11 @@ the customer, not the same judgement asked three ways:
 Skip any of the three the Founder has already volunteered while answering an earlier turn. The Founder
 still confirms functional_needs and emotional_needs together at the end, in one step.
 
-Block 5 covers two distinct timescales, not one bundle: what we would observe right now, and what
-leading indicators show up months earlier. Two separate turns, in this order — each is a grouped
-reflection of at most two elements, since both halves of a turn are the same underlying judgement seen
-from two angles:
+Block 5 covers two distinct angles, not one bundle: what this customer does today without the idea,
+and what leading indicators show up months earlier. Two separate atomic turns, in this order:
 
-1. Right now — what would this customer be doing in the next 24 to 48 hours if they were actively
-   trying to solve the problem, and what observable commitment would show they had moved beyond
-   interest?
+1. Right now — if this idea did not exist, what would this customer currently be doing instead to
+   deal with the problem — the workaround, the tool, the manual process, or simply living with it?
 2. Earlier — what events, four to twelve weeks out, mean they will need you even though they are not
    looking yet?
 
@@ -612,28 +612,26 @@ as an important unknown, and move on.
 The channel is deliberately open: LinkedIn works for B2B, but a consumer, government or deep-tech
 customer may be findable somewhere else entirely. What matters is that a specific route exists.
 
-## Assisted fields: customer stage and commercial moment
+## Assisted field: commercial moment
 
-Founders rarely answer `customer_stage` and `commercial_moment` cold. Both sit in Block 2. For
-these two fields only, offer candidates — but helping them choose must never become filling in the
-answer for them:
+Founders rarely answer `commercial_moment` cold. It sits in Block 2. For this field, offer
+candidates — but helping them choose must never become filling in the answer for them:
 
 - Propose two or three candidate framings derived **only** from the Founder's confirmed answers.
 - Always include "None of these — I would describe it differently."
 - Do not treat a proposed candidate as confirmed until the Founder explicitly selects or corrects it.
-- **Every candidate must answer the same question** — for `customer_stage`, "what has to already be
-  true before this problem becomes theirs?" Do not mix a stage boundary with a pain/urgency signal or
-  a description of an existing workaround in the same option set; a Founder choosing between three
+- **Every candidate must answer the same question** — "what deadline or event is this customer
+  moving toward that creates a reason to act now rather than later?" Do not mix a real trigger with a
+  recurring cycle or a pain/urgency signal in the same option set; a Founder choosing between three
   different *kinds* of claim can't actually compare them.
 
 Shape:
 
-    Based on what you have described, the strongest stage boundary appears to be one of these:
+    Based on what you have described, the strongest commercial moment appears to be one of these:
 
-    A. Post-MVP, before repeatable revenue
-    B. Early revenue, before the team is large enough to need a dedicated system
-    C. Established revenue, past the headcount where the current approach stops scaling
-    D. None of these — I would describe it differently
+    A. The upcoming board meeting where budget for next quarter gets decided
+    B. The contract renewal coming up in six weeks
+    C. None of these — I would describe it differently
 
     Which is closest?
 
@@ -758,33 +756,6 @@ Worked example for `customer_where`:
     CONFIRMED ANSWER
     Sydney / Melbourne / Brisbane. Often accelerator-adjacent
 
-For `customer_stage` (Snapshot → STAGE):
-
-Format the confirmed answer as **one short recognition line** of observable operating-state facts
-(stage, traction, runway, tool/automation state — only what was confirmed).
-
-Do not turn the answer into a marketing description or inferred company stage.
-Do not introduce words such as "growing", "mature", "digitally advanced", or similar descriptors
-unless the Founder explicitly used or confirmed them.
-Preserve the Founder's terminology.
-
-Explanatory material belongs elsewhere:
-
-- current workflow breakdown / trigger / why the problem bites now → Situation
-- strongest-fit but not hard cutoff → Validation Status / Founder assumptions
-- explicit exclusions → Disqualifiers (confirmed again in Block 6)
-
-Worked example for `customer_stage` (Capital Raise density):
-
-    CONFIRMED ANSWER
-    Post-MVP, $10k–$80k ARR or strong pilots. 6–12 mths runway
-
-    CARRY-FORWARD CONTEXT
-    — Situation: Manual coordination starts becoming a real problem as onboarding volume increases
-      (only if the Founder confirmed that wording).
-    — Validation Status / Founder assumptions: This segment is the strongest beachhead, not a hard
-      exclusion boundary.
-
 For `emotional_needs`:
 
 - CONFIRMED ANSWER contains only emotional and social needs, expressed as outcomes.
@@ -811,7 +782,7 @@ For OBSERVATION BASIS, ASSUMPTIONS and UNKNOWNS:
   heading.
 - That is what gets **persisted**, for reliable parsing on resume. It is not what gets **said**: in
   conversation, show only metadata that carries meaning. Never read "None recorded" categories back
-  to the Founder — a convergence summary listing three empty headings is noise, and thirteen of them
+  to the Founder — a convergence summary listing three empty headings is noise, and twelve of them
   is a form.
 - Never infer evidence merely because the Founder stated something confidently. Confidence is not
   observation.
@@ -873,9 +844,9 @@ Four rules govern what may be written, taken from the reference handout:
    feel frustrated", "they value innovation", "they want growth".
 3. **Tier by urgency.** Separate act-now from nurture. Same person, different message, different
    speed of response.
-4. **Do not infer disqualifiers from positive beachhead, stage, tool, size or capability criteria.**
-   Block 1's beachhead selection, Block 2's stage boundary, and any tool or team-size detail the
-   Founder mentions while describing the strongest-fit customer are hypotheses about who fits best —
+4. **Do not infer disqualifiers from positive beachhead, tool, size or capability criteria.**
+   Block 1's beachhead selection, and any tool or team-size detail the
+   Founder mentions while describing the strongest-fit customer, are hypotheses about who fits best —
    never evidence about who to exclude, even when they read as a boundary. A small team, a lean
    toolset or an in-house technical capability are reasons a customer fits the beachhead well; they
    become a disqualifier only when the Founder explicitly names the opposite profile as an exclusion
@@ -902,9 +873,6 @@ based on evidence or on who you happen to know?
 associations or events contain them? Keep one or two named places in the answer itself when they
 materially help identify the customer — specific names are what make the profile actionable, and a
 generic "LinkedIn" is not one.
-
-**`customer_stage`** — What must already be true before they are a strong fit? Who is too early? Who is
-already too advanced? What changes at the boundary?
 
 **`commercial_moment`** — What deadline is attached? What happens if they delay? Can the event be
 observed or reasonably inferred from outside? Does it create willingness to pay, or only willingness
@@ -999,7 +967,7 @@ interview questions. Module 2 defines who to talk to; it does not plan or run th
 
 Module 2 is done when:
 
-1. All 13 Responses are confirmed and saved, across the eight blocks.
+1. All 12 Responses are confirmed and saved, across the eight blocks.
 2. Every locked Avatar field is resolved (see below).
 3. Needs are written as outcomes, not features.
 4. Buying signals are observable behaviours or events when identified; otherwise the unresolved
@@ -1073,7 +1041,7 @@ Facilitator while the Founder could confirm it — do not run a second round of 
 
 ## Inputs
 
-- Read the 13 confirmed Responses (`customer_picture` through `validation_status`) from the Module
+- Read the 12 confirmed Responses (`customer_picture` through `validation_status`) from the Module
   context. Use nothing the Founder has not confirmed.
 - Each Response is stored in the save protocol's shape:
   - **CONFIRMED ANSWER** fills the customer-facing sections (Snapshot fields should already be
@@ -1103,7 +1071,7 @@ exactly.
 ### SNAPSHOT FORMATTING RULES
 
 The Snapshot is a recognition card in the Capital Raise handout sense: one short scannable line per
-cell (WHO / WHERE / STAGE / CURRENT COMMERCIAL MOMENT). It is not a prose summary and not a
+cell (WHO / WHERE / CURRENT COMMERCIAL MOMENT). It is not a prose summary and not a
 multi-field labelled form.
 
 Format, do not reinterpret.
@@ -1132,21 +1100,13 @@ it again downstream.
 
 - One short recognition line: geography / market / ecosystem / one or two named networks.
 
-**STAGE:**
-
-- One short recognition line of observable operating-state facts.
-- Do not render STAGE as a marketing description or inferred company-stage essay.
-- Move explanations of why the problem occurs to Situation (only if confirmed).
-- Move soft-boundary assumptions to Validation Status where appropriate.
-- Move hard exclusions to Disqualifiers.
-
 **CURRENT COMMERCIAL MOMENT:**
 
 - One short recognition line: the event or deadline, and what happens if they delay — kept tight.
 
 **DE-DUPLICATION:**
 
-Do not repeat the same fact across Segment, WHO and STAGE. If team size is already fully stated in
+Do not repeat the same fact across Segment and WHO. If team size is already fully stated in
 Segment, do not repeat it in another Snapshot field unless it adds distinct meaning.
 
 **NO REINTERPRETATION:**
@@ -1161,8 +1121,6 @@ Canonical density (Capital Raise worked example):
 
     **WHERE:** Sydney / Melbourne / Brisbane. Often accelerator-adjacent
 
-    **STAGE:** Post-MVP, $10k–$80k ARR or strong pilots. 6–12 mths runway
-
     **CURRENT COMMERCIAL MOMENT:** First institutional round. SAFE, note or priced seed
 
 | Section | Source |
@@ -1171,14 +1129,13 @@ Canonical density (Capital Raise worked example):
 | Segment | `beachhead_segment`, verbatim |
 | Snapshot → WHO | `customer_picture` — short recognition line (see above) |
 | Snapshot → WHERE | `customer_where` — short recognition line |
-| Snapshot → STAGE | `customer_stage` — short recognition line |
 | Snapshot → CURRENT COMMERCIAL MOMENT | `commercial_moment` — short recognition line |
 | Situation | `customer_situation` — one paragraph; also receives confirmed trigger / "why the problem bites now" facts that must not sit in Snapshot |
 | Unmet Needs → Functional | `functional_needs` — 3–6, in the Founder-confirmed order. Do not invent a ranking when no defensible order was established |
 | Unmet Needs → Emotional and social | `emotional_needs` — 3–6 |
-| Buying Signals → Tier 1 | `tier1_signals` — 3–5 observable actions |
+| Buying Signals → Tier 1 | `tier1_signals` — 3–5 observable current alternatives or workarounds |
 | Buying Signals → Tier 2 | `tier2_signals` — 3–5 observable trigger events |
-| Disqualifiers | `disqualifiers` — 3 or more; hard exclusions live here, not restated as STAGE prose |
+| Disqualifiers | `disqualifiers` — 3 or more; hard exclusions live here, not restated as Snapshot prose |
 | Core Promise | `core_promise` — one concise paragraph of one or two sentences describing the customer result and, where relevant, the risk reduced or the capability retained. Not all three apply to every product. It should say what they are really buying beyond the product itself, but must not add subheadings that are not in the locked template |
 
 No inline evidence tags anywhere in the sections above. The body stays clean; all bookkeeping goes
@@ -1296,16 +1253,22 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
 - **"Borderline cases" was dropped** from Disqualifiers. It came from an intermediate draft, not the
   handout, and the settled rule is that the artefact matches the handout plus Validation Status.
   Easy to add back if it earns its place.
-- **Thirteen stored fields, eight conversation blocks.** The fields are what the artefact needs;
-  the blocks are what the Founder sits through. Thirteen separate confirm cycles were heavier than
+- **Twelve stored fields, eight conversation blocks.** The fields are what the artefact needs;
+  the blocks are what the Founder sits through. Twelve separate confirm cycles were heavier than
   the deliverable warrants, and the earlier generation of this module reached a comparable output in
   roughly seven founder-facing turns. Grouping changes the pacing, not the artefact — every field
   still has one owner, one confirmed answer and its own Response row.
-- **13 rows, no conditionals.** The five interview-evidence questions were removed: they ask the
+- **12 rows, no conditionals.** The five interview-evidence questions were removed: they ask the
   Founder to recount real conversations, which is analysis of validation results rather than
   definition of the customer. A Founder who already has that experience still records it — under
   OBSERVATION BASIS and CONTRADICTIONS in the content fields' metadata — without five extra
   questions.
+- **`customer_stage` was removed.** The STAGE Snapshot cell and its dedicated Block 2 turn added a
+  fourth line of thinking the artefact did not need; `current_stage`'s remaining job is the
+  `validation_status` reconciliation in Block 8, not a customer-facing Snapshot fact.
+- **`tier1_signals` reframed.** It now asks what this customer currently does *without* the idea —
+  the status-quo workaround — rather than what observable action they take within 24–48 hours. Tier
+  2 (leading indicators, four to twelve weeks out) is unchanged.
 - **`validation_barrier` was removed** with the plan it was designed to shape.
 - **This document scopes Module 2 only.** Later modules may read what it produces, but nothing here
   specifies their behaviour. The "Also supports within Module 2" column names relationships between

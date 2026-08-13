@@ -9,6 +9,7 @@ import {
 } from "@ai-catalyst/services/attempt";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import { completeModuleAttempt } from "@ai-catalyst/services/module/completion";
+import { savePrepExtract } from "@ai-catalyst/services/prep";
 
 import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
@@ -35,6 +36,13 @@ const SAVE_ARTIFACT_SHAPE = {
 };
 
 const ATTEMPT_ID_SHAPE = { attemptId: z.string().min(1) };
+
+const SAVE_PREP_EXTRACT_SHAPE = {
+  programRunModuleId: z.string().min(1),
+  filename: z.string().min(1),
+  extractedText: z.string().min(1),
+  note: z.string().optional(),
+};
 
 const START_MODULE_ATTEMPT_SHAPE = {
   programRunModuleId: z.string().min(1),
@@ -185,11 +193,48 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
   );
 
   mcp.registerTool(
+    "save_prep_extract",
+    {
+      title: "Save prep extract",
+      description:
+        "Persists your own transcription of a file the Founder shared directly in this chat, for a Module with no website Documents step. Read the file yourself first (this server has no upload/parsing path for it); extractedText must be a faithful transcription of the original — preserve the Founder's own words and specific facts, not a condensed summary — and never the raw file bytes. There is no uploaded file behind this record, so this is the only copy: show the Founder what you extracted and get their confirmation before calling this, the same as any other save. Shows up in get_module_context's prepDocuments and is readable back via get_prep_document, same as an uploaded file.",
+      inputSchema: SAVE_PREP_EXTRACT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "save_prep_extract",
+          actor,
+          requestMetadata: { programRunModuleId: args.programRunModuleId },
+        },
+        async () => {
+          const result = await savePrepExtract(actor, args);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: null,
+              programRunId: null,
+              programRunBranchId: null,
+              programRunModuleId: result.programRunModuleId,
+              moduleAttemptId: null,
+              resultMetadata: {
+                filename: result.filename,
+                prepDocumentId: result.id,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
     "complete_module",
     {
       title: "Complete module",
       description:
-        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. Proceed, Pivot, and Kill all share that success path (no auto-cancel / auto-retry). On failure, validationErrors lists the named checks to repair. Never lets an MCP-sourced Actor force a Mentor acceptance.",
+        "Declares a Founder's Attempt done: submits it, then runs Official Validation (with an internally-forced system actor, never the caller's own authority). On a passing validation the Attempt stops at ready_for_review with awaitingConfirmation=true — completing the Module and unlocking the next one is a separate Founder action on the website, never something MCP can do. Every passing Attempt shares that success path (no auto-cancel / auto-retry). On failure, validationErrors lists the named checks to repair. Never lets an MCP-sourced Actor force a Mentor acceptance.",
       inputSchema: ATTEMPT_ID_SHAPE,
     },
     async (args) => {

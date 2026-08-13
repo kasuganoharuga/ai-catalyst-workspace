@@ -119,6 +119,7 @@ const EXPECTED_TOOL_NAMES = [
   "start_module_attempt",
   "save_founder_input",
   "save_artifact",
+  "save_prep_extract",
   "complete_module",
 ];
 

@@ -21,9 +21,6 @@ Include user / champion / buyer only as compact natural labels when material
 **WHERE:** <one short recognition line: country, market, ecosystem, and one or two named communities
 or networks>
 
-**STAGE:** <one short recognition line of observable operating-state facts. No marketing description.
-Move why-the-problem-bites-now to Situation; hard exclusions to Disqualifiers.>
-
 **CURRENT COMMERCIAL MOMENT:** <one short recognition line: the event or deadline, and what happens if they delay>
 
 ## Situation
@@ -52,9 +49,10 @@ never a description of what we sell.>
 
 ## Buying Signals
 
-### Tier 1 — high intent, act within 24–48 hours
+### Tier 1 — high intent (act in 24–48 hrs)
 
-<3–5 observable actions. A signal must be something that could be seen, searched for or measured.>
+<3–5 observable current alternatives or workarounds — what this customer does today without this
+idea. A signal must be something that could be seen, searched for or measured.>
 
 -
 -

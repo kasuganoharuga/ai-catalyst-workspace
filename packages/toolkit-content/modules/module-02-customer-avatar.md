@@ -13,7 +13,8 @@ customer into a beachhead specific enough to interview this week.
 - Module 01 confirmed responses: `target_customer`, `customer_problem`, `competitors_alternatives`
 - Pain intensity signals
 - Buying or adoption context
-- Existing interview notes
+- Existing interview notes — no website upload for this Module; the Founder hands these to the
+  assistant directly in chat, and it reads them and calls `save_prep_extract` before Block 1
 
 ## Expected Output
 
@@ -30,7 +31,7 @@ The avatar follows the locked structure in
 
 then an internal **Validation Status** section recording what is actually proven.
 
-The conversation that produces it — eight blocks resolving 13 fields, the facilitator prompt and the
+The conversation that produces it — eight blocks resolving 12 fields, the facilitator prompt and the
 artifact generator
 prompt — is in
 [prompts/module-02-prompt-set.md](../skills/module-02-customer-avatar/prompts/module-02-prompt-set.md).
@@ -40,12 +41,12 @@ A filled reference is in
 ## How It Runs
 
 Ask wide, probe, converge, confirm. The founder works through **eight conversation blocks**, not
-thirteen questions:
+twelve questions:
 
 | Block | Resolves |
 |---|---|
 | 1. Who is the beachhead customer? | WHO, Segment |
-| 2. Where and when are they a fit? | WHERE, STAGE, commercial moment |
+| 2. Where and when are they a fit? | WHERE, commercial moment |
 | 3. What situation makes the problem urgent? | Situation |
 | 4. What do they need, functionally and emotionally? | Functional needs, Emotional needs |
 | 5. How do we recognise intent? | Tier 1 signals, Tier 2 signals |
@@ -57,9 +58,9 @@ Each block asks once, converges into every field it covers, takes one confirmati
 field as its own response. Blocks that inherit a Module 01 answer replay it first — the founder
 corrects and adds rather than repeating.
 
-Two fields get an assisted flow, because founders rarely answer them cold: STAGE and the current
-commercial moment. The assistant proposes two or three candidates drawn only from confirmed answers,
-always offers "None of these", and never treats a candidate as confirmed until the founder picks it.
+The current commercial moment gets an assisted flow, because founders rarely answer it cold. The
+assistant proposes two or three candidates drawn only from confirmed answers, always offers "None of
+these", and never treats a candidate as confirmed until the founder picks it.
 
 ## Quality Bar
 
