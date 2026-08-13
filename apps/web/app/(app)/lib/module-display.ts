@@ -135,11 +135,13 @@ function humanizeQuestionKey(questionKey: string): string {
 /**
  * Artifacts produced before the Claude / confirm path, so they stay off the
  * work-step and confirm-step "documents this module produces" lists.
- * Module 4's Interview Evidence is confirmed in wizard step 1.
+ *
+ * Empty since interview material became Founder-uploaded prep documents:
+ * Module 4's Interview Evidence was the only inbound artefact, and prep
+ * documents are not artefacts at all. Kept as a map because a future
+ * module may again take something in that it does not produce.
  */
-const PREREQUISITE_ARTIFACT_KEY: Record<string, string> = {
-  [MODULE_4_KEY]: "interview_evidence",
-};
+const PREREQUISITE_ARTIFACT_KEY: Record<string, string> = {};
 
 /**
  * Null for a Module with no off-platform prerequisite. Callers use it to

@@ -5,25 +5,12 @@ import type {
   RunModuleStatus,
   RunModuleSummary,
 } from "@ai-catalyst/shared";
-import {
-  INTERVIEW_EVIDENCE_ARTIFACT_KEY,
-  MODULE_4_KEY,
-  type InterviewEvidenceStatus,
-} from "@ai-catalyst/services/interview";
 
 import type {
   ArtefactCardModel,
   ArtefactModuleGroupModel,
   ArtefactStartAction,
 } from "../types";
-
-export type InterviewEvidenceOverlay = {
-  completedCount: number;
-  evidenceStatus: InterviewEvidenceStatus;
-  evidenceConfirmedAt: string | null;
-  /** Owning module run status — used to re-place the single Start CTA. */
-  runStatus: RunModuleStatus;
-};
 
 type HandoffSpec = {
   /** The module that owns the artefact definition. */
@@ -35,9 +22,10 @@ type HandoffSpec = {
   subtitle: string;
 };
 
-// Customer interview *forms* live at /artefacts/interviews (injected on the
-// Artefacts page between Module 3 and Proof). Confirmed Interview-Evidence.md
-// remains a Module 4 artefact row — not a between-module handoff card.
+// No between-module handoff cards today. Customer interview forms used to
+// live at /artefacts/interviews and sit here between Module 3 and Proof;
+// interview material is now uploaded as prep documents on a module's Work
+// step, so nothing is lifted out of its owning module's group.
 const HANDOFF_ARTEFACTS: HandoffSpec[] = [];
 
 /**
@@ -133,58 +121,6 @@ function assignSingleModuleStartAction(
     return {
       ...artefact,
       startAction: startActionForUnsaved(moduleKey, status),
-    };
-  });
-}
-
-/**
- * Mirror Proof's Customer Interview Evidence state onto the Artefacts row
- * before Claude pins a real submission.
- */
-export function applyInterviewEvidenceOverlay(
-  groups: ArtefactModuleGroupModel[],
-  overlay: InterviewEvidenceOverlay | null,
-): ArtefactModuleGroupModel[] {
-  if (!overlay) return groups;
-
-  return groups.map((group) => {
-    if (group.moduleKey !== MODULE_4_KEY) return group;
-
-    const artefacts = group.artefacts.map((artefact) => {
-      if (artefact.artifactKey !== INTERVIEW_EVIDENCE_ARTIFACT_KEY) {
-        return artefact;
-      }
-      // Real submission wins once Claude has materialised the file.
-      if (artefact.versionNumber !== null) return artefact;
-
-      if (overlay.evidenceStatus === "confirmed") {
-        return {
-          ...artefact,
-          websiteEvidence: {
-            status: "confirmed" as const,
-            confirmedAt: overlay.evidenceConfirmedAt,
-          },
-        };
-      }
-      if (overlay.completedCount > 0) {
-        return {
-          ...artefact,
-          websiteEvidence: {
-            status: "draft_preview" as const,
-            confirmedAt: null,
-          },
-        };
-      }
-      return { ...artefact, websiteEvidence: undefined };
-    });
-
-    return {
-      ...group,
-      artefacts: assignSingleModuleStartAction(
-        artefacts,
-        group.moduleKey,
-        overlay.runStatus,
-      ),
     };
   });
 }

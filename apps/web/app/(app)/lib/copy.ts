@@ -864,7 +864,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     ],
     completedNextStep: {
       title: "Next: talk to customers, then open Module 4",
-      body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
+      body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then upload what you heard as documents on Module 4's Upload documents step before you continue in your AI assistant.",
     },
     documentsBody:
       "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
@@ -908,11 +908,11 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     before: [
       {
         lead: "Allow 30–45 minutes once your interviews are done.",
-        body: "This covers recording and reviewing your evidence, analysing it with your AI assistant, and building your 30-day plan — not the time spent conducting the interviews themselves.",
+        body: "This covers reviewing the notes you upload, analysing them with your AI assistant, and building your 30-day plan — not the time spent conducting the interviews themselves.",
       },
       {
-        lead: "Complete all five real interviews first.",
-        body: "Submit interviews when all five are complete (no drafts left), review the evidence preview on Proof, then confirm evidence to lock Interview-Evidence.md.",
+        lead: "Upload your interview notes first.",
+        body: "Add whatever you already have — interview write-ups, research, notes — on this module's Upload documents step. Your assistant reads them at the start of the conversation.",
       },
       {
         lead: "Expect the evidence to challenge your assumptions.",

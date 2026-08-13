@@ -1,8 +1,3 @@
-import {
-  getInterviewActivityForProgramRun,
-  getInterviewProgress,
-} from "@ai-catalyst/services/interview";
-
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 import { listModuleCatalog } from "@/lib/module-catalog";
@@ -11,11 +6,8 @@ import { listModuleContextsForActiveRun } from "@/lib/run-modules";
 
 import { PageShell } from "../components/page-shell";
 import { artefactsCopy } from "../lib/copy";
-import { MODULE_4_KEY } from "../lib/module-display";
 import { ArtefactModuleGroup } from "./components/artefact-module-group";
-import { InterviewRecordsGroup } from "./components/interview-records-group";
 import {
-  applyInterviewEvidenceOverlay,
   artefactCounts,
   buildPreviewArtefactGroups,
   buildSavedArtefactGroups,
@@ -24,19 +16,14 @@ import type { ArtefactModuleGroupModel } from "./types";
 
 export const metadata = appPageTitle("Artefacts");
 
-type ListItem =
-  | { kind: "module"; sortIndex: number; group: ArtefactModuleGroupModel }
-  | {
-      kind: "interviews";
-      sortIndex: number;
-      completedCount: number;
-      recommendedCount: number;
-      requirementMet: boolean;
-      confirmed: boolean;
-      submitted: boolean;
-      sequenceIndex: number;
-      locked: boolean;
-    };
+// Interview records used to appear here as their own row between Module
+// 3 and Proof. Interview material is now uploaded as prep documents on a
+// module's Work step, so the list is modules only.
+type ListItem = {
+  kind: "module";
+  sortIndex: number;
+  group: ArtefactModuleGroupModel;
+};
 
 export default async function ArtefactsPage() {
   const actor = await getCurrentFounderActor();
@@ -45,20 +32,6 @@ export default async function ArtefactsPage() {
     listModuleCatalog(actor),
   ]);
 
-  const module4 = contexts.find(
-    (context) => context.runModule.moduleKey === MODULE_4_KEY,
-  );
-  const module4Catalog = catalog.find(
-    (entry) => entry.moduleKey === MODULE_4_KEY,
-  );
-  const programRunId = module4?.runModule.programRunId ?? null;
-  const activity = programRunId
-    ? await getInterviewActivityForProgramRun(actor, programRunId)
-    : null;
-  const progress = programRunId
-    ? await getInterviewProgress(actor, programRunId)
-    : null;
-
   // Setup Summary is machine-written storage config, not founder work — hide
   // it from the list; its direct URL still resolves for support.
   const groups = buildSavedArtefactGroups(contexts, catalog, SHOW_SETUP_MODULE);
@@ -66,17 +39,7 @@ export default async function ArtefactsPage() {
     groups.length > 0
       ? groups
       : buildPreviewArtefactGroups(catalog, SHOW_SETUP_MODULE);
-  const displayGroups = applyInterviewEvidenceOverlay(
-    baseGroups,
-    module4 && progress
-      ? {
-          completedCount: progress.completedCount,
-          evidenceStatus: progress.evidenceStatus,
-          evidenceConfirmedAt: activity?.evidenceConfirmedAt ?? null,
-          runStatus: module4.runModule.status,
-        }
-      : null,
-  );
+  const displayGroups = baseGroups;
   const hasSavedWork = groups.length > 0;
   const { totalArtefacts, savedCount } = artefactCounts(displayGroups);
 
@@ -85,23 +48,6 @@ export default async function ArtefactsPage() {
     sortIndex: group.sortIndex,
     group,
   }));
-
-  // Customer interviews sit between Module 3 and Proof.
-  if (module4 || (module4Catalog && module4Catalog.catalogStatus === "live")) {
-    items.push({
-      kind: "interviews",
-      sortIndex: 3.5,
-      completedCount: progress?.completedCount ?? 0,
-      recommendedCount: progress?.recommendedCount ?? 5,
-      requirementMet: progress?.requirementMet ?? false,
-      confirmed:
-        (progress?.evidenceStatus ?? activity?.evidenceStatus) === "confirmed",
-      submitted:
-        (progress?.evidenceStatus ?? activity?.evidenceStatus) === "submitted",
-      sequenceIndex: module4Catalog?.sequenceIndex ?? 4,
-      locked: !activity,
-    });
-  }
 
   items.sort((a, b) => a.sortIndex - b.sortIndex);
 
@@ -131,25 +77,12 @@ export default async function ArtefactsPage() {
           </div>
 
           <div className="mt-5 flex flex-col gap-5">
-            {items.map((item) =>
-              item.kind === "module" ? (
-                <ArtefactModuleGroup
-                  key={`${item.group.moduleKey}:${item.group.sortIndex}`}
-                  group={item.group}
-                />
-              ) : (
-                <InterviewRecordsGroup
-                  key="customer-interviews"
-                  completedCount={item.completedCount}
-                  recommendedCount={item.recommendedCount}
-                  requirementMet={item.requirementMet}
-                  confirmed={item.confirmed}
-                  submitted={item.submitted}
-                  sequenceIndex={item.sequenceIndex}
-                  locked={item.locked}
-                />
-              ),
-            )}
+            {items.map((item) => (
+              <ArtefactModuleGroup
+                key={`${item.group.moduleKey}:${item.group.sortIndex}`}
+                group={item.group}
+              />
+            ))}
           </div>
 
           {hasSavedWork ? (

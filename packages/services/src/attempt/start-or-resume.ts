@@ -18,14 +18,13 @@ import {
   mapAttemptRow,
   type AttemptRow,
 } from "@ai-catalyst/services/attempt/internal/rows";
-import {
-  MODULE_4_KEY,
-  getInterviewActivityForProgramRun,
-  pinInterviewEvidenceForModule4Attempt,
-} from "@ai-catalyst/services/interview";
-
 // Starts or resumes a Founder's Attempt at a Module — see startOrResumeAttempt
 // below for the full branch table.
+//
+// Module 4 used to be gated here on website-confirmed interview evidence,
+// and pinned that evidence onto the attempt. Interview material is now
+// uploaded as prep documents on any module's Work step, so no module
+// gets special treatment at start time.
 //
 // Lock ordering: program_run_modules before module_attempts, always — same
 // rule in save-response.ts and submit.ts.
@@ -304,20 +303,6 @@ export async function startOrResumeAttempt(
       );
     }
 
-    // Module 4 Claude work requires website Confirm evidence first.
-    if (runModule.module_key === MODULE_4_KEY) {
-      const activity = await getInterviewActivityForProgramRun(
-        actor,
-        runModule.program_run_id,
-      );
-      if (!activity || activity.evidenceStatus !== "confirmed") {
-        throw new ServiceError(
-          "EVIDENCE_NOT_CONFIRMED",
-          "Confirm interview evidence on the website before continuing in Claude.",
-        );
-      }
-    }
-
     if (runModule.active_attempt_id) {
       const activeResult = await client.query<AttemptRow>(
         `select ${ATTEMPT_COLUMNS} from module_attempts
@@ -344,9 +329,6 @@ export async function startOrResumeAttempt(
           );
         }
         await client.query("commit");
-        if (runModule.module_key === MODULE_4_KEY) {
-          await pinInterviewEvidenceForModule4Attempt(actor, active.id);
-        }
         return { attempt: mapAttemptRow(active), created: false };
       }
 
@@ -435,9 +417,6 @@ export async function startOrResumeAttempt(
     });
 
     await client.query("commit");
-    if (runModule.module_key === MODULE_4_KEY) {
-      await pinInterviewEvidenceForModule4Attempt(actor, newAttempt.id);
-    }
     return { attempt: mapAttemptRow(newAttempt), created: true };
   } catch (error) {
     await client.query("rollback");
