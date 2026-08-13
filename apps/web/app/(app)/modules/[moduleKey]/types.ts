@@ -35,6 +35,17 @@ export type ModuleArtifactView = {
   documentPreview: ReactNode;
 };
 
+/**
+ * One Founder-uploaded prep file on the Work step. Metadata only — the
+ * bytes are fetched on demand, and nothing server-side extracts their text.
+ */
+export type PrepDocumentView = {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number | null;
+};
+
 /** Why the module is read-only: locked behind prior module, or no run yet. */
 export type ModulePreviewReason = "locked" | "not-started" | null;
 
@@ -74,6 +85,8 @@ export type Module1RunProps = {
   coreQuestions: ModuleContextQuestion[];
   decisionQuestions: ModuleContextQuestion[];
   artifacts: ModuleArtifactView[];
+  /** Founder-uploaded material for this module's Work step. */
+  prepDocuments: PrepDocumentView[];
   hasAttempt: boolean;
   needsRetry: boolean;
   awaitingConfirmation: boolean;
