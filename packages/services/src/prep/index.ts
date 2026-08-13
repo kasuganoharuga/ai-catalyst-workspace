@@ -160,7 +160,10 @@ export async function uploadPrepDocument(
     ],
   );
 
-  return mapPrepRow({ ...result.rows[0], size_bytes: String(stored.sizeBytes) });
+  return mapPrepRow({
+    ...result.rows[0],
+    size_bytes: String(stored.sizeBytes),
+  });
 }
 
 /**
