@@ -4,27 +4,6 @@
   "description": "A structured founder workflow toolkit for moving from raw idea to validation-ready plan.",
   "modules": [
     {
-      "id": "module-00-setup",
-      "number": "00",
-      "slug": "setup",
-      "title": "Workspace Setup",
-      "objective": "Prepare the context, files, and assumptions the rest of the toolkit builds on.",
-      "founderInputs": [
-        "Founder background",
-        "Company or idea summary",
-        "Known constraints",
-        "Existing notes or artefacts"
-      ],
-      "outputs": [
-        "Workspace context brief",
-        "Input checklist",
-        "Module readiness map"
-      ],
-      "status": "draft",
-      "skillPath": "/skills/module-00-setup",
-      "modulePath": "modules/module-00-setup.md"
-    },
-    {
       "id": "module-01-pressure-test",
       "number": "01",
       "slug": "pressure-test",
@@ -94,69 +73,80 @@
       "modulePath": "modules/module-03-problem-statement.md"
     },
     {
-      "id": "module-04-evidence-of-unmet-need",
+      "id": "module-04-solution-statement",
       "number": "04",
-      "slug": "evidence-of-unmet-need",
-      "title": "Proof",
-      "objective": "Reconcile what the Founder believes against what they have actually observed, grade the evidence, and plan the next 30 days of validation.",
+      "slug": "solution-statement",
+      "title": "Solution statement, features & benefits",
+      "objective": "Turn locked beachhead, problem, and confirmed interview evidence into a North Star solution statement and three Minimum Loveable features.",
       "founderInputs": [
-        "Problem interview notes",
-        "Observed customer behaviour",
-        "Time, budget and access constraints"
+        "Module 2 beachhead / ICA",
+        "Module 3 problem statement and alternatives",
+        "Confirmed Interview-Evidence.md"
       ],
       "outputs": [
-        "Evidence inventory and maturity level",
-        "Behavioural evidence log",
-        "Falsifiability test",
-        "30-day validation roadmap"
+        "North Star solution statement",
+        "Feature Benefit Map (top 3 Minimum Loveable features)"
       ],
       "status": "draft",
-      "skillPath": "/skills/module-04-evidence-of-unmet-need",
-      "modulePath": "modules/module-04-evidence-of-unmet-need.md"
+      "skillPath": "/skills/module-04-solution-statement",
+      "modulePath": "modules/module-04-solution-statement.md"
     },
     {
-      "id": "module-05-solution-options",
+      "id": "module-05-epics-user-stories",
       "number": "05",
-      "slug": "solution-options",
-      "title": "Solution Options",
-      "objective": "Generate and compare solution paths without prematurely locking into one product direction.",
+      "slug": "epics-user-stories",
+      "title": "Epics & user stories",
+      "objective": "Turn Module 4 Minimum Loveable features into epics, INVEST user stories with acceptance criteria, and a scored MLP backlog.",
       "founderInputs": [
-        "Problem statement",
-        "Customer constraints",
-        "Existing alternatives",
-        "Founder capabilities"
+        "Module 2 beachhead / ICA",
+        "Module 4 North Star and Feature Benefit Map",
+        "Epic priority and story scores"
       ],
-      "outputs": [
-        "Solution option set",
-        "Trade-off comparison",
-        "Recommended first wedge",
-        "Risks by option"
-      ],
+      "outputs": ["Epic charter", "Scored sprint backlog with MLP line"],
       "status": "draft",
-      "skillPath": "/skills/module-05-solution-options",
-      "modulePath": "modules/module-05-solution-options.md"
+      "skillPath": "/skills/module-05-epics-user-stories",
+      "modulePath": "modules/module-05-epics-user-stories.md"
     },
     {
-      "id": "module-06-validation-plan",
+      "id": "module-06-competitive-analysis",
       "number": "06",
-      "slug": "validation-plan",
-      "title": "Validation Plan",
-      "objective": "Translate the chosen wedge into a focused validation plan with evidence goals and next actions.",
+      "slug": "competitive-analysis",
+      "title": "Competitive analysis & differentiation",
+      "objective": "Pressure-test the competitive landscape, feature comparison, moat, positioning, and why-now / why-us claims against live alternatives.",
       "founderInputs": [
-        "Preferred solution option",
-        "Top assumptions",
-        "Available channels",
-        "Time and budget constraints"
+        "Module 2 beachhead",
+        "Module 3 problem and alternatives",
+        "Module 4 North Star and Feature Benefit Map",
+        "Live competitor and adjacent-tool URLs"
       ],
       "outputs": [
-        "Validation plan",
-        "Experiment backlog",
-        "Evidence thresholds",
-        "Founder action plan"
+        "Competitive landscape (with comparison matrix and positioning map)",
+        "Defensible position (moat, why now, why us)"
       ],
       "status": "draft",
-      "skillPath": "/skills/module-06-validation-plan",
-      "modulePath": "modules/module-06-validation-plan.md"
+      "skillPath": "/skills/module-06-competitive-analysis",
+      "modulePath": "modules/module-06-competitive-analysis.md"
+    },
+    {
+      "id": "module-07-business-model",
+      "number": "07",
+      "slug": "business-model",
+      "title": "Business model & revenue architecture",
+      "objective": "Turn locked customer, solution, and competitive context into a path to first dollar, pricing, and a 90-day cash plan.",
+      "founderInputs": [
+        "Module 1 proceed conditions",
+        "Module 2 beachhead",
+        "Module 4 North Star and Feature Benefit Map",
+        "Module 3 / 6 alternatives and comparison context",
+        "Budget, weekly time, month-1 and month-6 goals"
+      ],
+      "outputs": [
+        "Business model memo (including 90-day cash flow)",
+        "Pricing strategy (with pressure-test)"
+      ],
+      "status": "draft",
+      "skillPath": "/skills/module-07-business-model",
+      "modulePath": "modules/module-07-business-model.md"
     }
   ]
 }

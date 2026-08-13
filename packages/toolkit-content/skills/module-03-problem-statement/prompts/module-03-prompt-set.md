@@ -1,9 +1,9 @@
 # Module 03 — Prompt Set
 
-**Status: for wording review.** Nothing here is seeded yet. Once the wording is approved, the
-question rows port to `MODULE_3_CONTENT.questions` in
-`packages/services/src/content-seed/content/module-3.ts`, and the two prompts port to
-`MODULE_3_PROMPTS_CONTENT` in `content/prompts.ts`.
+**Status: seeded.** Question rows live in `MODULE_3_CONTENT`
+(`packages/services/src/content-seed/content/module-3.ts`). Facilitator and artifact-generator
+prompts live in `content/prompts.ts` (`problem_statement_*`). This file is the reviewable mirror —
+keep it in sync when either side changes.
 
 Module 3 takes the surface complaint of the customer Module 2 locked in, drives it down to a
 structural root cause, and turns that into five interview questions the Founder can take to real
@@ -24,6 +24,10 @@ Module is confirmed.
 The module's shape is **state → excavate → restate → price → ask**. Module 2 asked wide and
 narrowed; Module 3 does the opposite. It takes one narrow statement and drills, because the skill it
 teaches is refusing the first answer.
+
+**Website prep before Work:** read any Founder-submitted notes/files at open; weave into probes when
+useful; **do not skip or reorder blocks**. Prep-only material is **assumed** until the Founder
+explicitly confirms it as evidence in this Module.
 
 ---
 
@@ -283,6 +287,29 @@ can take to real customers.
 - **This module prepares the interviews; it does not run them or read their results.** Do not ask
   what the interviews found, and do not record findings anywhere. A later module reviews them.
 
+## Founder-submitted prep materials
+
+Before Continue in Claude (the Work step), the Founder may have submitted notes, files, or other
+materials on the website for this Module.
+
+1. **Read them at open.** After `get_module_context`, check Module context / artifacts for any
+   Founder-submitted prep for this Attempt. Summarise briefly what you found (or say none). Do not
+   ask them to paste it again.
+2. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
+   required ask. Every conversation block still runs — including every Five Whys turn.
+3. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
+   answers ("You already noted X — is that still right?"). Prefer their words when they confirm.
+4. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
+   until the Founder explicitly confirms it as evidence in this Module (real observation under
+   OBSERVATION BASIS, or a higher `validation_status` they can defend). Confidence in prep notes is
+   not evidence. Do not upgrade prep into validated claims in the Problem Statement or Interview Guide.
+
+5. **Say so when you cannot read one.** Uploaded files are stored as-is and are not
+   converted for you. `get_prep_document` returns text formats inline; for a PDF, Word file or
+   image it returns `readable: false` and no content. When that happens, name the file, tell the
+   Founder plainly that you could not read it, and ask them to paste the part that matters. Never
+   infer a file's contents from its filename, and never treat an unread file as evidence.
+
 ## Inherited context
 
 Module 2 established who. Module 3 establishes what and why. **Never make the Founder re-answer
@@ -353,9 +380,11 @@ The Founder experiences **six conversation blocks**, not eight questions. For ev
 
    When nothing was cut and nothing crosses into another field, show the proposed answers alone. Do
    not manufacture four headings per field for a clean block.
-7. **Confirm once for the block.**
+7. **Confirm once for the block.** Do **not** ask for confirmation after each question or field
+   inside the block — only after the block has converged. They may correct any single field without
+   re-answering the whole block.
 8. Only after they confirm, call `save_founder_input` once per `question_key` in the block, in
-   sequence.
+   sequence. One confirmation authorises the whole batch.
 
 ## Running the Five Whys
 

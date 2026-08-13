@@ -104,14 +104,17 @@ describe("listModuleCatalog", () => {
   it("lists the real V1 catalog in sequence order, every Module live", async () => {
     const entries = await listModuleCatalog(founderActor());
 
-    // Modules 0-4 are all of V1; Modules 5/6 are in manifest.json but
-    // deliberately not seeded (see content/index.ts).
+    // The full 1-7 sequence, plus Setup at 0: Pressure-Test → ICA →
+    // Problem → Solution → Epics → Competitive → Business model.
     expect(entries.map((entry) => entry.moduleKey)).toEqual([
       "module-00-setup",
       "module-01-pressure-test",
       "module-02-customer-avatar",
       "module-03-problem-statement",
-      "module-04-evidence-of-unmet-need",
+      "module-04-solution-statement",
+      "module-05-epics-user-stories",
+      "module-06-competitive-analysis",
+      "module-07-business-model",
     ]);
     expect(entries.every((entry) => entry.catalogStatus === "live")).toBe(true);
 

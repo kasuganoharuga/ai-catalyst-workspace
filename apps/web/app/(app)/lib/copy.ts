@@ -691,14 +691,29 @@ export interface ModuleBriefCopy {
   /**
    * Something the founder must hand the assistant before the questions
    * start — the first row of the work step's progress list, so it reads as
-   * part of the same sequence as the rows it gates. Only Module 4 has one:
-   * its facilitator prompt refuses to open the evidence questions until the
-   * Module 3 interview notes have been saved to the workspace, and the
-   * founder should learn that here rather than from the assistant. The row
-   * is ticked by the saved Artifact, not by an answered Question — see
+   * part of the same sequence as the rows it gates. The row is ticked by
+   * the saved Artifact, not by an answered Question — see
    * `isWorkPrerequisiteMet`.
+   *
+   * No Module defines one today. Module 4 used to: its facilitator refused
+   * to open until website-confirmed interview evidence existed. Interview
+   * notes are now ordinary uploads on the Documents step, which gate
+   * nothing, so this and `PREREQUISITE_ARTIFACT_KEY` are both empty. Kept
+   * because a future Module may again take in something it does not
+   * produce.
    */
   workPrerequisite?: { label: string; pending: string; done: string };
+  /**
+   * What is actually worth uploading on the Documents step, for this
+   * Module specifically. Founders know they have "some notes somewhere"
+   * but not which of them this Module can use, so the generic prompt gets
+   * either nothing or a data dump. Each Module names concrete artefacts a
+   * founder plausibly already has.
+   *
+   * Falls back to `moduleRunCopy.documentsBody` and no examples.
+   */
+  documentsBody?: string;
+  documentsSuggestions?: string[];
   /**
    * What the founder has to go and do off-platform before the next Module
    * can work, shown on the confirm step once this one is signed off —
@@ -714,8 +729,6 @@ export interface ModuleBriefCopy {
   progressVerdictPending: string;
   confirmTitle: string;
   confirmBody: string;
-  documentsBody?: string;
-  documentsSuggestions?: string[];
   confirmNoFileTitle: string;
   confirmNoFileBody: string;
   /** Undefined for Modules 3-4 today — StrongAnswerCard renders nothing without one. */
@@ -757,7 +770,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       "Competitor or market research you have already collected",
       "Landing page or website copy, if any exists yet",
     ],
-
     questionsLabel: "Six pressure-test questions",
     progressVerdict: "Verdict saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -813,7 +825,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       "Personas or segment definitions you have written before",
       "Survey results, or anything showing who has been signing up",
     ],
-
     questionsLabel: "Eight customer-avatar blocks",
     progressVerdict: "Avatar saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -864,7 +875,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     ],
     completedNextStep: {
       title: "Next: talk to customers, then open Module 4",
-      body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then upload what you heard as documents on Module 4's Upload documents step before you continue in your AI assistant.",
+      body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
     },
     documentsBody:
       "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
@@ -874,7 +885,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       "A list of the tools, spreadsheets and workarounds they cope with",
       "Anything showing what it costs them — time, money, rework, churn",
     ],
-
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -897,30 +907,30 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     },
   },
 
-  "module-04-evidence-of-unmet-need": {
+  "module-04-solution-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant works from the customer interviews you recorded to identify patterns in the evidence, test your current assumptions, decide what needs to change, and turn what you learned into a 30-day validation plan. This module analyses real interview evidence — it does not require the evidence to support your original hypothesis.",
+      "Your AI assistant turns the customer and problem you already locked in into a North Star solution statement — one sentence precise enough to guide what gets built — and the three features worth building first, ranked by what your customer actually wants rather than what is interesting to build.",
     whyBody:
-      "A few encouraging comments can feel like validation, while contradictory evidence is easy to explain away. Separating what customers actually said from what you expected to hear helps you make the next decision based on evidence rather than momentum.",
-    whyBuildsOn: (_moduleIndex: string) =>
-      "Every action in your 30-day plan should trace back to what you learned from real conversations. Strong evidence may reinforce your direction; mixed or contradictory evidence may show you what needs another test.",
+      '"Faster", "easier" and "AI-powered" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.',
+    whyBuildsOn: (moduleIndex: string) =>
+      `Your beachhead customer and root-cause problem from Modules 2 and ${moduleIndex} are the inputs — you will not be asked to describe either again. The solution has to address that problem, for that customer.`,
     before: [
       {
-        lead: "Allow 30–45 minutes once your interviews are done.",
-        body: "This covers reviewing the notes you upload, analysing them with your AI assistant, and building your 30-day plan — not the time spent conducting the interviews themselves.",
+        lead: "Allow 40–45 minutes.",
+        body: "Three conversation blocks: what you are building and why it wins, the three Minimum Loveable features and their benefits, then ranking and honest assumption risks.",
       },
       {
         lead: "Upload your interview notes first.",
-        body: "Add whatever you already have — interview write-ups, research, notes — on this module's Upload documents step. Your assistant reads them at the start of the conversation.",
+        body: "Add whatever you already have — interview write-ups, research, notes — to the documents on this module. Your assistant reads them at the start of the conversation, and quotes only ever come from what you actually recorded.",
       },
       {
-        lead: "Expect the evidence to challenge your assumptions.",
-        body: "Supports, mixed, and contradicts are all useful outcomes — the goal is to understand what the interviews actually show.",
+        lead: "Expect your differentiator to be challenged.",
+        body: "Generic promises get pushed back at least once. Rejected versions stay visible in the saved document, so the reasoning is not lost.",
       },
       {
-        lead: "This module creates your next validation plan.",
-        body: "The 30-day Roadmap sets out the experiments and actions to carry out afterwards; it does not run them for you.",
+        lead: "Three features, not ten.",
+        body: "Your assistant proposes the three and you correct them — picking them yourself would be doing the prioritisation you came here for help with.",
       },
     ],
     documentsBody:
@@ -931,16 +941,150 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       "Notes on what makes your approach different from the alternatives",
       "Anything a customer sent you unprompted asking for something",
     ],
-
-    questionsLabel: "Four evidence questions",
-    progressVerdict: "Evidence and plan saved to your workspace",
+    questionsLabel: "Eight solution questions",
+    progressVerdict: "Solution documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
-    confirmTitle: "Confirm your evidence and validation documents",
+    confirmTitle: "Confirm your solution documents",
     confirmBody:
-      "Your Evidence of Unmet Need and 30-Day Validation Roadmap are saved. Confirming marks this module done.",
+      "Your North Star and Feature Benefit Map are saved. Confirming marks this module done.",
     confirmNoFileTitle: "No files yet",
     confirmNoFileBody:
-      "Your Module 4 documents haven't arrived yet. Return to your AI assistant and ask it to save Evidence of Unmet Need and 30-Day Validation Roadmap, then refresh this page.",
+      "Your Module 4 documents haven't arrived yet. Return to your AI assistant and ask it to save North Star and Feature Benefit Map, then refresh this page.",
+  },
+
+  "module-05-epics-user-stories": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant turns the three features you chose into a backlog a developer could pick up: three epics, user stories with acceptance criteria written as Given/When/Then, a scored priority order, and an explicit line under what makes the first release loveable rather than merely usable.",
+    whyBody:
+      "Most first backlogs are a list of things to build, written from the team's side. Stories written as customer outcomes survive contact with reality better, because you can tell when one is actually done and whether anyone cares.",
+    whyBuildsOn: (moduleIndex: string) =>
+      `The three Minimum Loveable features from Module ${moduleIndex} become one epic each. Nothing new gets invented here — this module makes what you already chose shippable.`,
+    before: [
+      {
+        lead: "Allow 45–50 minutes.",
+        body: "Three blocks: epics from your features, then stories and acceptance criteria, then scoring and the cut.",
+      },
+      {
+        lead: "You supply the scores, not your assistant.",
+        body: "Value, confidence and effort for each story are yours to give. Confidence should drop where Module 4 marked a feature assumed rather than validated.",
+      },
+      {
+        lead: "Engineering tasks get rewritten or cut.",
+        body: '"Set up the database" is not a user story. Anything that reads as a task gets turned back into a customer outcome, or it does not make the backlog.',
+      },
+      {
+        lead: "Effort is inverted on purpose.",
+        body: "5 means least effort, so the score sorts quick wins customers care about to the top.",
+      },
+    ],
+    documentsBody:
+      "Anything that constrains what can realistically ship first. Your assistant writes the stories; these stop it writing ones your team cannot build or has already built.",
+    documentsSuggestions: [
+      "An existing backlog, roadmap or feature list",
+      "Technical constraints or architecture notes the stories must respect",
+      "Notes on team size, sprint length or anything else limiting scope",
+      "Designs or flows already agreed, described in text",
+    ],
+    questionsLabel: "Six backlog questions",
+    progressVerdict: "Backlog documents saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Confirm your backlog documents",
+    confirmBody:
+      "Your Epic Charter and Sprint Backlog are saved. Confirming marks this module done.",
+    confirmNoFileTitle: "No files yet",
+    confirmNoFileBody:
+      "Your Module 5 documents haven't arrived yet. Return to your AI assistant and ask it to save Epic Charter and Sprint Backlog, then refresh this page.",
+  },
+
+  "module-06-competitive-analysis": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant takes the position of a Series A investor and tests whether you can actually win this market. You'll build a landscape from live competitor pages, compare on the criteria your customer uses, and defend a moat, a position, and why now and why you.",
+    whyBody:
+      '"We have no real competitors" is never true — the status quo is a competitor, and it usually wins. Knowing precisely who you are beating, and why they cannot copy you next quarter, is what makes the rest of the plan credible.',
+    whyBuildsOn: (moduleIndex: string) =>
+      `The solution and differentiator from Module ${moduleIndex} are the claim under test here. This module asks whether they hold up against what already exists.`,
+    before: [
+      {
+        lead: "Allow 50–55 minutes.",
+        body: "Four blocks: landscape, comparison matrix, moat and positioning, then why now and why you.",
+      },
+      {
+        lead: "Have competitor URLs ready to paste.",
+        body: "Your assistant reads the live pages rather than recalling them. If a link cannot be fetched it will say so rather than guess.",
+      },
+      {
+        lead: '"Better, faster, cheaper" will be rejected.',
+        body: "So will first-mover advantage. Expect to be pushed for something that is genuinely hard to copy within 18 months.",
+      },
+      {
+        lead: "Every claim is marked evidence or assumption.",
+        body: "Honest gaps are fine. Stating no traction plainly is stronger than implying some.",
+      },
+    ],
+    documentsBody:
+      "Whatever competitor research you have already gathered. You will still paste live URLs into the conversation — these are for the work you have done that a web page would not show.",
+    documentsSuggestions: [
+      "Competitor research, comparison notes or battlecards",
+      "Saved pricing or positioning pages, exported as PDF or text",
+      "Analyst reports, market maps or category write-ups",
+      "Notes on why a customer chose a competitor over you, or the reverse",
+    ],
+    questionsLabel: "Nine competitive questions",
+    progressVerdict: "Competitive documents saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Confirm your competitive documents",
+    confirmBody:
+      "Your Competitive Landscape and Defensible Position are saved. Confirming marks this module done.",
+    confirmNoFileTitle: "No files yet",
+    confirmNoFileBody:
+      "Your Module 6 documents haven't arrived yet. Return to your AI assistant and ask it to save Competitive Landscape and Defensible Position, then refresh this page.",
+  },
+
+  "module-07-business-model": {
+    briefTitle: "What this module is for",
+    briefBody:
+      "Your AI assistant turns everything you've locked in into a money path: the shortest route to a first paying customer, which revenue streams start when, the offer that earns a yes, what to spend on, a week-by-week 90-day cash flow, and exact prices with the reasoning behind each number.",
+    whyBody:
+      "Pricing decided by feel is the most expensive guess a founder makes, and a plan that never requires talking to anyone is the most comfortable way to avoid finding out. Every number here is tagged as benchmarked or assumption so you can see which is which.",
+    whyBuildsOn: (moduleIndex: string) =>
+      `Who pays, what they are buying, and what they pay for it today all come from the modules before ${moduleIndex}. This one asks how the money actually moves.`,
+    before: [
+      {
+        lead: "Allow 50–55 minutes.",
+        body: "Three blocks: your constraints and goals, the model and cash flow, then pricing and its pressure-test.",
+      },
+      {
+        lead: "Know your budget and your hours.",
+        body: "Starting budget before revenue, and hours per week you can actually give this. Vague goals get pushed until they are measurable.",
+      },
+      {
+        lead: "Exact prices, not 'premium'.",
+        body: "You will be asked why this number and not twenty percent either side, and what evidence would change it.",
+      },
+      {
+        lead: "Steps that need real conversations are marked.",
+        body: "A cash plan that never requires talking to a customer gets flagged as exactly that.",
+      },
+    ],
+    documentsBody:
+      "Anything with real numbers in it. Your assistant will not invent figures, so what you bring is the difference between a benchmarked model and one built entirely on assumptions.",
+    documentsSuggestions: [
+      "A financial model, budget or runway calculation — export spreadsheets as CSV",
+      "Current or planned pricing, and how you arrived at it",
+      "Cost estimates: tools, contractors, ads, anything already being paid for",
+      "Competitor pricing you have collected, or quotes customers have given you",
+    ],
+    questionsLabel: "Eight business-model questions",
+    progressVerdict: "Business model documents saved to your workspace",
+    progressVerdictPending: "Nothing saved yet.",
+    confirmTitle: "Confirm your business model documents",
+    confirmBody:
+      "Your Business Model and Pricing Strategy are saved. Confirming marks this module done.",
+    confirmNoFileTitle: "No files yet",
+    confirmNoFileBody:
+      "Your Module 7 documents haven't arrived yet. Return to your AI assistant and ask it to save Business Model and Pricing Strategy, then refresh this page.",
   },
 };
 

@@ -11,7 +11,7 @@ export const MODULE_0_KEY = "module-00-setup";
 export const MODULE_1_KEY = "module-01-pressure-test";
 export const MODULE_2_KEY = "module-02-customer-avatar";
 export const MODULE_3_KEY = "module-03-problem-statement";
-export const MODULE_4_KEY = "module-04-evidence-of-unmet-need";
+export const MODULE_4_KEY = "module-04-solution-statement";
 
 // Module 1 decision-stage keys — shown as "Your decision", not counted with the six questions.
 // Includes legacy v1 keys so older program versions still render.
@@ -100,10 +100,14 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
     validation_status: "How much of this is evidence, not assumption",
   },
   [MODULE_4_KEY]: {
-    evidence_outcome: "Whether the interviews support the hypothesis",
-    evidence_analysis: "What the interviews actually returned",
-    evidence_decision: "What should change next",
-    validation_constraints: "The time, money and access you have",
+    product_definition: "What you are building, and for whom",
+    differentiator: "The structural reason this wins",
+    north_star_statement: "The solution in one sentence",
+    feature_brain_dump: "Every feature on the table",
+    most_valuable_features: "The three worth building first",
+    feature_benefits: "What each one does for them",
+    desirability_order: "The order they would want them",
+    assumption_risks: "What is validated, and what is assumed",
   },
 };
 
@@ -170,7 +174,8 @@ export function isWorkPrerequisiteMet(
 
 /**
  * Required Claude/output artifacts for Confirm — excludes inbound
- * prerequisites (e.g. Module 4 interview_evidence).
+ * prerequisites. None exist today (see PREREQUISITE_ARTIFACT_KEY), but the
+ * exclusion stays so a future inbound artefact does not silently gate sign-off.
  */
 export function requiredOutputArtifactsSaved(
   moduleKey: string,
