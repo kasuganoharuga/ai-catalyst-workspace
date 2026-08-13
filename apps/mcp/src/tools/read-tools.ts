@@ -10,6 +10,7 @@ import {
 } from "@ai-catalyst/services/workflow";
 import { getModuleContext } from "@ai-catalyst/services/module/context";
 import { getArtifactSubmission } from "@ai-catalyst/services/artifact";
+import { readPrepDocument } from "@ai-catalyst/services/prep";
 
 import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
@@ -20,6 +21,19 @@ const ARTIFACT_KEY_SHAPE = {
   attemptId: z.string().min(1),
   artifactKey: z.string().min(1),
 };
+const PREP_DOCUMENT_SHAPE = { prepDocumentId: z.string().min(1) };
+
+// Text-ish uploads are returned inline as UTF-8. Anything else (PDF,
+// Word, images) is returned as metadata plus an explicit
+// `readable: false`, because this server does not extract text and
+// guessing at a binary's contents would be worse than saying so.
+const INLINE_TEXT_CONTENT_TYPES = new Set([
+  "text/markdown",
+  "text/plain",
+  "text/csv",
+  "text/rtf",
+  "application/rtf",
+]);
 
 export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
   mcp.registerTool(
@@ -185,6 +199,60 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
                 artifactKey: args.artifactKey,
                 found: result !== null,
                 versionNumber: result?.submission.versionNumber ?? null,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
+    "get_prep_document",
+    {
+      title: "Get prep document",
+      description:
+        "Reads one Founder-uploaded prep document listed in get_module_context's prepDocuments. Text formats (Markdown, plain text, CSV, RTF) are returned inline as `content`. Binary formats (PDF, Word, images) are NOT converted — they come back with `readable: false` and no content, because this server does not extract text. When a document is not readable, say so plainly and ask the Founder to paste the relevant part; never infer what a file contains from its filename.",
+      inputSchema: PREP_DOCUMENT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "get_prep_document",
+          actor,
+          requestMetadata: { prepDocumentId: args.prepDocumentId },
+        },
+        async () => {
+          const { document, content } = await readPrepDocument(
+            actor,
+            args.prepDocumentId,
+          );
+          const readable = INLINE_TEXT_CONTENT_TYPES.has(document.contentType);
+
+          return {
+            response: jsonToolResponse({
+              id: document.id,
+              filename: document.filename,
+              contentType: document.contentType,
+              sizeBytes: document.sizeBytes,
+              readable,
+              content: readable ? content.toString("utf8") : null,
+              note: readable
+                ? document.note
+                : `This server does not extract text from ${document.contentType}. ` +
+                  "Tell the Founder you cannot read this file and ask them to paste the part that matters.",
+            }),
+            audit: {
+              workspaceId: null,
+              programRunId: null,
+              programRunBranchId: null,
+              programRunModuleId: document.programRunModuleId,
+              moduleAttemptId: null,
+              resultMetadata: {
+                filename: document.filename,
+                contentType: document.contentType,
+                readable,
               },
             },
           };

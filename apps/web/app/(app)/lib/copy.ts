@@ -563,11 +563,19 @@ export const module0Copy = {
 
 export const moduleRunCopy = {
   stepBrief: "What this is",
+  stepDocuments: "Upload documents",
   stepWork: "Work through it",
   stepConfirm: "Confirm and unlock",
 
   whyHeading: "Why it matters",
   beforeHeading: "Before you begin",
+
+  documentsTitle: "Give your assistant what you've already got",
+  // Fallback only — every live Module overrides this with something
+  // specific to what it actually asks for. The "optional" reassurance
+  // lives in the suggestions panel, so it is not repeated here.
+  documentsBody:
+    "Anything already written down that bears on this module. Your assistant reads it at the start of the conversation, so you will not need to paste it in.",
 
   workTitle: "Work through it in your AI assistant",
   workBody:
@@ -706,6 +714,8 @@ export interface ModuleBriefCopy {
   progressVerdictPending: string;
   confirmTitle: string;
   confirmBody: string;
+  documentsBody?: string;
+  documentsSuggestions?: string[];
   confirmNoFileTitle: string;
   confirmNoFileBody: string;
   /** Undefined for Modules 3-4 today — StrongAnswerCard renders nothing without one. */
@@ -739,6 +749,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Anything without a real conversation behind it is recorded as an assumption, not evidence.",
       },
     ],
+    documentsBody:
+      "Anything you have already written down about the idea. Your assistant reads it before the first question, so it can challenge what you actually think rather than starting from a blank page.",
+    documentsSuggestions: [
+      "A pitch deck, one-pager or business plan draft — a rough one is fine",
+      "Notes where you have written the idea out for yourself or someone else",
+      "Competitor or market research you have already collected",
+      "Landing page or website copy, if any exists yet",
+    ],
+
     questionsLabel: "Six pressure-test questions",
     progressVerdict: "Verdict saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -786,6 +805,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
       },
     ],
+    documentsBody:
+      "Anything that shows who has actually been showing interest. Real names and real behaviour narrow a customer faster than describing them from memory.",
+    documentsSuggestions: [
+      "Notes from conversations with potential customers",
+      "A waitlist, customer list or CRM export",
+      "Personas or segment definitions you have written before",
+      "Survey results, or anything showing who has been signing up",
+    ],
+
     questionsLabel: "Eight customer-avatar blocks",
     progressVerdict: "Avatar saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -838,6 +866,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       title: "Next: talk to customers, then open Module 4",
       body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
     },
+    documentsBody:
+      "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
+    documentsSuggestions: [
+      "Support tickets, complaints or messages where the problem shows up",
+      "Notes from conversations about what they struggle with today",
+      "A list of the tools, spreadsheets and workarounds they cope with",
+      "Anything showing what it costs them — time, money, rework, churn",
+    ],
+
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -886,6 +923,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "The 30-day Roadmap sets out the experiments and actions to carry out afterwards; it does not run them for you.",
       },
     ],
+    documentsBody:
+      "Your interview notes matter most here. They are the only source your assistant will quote customers from, and the only thing that lets a feature be called validated rather than assumed.",
+    documentsSuggestions: [
+      "Your interview write-ups from the conversations Module 3 prepared",
+      "A feature list, backlog or product spec, however rough",
+      "Notes on what makes your approach different from the alternatives",
+      "Anything a customer sent you unprompted asking for something",
+    ],
+
     questionsLabel: "Four evidence questions",
     progressVerdict: "Evidence and plan saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

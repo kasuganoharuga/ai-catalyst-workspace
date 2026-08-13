@@ -84,6 +84,7 @@ function context(
       workbookFormat: null,
     })),
     prompts: [],
+    prepDocuments: [],
   };
 }
 

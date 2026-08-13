@@ -8,6 +8,7 @@ import type {
   ModuleAttemptStatus,
   ModuleContext,
   ModuleContextArtifactSummary,
+  ModuleContextPrepDocument,
   ModuleContextPrompt,
   ModuleContextQuestion,
   ModuleResponseStatus,
@@ -369,6 +370,7 @@ function assembleModuleContext(
   responsesByAttemptId: Map<string, Map<string, ResponseLookupRow>>,
   artifactsByModuleDefinitionId: Map<string, ArtifactRow[]>,
   promptsByModuleDefinitionId: Map<string, ModuleContextPrompt[]>,
+  prepDocumentsByRunModuleId: Map<string, ModuleContextPrepDocument[]>,
 ): ModuleContext {
   let activeAttempt: ModuleAttempt | null = null;
   if (runModule.activeAttemptId) {
@@ -491,7 +493,56 @@ function assembleModuleContext(
     artifacts,
     prompts:
       promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
+    prepDocuments: prepDocumentsByRunModuleId.get(runModule.id) ?? [],
   };
+}
+
+/**
+ * Founder-uploaded prep files per run module, live rows only.
+ *
+ * Metadata only, deliberately. The bytes are never inlined into Module
+ * context: a 20 MB PDF would swamp the payload, and the reader fetches
+ * exactly the files it decides to open via get_prep_document.
+ */
+async function loadPrepDocumentsByRunModuleIds(
+  runModuleIds: string[],
+): Promise<Map<string, ModuleContextPrepDocument[]>> {
+  const byRunModuleId = new Map<string, ModuleContextPrepDocument[]>();
+  if (runModuleIds.length === 0) {
+    return byRunModuleId;
+  }
+
+  const result = await pool.query<{
+    id: string;
+    program_run_module_id: string;
+    original_filename: string;
+    content_type: string;
+    size_bytes: string | null;
+    created_at: Date;
+  }>(
+    `select d.id, d.program_run_module_id, d.original_filename,
+            d.content_type, s.size_bytes, d.created_at
+     from module_prep_documents d
+     join storage_objects s on s.id = d.storage_object_id
+     where d.program_run_module_id = any($1::uuid[])
+       and d.withdrawn_at is null
+     order by d.created_at asc`,
+    [runModuleIds],
+  );
+
+  for (const row of result.rows) {
+    const list = byRunModuleId.get(row.program_run_module_id) ?? [];
+    list.push({
+      id: row.id,
+      filename: row.original_filename,
+      contentType: row.content_type,
+      sizeBytes: row.size_bytes === null ? null : Number(row.size_bytes),
+      uploadedAt: row.created_at.toISOString(),
+    });
+    byRunModuleId.set(row.program_run_module_id, list);
+  }
+
+  return byRunModuleId;
 }
 
 async function buildModuleContextsFromRunModules(
@@ -581,10 +632,13 @@ async function buildModuleContextsFromRunModules(
     return activeId;
   });
 
-  const artifactsByModuleDefinitionId = await loadArtifactsByModuleAttempts(
-    moduleDefinitionIds,
-    artifactAttemptIds,
-  );
+  const [artifactsByModuleDefinitionId, prepDocumentsByRunModuleId] =
+    await Promise.all([
+      loadArtifactsByModuleAttempts(moduleDefinitionIds, artifactAttemptIds),
+      // Keyed by run module, not by attempt: prep is uploaded on the Work
+      // step before any attempt exists, and stays visible across retries.
+      loadPrepDocumentsByRunModuleIds(runModuleIds),
+    ]);
 
   return runModules.map((runModule, index) =>
     assembleModuleContext(
@@ -595,6 +649,7 @@ async function buildModuleContextsFromRunModules(
       responsesByAttemptId,
       artifactsByModuleDefinitionId,
       promptsByModuleDefinitionId,
+      prepDocumentsByRunModuleId,
     ),
   );
 }

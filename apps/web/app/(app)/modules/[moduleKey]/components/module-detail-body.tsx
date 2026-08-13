@@ -16,8 +16,10 @@ import {
   moduleAccentStyle,
 } from "../../../lib/module-display";
 import { StatusPill } from "../../components/status-pill";
+import { listPrepDocuments } from "@ai-catalyst/services/prep";
+
 import { loadModuleDetail } from "../lib/load-module-detail";
-import type { ModuleArtifactView } from "../types";
+import type { ModuleArtifactView, PrepDocumentView } from "../types";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
 import { Module4EvidencePanel } from "./module4/module4-evidence-panel";
@@ -74,6 +76,18 @@ export async function ModuleDetailBody({
       <MarkdownDocument content={artifact.content} />
     ) : null,
   }));
+
+  // Founder-uploaded prep for this module's Work step. Only meaningful
+  // once a run module exists to attach it to — before that there is
+  // nothing to upload against.
+  const prepDocuments: PrepDocumentView[] = runModule
+    ? (await listPrepDocuments(actor, runModule.id)).map((document) => ({
+        id: document.id,
+        filename: document.filename,
+        contentType: document.contentType,
+        sizeBytes: document.sizeBytes,
+      }))
+    : [];
 
   const isModule4 = moduleKey === MODULE_4_KEY;
 
@@ -273,6 +287,7 @@ export async function ModuleDetailBody({
                 coreQuestions={coreQuestions}
                 decisionQuestions={decisionQuestions}
                 artifacts={artifactViews}
+                prepDocuments={prepDocuments}
                 hasAttempt={activeAttempt !== null}
                 needsRetry={needsRetry}
                 awaitingConfirmation={awaitingConfirmation}
@@ -293,6 +308,7 @@ export async function ModuleDetailBody({
                 coreQuestions={coreQuestions}
                 decisionQuestions={decisionQuestions}
                 artifacts={artifactViews}
+                prepDocuments={prepDocuments}
                 hasAttempt={activeAttempt !== null}
                 needsRetry={needsRetry}
                 awaitingConfirmation={awaitingConfirmation}
@@ -320,6 +336,7 @@ export async function ModuleDetailBody({
             coreQuestions={[]}
             decisionQuestions={[]}
             artifacts={artifactViews}
+            prepDocuments={prepDocuments}
             hasAttempt={false}
             needsRetry={false}
             awaitingConfirmation={false}

@@ -115,6 +115,7 @@ const EXPECTED_TOOL_NAMES = [
   "get_module_status",
   "get_module_context",
   "get_artifact",
+  "get_prep_document",
   "start_module_attempt",
   "save_founder_input",
   "save_artifact",

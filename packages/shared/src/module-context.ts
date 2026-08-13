@@ -61,4 +61,21 @@ export interface ModuleContext {
   questions: ModuleContextQuestion[];
   artifacts: ModuleContextArtifactSummary[];
   prompts: ModuleContextPrompt[];
+  // Files the Founder uploaded on this Module's Work step, to be read at
+  // the start of the conversation. Metadata only — fetch the bytes with
+  // get_prep_document.
+  prepDocuments: ModuleContextPrepDocument[];
+}
+
+/**
+ * One Founder-uploaded prep file. Nothing server-side extracts its text,
+ * so the reader must fetch and parse it — and say plainly when it cannot,
+ * rather than guessing at the contents from the filename.
+ */
+export interface ModuleContextPrepDocument {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number | null;
+  uploadedAt: string;
 }

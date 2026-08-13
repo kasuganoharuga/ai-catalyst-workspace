@@ -52,6 +52,7 @@ export type {
   ModuleContext,
   ModuleContextQuestion,
   ModuleContextArtifactSummary,
+  ModuleContextPrepDocument,
   ModuleContextPrompt,
 } from "./module-context.js";
 export type {
