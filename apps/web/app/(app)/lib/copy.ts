@@ -753,20 +753,12 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Anything without a real conversation behind it is recorded as an assumption, not evidence.",
       },
     ],
-    documentsBody:
-      "Anything you have already written down about the idea. Your assistant reads it before the first question, so it can challenge what you actually think rather than starting from a blank page.",
-    documentsSuggestions: [
-      "A pitch deck, one-pager or business plan draft — a rough one is fine",
-      "Notes where you have written the idea out for yourself or someone else",
-      "Competitor or market research you have already collected",
-      "Landing page or website copy, if any exists yet",
-    ],
     questionsLabel: "Six pressure-test questions",
     progressVerdict: "Verdict saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
     confirmTitle: "Read it over, then confirm",
     confirmBody:
-      "Your verdict is saved and nothing is missing from it. Confirming marks this module done. Proceed, pivot and kill all complete it, and the next module opens either way.",
+      "Your verdict is saved and nothing is missing from it. Confirming marks this module done and opens the next one.",
     confirmNoFileTitle: "No file yet",
     confirmNoFileBody:
       "We haven't found a verdict in your workspace yet. Once it's saved, you sign it off here.",
