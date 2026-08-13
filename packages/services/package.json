@@ -19,6 +19,7 @@
     "./module/catalog": "./src/module/catalog.ts",
     "./module/context": "./src/module/context.ts",
     "./module/completion": "./src/module/completion.ts",
+    "./module/reset": "./src/module/reset.ts",
     "./module/auto-setup": "./src/module/auto-setup.ts",
     "./module/internal/setup-summary": "./src/module/internal/setup-summary.ts",
     "./module/internal/template-outline": "./src/module/internal/template-outline.ts",

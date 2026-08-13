@@ -21,8 +21,14 @@ import { loadModuleDetail } from "../lib/load-module-detail";
 import type { ModuleArtifactView, PrepDocumentView } from "../types";
 import { Module0Setup } from "./module0-setup";
 import { Module1Run } from "./module1-run";
+import { ResetModuleButton } from "./reset-module-button";
 import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
+
+// Computed here, not inside ResetModuleButton: gating in the Server
+// Component means the button (and its client bundle) never ships to a
+// production build at all, rather than existing but hidden.
+const CAN_RESET_MODULES = process.env.NODE_ENV !== "production";
 
 type ModuleDetailBodyProps = {
   moduleKey: string;
@@ -107,18 +113,26 @@ export async function ModuleDetailBody({
             {entry.title}
           </h1>
         </div>
-        {runModule ? (
-          <StatusBadge
-            status={deriveModuleDisplayStatus(
-              runModule.status,
-              activeAttempt?.status ?? null,
-              displayAttempt?.status ?? null,
-            )}
-            moduleIndex={entry.sequenceIndex}
-          />
-        ) : (
-          <StatusPill status={entry.catalogStatus} />
-        )}
+        <div className="flex items-center gap-3">
+          {runModule ? (
+            <StatusBadge
+              status={deriveModuleDisplayStatus(
+                runModule.status,
+                activeAttempt?.status ?? null,
+                displayAttempt?.status ?? null,
+              )}
+              moduleIndex={entry.sequenceIndex}
+            />
+          ) : (
+            <StatusPill status={entry.catalogStatus} />
+          )}
+          {CAN_RESET_MODULES && runModule ? (
+            <ResetModuleButton
+              programRunModuleId={runModule.id}
+              moduleTitle={entry.title}
+            />
+          ) : null}
+        </div>
       </div>
 
       {entry.subtitle ? (

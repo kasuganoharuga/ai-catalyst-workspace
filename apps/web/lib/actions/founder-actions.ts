@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { autoCompleteSetupModule } from "@ai-catalyst/services/module/auto-setup";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
+import { resetModuleProgress } from "@ai-catalyst/services/module/reset";
 import { updateMyCompanyProfile } from "@ai-catalyst/services/company-profile";
 import {
   hasChangedInvitationPassword,
@@ -206,6 +207,34 @@ export async function confirmModuleCompletionAction(
   try {
     const actor = await requireFounderActor();
     await confirmModuleCompletion(actor, { programRunModuleId });
+    revalidateFounderAppShell();
+    return { ok: true };
+  } catch (error) {
+    return toActionResult(error);
+  }
+}
+
+/**
+ * Dev-only testing convenience: wipes this Module's attempts, confirmed
+ * Responses, artefacts and prep material — and every Module after it in
+ * the same Run, since their availability depended on this one having
+ * been completed — back to never-started. `resetModuleProgress` itself
+ * also refuses outside development; this check is the first line of
+ * defence so the button's existence never depends on remembering the
+ * second one.
+ */
+export async function resetModuleProgressAction(
+  programRunModuleId: string,
+): Promise<ActionResult> {
+  if (process.env.NODE_ENV === "production") {
+    return {
+      ok: false,
+      message: "Resetting a module is a development-only tool.",
+    };
+  }
+  try {
+    const actor = await requireFounderActor();
+    await resetModuleProgress(actor, programRunModuleId);
     revalidateFounderAppShell();
     return { ok: true };
   } catch (error) {
