@@ -74,15 +74,6 @@ Ten repeat customers within the first quarter.
 
 Interview ten fabrication shop owners about hiring urgency this month.
 
-## Founder's Decision
-
-### Decision
-Proceed
-
-### Pivot detail, if applicable
-
-N/A
-
 ## Working Notes / Unresolved Assumptions
 
 - None
@@ -109,8 +100,6 @@ const VALID_RESPONSES: ValidationContextResponse[] = [
     "competitors_alternatives",
     "Generic job boards, word of mouth.",
   ),
-  buildResponse("founder_decision", "proceed"),
-  buildResponse("pivot_detail", null, "not_applicable"),
 ];
 
 function buildContext(
@@ -143,37 +132,10 @@ describe("pressure_test_verdict_v2", () => {
     expect(result.checks.every((check) => check.passed)).toBe(true);
   });
 
-  it("allows AI Recommendation to differ from Founder Decision", () => {
+  it("passes ai_recommendation with a Pivot recommendation", () => {
     expect(VALID_CONTENT).toContain("**Recommendation:** Pivot");
-    expect(
-      VALID_RESPONSES.find((r) => r.questionKey === "founder_decision")
-        ?.answerText,
-    ).toBe("proceed");
     const result = pressureTestVerdictV2.runOfficialCheck(buildContext());
     expect(findCheck(result, "ai_recommendation").passed).toBe(true);
-    expect(findCheck(result, "founder_decision_present").passed).toBe(true);
-  });
-
-  it("fails founder_decision_present when founder_decision is unanswered", () => {
-    const responses = VALID_RESPONSES.filter(
-      (response) => response.questionKey !== "founder_decision",
-    );
-    const result = pressureTestVerdictV2.runOfficialCheck(
-      buildContext({ responses }),
-    );
-    expect(findCheck(result, "founder_decision_present").passed).toBe(false);
-  });
-
-  it("fails pivot_detail_when_pivot when founder_decision is pivot without detail", () => {
-    const responses = VALID_RESPONSES.map((response) =>
-      response.questionKey === "founder_decision"
-        ? buildResponse("founder_decision", "pivot")
-        : response,
-    );
-    const result = pressureTestVerdictV2.runOfficialCheck(
-      buildContext({ responses }),
-    );
-    expect(findCheck(result, "pivot_detail_when_pivot").passed).toBe(false);
   });
 
   it("fails required_markdown_sections when AI Recommendation heading is missing", () => {

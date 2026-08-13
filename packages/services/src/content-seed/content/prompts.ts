@@ -53,15 +53,11 @@ After all six answers are collected, present this exact shape (no freeform):
 
 Only after the Founder confirms that summary, call \`save_founder_input\` once for each of the six core answers (batch of six sequential saves). That **one** summary confirmation is the sole authorization to persist the six responses. They may correct any single answer without re-answering all six.
 
-## Verdict and decision block
+## Verdict
 
-- After the six saves succeed, deliver a **draft** verdict analysis in chat (AI Recommendation through Recommended Next Step) using the Artifact Generator prompt and the locked template headings. Do not call this the final artefact yet — Founder's Decision is still missing.
-- Ask \`founder_decision\` (Proceed / Pivot / Kill). If Pivot, ask \`pivot_detail\`.
-- Show the proposed decision (and pivot detail when present) and take **one confirmation for this decision block** — do not save after the first choice and again after pivot detail as two separate confirm cycles.
-- Only after that confirmation, save the decision Response(s) with \`save_founder_input\`.
-- Show the **final** verdict (draft analysis + Founder's Decision filled) — this must exactly match the Markdown you then \`save_artifact\`.
+- After the six saves succeed, deliver the **final** verdict analysis in chat (AI Recommendation through Recommended Next Step) using the Artifact Generator prompt and the locked template headings.
+- Show the verdict — this must exactly match the Markdown you then \`save_artifact\`.
 - Call \`complete_module\`. Completing and unlocking the next module is a Founder action on the website; you cannot unlock modules.
-- AI Recommendation (in the artefact) and Founder Decision (structured Response) may differ — that is expected. The Founder decides; you advise.
 
 ## Boundaries
 
@@ -74,30 +70,28 @@ Only after the Founder confirms that summary, call \`save_founder_input\` once f
 
 const ARTIFACT_GENERATOR_CONTENT = `# Pressure-Test Artifact Generator
 
-Generate the Pressure-Test Verdict from the Founder's six confirmed core Responses and their Founder Decision.
+Generate the Pressure-Test Verdict from the Founder's six confirmed core Responses.
 
 ## Inputs
 
-- Read the six confirmed core Responses (\`idea_one_sentence\` through \`competitors_alternatives\`) and decision Responses (\`founder_decision\`, \`pivot_detail\` when applicable) from the Module context. Do not invent answers the Founder has not confirmed.
+- Read the six confirmed core Responses (\`idea_one_sentence\` through \`competitors_alternatives\`) from the Module context. Do not invent answers the Founder has not confirmed.
 - Use the Artifact Definition's \`output_config.templateMarkdown\` as the locked structure. Do not rename headings.
 
 ## Delivery order
 
-1. After the six core Responses are saved, deliver a **draft** analysis in chat covering AI Recommendation through Recommended Next Step (leave Founder's Decision blank or omit until answered).
-2. After the Founder Decision Responses are saved, show the **final** full document in chat — including Founder's Decision — then \`save_artifact\` with that exact Markdown.
-3. The final chat verdict must exactly match the saved artefact. Do not save a draft artefact missing Founder's Decision and overwrite later.
+1. After the six core Responses are saved, deliver the **final** full document in chat covering AI Recommendation through Recommended Next Step, then \`save_artifact\` with that exact Markdown.
+2. The chat verdict must exactly match the saved artefact.
 
 ## Locked sections to fill
 
 - **Venture** — Venture name only (from context). Do not invent Run/Branch/Attempt IDs or completion timestamps.
 - **Confirmed Q&A** — mirror the six confirmed answers faithfully.
-- **AI Recommendation** — Proceed / Pivot / Kill under **Recommendation:** and **Reason:** (your advisory recommendation; may differ from the Founder's choice). Write it exactly as the template shows it — \`**Recommendation:** Proceed\` (or Pivot / Kill) — never just the bare word on its own line; the validator matches on that label.
+- **AI Recommendation** — Proceed / Pivot / Kill under **Recommendation:** and **Reason:** (your advisory recommendation — this is the module's sole directional conclusion). Write it exactly as the template shows it — \`**Recommendation:** Proceed\` (or Pivot / Kill) — never just the bare word on its own line; the validator matches on that label.
 - **Five Failure Reasons** — exactly five specific reasons, each tied to a concrete assumption, dependency, or market risk.
 - **Competitors / Alternatives** — at least three named items; **Evidence note:** labelling unsupported claims as general knowledge.
 - **Success Conditions** — actionable and testable.
 - **Investor Decision** — Yes / No under **Decision:** and **Single biggest reason:**
 - **Recommended Next Step** — one concrete next validation action.
-- **Founder's Decision** — mirror \`founder_decision\` and \`pivot_detail\` when applicable.
 - **Working Notes / Unresolved Assumptions** — list unresolved assumptions; use "None" only if truly none.
 
 ## Boundaries
@@ -2915,7 +2909,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     promptKey: "pressure_test_facilitator",
     name: "Pressure-Test Facilitator",
     description:
-      "Interview-style guide for Module 1: collect-only Q1–Q6 with no per-question confirm, one summary confirm + batch save, then verdict and one decision-block confirm.",
+      "Interview-style guide for Module 1: collect-only Q1–Q6 with no per-question confirm, one summary confirm + batch save, then the final verdict.",
     promptType: "module_facilitator",
     versionNumber: 1,
     content: FACILITATOR_CONTENT,
@@ -2926,7 +2920,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     promptKey: "pressure_test_artifact_generator",
     name: "Pressure-Test Artifact Generator",
     description:
-      "Generates the locked-schema Pressure-Test Verdict (draft then final) from confirmed Responses.",
+      "Generates the locked-schema Pressure-Test Verdict from confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
     content: ARTIFACT_GENERATOR_CONTENT,

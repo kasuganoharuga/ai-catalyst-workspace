@@ -141,8 +141,6 @@ describe("seedToolkitContent", () => {
       "business_model",
       "current_stage",
       "competitors_alternatives",
-      "founder_decision",
-      "pivot_detail",
     ]);
 
     const module1Bindings = await pool.query(
@@ -535,29 +533,6 @@ describe("seedToolkitContent", () => {
     expect(first.programVersionStatus).toBe("published");
     expect(second.programVersionStatus).toBe("published");
     expect(first.programVersionId).toBe(second.programVersionId);
-  });
-
-  it("models pivot_detail as conditionally required, not just allow_skip", async () => {
-    const result = await withTransaction((client) =>
-      seedToolkitContent(client, TEST_CONTENT),
-    );
-    const modules = await fetchModuleRows(result.programVersionId);
-    const module1 = modules.find(
-      (row) => row.module_key === "module-01-pressure-test",
-    )!;
-
-    const row = await pool.query(
-      "select is_required, allow_skip, conditions from module_questions where module_definition_id = $1 and question_key = 'pivot_detail'",
-      [module1.id],
-    );
-
-    expect(row.rows[0].is_required).toBe(false);
-    expect(row.rows[0].allow_skip).toBe(true);
-    expect(row.rows[0].conditions).toEqual({
-      depends_on: "founder_decision",
-      operator: "equals",
-      value: "pivot",
-    });
   });
 
   it("keeps exactly 8 active Modules and no drafts, with no sequence_index conflicts", async () => {

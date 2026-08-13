@@ -55,13 +55,6 @@ const PRESSURE_TEST_VERDICT_TEMPLATE = `# Pressure-Test Verdict
 
 ## Recommended Next Step
 
-## Founder's Decision
-
-### Decision
-Proceed / Pivot / Kill
-
-### Pivot detail, if applicable
-
 ## Working Notes / Unresolved Assumptions
 
 - None
@@ -72,12 +65,6 @@ const CURRENT_STAGE_OPTIONS = [
   { value: "prototype", label: "Prototype" },
   { value: "early_users", label: "Early users" },
   { value: "paying_customers", label: "Paying customers" },
-];
-
-const DECISION_OPTIONS = [
-  { value: "proceed", label: "Proceed" },
-  { value: "pivot", label: "Pivot" },
-  { value: "kill", label: "Kill" },
 ];
 
 const CORE_QUESTIONS: QuestionContent[] = [
@@ -164,49 +151,15 @@ const CORE_QUESTIONS: QuestionContent[] = [
   },
 ];
 
-// AI Recommendation lives only in the Verdict artefact (not a question).
-// Founder Decision is the sole structured decision Response; pivot_detail
-// is required only when founder_decision = pivot.
-const DECISION_QUESTIONS: QuestionContent[] = [
-  {
-    questionKey: "founder_decision",
-    sequenceIndex: 7,
-    questionGroup: "founder_decision",
-    questionText:
-      "Your decision after reviewing the verdict: Proceed, Pivot, or Kill?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "single_choice",
-    isRequired: true,
-    allowSkip: false,
-    options: DECISION_OPTIONS,
-    conditions: {},
-  },
-  {
-    questionKey: "pivot_detail",
-    sequenceIndex: 8,
-    questionGroup: "founder_decision",
-    questionText: "If pivoting, what exactly changes?",
-    helpText: "Only required when the Founder decision is Pivot.",
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: false,
-    allowSkip: true,
-    options: [],
-    conditions: {
-      depends_on: "founder_decision",
-      operator: "equals",
-      value: "pivot",
-    },
-  },
-];
-
+// AI Recommendation lives only in the Verdict artefact (not a question) and
+// is the sole directional conclusion — there is no separate Founder decision
+// Response.
 const PRESSURE_TEST_VERDICT_ARTIFACT: ArtifactContent = {
   artifactKey: "pressure_test_verdict",
   sequenceIndex: 1,
   name: "Pressure-Test Verdict",
   description:
-    "Locked-schema verdict: AI Recommendation, five failure reasons, competitors/alternatives, success conditions, investor decision, recommended next step, plus the Founder's Proceed/Pivot/Kill decision.",
+    "Locked-schema verdict: AI Recommendation, five failure reasons, competitors/alternatives, success conditions, investor decision, and recommended next step.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -281,13 +234,8 @@ const PRESSURE_TEST_VERDICT_ARTIFACT: ArtifactContent = {
           "success_conditions",
           "investor_decision_section",
           "recommended_next_step",
-          "founders_decision",
         ],
       },
-    ],
-    submissionRules: [
-      { key: "founder_decision_present" },
-      { key: "pivot_detail_when_pivot" },
     ],
   },
 };
@@ -299,7 +247,7 @@ export const MODULE_1_CONTENT: ModuleContent = {
   subtitle:
     "Test whether the current idea is clear and credible enough to continue",
   description:
-    "Six confirmed structured answers (batch-saved after summary confirm), a locked-schema Pressure-Test Verdict with AI Recommendation, and a Founder Proceed/Pivot/Kill decision. Completeness unlocks the next module regardless of the decision.",
+    "Six confirmed structured answers (batch-saved after summary confirm) and a locked-schema Pressure-Test Verdict with AI Recommendation, failure reasons, success conditions, and a recommended next step.",
   objective:
     "Help the Founder test whether the current idea is clear and credible enough to continue.",
   moduleType: "standard",
@@ -308,6 +256,6 @@ export const MODULE_1_CONTENT: ModuleContent = {
   completionMode: "artifact_and_confirmation",
   estimatedMinutes: 30,
   isPublishable: true,
-  questions: [...CORE_QUESTIONS, ...DECISION_QUESTIONS],
+  questions: CORE_QUESTIONS,
   artifacts: [PRESSURE_TEST_VERDICT_ARTIFACT],
 };

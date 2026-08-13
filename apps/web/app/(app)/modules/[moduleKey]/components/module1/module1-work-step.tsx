@@ -25,7 +25,6 @@ export function Module1WorkStep({
   provider,
   startPrompt,
   coreQuestions,
-  decisionQuestions,
   artifacts,
   awaitingConfirmation,
   isCompleted,
@@ -47,9 +46,6 @@ export function Module1WorkStep({
   // while every other Module gets one short-labelled row per Question.
   const displayGroups = buildQuestionDisplayGroups(moduleKey, coreQuestions);
   const answered = displayGroups.filter((group) => group.done).length;
-  const decisionAnswered = decisionQuestions.filter(
-    (q) => q.responseStatus !== null,
-  ).length;
   const prerequisiteMet = isWorkPrerequisiteMet(moduleKey, artifacts);
   // The prerequisite Artifact already has its own row above these — it is
   // what the founder brings in, not what the Module produces, and listing
@@ -212,20 +208,6 @@ export function Module1WorkStep({
           </div>
         ) : null}
 
-        {/* Only Module 1 has a Founder decision to record — a Module with
-            no decisionQuestions at all (2-4 today) never shows this row,
-            rather than announcing "Comes after the verdict." forever. */}
-        {decisionQuestions.length > 0 ? (
-          <CheckLine
-            ok={decisionAnswered > 0}
-            label={copy.progressDecision}
-            detail={
-              decisionAnswered > 0
-                ? copy.progressDecisionDone
-                : copy.progressDecisionPending
-            }
-          />
-        ) : null}
         {/* One CheckLine per Artifact this Module produces. A Module with
             exactly one (Module 0 and 1 today) keeps the original
             single-document copy; a Module with more than one (Modules 3 and

@@ -111,9 +111,9 @@ function founderActor(userId: string): ActorContext {
 const MODULE_1_KEY = "module-01-pressure-test";
 const VERDICT_ARTIFACT_KEY = "pressure_test_verdict";
 
-// Answers to Module 1's six core questions, plus the decision. Written out
-// rather than left as filler because the confirm step renders them back and
-// lorem ipsum tells you nothing about whether the layout holds.
+// Answers to Module 1's six core questions. Written out rather than left as
+// filler because the confirm step renders them back and lorem ipsum tells
+// you nothing about whether the layout holds.
 const VERDICT_RESPONSES: { questionKey: string; answerText: string }[] = [
   {
     questionKey: "idea_one_sentence",
@@ -141,7 +141,6 @@ const VERDICT_RESPONSES: { questionKey: string; answerText: string }[] = [
     answerText:
       "Airtable templates, Affinity (priced for funds not founders), and the default: a Google Sheet plus memory.",
   },
-  { questionKey: "founder_decision", answerText: "proceed" },
 ];
 
 // Fills PRESSURE_TEST_VERDICT_TEMPLATE properly: the v2 validator checks
@@ -208,14 +207,6 @@ Ten ANZ founders currently raising pay $49/month within four weeks of a cold out
 ## Recommended Next Step
 
 Interview twelve founders mid-raise this fortnight, ask what they currently use, and take a $49 pre-payment from three of them before writing more code.
-
-## Founder's Decision
-
-### Decision
-Proceed
-
-### Pivot detail, if applicable
-Not applicable.
 
 ## Working Notes / Unresolved Assumptions
 

@@ -598,13 +598,6 @@ export const moduleRunCopy = {
   questionsCount: (answered: number, total: number) =>
     `${answered} / ${total} answered`,
 
-  // Only Module 1 has a Founder decision to record alongside its document —
-  // Phase 3 makes this row conditional on decisionQuestions existing at all
-  // rather than showing "Comes after the verdict." forever on Modules with
-  // no decision concept. Left as-is here; this pass only splits the copy.
-  progressDecision: "Proceed, pivot or kill recorded",
-  progressDecisionDone: "Your decision is saved.",
-  progressDecisionPending: "Comes after the verdict.",
   progressChecks: "Everything required is included.",
   progressChecksDone: "Read it over whenever you're ready.",
   progressChecksPending: "Happens automatically once your documents are saved.",
@@ -637,14 +630,12 @@ export const moduleRunCopy = {
   // "fillable" for every one of them.
   documentDownloadWorkbook: "Download PDF",
   documentDownloadSource: "Download Markdown",
-  documentDecisionLabel: "Your decision",
   documentNotSaved: "Not saved yet.",
   // A supporting document the Module accepts but never blocks completion
   // on (Module 4's interview notes). Without this, an unsaved optional
   // document reads exactly like a missing required one.
   documentNotSavedOptional:
     "Not saved yet — sign-off doesn't wait on this one.",
-  backToIdeas: "Back to your ideas",
   documentExpand: "Show the rest",
   documentCollapse: "Show less",
   documentOpenFull: "Open full page",
@@ -739,7 +730,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-01-pressure-test": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant plays a veteran investor and challenges your idea. You'll cover where it breaks, who you're really competing with, and what would have to be true for it to work. You finish with a decision you can defend: proceed, pivot or kill.",
+      "The goal of this module is to pressure-test your initial idea. The output is supporting analysis — success conditions, potential failure reasons, recommended next steps, and unresolved assumptions — to help you hone the idea.",
     whyBody:
       "Most ideas fail because nobody asked the hard questions early enough. By the time the market answers them, a year and a lot of money are gone. This is the cheap version of that conversation.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -1107,46 +1098,11 @@ export function resolveModuleCopy(moduleKey: string) {
 // file split it out of a single `module1Copy`.
 export const module1Copy = resolveModuleCopy("module-01-pressure-test");
 
-// Proceed, pivot and kill all complete Module 1 — wording differs by what happens next.
-export type FounderDecision = "proceed" | "pivot" | "kill";
-
-export function module1CompletedTitle(decision: FounderDecision): string {
-  if (decision === "kill") return "Signed off. This idea is parked.";
-  if (decision === "pivot") return "Signed off. Revised direction recorded.";
-  return "Signed off. The next module is open.";
-}
-
-export function module1CompletedBody(
-  decision: FounderDecision,
-  nextModuleTitle: string | null,
-): string {
-  if (decision === "kill") {
-    return nextModuleTitle
-      ? `You chose kill. This module is complete. Return to your venture, start a new one, or continue to ${nextModuleTitle} if you still want to explore.`
-      : "You chose kill. This module is complete. Return to your venture, or start a new one.";
-  }
-  if (decision === "pivot") {
-    return nextModuleTitle
-      ? `You chose pivot. ${nextModuleTitle} is open if you want to continue with the revised framing. You can also re-run this module first.`
-      : "You chose pivot. Re-run this module for a fresh pressure-test on the revised idea.";
-  }
-  return nextModuleTitle
-    ? `You confirmed this, which opened ${nextModuleTitle}. Your verdict stays in your workspace.`
-    : "You confirmed this. Your verdict stays in your workspace.";
-}
-
-export function module1ConfirmCta(decision: FounderDecision): string {
-  if (decision === "kill") return "Confirm completion";
-  if (decision === "pivot") return "Confirm and continue";
-  return "Confirm and open the next module";
-}
-
-// ── Completing a Module with no Founder decision (Modules 2-4 today) ───
+// ── Completing a Module ─────────────────────────────────────────────────
 //
-// module1CompletedTitle/Body/ConfirmCta above assume a proceed/pivot/kill
-// decision — meaningful only for Module 1. Every other standard Module has
-// no decision to record, so these three read purely off whether a next
-// Module is actually open, and never claim one exists when Module 4 (the
+// Every standard Module (including Module 1, now that it has no Founder
+// decision to record) reads its completion copy purely off whether a next
+// Module is actually open, and never claims one exists when Module 4 (the
 // last currently open Module) is confirmed.
 
 export function moduleCompletedTitle(nextModuleTitle: string | null): string {

@@ -59,7 +59,6 @@ export async function ModuleDetailBody({
     setupPending,
     venture,
     coreQuestions,
-    decisionQuestions,
     startPrompt,
     artifacts,
   } = detail;
@@ -282,7 +281,6 @@ export async function ModuleDetailBody({
               claudeProjectId={venture?.claudeProjectId ?? null}
               connected={Boolean(connection?.authorised)}
               coreQuestions={coreQuestions}
-              decisionQuestions={decisionQuestions}
               artifacts={artifactViews}
               prepDocuments={prepDocuments}
               hasAttempt={activeAttempt !== null}
@@ -309,7 +307,6 @@ export async function ModuleDetailBody({
             claudeProjectId={null}
             connected={Boolean(connection?.authorised)}
             coreQuestions={[]}
-            decisionQuestions={[]}
             artifacts={artifactViews}
             prepDocuments={prepDocuments}
             hasAttempt={false}

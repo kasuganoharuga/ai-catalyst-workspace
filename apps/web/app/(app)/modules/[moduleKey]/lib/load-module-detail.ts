@@ -19,7 +19,6 @@ import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { ventureForActiveContext } from "@/lib/ventures";
 
 import {
-  DECISION_QUESTION_KEYS,
   needsModuleRetry,
   requiredOutputArtifactsSaved,
   startModulePrompt,
@@ -54,7 +53,6 @@ export type ModuleDetailModel = {
   setupPending: boolean;
   venture: Venture | null;
   coreQuestions: ModuleContextQuestion[];
-  decisionQuestions: ModuleContextQuestion[];
   startPrompt: string;
   /** One entry per artifact this module produces, in sequence order. */
   artifacts: ModuleArtifactDetail[];
@@ -224,14 +222,7 @@ export async function loadModuleDetail(
     ? await ventureForActiveContext(actor, activeContext)
     : null;
 
-  const coreQuestions =
-    context?.questions.filter(
-      (q) => !DECISION_QUESTION_KEYS.has(q.questionKey),
-    ) ?? [];
-  const decisionQuestions =
-    context?.questions.filter((q) =>
-      DECISION_QUESTION_KEYS.has(q.questionKey),
-    ) ?? [];
+  const coreQuestions = context?.questions ?? [];
 
   return {
     isLive,
@@ -251,7 +242,6 @@ export async function loadModuleDetail(
     setupPending,
     venture,
     coreQuestions,
-    decisionQuestions,
     startPrompt: startModulePrompt(
       `Module ${entry.sequenceIndex} · ${entry.title}`,
     ),

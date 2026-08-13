@@ -83,7 +83,6 @@ export type Module1RunProps = {
   claudeProjectId: string | null;
   connected: boolean;
   coreQuestions: ModuleContextQuestion[];
-  decisionQuestions: ModuleContextQuestion[];
   artifacts: ModuleArtifactView[];
   /** Founder-uploaded material for this module's Work step. */
   prepDocuments: PrepDocumentView[];

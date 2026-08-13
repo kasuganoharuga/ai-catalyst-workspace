@@ -122,7 +122,6 @@ const VERDICT_RESPONSES: { questionKey: string; answerText: string }[] = [
     answerText:
       "Manual email and spreadsheet admin, ad-hoc ChatGPT or Claude use, Zapier or Make for more advanced teams, hiring more admin staff, or just not automating.",
   },
-  { questionKey: "founder_decision", answerText: "proceed" },
 ];
 
 const VERDICT_MARKDOWN = `# Pressure-Test Verdict
@@ -185,14 +184,6 @@ Ten accounting firms in the beachhead segment adopt FlowPilot AI within onboardi
 ## Recommended Next Step
 
 Narrow the beachhead to one specific firm size and toolset combination, then run five more structured interviews against exactly that profile.
-
-## Founder's Decision
-
-### Decision
-Proceed
-
-### Pivot detail, if applicable
-Not applicable.
 
 ## Working Notes / Unresolved Assumptions
 

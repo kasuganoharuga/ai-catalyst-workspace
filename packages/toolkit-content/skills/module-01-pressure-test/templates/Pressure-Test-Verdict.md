@@ -49,13 +49,6 @@
 
 ## Recommended Next Step
 
-## Founder's Decision
-
-### Decision
-Proceed / Pivot / Kill
-
-### Pivot detail, if applicable
-
 ## Working Notes / Unresolved Assumptions
 
 - None

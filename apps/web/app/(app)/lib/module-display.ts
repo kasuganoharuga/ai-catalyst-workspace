@@ -13,15 +13,6 @@ export const MODULE_2_KEY = "module-02-customer-avatar";
 export const MODULE_3_KEY = "module-03-problem-statement";
 export const MODULE_4_KEY = "module-04-solution-statement";
 
-// Module 1 decision-stage keys — shown as "Your decision", not counted with the six questions.
-// Includes legacy v1 keys so older program versions still render.
-export const DECISION_QUESTION_KEYS = new Set([
-  "founder_decision",
-  "pivot_detail",
-  "initial_decision",
-  "final_decision",
-]);
-
 // Module 2 progress uses eight founder-facing conversation blocks (see
 // module-02-prompt-set.md §1–2), not `questionGroup` — that field maps
 // artefact sections and mis-orders the work-step list when blocks save

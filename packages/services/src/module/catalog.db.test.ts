@@ -158,7 +158,6 @@ describe("listModuleCatalog", () => {
       "Success Conditions",
       "Investor Decision",
       "Recommended Next Step",
-      "Founder's Decision",
       "Working Notes / Unresolved Assumptions",
     ]);
   });

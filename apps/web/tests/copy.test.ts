@@ -7,9 +7,6 @@ import {
   lifecycleStageLabel,
   MODULE_BRIEF_COPY,
   module0Copy,
-  module1CompletedBody,
-  module1CompletedTitle,
-  module1ConfirmCta,
   moduleCompletedBody,
   moduleCompletedTitle,
   moduleConfirmCta,
@@ -21,10 +18,7 @@ import {
   retryCopy,
   ventureStatusLabel,
   workspaceCopy,
-  type FounderDecision,
 } from "@/app/(app)/lib/copy";
-
-const DECISIONS: FounderDecision[] = ["proceed", "pivot", "kill"];
 
 // Every standard Module in the seeded 1-7 sequence. resolveModuleCopy
 // falls back to Module 1's table for an unknown key, so a Module missing
@@ -77,39 +71,7 @@ describe("resolveModuleCopy", () => {
   });
 });
 
-describe("module 1 completion copy", () => {
-  it("gives every decision its own title and call to action", () => {
-    const titles = DECISIONS.map(module1CompletedTitle);
-    const ctas = DECISIONS.map(module1ConfirmCta);
-
-    expect(new Set(titles).size).toBe(DECISIONS.length);
-    expect(new Set(ctas).size).toBe(DECISIONS.length);
-  });
-
-  // Kill and pivot complete the module just as proceed does. Copy that
-  // reads as a failure would make the founder who picked the harder,
-  // more honest answer feel they got it wrong.
-  it("names the next module when there is one, for every decision", () => {
-    for (const decision of DECISIONS) {
-      const body = module1CompletedBody(decision, "Module 2 · Target Customer");
-      expect(body, decision).toContain("Module 2 · Target Customer");
-    }
-  });
-
-  it("does not dangle a reference to a next module when there isn't one", () => {
-    for (const decision of DECISIONS) {
-      const body = module1CompletedBody(decision, null);
-      expect(body, decision).not.toContain("undefined");
-      expect(body, decision).not.toContain("null");
-      expect(body.trim().endsWith("."), decision).toBe(true);
-    }
-  });
-});
-
-// A Module with no Founder decision (2-4 today) never uses
-// module1CompletedTitle/Body/ConfirmCta — these are its decision-free
-// equivalents, and must never claim a next module exists when there isn't one.
-describe("completion copy for Modules with no Founder decision", () => {
+describe("module completion copy", () => {
   it("never dangles a next-module reference when there isn't one", () => {
     expect(moduleCompletedTitle(null)).not.toMatch(/next module/i);
     expect(moduleCompletedBody(null)).not.toContain("undefined");

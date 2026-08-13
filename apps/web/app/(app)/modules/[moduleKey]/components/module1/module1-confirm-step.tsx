@@ -7,13 +7,9 @@ import { Button } from "@/components/ui/button";
 import { StartModuleAttemptButton } from "../../../../components/start-module-attempt-button";
 import {
   resolveModuleCopy,
-  module1CompletedBody,
-  module1CompletedTitle,
-  module1ConfirmCta,
   moduleCompletedBody,
   moduleCompletedTitle,
   moduleConfirmCta,
-  type FounderDecision,
 } from "../../../../lib/copy";
 import { formatSavedAt } from "../../lib/format-saved-at";
 import { useConfirmModuleCompletion } from "../../hooks/use-confirm-module-completion";
@@ -95,7 +91,6 @@ export function Module1ConfirmStep({
   moduleKey,
   programRunModuleId,
   artifacts,
-  decisionQuestions,
   needsRetry,
   awaitingConfirmation,
   isCompleted,
@@ -124,15 +119,6 @@ export function Module1ConfirmStep({
   const anySaved = confirmArtifacts.some(
     (artifact) => artifact.versionNumber !== null,
   );
-  const founderDecision =
-    decisionQuestions.find((q) => q.questionKey === "founder_decision")
-      ?.answerText ??
-    decisionQuestions.find((q) => q.questionKey === "final_decision")
-      ?.answerText ??
-    null;
-  const decisionLabel = founderDecision
-    ? founderDecision.charAt(0).toUpperCase() + founderDecision.slice(1)
-    : null;
   // Drive Step 4 copy from saved outputs × attempt gate — not independent
   // guesses. awaitingConfirmation === ready_for_review on the live path.
   const showNoFileHeading = !isCompleted && !awaitingConfirmation && !anySaved;
@@ -141,24 +127,9 @@ export function Module1ConfirmStep({
   const showDocumentsReadyHeading = !isCompleted && awaitingConfirmation;
   const canUseActions = !isPreview;
 
-  // Only Module 1 has a Founder decision (decisionQuestions is empty for
-  // every other standard Module) — everything else reads off whether a
-  // next Module actually exists, so Module 4 (the last one currently open)
-  // never claims one does.
-  const hasDecision = decisionQuestions.length > 0;
-  const decision: FounderDecision =
-    founderDecision === "kill" || founderDecision === "pivot"
-      ? founderDecision
-      : "proceed";
-  const completedTitle = hasDecision
-    ? module1CompletedTitle(decision)
-    : moduleCompletedTitle(nextModuleTitle);
-  const completedBody = hasDecision
-    ? module1CompletedBody(decision, nextModuleTitle)
-    : moduleCompletedBody(nextModuleTitle);
-  const confirmCta = hasDecision
-    ? module1ConfirmCta(decision)
-    : moduleConfirmCta(nextModuleTitle);
+  const completedTitle = moduleCompletedTitle(nextModuleTitle);
+  const completedBody = moduleCompletedBody(nextModuleTitle);
+  const confirmCta = moduleConfirmCta(nextModuleTitle);
 
   return (
     <>
@@ -203,26 +174,15 @@ export function Module1ConfirmStep({
       )}
 
       {/* One card per Artifact: saved shows the document, unsaved shows what
-          it will contain. A single Artifact (Modules 0 and 1) keeps its
-          card and the decision line in one bordered group exactly as
-          before; more than one (Modules 3 and 4) stacks each Artifact's own
-          card in sequence order, with the decision line (if any) once at
-          the end. */}
+          it will contain. A single Artifact (Modules 0 and 1) keeps its own
+          card; more than one (Modules 3 and 4) stacks each Artifact's own
+          card in sequence order. */}
       {confirmArtifacts.length === 1 ? (
         <div className="mt-6 space-y-4">
           <ArtifactStatusBlock
             moduleKey={moduleKey}
             artifact={confirmArtifacts[0]}
           />
-          {decisionLabel && anySaved ? (
-            <dl className="overflow-hidden rounded-lg border border-border px-4 py-2 text-sm">
-              <CheckLine
-                ok
-                label={copy.documentDecisionLabel}
-                detail={decisionLabel}
-              />
-            </dl>
-          ) : null}
         </div>
       ) : (
         <div className="mt-6 space-y-6">
@@ -233,15 +193,6 @@ export function Module1ConfirmStep({
               artifact={artifact}
             />
           ))}
-          {decisionLabel && anySaved ? (
-            <dl className="overflow-hidden rounded-lg border border-border px-4 py-2 text-sm">
-              <CheckLine
-                ok
-                label={copy.documentDecisionLabel}
-                detail={decisionLabel}
-              />
-            </dl>
-          ) : null}
         </div>
       )}
 
@@ -264,38 +215,11 @@ export function Module1ConfirmStep({
 
       {isCompleted ? (
         <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          {founderDecision === "kill" ? (
-            <>
-              {/* "Venture" is the database's word, not the founder's. */}
-              <Button asChild size="lg" className="text-white" style={accent}>
-                <Link href="/workspace">{copy.backToIdeas}</Link>
-              </Button>
-              {nextModuleTitle ? (
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/modules">See your modules</Link>
-                </Button>
-              ) : null}
-            </>
-          ) : founderDecision === "pivot" ? (
-            <>
-              {/* Confirm already unlocked the next module and navigated away —
-                  returning here is review-only, so no second Continue CTA. */}
-              <Button asChild size="lg" variant="outline">
-                <Link href="/modules">See your modules</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href={`/modules/module-01-pressure-test`}>
-                  Redo Module 1
-                </Link>
-              </Button>
-            </>
-          ) : (
-            // Same as Module 0: once completed, do not offer another
-            // "Continue to X" that can be clicked again on revisit.
-            <Button asChild size="lg" variant="outline">
-              <Link href="/modules">See your modules</Link>
-            </Button>
-          )}
+          {/* Same as Module 0: once completed, do not offer another
+              "Continue to X" that can be clicked again on revisit. */}
+          <Button asChild size="lg" variant="outline">
+            <Link href="/modules">See your modules</Link>
+          </Button>
         </div>
       ) : canUseActions && awaitingConfirmation ? (
         <div className="mt-6">

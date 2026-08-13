@@ -54,11 +54,6 @@ const SECTION_LOOKUPS: Record<string, SectionLookup> = {
     level: 2,
     heading: "Recommended Next Step",
   },
-  founders_decision: {
-    kind: "heading",
-    level: 2,
-    heading: "Founder's Decision",
-  },
   single_biggest_reason: { kind: "label", label: "Single biggest reason" },
   evidence_note: { kind: "label", label: "Evidence note" },
   ai_recommendation_reason: { kind: "label", label: "Reason" },
@@ -124,13 +119,6 @@ function asRuleArray(value: unknown): RawRule[] {
       item !== null &&
       typeof (item as RawRule).key === "string",
   );
-}
-
-function getResponse(
-  ctx: ValidationContext,
-  questionKey: string,
-): ValidationContextResponse | undefined {
-  return ctx.responses.find((response) => response.questionKey === questionKey);
 }
 
 function isAnswered(response: ValidationContextResponse | undefined): boolean {
@@ -261,39 +249,12 @@ function runDraftRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
   }
 }
 
-function runSubmissionRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
-  switch (rule.key) {
-    case "founder_decision_present": {
-      const passed = isAnswered(getResponse(ctx, "founder_decision"));
-      return {
-        key: rule.key,
-        passed,
-        message: passed ? undefined : "founder_decision has not been answered.",
-      };
-    }
-    case "pivot_detail_when_pivot": {
-      const founderDecision = getResponse(ctx, "founder_decision");
-      if (
-        (founderDecision?.answerText ?? "").trim().toLowerCase() !== "pivot"
-      ) {
-        return { key: rule.key, passed: true };
-      }
-      const passed = isAnswered(getResponse(ctx, "pivot_detail"));
-      return {
-        key: rule.key,
-        passed,
-        message: passed
-          ? undefined
-          : "founder_decision is pivot, but pivot_detail has not been answered.",
-      };
-    }
-    default:
-      return {
-        key: rule.key,
-        passed: false,
-        message: `Unknown submission rule "${rule.key}".`,
-      };
-  }
+function runSubmissionRule(rule: RawRule): RuleCheck {
+  return {
+    key: rule.key,
+    passed: false,
+    message: `Unknown submission rule "${rule.key}".`,
+  };
 }
 
 function combineResults(checks: RuleCheck[]): ValidationRunResult {
@@ -325,7 +286,7 @@ function runOfficialCheck(ctx: ValidationContext): ValidationRunResult {
     runDraftRule(rule, ctx),
   );
   const submissionChecks = asRuleArray(config.submissionRules).map((rule) =>
-    runSubmissionRule(rule, ctx),
+    runSubmissionRule(rule),
   );
   return combineResults([...draftChecks, ...submissionChecks]);
 }
