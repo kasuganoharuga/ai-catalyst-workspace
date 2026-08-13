@@ -579,9 +579,7 @@ export async function uploadFile(
 }
 
 /** Small alias so the upload path reads without repeating resolveProvider. */
-function provider(
-  deps: StorageServiceDependencies,
-): Promise<StorageProvider> {
+function provider(deps: StorageServiceDependencies): Promise<StorageProvider> {
   return resolveProvider(deps);
 }
 

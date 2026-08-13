@@ -124,8 +124,8 @@ export function Module1DocumentsStep(props: Module1RunProps) {
             ))}
           </ul>
           <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Nothing to hand over is fine — this step is optional, and you
-            can come back to it.
+            Nothing to hand over is fine — this step is optional, and you can
+            come back to it.
           </p>
         </div>
       ) : null}
@@ -199,8 +199,8 @@ export function Module1DocumentsStep(props: Module1RunProps) {
           <DialogHeader>
             <DialogTitle>Add documents</DialogTitle>
             <DialogDescription>
-              Drag files in, or browse for them. They are stored exactly as
-              you send them — nothing is rewritten or summarised.
+              Drag files in, or browse for them. They are stored exactly as you
+              send them — nothing is rewritten or summarised.
             </DialogDescription>
           </DialogHeader>
 
@@ -274,7 +274,10 @@ export function Module1DocumentsStep(props: Module1RunProps) {
 
           {pending ? (
             <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 aria-hidden="true" className="h-3.5 w-3.5 animate-spin" />
+              <Loader2
+                aria-hidden="true"
+                className="h-3.5 w-3.5 animate-spin"
+              />
               Uploading…
             </p>
           ) : null}
