@@ -90,8 +90,10 @@ describe("seedToolkitContent", () => {
 
     expect(result.published).toBe(true);
     expect(result.programVersionStatus).toBe("published");
-    expect(result.modulesReconciled).toBe(5);
-    expect(result.promptsReconciled).toBe(8);
+    expect(result.modulesReconciled).toBe(8);
+    // Two prompts (facilitator + artifact generator) for each of Modules
+    // 1-7; Module 0's setup flow has none of its own.
+    expect(result.promptsReconciled).toBe(14);
 
     const modules = await fetchModuleRows(result.programVersionId);
     expect(modules.map((row) => row.module_key)).toEqual([
@@ -99,9 +101,12 @@ describe("seedToolkitContent", () => {
       "module-01-pressure-test",
       "module-02-customer-avatar",
       "module-03-problem-statement",
-      "module-04-evidence-of-unmet-need",
+      "module-04-solution-statement",
+      "module-05-epics-user-stories",
+      "module-06-competitive-analysis",
+      "module-07-business-model",
     ]);
-    expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "active")).toHaveLength(8);
     expect(modules.filter((row) => row.status === "draft")).toHaveLength(0);
 
     const module0 = modules.find(
@@ -273,38 +278,37 @@ describe("seedToolkitContent", () => {
     ]);
   });
 
-  it("loads Module 4 (Proof) content with the right question and artifact contracts", async () => {
+  it("loads Module 4 (Solution) content with the right question and artifact contracts", async () => {
     const result = await withTransaction((client) =>
       seedToolkitContent(client, TEST_CONTENT),
     );
     const modules = await fetchModuleRows(result.programVersionId);
     const module4 = modules.find(
-      (row) => row.module_key === "module-04-evidence-of-unmet-need",
+      (row) => row.module_key === "module-04-solution-statement",
     )!;
 
     const questions = await pool.query<{
       question_key: string;
       response_type: string;
-      options: unknown;
     }>(
-      "select question_key, response_type, options from module_questions where module_definition_id = $1 order by sequence_index",
+      "select question_key, response_type from module_questions where module_definition_id = $1 order by sequence_index",
       [module4.id],
     );
+    // Eight fields across three conversation blocks — see the prompt set's
+    // field-ownership table.
     expect(questions.rows.map((row) => row.question_key)).toEqual([
-      "evidence_outcome",
-      "evidence_analysis",
-      "evidence_decision",
-      "validation_constraints",
+      "product_definition",
+      "differentiator",
+      "north_star_statement",
+      "feature_brain_dump",
+      "most_valuable_features",
+      "feature_benefits",
+      "desirability_order",
+      "assumption_risks",
     ]);
-    const evidenceOutcome = questions.rows.find(
-      (row) => row.question_key === "evidence_outcome",
-    )!;
-    expect(evidenceOutcome.response_type).toBe("single_choice");
-    expect(evidenceOutcome.options).toEqual([
-      { value: "supports", label: "Supports hypothesis" },
-      { value: "mixed", label: "Mixed evidence" },
-      { value: "contradicts", label: "Contradicts hypothesis" },
-    ]);
+    expect(
+      questions.rows.every((row) => row.response_type === "long_text"),
+    ).toBe(true);
 
     const artifacts = await pool.query<{
       artifact_key: string;
@@ -316,26 +320,22 @@ describe("seedToolkitContent", () => {
       "select artifact_key, required_filename, validator_key, renderer_key, is_required from artifact_definitions where module_definition_id = $1 order by sequence_index",
       [module4.id],
     );
+    // Two artifacts, and no interview_evidence: interview material now
+    // arrives as Founder-uploaded prep documents on the Work step, not as
+    // a website-confirmed artifact.
     expect(artifacts.rows).toEqual([
       {
-        artifact_key: "interview_evidence",
-        required_filename: "Interview-Evidence.md",
+        artifact_key: "north_star",
+        required_filename: "North-Star.md",
         validator_key: null,
         renderer_key: null,
-        is_required: false,
-      },
-      {
-        artifact_key: "evidence_of_unmet_need",
-        required_filename: "Evidence-Of-Unmet-Need.md",
-        validator_key: "structured_markdown_v1",
-        renderer_key: "evidence_of_unmet_need_html_v1",
         is_required: true,
       },
       {
-        artifact_key: "validation_roadmap_30_day",
-        required_filename: "Validation-Roadmap-30-Day.md",
-        validator_key: "structured_markdown_v1",
-        renderer_key: "validation_roadmap_html_v1",
+        artifact_key: "feature_benefit_map",
+        required_filename: "Feature-Benefit-Map.md",
+        validator_key: null,
+        renderer_key: null,
         is_required: true,
       },
     ]);
@@ -370,7 +370,7 @@ describe("seedToolkitContent", () => {
       "select count(*) as count from module_definitions where program_version_id = $1",
       [first.programVersionId],
     );
-    expect(Number(moduleCount.rows[0].count)).toBe(5);
+    expect(Number(moduleCount.rows[0].count)).toBe(8);
   });
 
   it("rejects a content change to already-published rows instead of overwriting them", async () => {
@@ -560,13 +560,13 @@ describe("seedToolkitContent", () => {
     });
   });
 
-  it("keeps exactly 5 active Modules and no drafts, with no sequence_index conflicts", async () => {
+  it("keeps exactly 8 active Modules and no drafts, with no sequence_index conflicts", async () => {
     const result = await withTransaction((client) =>
       seedToolkitContent(client, TEST_CONTENT),
     );
     const modules = await fetchModuleRows(result.programVersionId);
 
-    expect(modules.filter((row) => row.status === "active")).toHaveLength(5);
+    expect(modules.filter((row) => row.status === "active")).toHaveLength(8);
     expect(modules.filter((row) => row.status === "draft")).toHaveLength(0);
 
     const sequenceIndexes = modules.map((row) => row.sequence_index);

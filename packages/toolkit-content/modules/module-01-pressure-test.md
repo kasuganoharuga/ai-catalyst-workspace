@@ -1,22 +1,27 @@
-# Module 01: Pressure-Test Your Idea
+# Module 01: Pressure-Test My Idea
 
-Assess whether a startup idea is strong enough to keep pursuing.
+Test whether the current idea is clear and credible enough to continue — six collect-only answers,
+one summary confirm, a locked Pressure-Test Verdict, and a Founder Proceed / Pivot / Kill decision.
+
+Canonical source: `skills/module-01-pressure-test/prompts/module-01-prompt-set.md`.
+
+Already seeded into `MODULE_1_CONTENT` and `pressure_test_*` prompts.
 
 ## When to Use
 
-Use this module when the founder has a promising idea but needs sharper evidence, risk analysis, and a clear proceed, pivot, or kill recommendation.
+When the Founder has a promising idea but needs a sharper risk read and a clear proceed, pivot, or
+kill decision before narrowing the customer.
 
 ## Required Inputs
 
-- Business idea
-- Target customer
+- Business idea (one sentence)
+- Target customer (as a real person, not a segment)
 - Problem being solved
-- Current evidence
-- Key assumptions
+- How it makes money
+- Current stage
+- Competitors / alternatives (including doing nothing)
 
 ## Expected Outputs
 
-- Pressure-test verdict
-- Proceed, pivot, or kill recommendation
-- Key risks
-- Next-step actions
+- Six confirmed core Responses (batch-saved after one summary confirm)
+- `Pressure-Test-Verdict.md` (AI Recommendation + Founder's Decision)

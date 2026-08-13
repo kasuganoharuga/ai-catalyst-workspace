@@ -218,18 +218,6 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
     sourcePath:
       "module-03-problem-statement/templates/Problem-Interview-Guide.md",
   },
-  {
-    moduleKey: "module-04-evidence-of-unmet-need",
-    artifactKey: "evidence_of_unmet_need",
-    sourcePath:
-      "module-04-evidence-of-unmet-need/templates/Evidence-Of-Unmet-Need.md",
-  },
-  {
-    moduleKey: "module-04-evidence-of-unmet-need",
-    artifactKey: "validation_roadmap_30_day",
-    sourcePath:
-      "module-04-evidence-of-unmet-need/templates/Validation-Roadmap-30-Day.md",
-  },
 ];
 
 // Artefacts with no validator of their own. They still must not drift from
@@ -239,11 +227,51 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
 // (validateConfigForValidator), so there is nothing for runDraftCheck to
 // reject.
 const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
+  // Module 4 Solution's two artifacts carry validatorKey: null for now,
+  // so they belong here rather than in TEMPLATE_FIXTURES — there are no
+  // rules for the skeleton to fail. Move them up once a validator for
+  // the North Star sentence shape and the three-feature tables exists.
   {
-    moduleKey: "module-04-evidence-of-unmet-need",
-    artifactKey: "interview_evidence",
+    moduleKey: "module-04-solution-statement",
+    artifactKey: "north_star",
+    sourcePath: "module-04-solution-statement/templates/North-Star.md",
+  },
+  {
+    moduleKey: "module-04-solution-statement",
+    artifactKey: "feature_benefit_map",
+    sourcePath: "module-04-solution-statement/templates/Feature-Benefit-Map.md",
+  },
+  {
+    moduleKey: "module-05-epics-user-stories",
+    artifactKey: "epic_charter",
+    sourcePath: "module-05-epics-user-stories/templates/Epic-Charter.md",
+  },
+  {
+    moduleKey: "module-05-epics-user-stories",
+    artifactKey: "sprint_backlog",
+    sourcePath: "module-05-epics-user-stories/templates/Sprint-Backlog.md",
+  },
+  {
+    moduleKey: "module-06-competitive-analysis",
+    artifactKey: "competitive_landscape",
     sourcePath:
-      "module-04-evidence-of-unmet-need/templates/Interview-Evidence.md",
+      "module-06-competitive-analysis/templates/Competitive-Landscape.md",
+  },
+  {
+    moduleKey: "module-06-competitive-analysis",
+    artifactKey: "defensible_position",
+    sourcePath:
+      "module-06-competitive-analysis/templates/Defensible-Position.md",
+  },
+  {
+    moduleKey: "module-07-business-model",
+    artifactKey: "business_model",
+    sourcePath: "module-07-business-model/templates/Business-Model.md",
+  },
+  {
+    moduleKey: "module-07-business-model",
+    artifactKey: "pricing_strategy",
+    sourcePath: "module-07-business-model/templates/Pricing-Strategy.md",
   },
 ];
 
@@ -355,15 +383,60 @@ const PROMPT_FIXTURES: PromptFixture[] = [
     headingPrefix: "## 5. Artifact generator prompt",
   },
   {
-    promptKey: "evidence_facilitator",
-    sourcePath:
-      "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
+    promptKey: "solution_statement_facilitator",
+    sourcePath: "module-04-solution-statement/prompts/module-04-prompt-set.md",
     headingPrefix: "## 4. Facilitator prompt",
   },
   {
-    promptKey: "evidence_artifact_generator",
+    promptKey: "solution_statement_artifact_generator",
+    sourcePath: "module-04-solution-statement/prompts/module-04-prompt-set.md",
+    headingPrefix: "## 5. Artifact generator prompt",
+  },
+  // Module 1's facilitator is covered now. It previously could not be:
+  // prompts.ts wrapped the summary-confirm block in a nested ``` fence,
+  // which terminates this file's extractor early, while the Markdown
+  // mirror indented it. The seeded copy was re-ported from the mirror so
+  // both use indentation, the way Modules 2-4 always have.
+  {
+    promptKey: "pressure_test_facilitator",
+    sourcePath: "module-01-pressure-test/prompts/module-01-prompt-set.md",
+    headingPrefix: "## 4. Facilitator prompt",
+  },
+  {
+    promptKey: "pressure_test_artifact_generator",
+    sourcePath: "module-01-pressure-test/prompts/module-01-prompt-set.md",
+    headingPrefix: "## 5. Artifact generator prompt",
+  },
+  {
+    promptKey: "epics_user_stories_facilitator",
+    sourcePath: "module-05-epics-user-stories/prompts/module-05-prompt-set.md",
+    headingPrefix: "## 4. Facilitator prompt",
+  },
+  {
+    promptKey: "epics_user_stories_artifact_generator",
+    sourcePath: "module-05-epics-user-stories/prompts/module-05-prompt-set.md",
+    headingPrefix: "## 5. Artifact generator prompt",
+  },
+  {
+    promptKey: "competitive_analysis_facilitator",
     sourcePath:
-      "module-04-evidence-of-unmet-need/prompts/module-04-prompt-set.md",
+      "module-06-competitive-analysis/prompts/module-06-prompt-set.md",
+    headingPrefix: "## 4. Facilitator prompt",
+  },
+  {
+    promptKey: "competitive_analysis_artifact_generator",
+    sourcePath:
+      "module-06-competitive-analysis/prompts/module-06-prompt-set.md",
+    headingPrefix: "## 5. Artifact generator prompt",
+  },
+  {
+    promptKey: "business_model_facilitator",
+    sourcePath: "module-07-business-model/prompts/module-07-prompt-set.md",
+    headingPrefix: "## 4. Facilitator prompt",
+  },
+  {
+    promptKey: "business_model_artifact_generator",
+    sourcePath: "module-07-business-model/prompts/module-07-prompt-set.md",
     headingPrefix: "## 5. Artifact generator prompt",
   },
 ];

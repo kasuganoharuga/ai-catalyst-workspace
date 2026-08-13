@@ -26,11 +26,18 @@ import {
 
 const DECISIONS: FounderDecision[] = ["proceed", "pivot", "kill"];
 
+// Every standard Module in the seeded 1-7 sequence. resolveModuleCopy
+// falls back to Module 1's table for an unknown key, so a Module missing
+// its own entry does not throw — it quietly shows Pressure-Test's copy.
+// Listing all seven here is what catches that.
 const STANDARD_MODULE_KEYS = [
   "module-01-pressure-test",
   "module-02-customer-avatar",
   "module-03-problem-statement",
-  "module-04-evidence-of-unmet-need",
+  "module-04-solution-statement",
+  "module-05-epics-user-stories",
+  "module-06-competitive-analysis",
+  "module-07-business-model",
 ];
 
 describe("resolveModuleCopy", () => {
@@ -65,8 +72,8 @@ describe("resolveModuleCopy", () => {
       resolveModuleCopy("module-03-problem-statement").confirmTitle,
     ).toMatch(/problem and interview/i);
     expect(
-      resolveModuleCopy("module-04-evidence-of-unmet-need").confirmTitle,
-    ).toMatch(/evidence and validation/i);
+      resolveModuleCopy("module-04-solution-statement").confirmTitle,
+    ).toMatch(/solution documents/i);
   });
 });
 

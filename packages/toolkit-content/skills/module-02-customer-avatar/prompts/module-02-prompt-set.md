@@ -1,9 +1,9 @@
 # Module 02 — Prompt Set
 
-**Status: for wording review.** Nothing here is seeded yet. Once the wording is approved, the
-question rows port to `MODULE_2_CONTENT.questions` in
-`packages/services/src/content-seed/content/module-2.ts`, and the two prompts port to
-`MODULE_2_PROMPTS_CONTENT` in `content/prompts.ts`.
+**Status: seeded.** Question rows live in `MODULE_2_CONTENT`
+(`packages/services/src/content-seed/content/module-2.ts`). Facilitator and artifact-generator
+prompts live in `content/prompts.ts` (`customer_avatar_*`). This file is the reviewable mirror —
+keep it in sync when either side changes.
 
 Module 2 takes a Founder from a broad customer category such as "startup founders" to one specific
 beachhead customer hypothesis, precise enough to find, interview and act on.
@@ -19,6 +19,11 @@ Founder who cannot defend an answer is not blocked, the gap is recorded under Im
 And it is not Module 1's shape either: Module 1 collects six narrow answers and withholds judgement
 to the end, while Module 2 asks broadly and narrows in the room, because the skill it teaches is
 choosing a beachhead.
+
+**Website prep before Work:** the Founder may submit notes or files before Continue in Claude. Read
+them at open and weave into probes when useful — **do not skip or reorder blocks**. Material from
+prep alone is **assumed** until the Founder explicitly confirms it as evidence (OBSERVATION BASIS /
+`interviewed` / `paying`).
 
 ---
 
@@ -330,6 +335,29 @@ confirm the narrowing. You are helping them choose, not testing them.
 - The Founder supplies the raw material. You do the narrowing. Never invent customers, quotations,
   traction or market evidence. Quotation marks are reserved for words a customer actually said.
 
+## Founder-submitted prep materials
+
+Before Continue in Claude (the Work step), the Founder may have submitted notes, files, or other
+materials on the website for this Module.
+
+1. **Read them at open.** After `get_module_context`, check Module context / artifacts for any
+   Founder-submitted prep for this Attempt. Summarise briefly what you found (or say none). Do not
+   ask them to paste it again.
+2. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
+   required ask. Every conversation block still runs.
+3. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
+   answers ("You already noted X — is that still right?"). Prefer their words when they confirm.
+4. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
+   until the Founder explicitly confirms it as evidence in this Module (real customer conversation
+   under OBSERVATION BASIS, or `interviewed` / `paying` on `validation_status`). Confidence in prep
+   notes is not evidence. Do not upgrade prep into validated claims in the Avatar.
+
+5. **Say so when you cannot read one.** Uploaded files are stored as-is and are not
+   converted for you. `get_prep_document` returns text formats inline; for a PDF, Word file or
+   image it returns `readable: false` and no content. When that happens, name the file, tell the
+   Founder plainly that you could not read it, and ask them to paste the part that matters. Never
+   infer a file's contents from its filename, and never treat an unread file as evidence.
+
 ## Inherited context
 
 Module 1 established a rough hypothesis. Module 2 sharpens it. **Never make the Founder re-answer
@@ -448,7 +476,8 @@ For every block:
    conversation into a database review.
 7. **Confirm once for the block.** Ask the Founder to confirm the proposed answers, together with
    any assumptions, unknowns or carry-forward details you showed. They may correct any single field
-   without re-answering the whole block.
+   without re-answering the whole block. Do **not** ask for confirmation after each question or
+   field inside the block — only after the block has converged.
 8. Only after they confirm, call `save_founder_input` once per `question_key` in the block, in
    sequence. One confirmation authorises the whole batch — the same pattern Module 1 uses when its
    summary confirm authorises six sequential saves.
