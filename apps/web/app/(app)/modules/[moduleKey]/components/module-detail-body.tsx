@@ -86,11 +86,6 @@ export async function ModuleDetailBody({
         sizeBytes: document.sizeBytes,
       }))
     : [];
-<<<<<<< HEAD
-=======
-
-  const isModule4 = moduleKey === MODULE_4_KEY;
->>>>>>> origin/develop
 
   return (
     <>
@@ -279,25 +274,25 @@ export async function ModuleDetailBody({
                 on the Work step like any other module's, so Module 4 goes
                 through the same three-card wizard as the rest. */}
             <Module1Run
-                moduleKey={entry.moduleKey}
-                moduleIndex={entry.sequenceIndex}
-                provider={provider}
-                programRunModuleId={runModule.id}
-                ventureId={venture?.id ?? null}
-                claudeProjectId={venture?.claudeProjectId ?? null}
-                connected={Boolean(connection?.authorised)}
-                coreQuestions={coreQuestions}
-                decisionQuestions={decisionQuestions}
-                artifacts={artifactViews}
-                prepDocuments={prepDocuments}
-                hasAttempt={activeAttempt !== null}
-                needsRetry={needsRetry}
-                awaitingConfirmation={awaitingConfirmation}
-                isCompleted={isCompleted}
-                preview={isLocked ? "locked" : null}
-                startPrompt={startPrompt}
-                nextModuleTitle={nextModuleTitle}
-              />
+              moduleKey={entry.moduleKey}
+              moduleIndex={entry.sequenceIndex}
+              provider={provider}
+              programRunModuleId={runModule.id}
+              ventureId={venture?.id ?? null}
+              claudeProjectId={venture?.claudeProjectId ?? null}
+              connected={Boolean(connection?.authorised)}
+              coreQuestions={coreQuestions}
+              decisionQuestions={decisionQuestions}
+              artifacts={artifactViews}
+              prepDocuments={prepDocuments}
+              hasAttempt={activeAttempt !== null}
+              needsRetry={needsRetry}
+              awaitingConfirmation={awaitingConfirmation}
+              isCompleted={isCompleted}
+              preview={isLocked ? "locked" : null}
+              startPrompt={startPrompt}
+              nextModuleTitle={nextModuleTitle}
+            />
           </section>
         )
       ) : null}
