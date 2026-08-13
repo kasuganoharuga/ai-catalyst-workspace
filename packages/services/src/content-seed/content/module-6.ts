@@ -306,8 +306,7 @@ export const MODULE_6_CONTENT: ModuleContent = {
   moduleKey: "module-06-competitive-analysis",
   sequenceIndex: 6,
   title: "Competitive analysis",
-  subtitle:
-    "Prove you know the market and can win it",
+  subtitle: "Prove you know the market and can win it",
   description:
     "Pressure-tests the competitive landscape against live competitor pages: feature comparison, moat, positioning, why now and why us — every claim flagged evidence or assumption.",
   objective:

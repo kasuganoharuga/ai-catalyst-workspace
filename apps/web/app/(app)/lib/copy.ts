@@ -912,7 +912,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     briefBody:
       "Your AI assistant turns the customer and problem you already locked in into a North Star solution statement — one sentence precise enough to guide what gets built — and the three features worth building first, ranked by what your customer actually wants rather than what is interesting to build.",
     whyBody:
-      "\"Faster\", \"easier\" and \"AI-powered\" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.",
+      '"Faster", "easier" and "AI-powered" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.',
     whyBuildsOn: (moduleIndex: string) =>
       `Your beachhead customer and root-cause problem from Modules 2 and ${moduleIndex} are the inputs — you will not be asked to describe either again. The solution has to address that problem, for that customer.`,
     before: [
