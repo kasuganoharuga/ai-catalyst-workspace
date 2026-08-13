@@ -749,7 +749,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Anything without a real conversation behind it is recorded as an assumption, not evidence.",
       },
     ],
-    documentsBody: "Anything you have already written down about the idea. Your assistant reads it before the first question, so it can challenge what you actually think rather than starting from a blank page.",
+    documentsBody:
+      "Anything you have already written down about the idea. Your assistant reads it before the first question, so it can challenge what you actually think rather than starting from a blank page.",
     documentsSuggestions: [
       "A pitch deck, one-pager or business plan draft — a rough one is fine",
       "Notes where you have written the idea out for yourself or someone else",
@@ -804,7 +805,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
       },
     ],
-    documentsBody: "Anything that shows who has actually been showing interest. Real names and real behaviour narrow a customer faster than describing them from memory.",
+    documentsBody:
+      "Anything that shows who has actually been showing interest. Real names and real behaviour narrow a customer faster than describing them from memory.",
     documentsSuggestions: [
       "Notes from conversations with potential customers",
       "A waitlist, customer list or CRM export",
@@ -864,7 +866,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       title: "Next: talk to customers, then open Module 4",
       body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then upload what you heard as documents on Module 4's Upload documents step before you continue in your AI assistant.",
     },
-    documentsBody: "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
+    documentsBody:
+      "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
     documentsSuggestions: [
       "Support tickets, complaints or messages where the problem shows up",
       "Notes from conversations about what they struggle with today",
