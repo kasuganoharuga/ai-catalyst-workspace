@@ -102,10 +102,7 @@
         "Module 4 North Star and Feature Benefit Map",
         "Epic priority and story scores"
       ],
-      "outputs": [
-        "Epic charter",
-        "Scored sprint backlog with MLP line"
-      ],
+      "outputs": ["Epic charter", "Scored sprint backlog with MLP line"],
       "status": "draft",
       "skillPath": "/skills/module-05-epics-user-stories",
       "modulePath": "modules/module-05-epics-user-stories.md"
