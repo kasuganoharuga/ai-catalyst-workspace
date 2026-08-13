@@ -231,12 +231,27 @@ jobs:
             if [ "${exit_code}" != "0" ]; then
               echo "${label} task failed with exit code ${exit_code}." >&2
               echo "${task_desc}" | jq '.tasks[0].containers[] | select(.name == "mcp")' >&2
+              # Best-effort: print the container's own stdout so seed/migrate
+              # ContentSeedError messages show up in the Actions log.
+              local task_id
+              task_id="$(echo "${task_arn}" | awk -F/ '{print $NF}')"
+              aws logs get-log-events \
+                --log-group-name "/ecs/${ENV_PREFIX}-mcp" \
+                --log-stream-name "mcp/mcp/${task_id}" \
+                --limit 100 \
+                --query 'events[].message' \
+                --output text >&2 || true
               exit 1
             fi
           }
 
           run_mcp_task "database migration" pnpm --filter @ai-catalyst/db run migrate
-          run_mcp_task "database seed" pnpm --filter @ai-catalyst/services run seed
+          # Content constants are the desired catalog. Curriculum edits that
+          # retire a Module key (e.g. Proof → Solution) archive the old row;
+          # --allow-archive is the seed CLI's confirmation for that write.
+          # Local `pnpm db:seed` still requires the flag so accidental archives
+          # stay hard to do by default.
+          run_mcp_task "database seed" pnpm --filter @ai-catalyst/services run seed -- --allow-archive
 
       - name: Update ECS services
         shell: bash
