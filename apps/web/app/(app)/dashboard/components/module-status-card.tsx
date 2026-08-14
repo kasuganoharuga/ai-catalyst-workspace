@@ -27,9 +27,13 @@ function formatDate(iso: string): string {
 export function ModuleStatusCard({
   catalog,
   context,
+  isFocus = false,
 }: {
   catalog: ModuleCatalogEntry;
   context: ModuleContext | null;
+  // The founder's current / next module — highlighted so it stays findable
+  // even when the carousel doesn't open scrolled to its column.
+  isFocus?: boolean;
 }) {
   const runModule = context?.runModule ?? null;
   const attemptStatus = context?.activeAttempt?.status ?? null;
@@ -85,17 +89,16 @@ export function ModuleStatusCard({
       href={`/modules/${encodeURIComponent(catalog.moduleKey)}`}
       className={cn(
         "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
+        isFocus && "ring-1 ring-foreground/25",
         isLocked && "opacity-60",
       )}
     >
       <div className="p-5">
-        {/* Stacked below sm, row from sm: up — the same breakpoint the
-            carousel itself uses to widen the card (basis-[85%] to
-            basis-1/2 in modules-carousel.tsx). At the 85% mobile width a
-            long title plus a wide status pill ("Ready for review") don't
-            both fit beside each other regardless of how much the title
-            wraps; the badge is shrink-0 on purpose, so it was the one
-            spilling past the card's edge instead. */}
+        {/* Stacked below sm, row from sm: up — at narrow widths a long
+            title plus a wide status pill ("Ready for review") don't both
+            fit beside each other regardless of how much the title wraps;
+            the badge is shrink-0 on purpose, so it was the one spilling
+            past the card's edge instead. */}
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex items-center gap-3">
             {/* Identity, not status: the badge always wears the module's

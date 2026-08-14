@@ -10,10 +10,35 @@ import {
 } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
+import { useMediaQuery } from "../../hooks/use-media-query";
+
 import type { ModulesCarouselItem } from "../types";
 import { ModuleStatusCard } from "./module-status-card";
 
 export type { ModulesCarouselItem };
+
+// Two card rows plus the greeting/next-action/stats content above it needs
+// roughly 900px of viewport height to fit without scrolling; below that,
+// a second row would push the fold rather than read as "more to drag to".
+const TALL_ENOUGH_FOR_TWO_ROWS = "(min-height: 900px)";
+
+type Column = { item: ModulesCarouselItem; index: number }[];
+
+/** Chunks the flat item list into columns of up to `rowsPerColumn`, preserving each item's original index. */
+function toColumns(
+  items: ModulesCarouselItem[],
+  rowsPerColumn: number,
+): Column[] {
+  const columns: Column[] = [];
+  for (let start = 0; start < items.length; start += rowsPerColumn) {
+    columns.push(
+      items
+        .slice(start, start + rowsPerColumn)
+        .map((item, offset) => ({ item, index: start + offset })),
+    );
+  }
+  return columns;
+}
 
 /** Prefer in-progress, else next available, else first incomplete. */
 export function focusModuleIndex(items: ModulesCarouselItem[]): number {
@@ -36,11 +61,21 @@ export function focusModuleIndex(items: ModulesCarouselItem[]): number {
   return firstIncomplete >= 0 ? firstIncomplete : 0;
 }
 
-/** Module cards carousel; opens on the current / next module. */
+/**
+ * Module cards grouped into draggable columns of up to two rows — one row
+ * instead when the viewport isn't tall enough for two (see
+ * TALL_ENOUGH_FOR_TWO_ROWS). Either way the section never grows past that
+ * cap no matter how many Modules exist; dragging pages through the rest
+ * instead of stacking more rows underneath.
+ */
 export function ModulesCarousel({ items }: { items: ModulesCarouselItem[] }) {
+  const isTallEnoughForTwoRows = useMediaQuery(TALL_ENOUGH_FOR_TWO_ROWS);
+  const rowsPerColumn = isTallEnoughForTwoRows ? 2 : 1;
+  const columns = toColumns(items, rowsPerColumn);
   const focusIndex = focusModuleIndex(items);
+  const focusColumn = Math.floor(focusIndex / rowsPerColumn);
   const [api, setApi] = useState<CarouselApi>();
-  const [selectedIndex, setSelectedIndex] = useState(focusIndex);
+  const [selectedIndex, setSelectedIndex] = useState(focusColumn);
 
   const onSelect = useCallback((carouselApi: CarouselApi) => {
     if (!carouselApi) return;
@@ -53,12 +88,12 @@ export function ModulesCarousel({ items }: { items: ModulesCarouselItem[] }) {
     api.on("select", onSelect);
     // Land on in-progress / next after Embla mounts. scrollTo emits
     // select asynchronously, so selectedIndex stays event-driven.
-    api.scrollTo(focusIndex, true);
+    api.scrollTo(focusColumn, true);
     return () => {
       api.off("select", onSelect);
       api.off("reInit", onSelect);
     };
-  }, [api, focusIndex, onSelect]);
+  }, [api, focusColumn, onSelect]);
 
   if (items.length === 0) return null;
 
@@ -66,54 +101,67 @@ export function ModulesCarousel({ items }: { items: ModulesCarouselItem[] }) {
     <Carousel
       opts={{
         align: "start",
-        startIndex: focusIndex,
+        startIndex: focusColumn,
         containScroll: "trimSnaps",
       }}
       setApi={setApi}
       className="w-full"
     >
       <CarouselContent className="-ml-4">
-        {items.map((item, index) => {
-          const isFocus = index === selectedIndex;
-          const isNext = index === selectedIndex + 1;
-          return (
-            <CarouselItem
-              key={item.catalog.moduleKey}
+        {columns.map((column, columnIndex) => (
+          <CarouselItem
+            key={column[0]?.item.catalog.moduleKey ?? columnIndex}
+            className={cn(
+              // ~1.2 columns peek on mobile, ~2.2 on sm, 3 on lg — always
+              // leaves a sliver of the next column so dragging reads as
+              // available rather than the row simply ending.
+              "basis-[80%] sm:basis-[46%] lg:basis-1/3",
+              columns.length > 1 && "cursor-grab active:cursor-grabbing",
+            )}
+          >
+            <div
               className={cn(
-                // Two-up on sm+: fills the row so a pair doesn't sit left-biased.
-                // Narrow screens keep a peek of the next card.
-                "basis-[85%] sm:basis-1/2",
-                items.length > 1 && "cursor-grab active:cursor-grabbing",
-                isFocus || isNext ? "opacity-100" : "opacity-70",
+                "grid h-full gap-4",
+                rowsPerColumn === 2 ? "grid-rows-2" : "grid-rows-1",
               )}
             >
-              <div className="h-full">
-                <ModuleStatusCard
-                  catalog={item.catalog}
-                  context={item.context}
-                />
-              </div>
-            </CarouselItem>
-          );
-        })}
+              {column.map(({ item, index }) => (
+                <div
+                  key={item.catalog.moduleKey}
+                  className={
+                    rowsPerColumn === 2 && column.length === 1
+                      ? "row-span-2"
+                      : undefined
+                  }
+                >
+                  <ModuleStatusCard
+                    catalog={item.catalog}
+                    context={item.context}
+                    isFocus={index === focusIndex}
+                  />
+                </div>
+              ))}
+            </div>
+          </CarouselItem>
+        ))}
       </CarouselContent>
 
-      {items.length > 1 ? (
+      {columns.length > 1 ? (
         <div
           className="mt-4 flex items-center justify-center gap-2"
           role="tablist"
-          aria-label="Module slides"
+          aria-label="Module columns"
         >
-          {items.map((item, index) => {
-            const isActive = index === selectedIndex;
+          {columns.map((column, columnIndex) => {
+            const isActive = columnIndex === selectedIndex;
             return (
               <button
-                key={item.catalog.moduleKey}
+                key={column[0]?.item.catalog.moduleKey ?? columnIndex}
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                aria-label={`Go to ${item.catalog.title}`}
-                onClick={() => api?.scrollTo(index)}
+                aria-label={`Go to ${column.map(({ item }) => item.catalog.title).join(", ")}`}
+                onClick={() => api?.scrollTo(columnIndex)}
                 className={cn(
                   "size-2 rounded-full transition",
                   isActive
