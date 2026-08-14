@@ -32,7 +32,7 @@ export function ModuleStatusCard({
   catalog: ModuleCatalogEntry;
   context: ModuleContext | null;
   // The founder's current / next module — highlighted so it stays findable
-  // even when the carousel doesn't open scrolled to its column.
+  // among every Module's card rendering at once.
   isFocus?: boolean;
 }) {
   const runModule = context?.runModule ?? null;

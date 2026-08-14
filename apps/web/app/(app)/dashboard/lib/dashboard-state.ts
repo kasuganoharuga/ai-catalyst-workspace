@@ -48,7 +48,7 @@ export function buildDashboardViewModel(input: {
   runModules: RunModuleSummary[];
   hasRun: boolean;
   /** Every Module Context on the Founder's active Run, one batched call —
-   * not just Module 0/1 — so artefact counts and per-Module carousel
+   * not just Module 0/1 — so artefact counts and per-Module grid
    * status cover Modules 2-4 too. */
   contexts: ModuleContext[];
   connection: McpConnectionStatus;
@@ -71,7 +71,7 @@ export function buildDashboardViewModel(input: {
     showSetupModule,
   } = input;
 
-  // Setup modules complete server-side and stay out of carousel/unlocked counts.
+  // Setup modules complete server-side and stay out of the grid/unlocked counts.
   const liveModules = catalog.filter(
     (m) =>
       m.catalogStatus === "live" &&
@@ -140,7 +140,7 @@ export function buildDashboardViewModel(input: {
     visibleCatalogCount,
     artefactsSaved,
     connectionStat,
-    carouselItems: liveModules.map((module) => ({
+    moduleGridItems: liveModules.map((module) => ({
       catalog: module,
       context: contextByKey.get(module.moduleKey) ?? null,
     })),

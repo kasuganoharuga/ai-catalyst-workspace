@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import type { ModuleCatalogEntry, ModuleContext } from "@ai-catalyst/shared";
 
-export type ModulesCarouselItem = {
+export type ModuleGridItem = {
   catalog: ModuleCatalogEntry;
   context: ModuleContext | null;
 };
@@ -37,5 +37,5 @@ export type DashboardViewModel = {
   visibleCatalogCount: number;
   artefactsSaved: number;
   connectionStat: ConnectionStatContent;
-  carouselItems: ModulesCarouselItem[];
+  moduleGridItems: ModuleGridItem[];
 };

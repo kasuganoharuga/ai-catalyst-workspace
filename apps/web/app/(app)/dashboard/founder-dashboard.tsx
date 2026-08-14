@@ -22,7 +22,7 @@ import { ContinueProgrammeButton } from "../components/continue-programme-button
 import { PageShell } from "../components/page-shell";
 import { Stat, StatRow } from "../components/stat";
 import { dashboardCopy } from "../lib/copy";
-import { ModulesCarousel } from "./components/modules-carousel";
+import { ModulesGrid } from "./components/modules-grid";
 import { NextActionCard } from "./components/next-action-card";
 import { PasswordPrompt } from "./components/password-prompt";
 import { SkipProfileButton } from "./components/skip-profile-button";
@@ -146,7 +146,7 @@ export async function FounderDashboard() {
         </Link>
       </div>
       <div className="mt-5">
-        <ModulesCarousel items={view.carouselItems} />
+        <ModulesGrid items={view.moduleGridItems} />
       </div>
     </PageShell>
   );
