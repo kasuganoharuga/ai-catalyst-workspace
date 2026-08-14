@@ -115,7 +115,7 @@ function stripLabelBlockHints(block: string): string {
  *    inside either in these templates);
  *  - a label block (`**Label:**` / `- Label:`) keeps its label and loses
  *    only a hint-derived value, so a real enumerated value like
- *    "Assumed / Interviewed / Paying" is untouched;
+ *    "Assumed / Interviewed / Prototyped / Paying" is untouched;
  *  - a list block drops a hint-bearing item's body down to its bare
  *    marker, never leaving a fragment behind;
  *  - any other block that contains a hint anywhere is dropped whole — this

@@ -825,7 +825,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-03-problem-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant works from your customer's surface complaint towards a current root-cause hypothesis using a Five Whys ladder, then turns the result into five interview questions you can take to real customers. This module prepares the interviews — it does not conduct them or analyse the responses.",
+      "The purpose of this module is to dig into the most valuable problems your customer has, the root causes behind them, and how intense and urgent the pain really is. You'll come away with a draft problem statement and a customer discovery interview guide to validate the problem space.",
     whyBody:
       "The first complaint a customer names is rarely the reason the problem persists. Building for the symptom instead of a testable root-cause hypothesis is how founders end up solving the wrong problem very well.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -852,14 +852,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       title: "Next: talk to customers, then open Module 4",
       body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
     },
-    documentsBody:
-      "Anything showing the problem in the customer's own words, and what they do about it today. This module digs for the cause underneath — real complaints give it something to dig into.",
-    documentsSuggestions: [
-      "Support tickets, complaints or messages where the problem shows up",
-      "Notes from conversations about what they struggle with today",
-      "A list of the tools, spreadsheets and workarounds they cope with",
-      "Anything showing what it costs them — time, money, rework, churn",
-    ],
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

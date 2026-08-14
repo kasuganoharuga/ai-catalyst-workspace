@@ -191,6 +191,7 @@ describe("seedToolkitContent", () => {
     expect(validationStatus.options).toEqual([
       { value: "assumed", label: "Assumed" },
       { value: "interviewed", label: "Interviewed" },
+      { value: "prototyped", label: "Prototyped" },
       { value: "paying", label: "Paying" },
     ]);
 

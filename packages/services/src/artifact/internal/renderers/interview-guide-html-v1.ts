@@ -38,12 +38,25 @@ function buildPlan(
       locked("venture_name", model.ventureName),
       locked("interview_target", model.interviewTarget),
       locked("what_this_tests", model.whatThisInterviewTests),
+      locked("opening_script", model.openingScript),
       ...model.questions.map((text, i) => locked(`question_${i + 1}`, text)),
+      ...model.questionGuidance.flatMap((guidance, i) => [
+        locked(`question_${i + 1}_suggestion`, guidance.suggestion),
+        ...guidance.listenFor.map((text, j) =>
+          locked(`question_${i + 1}_listen_for_${j + 1}`, text),
+        ),
+      ]),
       locked("pass_bar_preamble", model.passBar.preamble),
       ...model.passBar.conditions.map((text, i) =>
         locked(`pass_bar_${i + 1}`, text),
       ),
       ...model.killCriteria.map((text, i) => locked(`kill_${i + 1}`, text)),
+      ...model.assumptions.map((row, i) =>
+        locked(`assumption_${i + 1}`, row.assumption),
+      ),
+      ...model.closingQuestions.map((text, i) =>
+        locked(`closing_question_${i + 1}`, text),
+      ),
     ],
     provenance,
   };
@@ -72,9 +85,16 @@ export async function renderInterviewGuideHtmlPdf(
     ventureName: model.ventureName,
     interviewTarget: model.interviewTarget,
     whatThisInterviewTests: model.whatThisInterviewTests,
+    openingScript: model.openingScript,
     questions: [...model.questions],
+    questionGuidance: model.questionGuidance.map((guidance) => ({
+      listenFor: [...guidance.listenFor],
+      suggestion: guidance.suggestion,
+    })),
     passBar: model.passBar,
     killCriteria: [...model.killCriteria],
+    assumptions: model.assumptions.map((row) => ({ ...row })),
+    closingQuestions: [...model.closingQuestions],
   });
   return renderHtmlToPdf({ indexHtml: html });
 }

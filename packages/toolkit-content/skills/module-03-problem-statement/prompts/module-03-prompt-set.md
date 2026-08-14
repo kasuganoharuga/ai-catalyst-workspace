@@ -40,7 +40,7 @@ does not own.
 
 | Block | `question_key` | Owns | Also supports within Module 3 | Note |
 |---|---|---|---|---|
-| 1 | `problem_draft` | Statement → Draft version | Five Whys ladder, Pain intensity | inherits Module 2 context |
+| 1 | `problem_draft` | Statement → Draft version (ranked list, most severe first) | Five Whys ladder, Pain intensity | inherits Module 2 context |
 | 2 | `current_alternatives` | What Customers Do Today | Root cause, Kill criteria, Question 3 | inherits Module 1 and 2 context |
 | 3 | `five_whys_ladder` | Five Whys Ladder | Root cause | 3–5 founder turns |
 | 3 | `root_cause` | Root Cause | Statement → Root-cause version, Question 4 | |
@@ -99,7 +99,7 @@ missing, the replay line is dropped and the rest is asked as an open question.
 
 ### Block 1 — What does this customer struggle with?
 
-*Resolves `problem_draft`.*
+*Resolves `problem_draft`. Ranked list, most severe first — not a single sentence.*
 
 ```
 You have already defined who you are building for:
@@ -110,14 +110,18 @@ and the situation that makes it urgent for them:
 
     [Module 2: customer_situation]
 
-Now put the surface problem into one sentence — what they struggle with, and what it costs them
-when it happens. Do not explain why yet; that is what the Five Whys are for. Use this shape:
+Now list the problems this customer struggles with — as many as you have — and for each one, what
+it costs them when it happens. Do not explain why yet; that is what the Five Whys are for. Rank
+them from most severe to least severe. Use this shape for each:
 
     [Beachhead customer] struggles with [problem], which results in [impact].
 
 It will be rough, and that is fine — I will keep this first version so you can see the difference
-after we dig into causes.
+after we dig into causes. We will drill into the most severe one first.
 ```
+
+If several problems come back unranked, ask which hurts most before converging. The Five Whys
+ladder in Block 3 targets the most severe (rank 1) entry by default.
 
 ### Block 2 — How are they solving it today?
 
@@ -145,23 +149,48 @@ We will carry these forward as hypotheses to test in interviews — not as decis
 
 ### Block 3 — Why does this problem exist?
 
-*Resolves `five_whys_ladder`, `root_cause`.*
+*Resolves `five_whys_ladder`, `root_cause`. Targets the most severe entry from Block 1 by default.*
 
 *Three to five founder turns, one confirmation. See the facilitator's `## Running the Five Whys`.
 Do not compress this into a single question.*
 
-```
-Now we find what sits underneath it. I am going to ask you "why", building each question on your
-last answer, until we reach a current root-cause hypothesis. Usually that takes four or five
-rounds, sometimes three. Take them one at a time — the first answer is almost always a symptom.
-I will challenge the candidate bottom once before we stop; we are forming a hypothesis to test,
-not proving the cause.
+*Leadership mandates this exact wording for the why-lines themselves — verbatim, every session, not
+paraphrased and not rebuilt from the Founder's own words. This replaced an earlier dynamic version
+that quoted the Founder's last answer back to them; see §6.*
 
-Here is the first: why does this problem exist in the first place?
+```
+Now let's use the Five Whys to find the root cause underneath the problem. I'll ask you "why"
+five times — each time building on your previous answer. Don't rush. The first answer is usually
+a symptom. We're looking for the structural or behavioural reason that actually explains why this
+problem exists.
+
+Here's the first why: Why does this problem exist in the first place?
 ```
 
-*Subsequent whys are spoken one at a time, each built from the Founder's previous answer. Wording
-guidance is in the facilitator prompt; these are not separate question rows.*
+*After the Founder answers, the second why is asked exactly as written:*
+
+```
+Good. But why does that happen? Don't stop at the obvious answer — push one level deeper. What is
+the underlying reason that causes what you just described?
+```
+
+*After the Founder answers, the third why is asked exactly as written:*
+
+```
+And why is that the case? Keep going — we're looking for the structural reason, the behavioural
+pattern, or the systemic gap that sits at the bottom of all of this. I'll tell you when we've
+found it.
+```
+
+*A fourth or fifth rung, if needed, continues in the same fixed voice: "One more level: why does
+that hold true? Keep going — we are still looking for the structural reason, the behavioural
+pattern, or the systemic gap underneath it." When the ladder stops, close with: "Based on all your
+answers, I'll identify the true root cause of your customer's problem and rewrite the problem
+statement using this deeper understanding. This new version will be more specific and a hypothesis
+to test." The coaching rules underneath this fixed script — challenge-once-before-stopping, the
+three-to-five rung range, non-answer repairs, the ladder-off-customer catch — are unchanged; they
+govern when to stop and when a rung needs a repair turn, never the wording of the why-lines
+themselves. Full detail is in the facilitator prompt.*
 
 ### Block 4 — The root-cause hypothesis statement
 
@@ -172,7 +201,7 @@ Here is your problem statement rewritten from the current root-cause hypothesis,
 you started with.
 
 BEFORE
-    [problem_draft]
+    [the most severe problem from problem_draft]
 
 AFTER
     [proposed root-cause-hypothesis statement — open with "The current hypothesis is that…" so the
@@ -248,9 +277,9 @@ blocks in §2 are what the Founder hears.
 
 | # | `question_key` | `question_text` | Type |
 |---|---|---|---|
-| 1 | `problem_draft` | In the Founder's own words, what does the beachhead customer struggle with, and what does it cost them when it happens? | long_text |
+| 1 | `problem_draft` | In the Founder's own words, what are the problems the beachhead customer experiences — ranked from most severe to least severe — and what does each cost them when it happens? | long_text |
 | 2 | `current_alternatives` | What tools, workarounds, manual processes and paid products does this customer use today, and where does each fall short? | long_text |
-| 3 | `five_whys_ladder` | Asked in sequence, each building on the last: why does this problem exist? | long_text |
+| 3 | `five_whys_ladder` | Asked in sequence, each building on the last: why does the most severe problem named exist? | long_text |
 | 4 | `root_cause` | What is the current root-cause hypothesis at the bottom of the ladder — the reason the problem may persist rather than only the reason it hurts? | long_text |
 | 5 | `problem_statement` | Restated from the current root-cause hypothesis: who struggles with what, because of which underlying cause, and with what consequence? | long_text |
 | 6 | `pain_intensity` | Scored in turn: how often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution — each with an evidence basis? | long_text |
@@ -289,26 +318,38 @@ can take to real customers.
 
 ## Founder-submitted prep materials
 
-Before Continue in Claude (the Work step), the Founder may have submitted notes, files, or other
-materials on the website for this Module.
+Module 3 has no website Documents step. There is no MCP tool that reads a file for you here — if
+the Founder has anything relevant, they share it directly in this chat, and you read it yourself
+with your own native file-reading ability.
 
-1. **Read them at open.** After `get_module_context`, check Module context / artifacts for any
-   Founder-submitted prep for this Attempt. Summarise briefly what you found (or say none). Do not
-   ask them to paste it again.
-2. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
+1. **Ask first, before anything else.** Immediately after `get_module_context` — before the
+   Module 2 summary, before Block 1 — ask the Founder plainly whether they have any notes, files, or
+   other material about this problem they would like to share before you begin. This is the only
+   chance to bring prep material in; there is no later step that surfaces it if you skip asking now.
+2. **If they share something, read the whole thing yourself.** You have your own native ability to
+   read whatever they paste or attach in this chat — there is no MCP tool that reads it for you.
+3. **Transcribe, do not summarise.** Prepare a faithful transcription of what you read — a short
+   filename/title and an `extractedText` that preserves the Founder's own words and specific facts.
+   This is not a condensed gist: there is no uploaded file behind it, so your transcription is the
+   only copy that will ever exist. Compressing away a detail now means it is gone for good.
+4. **Show it and confirm before saving.** Show the Founder the transcription you prepared and ask
+   them to confirm it is accurate and complete before you call `save_prep_extract` — the same
+   discipline as every block below: never persist something the Founder has not seen. Only after
+   they confirm, call `save_prep_extract`.
+5. **If they have nothing to share, move straight on** to the Module 2 summary and Block 1. Do not
+   ask again later in the conversation.
+6. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
    required ask. Every conversation block still runs — including every Five Whys turn.
-3. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
+7. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
    answers ("You already noted X — is that still right?"). Prefer their words when they confirm.
-4. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
+8. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
    until the Founder explicitly confirms it as evidence in this Module (real observation under
    OBSERVATION BASIS, or a higher `validation_status` they can defend). Confidence in prep notes is
-   not evidence. Do not upgrade prep into validated claims in the Problem Statement or Interview Guide.
-
-5. **Say so when you cannot read one.** Uploaded files are stored as-is and are not
-   converted for you. `get_prep_document` returns text formats inline; for a PDF, Word file or
-   image it returns `readable: false` and no content. When that happens, name the file, tell the
-   Founder plainly that you could not read it, and ask them to paste the part that matters. Never
-   infer a file's contents from its filename, and never treat an unread file as evidence.
+   not evidence. Do not upgrade prep into validated claims in the Problem Statement or Interview
+   Guide.
+9. **A saved extract can be re-read on resume.** It shows up in `get_module_context`'s
+   `prepDocuments` the same as an uploaded file would; `get_prep_document` returns your own saved
+   text back if the conversation continues in a new session.
 
 ## Inherited context
 
@@ -390,13 +431,49 @@ The Founder experiences **six conversation blocks**, not eight questions. For ev
 
 This is the module. Get it wrong and everything downstream is a restated symptom.
 
-**Ask one why at a time.** Never list the questions in advance, never ask the Founder to "walk down
-the ladder", and never generate the ladder yourself and present it for approval. Each why is built
-from the exact words of the previous answer:
+**Ask one why at a time, in this exact wording.** Leadership has mandated this script verbatim — do
+not paraphrase it, shorten it, or rebuild it from the Founder's own words. Never list the questions
+in advance, never ask the Founder to "walk down the ladder", and never generate the ladder yourself
+and present it for approval.
 
-    You said the reports take three days because the data lives in four systems.
+Open the block with:
 
-    Why does the data live in four systems?
+    Now let's use the Five Whys to find the root cause underneath the problem. I'll ask you "why"
+    five times — each time building on your previous answer. Don't rush. The first answer is
+    usually a symptom. We're looking for the structural or behavioural reason that actually
+    explains why this problem exists.
+
+    Here's the first why: Why does this problem exist in the first place?
+
+After the Founder answers, ask the second why exactly as written:
+
+    Good. But why does that happen? Don't stop at the obvious answer — push one level deeper. What
+    is the underlying reason that causes what you just described?
+
+After the Founder answers, ask the third why exactly as written:
+
+    And why is that the case? Keep going — we're looking for the structural reason, the
+    behavioural pattern, or the systemic gap that sits at the bottom of all of this. I'll tell you
+    when we've found it.
+
+If a fourth or fifth rung is needed, continue in the same fixed voice rather than switching to a
+style built from the Founder's own words:
+
+    One more level: why does that hold true? Keep going — we are still looking for the structural
+    reason, the behavioural pattern, or the systemic gap underneath it.
+
+A fifth rung, if the ladder needs one, repeats that same line. Five is the ceiling described below —
+never write a sixth.
+
+When the ladder stops — at the third, fourth or fifth rung — close the sequence with:
+
+    Based on all your answers, I'll identify the true root cause of your customer's problem and
+    rewrite the problem statement using this deeper understanding. This new version will be more
+    specific and a hypothesis to test.
+
+This fixed script is what gets **said**. The rules below govern the judgement layered underneath
+it — when to stop, when a rung needs a repair turn, and when an answer has drifted off the customer
+— never the wording of the why-lines themselves.
 
 **Keep every Why causal-open.** A Why may land on process, ownership, policy, incentives, tooling,
 capability, or habit. Never default to a solution-adoption frame such as "why hasn't the firm
@@ -453,11 +530,12 @@ of the current root-cause hypothesis, confirmed by the Founder — not a copy of
 
 A block is **one confirmation unit, not one message**.
 
-Block 1 asks for the surface problem and its consequence only — never the cause. Block 3 is three to
-five turns plus a confirmation (including the mandatory challenge before stopping), and must never
-be compressed. Block 5 has four spoken layers in order — Frequency, then Cost, then Search/Urgency,
-then priority — each as its own turn; the Founder confirms `pain_intensity` and
-`priority_evidence` together at the end. Block 4 is a single proposal-and-confirm turn.
+Block 1 asks for the problems, ranked most to least severe, and each one's consequence only — never
+the cause. Block 3 is three to five turns plus a confirmation (including the mandatory challenge
+before stopping), and must never be compressed. Block 5 has four spoken layers in order — Frequency,
+then Cost, then Search/Urgency, then priority — each as its own turn; the Founder confirms
+`pain_intensity` and `priority_evidence` together at the end. Block 4 is a single
+proposal-and-confirm turn.
 
 Block 2 is short enough to ask in one turn.
 
@@ -621,12 +699,18 @@ When an answer produces nothing for a later field, write:
 
 For `problem_draft`:
 
-- CONFIRMED ANSWER holds the Founder's sentence essentially as they gave it — **surface problem and
-  consequence only**, not a causal "because". Tidy grammar; do not improve the thinking. The whole
-  point of keeping it is the contrast with the later root-cause-hypothesis version, and a polished
-  draft destroys that.
-- If the Founder volunteers a cause in Block 1, acknowledge it, leave it out of this field, and say
-  you will dig into causes in the Five Whys.
+- CONFIRMED ANSWER holds a **ranked list**, most severe first, one entry per problem — each entry is
+  the Founder's own words for what the customer struggles with and what it costs them **when it
+  happens**, not a causal "because". Tidy grammar; do not improve the thinking. The whole point of
+  keeping this version is the contrast with the later root-cause-hypothesis statement, and a
+  polished draft destroys that.
+- If the Founder volunteers a cause for any entry in Block 1, acknowledge it, leave it out of this
+  field, and say you will dig into causes in the Five Whys.
+- Severity is the Founder's own ordering, not yours — ask them which hurts most if they list several
+  without ranking them, and record their answer, not your inference.
+- **The Five Whys ladder targets the most severe entry (rank 1) by default.** Say so when you open
+  Block 3. If the Founder wants to dig into a different entry instead, that is their call to make
+  explicitly — do not switch it yourself.
 
 For `current_alternatives`:
 
@@ -733,7 +817,8 @@ One bank per field. Select a single probe per turn — never read a bank out as 
 
 **`problem_draft`** — Which of the unmet needs from Module 2 is this? What happens the moment before
 they notice the problem? Is that the problem or the consequence of it? Who feels it first? What
-would they call it in their own words? (Do not probe for why/cause here — that is Block 3.)
+would they call it in their own words? Of everything you just listed, which hurts them most, and
+which least? (Do not probe for why/cause here — that is Block 3.)
 
 **`current_alternatives`** — What do they do when they have no tool? What did they pay for and stop
 using, and why? What have they built themselves — a spreadsheet, a checklist, a process? Who do they
@@ -1017,10 +1102,14 @@ do, from what they confirmed.
 | Venture | Venture name only, from context |
 | Interview Target | M2 `beachhead_segment` and `customer_where`. Name who to interview and where the Founder can find five matching people |
 | What This Interview Tests | `problem_statement` restated as a testable claim, plus the one or two ASSUMPTIONS from `root_cause` and `priority_evidence` that would most damage the venture if wrong. Name the current root-cause hypothesis explicitly as a hypothesis |
+| Opening Script | Generated. See the Opening Script rules below |
 | Five Interview Questions | Generated. See the coverage rule below |
+| Question Guidance | Generated, one `### Q{n}` per question. See the Question Guidance rules below |
 | Mom Test Rules | Generated. Four or five rules, each actionable during a live call |
 | Pass Bar | Generated. Labeled Problem / Root cause / Urgency conditions, calibrated to `pain_intensity` |
 | Kill Criteria | Generated. Exactly three patterns from `root_cause`, `current_alternatives` and `priority_evidence` — distinguish true kills from root-cause falsification |
+| Assumptions Being Validated | Generated. See the Assumptions Being Validated rules below |
+| Closing Questions | Generated. See the Closing Questions rules below |
 | After Each Call | Fixed content from the template |
 | Where Results Go | Fixed content from the template |
 
@@ -1037,6 +1126,16 @@ Do not invent a plausible channel, and do not add this gap to the Problem Statem
 Highest-priority validation questions. It is an interview recruitment gap, not a problem hypothesis.
 Surface it only in Interview Target so the Founder knows it must be resolved before starting the
 interview round.
+
+**Opening Script rules.** One short script, spoken before Question 1, covering three things and
+nothing else: who is asking and why (understanding how this type of customer handles the problem
+today), an explicit statement that this is not a sales pitch and nothing is being offered, and — if
+the Founder records calls — a plain consent line. Do not name the venture's product, category or
+solution direction anywhere in it; revealing the least and hearing the most starts before the first
+question. Do not invent a company name, a research-program name, or a recording/consent policy the
+Founder has not confirmed — write the consent line only in general terms ("I'd like to record this
+so I can focus on the conversation rather than note-taking — is that okay?") rather than inventing
+who the recording is shared with or how it is stored.
 
 **Coverage rule.** The five questions must collectively test:
 
@@ -1075,6 +1174,23 @@ At least one question must surface what they have already paid for or abandoned.
 abandoned alternatives as **especially strong evidence when they appear** — not as the only strong
 signal; hiring, executive escalation, or lost customers can be equally strong.
 
+**Question Guidance rules.** One `### Q{n}` subsection per question, in the same order as Five
+Interview Questions, each carrying a `**Listen for:**` list and a `**Suggestion:**` paragraph — this
+is the interviewer's coaching layer, generated by you, never asked of the Founder.
+
+- **Listen for** (2–4 bullets): concrete, observable signals that would count as a strong answer to
+  *this specific question* — named tools or systems, time quoted in hours rather than minutes, a
+  quantified consequence, an admission that the picture still felt incomplete. Draw these from the
+  Founder's confirmed `current_alternatives`, `pain_intensity` and `root_cause` wherever they supply
+  a concrete signal; where none exists, write a concrete signal implied by the question's coverage
+  purpose (see the coverage rule above) rather than a vague restatement of the question itself.
+- **Suggestion**: one short coaching paragraph telling the interviewer how to push past a
+  surface-level answer to this question specifically — what to ask if the Founder pauses, or what a
+  sharper follow-up would surface. Ground it in this venture's confirmed problem, alternatives and
+  root-cause hypothesis; never write generic interviewing advice that could apply to any guide.
+- Do not name the venture's product or solution direction in either field — the guidance stays on
+  the customer's current world, the same boundary as the questions themselves.
+
 **Pass bar rules.** Keep a single `## Pass Bar` section. Open with a Founder-facing AI-proposed
 disclaimer on its own bold line (do not invent a new H2), then the lane-grading preamble:
 
@@ -1112,6 +1228,22 @@ interviews it must appear in, and the consequence:
   hypothesis claimed was missing.
 
 Derive them from this venture's confirmed answers, not from a generic list.
+
+**Assumptions Being Validated rules.** 3 to 7 rows in the `| # | Assumption | Validated if… |
+Invalidated if… |` table. Each row states one assumption load-bearing enough that being wrong would
+change the problem, the root cause, or whether to proceed — the same source material as the Problem
+Statement's Highest-priority validation questions (`root_cause`, `current_alternatives`,
+`priority_evidence`), reframed here as a validated-if/invalidated-if pair rather than a question.
+`Validated if…` and `Invalidated if…` must each name a concrete, checkable behaviour or statement an
+interview could actually produce — never the assumption restated with "if true" appended. Do not
+introduce an assumption that is not already recorded under ASSUMPTIONS somewhere in the confirmed
+Responses.
+
+**Closing Questions rules.** Exactly two, asked at the end of every conversation, before any pitch:
+a referral ask (who else they would suggest talking to) and an opt-in-to-pilot ask (whether they
+would be open to trying a solution first, if one gets built). Keep both generic in form — do not
+name the venture's product or any solution direction in the opt-in question, only that "a solution"
+may get built.
 
 ## Boundaries
 
@@ -1229,6 +1361,31 @@ Derive them from this venture's confirmed answers, not from a generic list.
 - **Validator rules are not authored yet.** When `module-3.ts` is written, the minimum-count rules
   need the same escape Module 2's do: a section may legitimately hold an honest "not yet identified"
   statement instead of N items. The ladder's rule must accept three to five rungs.
+- **Block 1 collects a ranked list, not a single sentence.** The source material and this module's
+  first design both drafted `problem_draft` as one surface-problem sentence. Revised so the Founder
+  lists every problem they can name for the beachhead customer, ranked most to least severe — the
+  Five Whys ladder in Block 3 then targets the most severe entry by default. Block 4's "BEFORE" now
+  shows that one entry, not the whole list.
+- **The Five Whys why-lines are a fixed, leadership-mandated script, not a dynamic one.** The
+  original design (and this file's §2 illustration, until this revision) had each why quote the
+  Founder's last answer back to them — "You said the reports take three days because the data lives
+  in four systems. Why does the data live in four systems?" Leadership required the exact original
+  sentences instead, non-negotiable: a fixed opening, and fixed Why 1/2/3 lines, with Why 4/5
+  continuing in the same generic-fixed-sentence style. The coaching rules underneath — challenge
+  once before stopping, three-to-five rung range, the three non-answer repairs, the
+  ladder-off-customer catch — are unchanged; they now govern judgement about *when* to move to the
+  next fixed line, not the wording of the line itself.
+- **`Problem-Interview-Guide.md` gained four structural sections**, ported from a real client
+  discovery guide's structure only — never its content, which stays specific to that one client
+  engagement and must never appear in this shared product. **Opening Script** (a consent-and-context
+  script before Question 1, naming no product or solution direction). **Question Guidance**
+  (`### Q1`–`### Q5`, each with a generated **Listen for** list and a **Suggestion** coaching note —
+  the interviewer's coaching layer, not asked of the Founder). **Assumptions Being Validated** (a
+  3–7 row table, reframing the same load-bearing assumptions behind the Problem Statement's
+  Highest-priority validation questions as validated-if/invalidated-if pairs). **Closing Questions**
+  (exactly two, fixed in shape: a referral ask and an opt-in-to-pilot ask). All four are generated
+  from confirmed Responses, never asked of the Founder as new questions — the module still resolves
+  exactly 8 fields across 6 conversation blocks.
 
 ---
 
@@ -1249,10 +1406,11 @@ in the architecture doc:
 
 **The locked headings are a contract.** `problem_interview_workbook_v1` declares
 `requiredSections` = every locked heading in this template, `##` and `###` alike: Venture ·
-Interview Target · What This Interview Tests · Five Interview Questions · Mom Test Rules · Pass
-Bar · Kill Criteria · After Each Call · Where Results Go. (This template currently has no `###`.) A
-heading renamed or added here without updating the renderer must fail a test — never render a Word file with a section silently missing, because the
-Founder discovers that mid-interview.
+Interview Target · What This Interview Tests · Opening Script · Five Interview Questions ·
+Question Guidance (`### Q1`–`### Q5`) · Mom Test Rules · Pass Bar · Kill Criteria · Assumptions
+Being Validated · Closing Questions · After Each Call · Where Results Go. A heading renamed or
+added here without updating the renderer must fail a test — never render a Word file with a
+section silently missing, because the Founder discovers that mid-interview.
 
 **The workbook is designed backwards from the next module's evidence intake, not forwards from this
 template.** The Markdown holds one set of five questions; the workbook expands it into five separate
@@ -1271,8 +1429,9 @@ The workbook is editable **only inside named input controls**; everything derive
 Markdown is locked against accidental editing. Full rules in the architecture doc; the parts that
 constrain this template:
 
-**Locked** — Venture · Interview Target · What This Interview Tests · the five questions · Mom Test
-Rules · Pass Bar · Kill Criteria · every fixed field label.
+**Locked** — Venture · Interview Target · What This Interview Tests · Opening Script · the five
+questions · Question Guidance (Listen for + Suggestion per question) · Mom Test Rules · Pass Bar ·
+Kill Criteria · Assumptions Being Validated · Closing Questions · every fixed field label.
 
 **Editable** — interview date · participant identifier · role and organisation · recruitment
 channel · beachhead match · notes against each of the five questions · verbatim quotes · observed

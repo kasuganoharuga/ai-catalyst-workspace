@@ -9,6 +9,7 @@ import { resolveModuleCopy } from "../../../../lib/copy";
 import {
   MODULE_1_KEY,
   MODULE_2_KEY,
+  MODULE_3_KEY,
   moduleAccentStyle,
 } from "../../../../lib/module-display";
 import type { Module1RunProps } from "../../types";
@@ -30,9 +31,9 @@ import { Module1WorkStep } from "./module1-work-step";
  * The name is a holdover from when Module 1 was the only standard Module;
  * `moduleKey` picks which Module's own copy actually renders.
  *
- * Module 1 and Module 2 are the exception: any prep material the Founder
- * has goes straight into the chat with the assistant, which reads it and
- * calls save_prep_extract itself — so both skip the Documents card
+ * Modules 1, 2 and 3 are the exception: any prep material the Founder has
+ * goes straight into the chat with the assistant, which reads it and
+ * calls save_prep_extract itself — so all three skip the Documents card
  * entirely (three cards, not four) rather than routing through a website
  * upload the assistant then has to fetch back out again.
  */
@@ -53,7 +54,9 @@ export function Module1Run(props: Module1RunProps) {
   const isPreview = preview !== null;
   const copy = resolveModuleCopy(moduleKey);
   const showDocumentsStep =
-    moduleKey !== MODULE_1_KEY && moduleKey !== MODULE_2_KEY;
+    moduleKey !== MODULE_1_KEY &&
+    moduleKey !== MODULE_2_KEY &&
+    moduleKey !== MODULE_3_KEY;
 
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,

@@ -70,7 +70,7 @@ const IDEAL_CUSTOMER_AVATAR_TEMPLATE = `# Ideal Customer Avatar
 This section records the evidence available when this version of the Avatar was created. It is a
 current snapshot, not a final validation verdict.
 
-**Current level:** Assumed / Interviewed / Paying
+**Current level:** Assumed / Interviewed / Prototyped / Paying
 
 ### Based on observation
 
@@ -86,6 +86,7 @@ current snapshot, not a final validation verdict.
 const VALIDATION_STATUS_OPTIONS = [
   { value: "assumed", label: "Assumed" },
   { value: "interviewed", label: "Interviewed" },
+  { value: "prototyped", label: "Prototyped" },
   { value: "paying", label: "Paying" },
 ];
 
@@ -450,7 +451,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         type: "label_enum",
         label: "Current level",
         scope: { level: 2, heading: "Validation Status" },
-        allowed: ["assumed", "interviewed", "paying"],
+        allowed: ["assumed", "interviewed", "prototyped", "paying"],
       },
     ],
     submissionRules: [

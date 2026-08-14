@@ -21,6 +21,12 @@ Operations leads at 50–200 person waste-collection contractors in metro Austra
 
 Whether route supervisors actually lose recoverable hours to manual run-sheet reconciliation.
 
+## Opening Script
+
+Thanks for the time. I'm researching how operations leads at contractors like yours actually run
+run-sheet reconciliation today — I'm not selling anything, and there's no pitch coming. I'd like to
+record this so I can focus on the conversation rather than note-taking — is that okay?
+
 ## Five Interview Questions
 
 1. Tell me about the last time a run sheet did not match what the trucks actually did.
@@ -28,6 +34,69 @@ Whether route supervisors actually lose recoverable hours to manual run-sheet re
 3. What have you already tried or bought to stop it happening?
 4. Walk me through what you did the last time it happened.
 5. Where does this sit against everything else on your plate this quarter?
+
+## Question Guidance
+
+### Q1
+
+**Listen for:**
+
+- A specific, dated occurrence rather than a general description.
+- A named system or paper process involved in the mismatch.
+- An admission that the mismatch was only caught by chance.
+
+**Suggestion:**
+
+If they describe the mismatch in the abstract, ask them to walk through the exact moment they
+noticed it — what they were looking at, and what tipped them off.
+
+### Q2
+
+**Listen for:**
+
+- A frequency stated in occurrences per week or month, not "sometimes."
+- Escalating language such as "more than it used to."
+
+**Suggestion:**
+
+Push for a number even if they resist — "roughly how many times last month?" — and note whether they
+have to guess or already know it cold.
+
+### Q3
+
+**Listen for:**
+
+- A named tool or spend, not just "we manage."
+- An abandoned attempt, not only current tools.
+
+**Suggestion:**
+
+Ask explicitly what they tried and stopped using — abandoned spend is stronger signal than current
+spend.
+
+### Q4
+
+**Listen for:**
+
+- Who personally absorbed the extra work.
+- Whether the fix was a one-off patch or a process change.
+
+**Suggestion:**
+
+If they describe only the fix, ask what happened to the underlying process afterwards — did anything
+change, or did it just get patched again.
+
+### Q5
+
+**Listen for:**
+
+- A named competing priority they chose instead.
+- A budget or time-allocation decision that reveals real ranking.
+
+**Suggestion:**
+
+If they say "it's important," ask what they fixed instead this quarter — the answer reveals the real
+ranking better than a stated one.
 
 ## Mom Test Rules
 
@@ -53,6 +122,21 @@ interviews satisfy the conditions below:**
 2. The cost per occurrence is under one hour of a supervisor's time.
 3. An existing tool would solve it if configured.
 
+## Assumptions Being Validated
+
+| # | Assumption | Validated if… | Invalidated if… |
+|---|---|---|---|
+| A1 | Supervisors lose 2+ hours per week reconciling run sheets by hand. | Interviewee names a specific weekly time cost of 2+ hours. | Reconciliation is already automated or takes under 30 minutes. |
+| A2 | The mismatch is discovered reactively, not flagged by existing tools. | Interviewee describes finding out by chance or complaint. | Existing tooling already flags mismatches proactively. |
+| A3 | At least one paid or abandoned tool already exists for this problem. | Interviewee names a specific tool they paid for or tried. | No tool has ever been tried or purchased for this. |
+
+## Closing Questions
+
+Ask both at the end of every conversation, before any pitch:
+
+- Is there anyone else you'd suggest I speak to who deals with this kind of thing?
+- If we build something that solves this, would you be open to trying it first?
+
 ## After Each Call
 
 - Write the verbatim notes within 30 minutes.
@@ -73,10 +157,27 @@ describe("parseInterviewGuide — happy path", () => {
     expect(model.ventureName).toBe("Kerbside");
   });
 
+  it("extracts the Opening Script", () => {
+    expect(model.openingScript).toContain("not selling anything");
+  });
+
   it("extracts exactly 5 questions, in order", () => {
     expect(model.questions).toHaveLength(5);
     expect(model.questions[0]).toContain("Tell me about the last time");
     expect(model.questions[4]).toContain("everything else on your plate");
+  });
+
+  it("extracts Question Guidance for all 5 questions, in order", () => {
+    expect(model.questionGuidance).toHaveLength(5);
+    expect(model.questionGuidance[0].listenFor).toHaveLength(3);
+    expect(model.questionGuidance[0].listenFor[0]).toContain(
+      "specific, dated occurrence",
+    );
+    expect(model.questionGuidance[0].suggestion).toContain("exact moment they");
+    expect(model.questionGuidance[4].listenFor).toHaveLength(2);
+    expect(model.questionGuidance[4].suggestion).toContain(
+      "fixed instead this quarter",
+    );
   });
 
   it("extracts Mom Test rules", () => {
@@ -100,6 +201,22 @@ describe("parseInterviewGuide — happy path", () => {
     for (const condition of model.passBar.conditions) {
       expect(condition).not.toMatch(/\*\*/);
     }
+    for (const guidance of model.questionGuidance) {
+      expect(guidance.suggestion).not.toMatch(/\*\*/);
+    }
+  });
+
+  it("extracts the Assumptions Being Validated table", () => {
+    expect(model.assumptions).toHaveLength(3);
+    expect(model.assumptions[0].assumption).toContain("lose 2+ hours per week");
+    expect(model.assumptions[0].validatedIf).toContain("2+ hours");
+    expect(model.assumptions[0].invalidatedIf).toContain("already automated");
+  });
+
+  it("extracts exactly 2 Closing Questions", () => {
+    expect(model.closingQuestions).toHaveLength(2);
+    expect(model.closingQuestions[0]).toContain("anyone else");
+    expect(model.closingQuestions[1]).toContain("open to trying it first");
   });
 
   it("extracts After Each Call and Where Results Go", () => {
@@ -121,11 +238,61 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
 
   it("throws when there are 6 questions", () => {
     const bad = fixture().replace(
-      "## Mom Test Rules",
-      "6. One extra question that should not be here.\n\n## Mom Test Rules",
+      "## Question Guidance",
+      "6. One extra question that should not be here.\n\n## Question Guidance",
     );
     expect(() => parseInterviewGuide(bad)).toThrow(
       /WORKBOOK_RENDER_FAILED.*Five Interview Questions/,
+    );
+  });
+
+  it("throws when Q1 has no Listen for list", () => {
+    const bad = fixture().replace(
+      /\*\*Listen for:\*\*\n\n- A specific, dated occurrence rather than a general description\.\n- A named system or paper process involved in the mismatch\.\n- An admission that the mismatch was only caught by chance\.\n\n/,
+      "",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Q1.*Listen for/,
+    );
+  });
+
+  it("throws when Q1 has no Suggestion", () => {
+    const bad = fixture().replace(
+      /\*\*Suggestion:\*\*\n\nIf they describe the mismatch in the abstract, ask them to walk through the exact moment they\nnoticed it — what they were looking at, and what tipped them off\.\n\n/,
+      "",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Q1.*Suggestion/,
+    );
+  });
+
+  it("throws when the Assumptions table has only 2 rows", () => {
+    const bad = fixture().replace(
+      "| A3 | At least one paid or abandoned tool already exists for this problem. | Interviewee names a specific tool they paid for or tried. | No tool has ever been tried or purchased for this. |\n",
+      "",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Assumptions Being Validated/,
+    );
+  });
+
+  it("throws when there is only 1 Closing Question", () => {
+    const bad = fixture().replace(
+      "- If we build something that solves this, would you be open to trying it first?\n",
+      "",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Closing Questions/,
+    );
+  });
+
+  it("throws when Opening Script is missing", () => {
+    const bad = fixture().replace(
+      /## Opening Script\n\nThanks for the time\. I'm researching how operations leads at contractors like yours actually run\nrun-sheet reconciliation today — I'm not selling anything, and there's no pitch coming\. I'd like to\nrecord this so I can focus on the conversation rather than note-taking — is that okay\?\n\n/,
+      "",
+    );
+    expect(() => parseInterviewGuide(bad)).toThrow(
+      /WORKBOOK_RENDER_FAILED.*Opening Script/,
     );
   });
 
@@ -141,8 +308,8 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
 
   it("throws when Kill Criteria has 4 patterns", () => {
     const bad = fixture().replace(
-      "## After Each Call",
-      "4. A fourth kill pattern that should not exist.\n\n## After Each Call",
+      "## Assumptions Being Validated",
+      "4. A fourth kill pattern that should not exist.\n\n## Assumptions Being Validated",
     );
     expect(() => parseInterviewGuide(bad)).toThrow(
       /WORKBOOK_RENDER_FAILED.*Kill Criteria/,

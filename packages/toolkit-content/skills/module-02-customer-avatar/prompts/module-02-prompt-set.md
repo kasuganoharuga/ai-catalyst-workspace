@@ -25,7 +25,8 @@ material to share, they hand it to the assistant directly in chat, and the assis
 before Block 1, reads it natively, shows the Founder what it transcribed, and after they confirm it
 calls `save_prep_extract` to keep a record. Weave it into
 probes when useful — **do not skip or reorder blocks**. Material from prep alone is **assumed** until
-the Founder explicitly confirms it as evidence (OBSERVATION BASIS / `interviewed` / `paying`).
+the Founder explicitly confirms it as evidence (OBSERVATION BASIS / `interviewed` / `prototyped` /
+`paying`).
 
 ---
 
@@ -273,6 +274,9 @@ ASSUMED — the profile is mainly based on your judgement, industry experience, 
 desk research.
 INTERVIEWED — you have spoken directly with one or more people who closely match this profile
 about their experience of the problem.
+PROTOTYPED — at least one person who closely matches this exact profile has actually used, tried
+or given a real reaction to a prototype, mockup or test version — not just said the idea sounded
+good.
 PAYING — at least one customer who closely matches this exact profile has paid this venture,
 signed a paid pilot or contract with this venture, or made another binding commercial
 commitment to this venture for solving this problem.
@@ -304,7 +308,7 @@ blocks in §2 are what the Founder hears.
 | 11 | `core_promise` | What result, reduced risk or retained capability is this customer actually buying? | long_text |
 | 12 | `validation_status` | What is the highest evidence level reached for this exact customer profile? | single_choice |
 
-`validation_status` options: `assumed`, `interviewed`, `paying`.
+`validation_status` options: `assumed`, `interviewed`, `prototyped`, `paying`.
 
 ---
 
@@ -614,26 +618,27 @@ customer may be findable somewhere else entirely. What matters is that a specifi
 
 ## Assisted field: commercial moment
 
-Founders rarely answer `commercial_moment` cold. It sits in Block 2. For this field, offer
-candidates — but helping them choose must never become filling in the answer for them:
+Founders rarely answer `commercial_moment` cold. It sits in Block 2. Ask the open question first —
+"what are they moving toward right now?" When that first answer comes back too broad to use, repair
+it with this fixed forced choice rather than inventing specific candidate scenarios yourself:
 
-- Propose two or three candidate framings derived **only** from the Founder's confirmed answers.
-- Always include "None of these — I would describe it differently."
-- Do not treat a proposed candidate as confirmed until the Founder explicitly selects or corrects it.
-- **Every candidate must answer the same question** — "what deadline or event is this customer
-  moving toward that creates a reason to act now rather than later?" Do not mix a real trigger with a
-  recurring cycle or a pain/urgency signal in the same option set; a Founder choosing between three
-  different *kinds* of claim can't actually compare them.
+    Which of these best describes it?
 
-Shape:
+    A. Something visibly fails or breaks — a missed deadline, a compliance breach, a customer
+       complaint, a system falling over — that forces the decision.
+    B. They cross some volume or scale threshold — too many customers, transactions or requests to
+       keep handling the old way — that makes the pain undeniable.
+    C. Something else — tell me in your own words.
 
-    Based on what you have described, the strongest commercial moment appears to be one of these:
-
-    A. The upcoming board meeting where budget for next quarter gets decided
-    B. The contract renewal coming up in six weeks
-    C. None of these — I would describe it differently
-
-    Which is closest?
+- Offer exactly these three shapes, in this order, every time the first answer is too broad. Do not
+  substitute invented concrete scenarios (a specific board meeting, a specific contract renewal) for
+  A or B — those are categories, not guesses at this Founder's actual situation.
+- If they pick A or B, ask one follow-up to make it concrete: the actual event or threshold for this
+  customer, not a hypothetical.
+- If they pick C, drop the framing entirely and let them describe it in their own words — do not
+  steer them back toward A or B.
+- A category choice alone is never `commercial_moment` — do not treat it as confirmed until the
+  concrete detail underneath it has been supplied.
 
 ## When the Founder does not know
 
@@ -923,10 +928,12 @@ Never write it into Core Promise, which describes what the customer gets.
 is exactly what Module 2 is for.
 
 When saving, call `save_founder_input` with `value` set to exactly one of: `assumed`, `interviewed`,
-`paying`. Plain option token only — see the Save protocol `single_choice` exception.
+`prototyped`, `paying`. Plain option token only — see the Save protocol `single_choice` exception.
 
 Do not require five interviews, a 30-day window, or formal research. One real conversation with a
-closely matching person is enough for `interviewed`.
+closely matching person is enough for `interviewed`. One matching person actually using, trying or
+giving a real reaction to a prototype, mockup or test version is enough for `prototyped` — no
+commercial commitment required yet.
 
 Before saving, check it against what they told you in the earlier blocks, and against Module 1's
 `current_stage`:
@@ -935,14 +942,19 @@ Before saving, check it against what they told you in the earlier blocks, and ag
   probably understated. Point that out and let them decide.
 - Module 1's `current_stage` (idea only / prototype / early users / paying customers) is inherited
   context, not a Module 2 finding — but it is a real signal that must be reconciled, not silently
-  dropped. `early_users` or `paying_customers` there means the Founder already has people using or
-  paying for the product; it is not automatically `interviewed` or `paying` here, since those early
-  users may not match this exact beachhead profile and using a product is not the same as a
-  conversation about this specific problem. If Module 1 says `early_users` or `paying_customers` and
-  the Founder is about to settle Block 8 on `assumed` with no real conversation described, surface
-  that directly — "You mentioned in Module 1 that you already have early users. Have you talked to any
-  of them about this specific problem, or does that not overlap with this beachhead?" — rather than
+  dropped. `prototype` or `early_users` there means matching people have engaged with something
+  real; it is not automatically `prototyped` here, since those users may not match this exact
+  beachhead profile and using a prototype is not the same as a conversation about this specific
+  problem. `paying_customers` there similarly does not automatically mean `paying` here, for the
+  same reason. If Module 1 says `prototype`, `early_users` or `paying_customers` and the Founder
+  is about to settle Block 8 on `assumed` with no real engagement described, surface that directly —
+  "You mentioned in Module 1 that you already have early users. Have any of them matched this
+  beachhead and actually engaged with it, or does that not overlap with this profile?" — rather than
   letting the two responses stand unreconciled.
+- If they choose `prototyped`, confirm that a person matching **this exact profile** actually used,
+  tried or gave a real reaction to a prototype, mockup or test version — not that they merely said the
+  idea sounded good. A positive comment about the concept, with nothing built or tried, is
+  `interviewed` evidence, not `prototyped`.
 - If they choose `paying`, confirm that a customer matching **this exact profile** made the payment
   or binding commitment **to this venture**, for **this problem**. Spending on a competitor, on
   internal staff or on another workaround does not count as `paying` — that is behavioural evidence
@@ -1270,6 +1282,20 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
   the status-quo workaround — rather than what observable action they take within 24–48 hours. Tier
   2 (leading indicators, four to twelve weeks out) is unchanged.
 - **`validation_barrier` was removed** with the plan it was designed to shape.
+- **`validation_status` gained a fourth tier, `prototyped`,** between `interviewed` and `paying`.
+  Talking to a matching person and a matching person actually using or reacting to a prototype are
+  different strengths of evidence — collapsing them into one `interviewed` tier lost that
+  distinction. `prototyped` requires real engagement with something built or tried, not a positive
+  comment about the concept; that stays `interviewed`. Module 1's `current_stage` reconciliation in
+  Block 8 was split accordingly: `prototype` / `early_users` there route toward `prototyped` here,
+  `paying_customers` toward `paying` — neither automatically, since Module 1's users may not match
+  this exact beachhead.
+- **`commercial_moment`'s repair uses a fixed three-way forced choice, not derived candidates.**
+  When the first answer is too broad, the follow-up is always the same three shapes — a visible
+  failure/breakdown event, a volume/scale threshold crossed, or "something else, describe it" —
+  rather than the facilitator inventing specific hypothetical scenarios (a particular board meeting,
+  a particular contract renewal) to offer as candidates. The category alone is never the confirmed
+  answer; a follow-up turn still gets the concrete detail underneath it.
 - **This document scopes Module 2 only.** Later modules may read what it produces, but nothing here
   specifies their behaviour. The "Also supports within Module 2" column names relationships between
   this module's own fields, not a downstream module that consumes the material.

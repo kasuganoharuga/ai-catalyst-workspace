@@ -16,13 +16,26 @@ export function buildInterviewGuideHtml(model: {
   ventureName: string;
   interviewTarget: string;
   whatThisInterviewTests: string;
+  openingScript?: string;
   questions: string[];
+  questionGuidance?: { listenFor: string[]; suggestion: string }[];
   passBar?: InterviewGuideModel["passBar"];
   killCriteria?: string[];
+  assumptions?: InterviewGuideModel["assumptions"];
+  closingQuestions?: string[];
 }): string {
   const questionsHtml = model.questions
-    .map(
-      (q, i) => `
+    .map((q, i) => {
+      const guidance = model.questionGuidance?.[i];
+      const guidanceHtml = guidance
+        ? `
+      <div class="guidance">
+        <p class="guidance-label">Listen for:</p>
+        <ul>${guidance.listenFor.map((c) => `<li>${escapeHtml(c)}</li>`).join("")}</ul>
+        <p class="suggestion"><strong>Suggestion:</strong> ${escapeHtml(guidance.suggestion)}</p>
+      </div>`
+        : "";
+      return `
     <section class="question">
       <h2>Q${i + 1}</h2>
       <p class="prompt">${escapeHtml(q)}</p>
@@ -32,9 +45,17 @@ export function buildInterviewGuideHtml(model: {
         <div class="line"></div>
         <div class="line"></div>
       </div>
-    </section>`,
-    )
+      ${guidanceHtml}
+    </section>`;
+    })
     .join("\n");
+
+  const openingScriptHtml = model.openingScript
+    ? `<section class="box">
+        <h2>Opening script</h2>
+        <p>${escapeHtml(model.openingScript)}</p>
+      </section>`
+    : "";
 
   const passBarHtml = model.passBar
     ? `<section class="box">
@@ -49,6 +70,30 @@ export function buildInterviewGuideHtml(model: {
       ? `<section class="box">
         <h2>Kill criteria</h2>
         <ul>${model.killCriteria.map((c) => `<li>${escapeHtml(c)}</li>`).join("")}</ul>
+      </section>`
+      : "";
+
+  const assumptionsHtml =
+    model.assumptions && model.assumptions.length > 0
+      ? `<section class="box">
+        <h2>Assumptions being validated</h2>
+        <table class="assumptions">
+          <thead><tr><th>Assumption</th><th>Validated if…</th><th>Invalidated if…</th></tr></thead>
+          <tbody>${model.assumptions
+            .map(
+              (a) =>
+                `<tr><td>${escapeHtml(a.assumption)}</td><td>${escapeHtml(a.validatedIf)}</td><td>${escapeHtml(a.invalidatedIf)}</td></tr>`,
+            )
+            .join("")}</tbody>
+        </table>
+      </section>`
+      : "";
+
+  const closingQuestionsHtml =
+    model.closingQuestions && model.closingQuestions.length > 0
+      ? `<section class="box">
+        <h2>Closing questions</h2>
+        <ul>${model.closingQuestions.map((c) => `<li>${escapeHtml(c)}</li>`).join("")}</ul>
       </section>`
       : "";
 
@@ -86,6 +131,27 @@ export function buildInterviewGuideHtml(model: {
       margin-top: 12pt;
     }
     .box ul { margin: 4pt 0 0 1.1rem; padding: 0; }
+    .guidance {
+      margin-top: 6pt;
+      padding: 6pt 8pt;
+      background: #f6f6f6;
+      border-left: 3px solid #bbb;
+    }
+    .guidance-label { font-weight: 600; margin: 0 0 2pt; }
+    .guidance ul { margin: 0 0 6pt 1.1rem; padding: 0; }
+    .guidance .suggestion { margin: 0; }
+    table.assumptions {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4pt;
+      font-size: 10pt;
+    }
+    table.assumptions th, table.assumptions td {
+      border: 1px solid #ccc;
+      padding: 4pt 6pt;
+      text-align: left;
+      vertical-align: top;
+    }
     footer {
       margin-top: 18pt;
       font-size: 9pt;
@@ -104,6 +170,7 @@ export function buildInterviewGuideHtml(model: {
     <dt>Date</dt><dd>&nbsp;</dd>
     <dt>Interview target</dt><dd>${escapeHtml(model.interviewTarget) || "&nbsp;"}</dd>
   </dl>
+  ${openingScriptHtml}
   <section class="box">
     <h2>What this interview tests</h2>
     <p>${escapeHtml(model.whatThisInterviewTests) || "—"}</p>
@@ -111,6 +178,8 @@ export function buildInterviewGuideHtml(model: {
   ${questionsHtml}
   ${passBarHtml}
   ${killHtml}
+  ${assumptionsHtml}
+  ${closingQuestionsHtml}
   <footer>AI Catalyst · Problem Interview Guide</footer>
 </body>
 </html>`;

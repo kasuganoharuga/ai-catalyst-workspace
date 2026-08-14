@@ -17,12 +17,36 @@ const MODEL: InterviewGuideModel = {
     "Operations leads at 50–200 person waste-collection contractors in metro Australia.",
   whatThisInterviewTests:
     "Whether route supervisors lose recoverable hours to manual reconciliation.",
+  openingScript:
+    "Thanks for the time. I'm researching how operations leads run reconciliation today — I'm not selling anything.",
   questions: [
     "Tell me about the last time a run sheet did not match what the trucks actually did.",
     "How often does that happen in a typical month?",
     "What have you already tried or bought to stop it happening?",
     "Walk me through what you did the last time it happened.",
     "Where does this sit against everything else on your plate this quarter?",
+  ],
+  questionGuidance: [
+    {
+      listenFor: ["A specific, dated occurrence.", "A named system involved."],
+      suggestion: "Ask them to walk through the exact moment they noticed it.",
+    },
+    {
+      listenFor: ["A stated frequency, not 'sometimes'."],
+      suggestion: "Push for a number even if they resist.",
+    },
+    {
+      listenFor: ["A named tool or spend.", "An abandoned attempt."],
+      suggestion: "Ask what they tried and stopped using.",
+    },
+    {
+      listenFor: ["Who absorbed the extra work."],
+      suggestion: "Ask what happened to the process afterwards.",
+    },
+    {
+      listenFor: ["A named competing priority."],
+      suggestion: "Ask what they fixed instead this quarter.",
+    },
   ],
   momTestRules: [
     "Ask about what actually happened, never about what they would do.",
@@ -43,6 +67,27 @@ const MODEL: InterviewGuideModel = {
     "The supervisor treats the work as normal and shows no interest in removing it.",
     "The cost per occurrence is under one hour of a supervisor's time.",
     "An existing tool would solve it if configured.",
+  ],
+  assumptions: [
+    {
+      assumption: "Supervisors lose 2+ hours per week reconciling run sheets.",
+      validatedIf: "Interviewee names a specific weekly time cost of 2+ hours.",
+      invalidatedIf: "Reconciliation already takes under 30 minutes.",
+    },
+    {
+      assumption: "The mismatch is discovered reactively.",
+      validatedIf: "Interviewee describes finding out by chance.",
+      invalidatedIf: "Existing tooling already flags mismatches proactively.",
+    },
+    {
+      assumption: "A paid or abandoned tool already exists for this problem.",
+      validatedIf: "Interviewee names a specific tool they paid for or tried.",
+      invalidatedIf: "No tool has ever been tried or purchased for this.",
+    },
+  ],
+  closingQuestions: [
+    "Is there anyone else you'd suggest I speak to who deals with this?",
+    "Would you be open to trying it first, if we build a solution?",
   ],
   afterEachCall: [
     "Write the verbatim notes within 30 minutes.",

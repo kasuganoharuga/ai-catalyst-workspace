@@ -86,7 +86,7 @@ capability retained. Say what they are really buying beyond the product itself.>
 This section records the evidence available when this version of the Avatar was created. It is a
 current snapshot, not a final validation verdict.
 
-**Current level:** Assumed / Interviewed / Paying
+**Current level:** Assumed / Interviewed / Prototyped / Paying
 
 ### Based on observation
 

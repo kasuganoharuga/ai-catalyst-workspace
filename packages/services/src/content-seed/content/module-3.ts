@@ -75,6 +75,8 @@ const PROBLEM_INTERVIEW_GUIDE_TEMPLATE = `# Problem Interview Guide
 
 ## What This Interview Tests
 
+## Opening Script
+
 ## Five Interview Questions
 
 1.
@@ -82,6 +84,58 @@ const PROBLEM_INTERVIEW_GUIDE_TEMPLATE = `# Problem Interview Guide
 3.
 4.
 5.
+
+## Question Guidance
+
+### Q1
+
+**Listen for:**
+
+-
+-
+-
+
+**Suggestion:**
+
+### Q2
+
+**Listen for:**
+
+-
+-
+-
+
+**Suggestion:**
+
+### Q3
+
+**Listen for:**
+
+-
+-
+-
+
+**Suggestion:**
+
+### Q4
+
+**Listen for:**
+
+-
+-
+-
+
+**Suggestion:**
+
+### Q5
+
+**Listen for:**
+
+-
+-
+-
+
+**Suggestion:**
 
 ## Mom Test Rules
 
@@ -112,6 +166,24 @@ the hypothesis — not to kill the problem:**
 1.
 2.
 3.
+
+## Assumptions Being Validated
+
+Each conversation should move the needle on at least one of these. Note which questions generated
+signal against each assumption.
+
+| # | Assumption | Validated if… | Invalidated if… |
+|---|---|---|---|
+| | | | |
+| | | | |
+| | | | |
+
+## Closing Questions
+
+Ask both at the end of every conversation, before any pitch:
+
+-
+-
 
 ## After Each Call
 
@@ -148,7 +220,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 1,
     questionGroup: "statement",
     questionText:
-      "In the Founder's own words, what does the beachhead customer struggle with, and what does it cost them when it happens?",
+      "In the Founder's own words, what are the problems the beachhead customer experiences — ranked from most severe to least severe — and what does each cost them when it happens?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -176,7 +248,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 3,
     questionGroup: "five_whys",
     questionText:
-      "Asked in sequence, each building on the last: why does this problem exist?",
+      "Asked in sequence, each building on the last: why does the most severe problem named exist?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -443,7 +515,7 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
   sequenceIndex: 2,
   name: "Problem Interview Guide",
   description:
-    "Five past-behaviour interview questions testing a recent occurrence, frequency and impact, prior spending, the root-cause mechanism and priority — plus Mom Test rules, a pre-set pass bar and kill criteria. Generated from the confirmed Problem Statement fields; interview results are read by the next module, never here.",
+    "Five past-behaviour interview questions testing a recent occurrence, frequency and impact, prior spending, the root-cause mechanism and priority — each with a Listen-for cue and a coaching suggestion, plus Mom Test rules, an opening script, a pre-set pass bar, kill criteria, an Assumptions Being Validated table, and closing questions. Generated from the confirmed Problem Statement fields; interview results are read by the next module, never here.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -469,13 +541,28 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Venture" },
           { level: 2, heading: "Interview Target" },
           { level: 2, heading: "What This Interview Tests" },
+          { level: 2, heading: "Opening Script" },
           { level: 2, heading: "Five Interview Questions" },
+          { level: 2, heading: "Question Guidance" },
+          { level: 3, heading: "Q1" },
+          { level: 3, heading: "Q2" },
+          { level: 3, heading: "Q3" },
+          { level: 3, heading: "Q4" },
+          { level: 3, heading: "Q5" },
           { level: 2, heading: "Mom Test Rules" },
           { level: 2, heading: "Pass Bar" },
           { level: 2, heading: "Kill Criteria" },
+          { level: 2, heading: "Assumptions Being Validated" },
+          { level: 2, heading: "Closing Questions" },
           { level: 2, heading: "After Each Call" },
           { level: 2, heading: "Where Results Go" },
         ],
+      },
+      {
+        key: "opening_script_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Opening Script",
       },
       {
         key: "venture_name",
@@ -504,6 +591,76 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
         maximum: 5,
       },
       {
+        key: "listen_for_q1_range",
+        type: "range_named_items",
+        level: 3,
+        heading: "Q1",
+        minimum: 2,
+        maximum: 4,
+      },
+      {
+        key: "suggestion_q1_present",
+        type: "label_present",
+        label: "Suggestion",
+        scope: { level: 3, heading: "Q1" },
+      },
+      {
+        key: "listen_for_q2_range",
+        type: "range_named_items",
+        level: 3,
+        heading: "Q2",
+        minimum: 2,
+        maximum: 4,
+      },
+      {
+        key: "suggestion_q2_present",
+        type: "label_present",
+        label: "Suggestion",
+        scope: { level: 3, heading: "Q2" },
+      },
+      {
+        key: "listen_for_q3_range",
+        type: "range_named_items",
+        level: 3,
+        heading: "Q3",
+        minimum: 2,
+        maximum: 4,
+      },
+      {
+        key: "suggestion_q3_present",
+        type: "label_present",
+        label: "Suggestion",
+        scope: { level: 3, heading: "Q3" },
+      },
+      {
+        key: "listen_for_q4_range",
+        type: "range_named_items",
+        level: 3,
+        heading: "Q4",
+        minimum: 2,
+        maximum: 4,
+      },
+      {
+        key: "suggestion_q4_present",
+        type: "label_present",
+        label: "Suggestion",
+        scope: { level: 3, heading: "Q4" },
+      },
+      {
+        key: "listen_for_q5_range",
+        type: "range_named_items",
+        level: 3,
+        heading: "Q5",
+        minimum: 2,
+        maximum: 4,
+      },
+      {
+        key: "suggestion_q5_present",
+        type: "label_present",
+        label: "Suggestion",
+        scope: { level: 3, heading: "Q5" },
+      },
+      {
         key: "mom_test_rules_range",
         type: "range_named_items",
         level: 2,
@@ -526,6 +683,29 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
         heading: "Kill Criteria",
         minimum: 3,
         maximum: 3,
+      },
+      {
+        key: "assumptions_table_range",
+        type: "range_table_rows",
+        level: 2,
+        heading: "Assumptions Being Validated",
+        minimum: 3,
+        maximum: 7,
+      },
+      {
+        key: "assumptions_required_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "Assumptions Being Validated",
+        requiredColumns: ["Assumption", "Validated if…", "Invalidated if…"],
+      },
+      {
+        key: "closing_questions_exact",
+        type: "range_named_items",
+        level: 2,
+        heading: "Closing Questions",
+        minimum: 2,
+        maximum: 2,
       },
       {
         key: "after_each_call_present",
