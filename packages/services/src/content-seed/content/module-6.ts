@@ -10,9 +10,9 @@ import type {
 // packages/toolkit-content/skills/module-06-competitive-analysis/ — this file is the
 // seeded copy, kept in sync by anti-drift.test.ts.
 //
-// Founder-supplied material for this module arrives as prep documents
-// uploaded on the Work step, read via get_module_context /
-// get_prep_document. There is no website intake form.
+// Module 6 has no website Documents step. Founder-supplied material is
+// shared directly in chat, transcribed and saved via save_prep_extract,
+// then read back via get_module_context / get_prep_document.
 
 const COMPETITIVE_LANDSCAPE_TEMPLATE = `# Competitive Landscape
 

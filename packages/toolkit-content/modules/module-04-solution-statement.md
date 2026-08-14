@@ -9,8 +9,9 @@ Modules 1→7. Not seeded yet — seed/runtime still serve Proof until the Solut
 
 ## When to Use
 
-After the Founder has run their problem interviews and uploaded the notes on this module's Work
-step. Do not re-ask beachhead, problem, or alternatives already locked in Modules 2–3.
+After the Founder has run their problem interviews and shared the notes directly in this module's
+chat, where Claude transcribes and saves them (no website Documents step). Do not re-ask
+beachhead, problem, or alternatives already locked in Modules 2–3.
 
 ## Required Inputs
 

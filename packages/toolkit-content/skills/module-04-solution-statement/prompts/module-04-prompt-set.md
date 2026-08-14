@@ -6,19 +6,21 @@ prompts live in `content/prompts.ts` (`solution_statement_*`). This file is the 
 keep it in sync when either side changes. Proof (`module-04-evidence-of-unmet-need`) is archived.
 
 **Chain:** Module 1 → 2 → 3 → **4 Solution** → 5 → 6 → 7. The Founder runs their interviews between
-Modules 3 and 4 and uploads the notes on this module's Work step.
+Modules 3 and 4 and shares the notes directly in this module's chat, where Claude transcribes and
+saves them.
 
 Module 4 takes the beachhead and problem Modules 2–3 locked in, plus whatever interview notes the
-Founder uploaded, and turns them into a precise North Star solution statement and three Minimum
+Founder shared, and turns them into a precise North Star solution statement and three Minimum
 Loveable features — ruthlessly prioritised by what the customer actually wants, not by what is
 interesting to build.
 
 It produces two artefacts: `North-Star.md` and `Feature-Benefit-Map.md`.
 
-Interview notes arrive as prep documents the Founder uploads on the Work step, read at open via
-`get_module_context` / `get_prep_document`. Claude does not re-collect interview notes and does
-not send the Founder to a website form — Proof's Analyse / Decide / Plan path is retired from the
-Toolkit sequence.
+Module 4 has no website Documents step. The Founder shares interview notes directly in chat;
+Claude transcribes them faithfully and saves the extract via `save_prep_extract`, then reads it
+back at open via `get_module_context` / `get_prep_document`. Claude does not re-collect interview
+notes once confirmed and does not send the Founder to a website form — Proof's Analyse / Decide /
+Plan path is retired from the Toolkit sequence.
 
 The module's shape is **name → differentiate → dump → cut to three → benefit → rank → risk**.
 Module 3 excavated the problem; this module commits to what to build first. The skill it teaches is
@@ -26,10 +28,11 @@ refusing a generic differentiator and refusing a feature list that is really a w
 
 **No investor slide.** Deck copy is a later concern. Two artefacts only.
 
-**Website prep before Work:** read any Founder-submitted notes/files at open; weave into probes when
-useful; **do not skip or reorder blocks**. Prep material is **assumed** until the Founder confirms
-what it supports — uploaded interview notes included. They are the only source of real customer
-quotes, but uploading a file is not the same as proving a claim.
+**No website Documents step:** ask for interview notes directly in chat at open, transcribe and save
+via `save_prep_extract`; weave into probes when useful; **do not skip or reorder blocks**. Prep
+material is **assumed** until the Founder confirms what it supports — transcribed interview notes
+included. They are the only source of real customer quotes, but sharing a note is not the same as
+proving a claim.
 
 ---
 
@@ -62,7 +65,7 @@ confirmation for the three fields.
 
 "Also supports" names relationships **inside this module only**.
 
-### Inherited from Modules 2 and 3 + uploaded interview notes
+### Inherited from Modules 2 and 3 + interview notes shared in chat
 
 Module 4 must never ask the Founder to re-describe their customer, restate the problem, or paste
 interview notes.
@@ -74,10 +77,10 @@ interview notes.
 | M2 `functional_needs` / `emotional_needs` | Lens for emotional benefits and desirability. |
 | M3 `problem_statement` / `root_cause` | Problem already locked; solution must address it. |
 | M3 `current_alternatives` (+ M1 competitors) | What to differentiate against — including doing nothing. |
-| Uploaded interview notes (prep documents) | Only source of interview quotes, counts, workarounds, buying signals. Re-read; never invent. |
+| Interview notes shared in chat (prep extracts) | Only source of interview quotes, counts, workarounds, buying signals. Re-read; never invent. |
 
 Open by briefly summarising who the customer is, what problem was hypothesised, and how many
-interview notes were uploaded (or that none were). Do not paste long prior answers back.
+interview notes were shared (or that none were). Do not paste long prior answers back.
 
 ---
 
@@ -93,12 +96,12 @@ Response before the block is spoken. When missing, drop the replay line and ask 
 *Multi-turn: basics → draft sentence → differentiation challenge → confirm.*
 
 ```
-From Modules 2–3 and the notes you uploaded, I already have:
+From Modules 2–3 and the notes you shared, I already have:
 
     — the customer: [Module 2: beachhead_segment]
     — the problem hypothesis: [Module 3: problem_statement]
     — how they cope today: [Module 3: current_alternatives]
-    — the interview notes on this module's Work step
+    — the interview notes you shared in this chat
 
 You do not need to repeat any of that. We are writing the internal North Star — not a tagline —
 in this shape:
@@ -131,7 +134,7 @@ save the three fields.*
 *Resolves `feature_brain_dump`, `most_valuable_features`, `feature_benefits`.*
 
 ```
-Based on the customer feedback in the interview notes you uploaded (problems, workarounds,
+Based on the customer feedback in the interview notes you shared (problems, workarounds,
 urgency, buying signals) — and what Modules 2–3 already recorded — tell me every feature you are
 planning or considering for the first version.
 
@@ -223,42 +226,57 @@ clever to build.
 - Before the first question: call `get_module_context` for `module-04-solution-statement`, read
   Module 2 / Module 3 Responses, and read every prep document listed in `prepDocuments` using
   `get_prep_document`.
-- **Interview material is whatever the Founder uploaded on the Work step.** There is no
-  website-confirmed evidence file and no form to send them back to. If they uploaded nothing, say
-  so plainly, record every feature judgement as an assumption rather than as validated, and carry
-  on — a Founder without interview notes still gets a North Star and three features, with the
-  evidence gap stated honestly. Do not stop the module, and do not wait for a file that no longer
-  exists.
+- **Interview material is whatever the Founder shares directly in this chat, transcribed by you.**
+  There is no website Documents step and no MCP tool that reads a file for you — see
+  Founder-submitted prep materials below. If they have nothing to share, say so plainly, record
+  every feature judgement as an assumption rather than as validated, and carry on — a Founder
+  without interview notes still gets a North Star and three features, with the evidence gap stated
+  honestly. Do not stop the module.
 - The Founder supplies name, category, differentiator claims, and the feature dump. You draft the
   North Star, challenge differentiation, propose the three, write benefits, and stress-test rank
   and assumptions. Never invent customers, quotations, numbers or traction. Quotation marks are
-  reserved for words a customer actually said in the uploaded interview notes.
+  reserved for words a customer actually said in the interview notes.
 - Never ask the Founder to re-describe the beachhead, restate the problem, or re-list alternatives
   already confirmed upstream.
 
 ## Founder-submitted prep materials
 
-Before Continue in Claude (the Work step), the Founder may have submitted notes, files, or other
-materials on the website for this Module, including any interview notes.
+Module 4 has no website Documents step. There is no MCP tool that reads a file for you here — if
+the Founder has interview notes or any other relevant material, they share it directly in this
+chat, and you read it yourself with your own native file-reading ability.
 
-1. **Read them at open.** After `get_module_context` / `get_artifact`, check for any Founder-submitted
-   prep for this Attempt. Summarise briefly what you found (or say none). Do not ask them to paste it
-   again.
-2. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
+1. **Ask first, before anything else.** Immediately after `get_module_context` — before the
+   Modules 2–3 summary, before Block 1 — ask the Founder plainly whether they have interview notes
+   or other material from the interviews they ran to share before you begin. This is the only
+   chance to bring prep material in; there is no later step that surfaces it if you skip asking
+   now.
+2. **If they share something, read the whole thing yourself.** You have your own native ability to
+   read whatever they paste or attach in this chat — there is no MCP tool that reads it for you.
+3. **Transcribe, do not summarise.** Prepare a faithful transcription of what you read — a short
+   filename/title and an `extractedText` that preserves the interviewee's own words, exact counts
+   and specific facts. This is not a condensed gist: there is no uploaded file behind it, so your
+   transcription is the only copy that will ever exist, and it is the only source later blocks can
+   cite as validated. Compressing away a detail now means it is gone for good.
+4. **Show it and confirm before saving.** Show the Founder the transcription you prepared and ask
+   them to confirm it is accurate and complete before you call `save_prep_extract` — the same
+   discipline as every block below: never persist something the Founder has not seen. Only after
+   they confirm, call `save_prep_extract`.
+5. **If they have nothing to share, move straight on** to the Modules 2–3 summary and Block 1. Say
+   so plainly, record every feature judgement as an assumption rather than as validated, and carry
+   on — a Founder without interview notes still gets a North Star and three features, with the
+   evidence gap stated honestly. Do not ask again later in the conversation.
+6. **Do not change the question flow.** Prep never skips a block, reorders blocks, or replaces a
    required ask.
-3. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
+7. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
    answers ("You already noted X — is that still right?"). Prefer their words when they confirm.
-4. **Default evidence grade: assumed.** Anything that comes only from prep (not from confirmed
-   the interview notes) is an **assumption** until the Founder explicitly confirms it as evidence
-   in this Module. The uploaded interview notes remain the only source for quotations and for
-   grading a feature validated rather than assumed — but a note is evidence of what someone said,
-   not proof that the feature is wanted. The Founder confirms which is which.
-
-5. **Say so when you cannot read one.** Uploaded files are stored as-is and are not
-   converted for you. `get_prep_document` returns text formats inline; for a PDF, Word file or
-   image it returns `readable: false` and no content. When that happens, name the file, tell the
-   Founder plainly that you could not read it, and ask them to paste the part that matters. Never
-   infer a file's contents from its filename, and never treat an unread file as evidence.
+8. **Default evidence grade: assumed.** Anything that comes only from prep is an **assumption**
+   until the Founder explicitly confirms it as evidence in this Module. The transcribed interview
+   notes remain the only source for quotations and for grading a feature validated rather than
+   assumed — but a transcript is evidence of what someone said, not proof that the feature is
+   wanted. The Founder confirms which is which.
+9. **A saved extract can be re-read on resume.** It shows up in `get_module_context`'s
+   `prepDocuments` the same as an uploaded file would; `get_prep_document` returns your own saved
+   text back if the conversation continues in a new session.
 
 ## Inherited context
 
@@ -269,15 +287,15 @@ materials on the website for this Module, including any interview notes.
 | M2 needs (functional / emotional) | Lens for emotional benefits and desirability. |
 | M3 problem statement / root cause | Solution must address this hypothesis. |
 | M3 alternatives (+ M1 competitors) | Differentiation baseline, including doing nothing. |
-| Uploaded interview notes | Only interview source. Re-read before grading validated vs assumed. |
+| Interview notes shared in chat | Only interview source. Re-read before grading validated vs assumed. |
 
 Open with a **concise summary**:
 
-    From Modules 2–3 and the notes you uploaded, I have:
+    From Modules 2–3 and the notes you shared, I have:
 
     — the customer as [...]
     — the problem hypothesis as [...]
-    — N interview notes uploaded on this module
+    — N interview notes shared in this module
 
     You do not need to repeat any of that. In this module we write the North Star and the three
     features worth building first.
@@ -354,7 +372,7 @@ words. Never invent a quote to make the emotional benefit land.
 Rank by **customer desirability**, not build order. If the Founder's rank ignores clear interview
 signal, say so and propose a reorder with reasoning. Record both ranks and the disagreement.
 
-For assumption risks: "validated" requires support in the uploaded interview notes or a clear upstream
+For assumption risks: "validated" requires support in the interview notes or a clear upstream
 observation. Confidence is not validation. For each feature: validated or assumed, what to learn,
 how to learn it. The cut choice is recorded honestly even if it hurts.
 
@@ -449,14 +467,14 @@ Rules:
 
 ## Content rules
 
-1. **Never invent interviews or quotes.** Re-read the uploaded interview notes.
+1. **Never invent interviews or quotes.** Re-read the interview notes.
 2. **Never re-ask beachhead, problem, or alternatives** already confirmed upstream.
 3. **Confirm once per conversation block** — never after each question or field.
-4. **Prep materials are assumed** until the Founder explicitly confirms evidence; confirmed
-   the uploaded interview notes are the interview evidence source.
+4. **Prep materials are assumed** until the Founder explicitly confirms evidence; once confirmed,
+   the interview notes are the interview evidence source.
 3. **Differentiator must be structural**, not a generic promise.
 4. **Numbers from evidence stay exact** — do not soften "3 of 5" into "several".
-5. **Never rewrite or "tidy" an uploaded note.** It is the Founder's record, not a draft.
+5. **Never rewrite or "tidy" a saved extract.** It is the Founder's record, not a draft.
 6. **No investor slide** and no third artefact.
 7. **Do not claim "validated"** without cited evidence support.
 
@@ -520,17 +538,16 @@ the website.
 ```markdown
 # Solution Statement Artifact Generator
 
-Generate Module 4's two artefacts from the Founder's confirmed Responses and the pinned
-the uploaded interview notes. Generate nothing else, and never rewrite an uploaded note.
+Generate Module 4's two artefacts from the Founder's confirmed Responses and the interview notes
+shared for this Attempt. Generate nothing else, and never rewrite a saved extract.
 
 ## Inputs
 
 - Read confirmed Responses: `product_definition`, `differentiator`, `north_star_statement`,
   `feature_brain_dump`, `most_valuable_features`, `feature_benefits`, `desirability_order`,
   `assumption_risks`.
-- Read the interview notes with `get_prep_document` for each entry in `prepDocuments` when
-  citing customer language. A document that comes back `readable: false` is not a source — say so
-  rather than guessing at what it contained.
+- Read the interview notes with `get_prep_document` for each entry in `prepDocuments` when citing
+  customer language.
 - Read Module 2 / Module 3 context for beachhead, problem, and alternatives.
 
 ## Outputs
@@ -547,7 +564,7 @@ as the templates require.
 - Customer and outcome slots match Module 2 / confirmed `north_star_statement` unless the Founder
   explicitly refined them.
 - Format confirmed answers — do not re-strengthen claims. "Reported interest" stays "reported".
-- Quotes only from the uploaded interview notes.
+- Quotes only from the interview notes.
 - Do not label a feature validated in the artefact unless `assumption_risks` / evidence supports it.
 - Differentiator must remain structural in the saved file.
 

@@ -10,6 +10,10 @@ import {
   MODULE_1_KEY,
   MODULE_2_KEY,
   MODULE_3_KEY,
+  MODULE_4_KEY,
+  MODULE_5_KEY,
+  MODULE_6_KEY,
+  MODULE_7_KEY,
   moduleAccentStyle,
 } from "../../../../lib/module-display";
 import type { Module1RunProps } from "../../types";
@@ -31,9 +35,9 @@ import { Module1WorkStep } from "./module1-work-step";
  * The name is a holdover from when Module 1 was the only standard Module;
  * `moduleKey` picks which Module's own copy actually renders.
  *
- * Modules 1, 2 and 3 are the exception: any prep material the Founder has
- * goes straight into the chat with the assistant, which reads it and
- * calls save_prep_extract itself — so all three skip the Documents card
+ * Every standard Module is the exception now: any prep material the Founder
+ * has goes straight into the chat with the assistant, which reads it and
+ * calls save_prep_extract itself — so every Module skips the Documents card
  * entirely (three cards, not four) rather than routing through a website
  * upload the assistant then has to fetch back out again.
  */
@@ -56,7 +60,11 @@ export function Module1Run(props: Module1RunProps) {
   const showDocumentsStep =
     moduleKey !== MODULE_1_KEY &&
     moduleKey !== MODULE_2_KEY &&
-    moduleKey !== MODULE_3_KEY;
+    moduleKey !== MODULE_3_KEY &&
+    moduleKey !== MODULE_4_KEY &&
+    moduleKey !== MODULE_5_KEY &&
+    moduleKey !== MODULE_6_KEY &&
+    moduleKey !== MODULE_7_KEY;
 
   const answered = coreQuestions.filter(
     (q) => q.responseStatus !== null,

@@ -12,6 +12,9 @@ export const MODULE_1_KEY = "module-01-pressure-test";
 export const MODULE_2_KEY = "module-02-customer-avatar";
 export const MODULE_3_KEY = "module-03-problem-statement";
 export const MODULE_4_KEY = "module-04-solution-statement";
+export const MODULE_5_KEY = "module-05-epics-user-stories";
+export const MODULE_6_KEY = "module-06-competitive-analysis";
+export const MODULE_7_KEY = "module-07-business-model";
 
 // Module 2 progress uses eight founder-facing conversation blocks (see
 // module-02-prompt-set.md §1–2), not `questionGroup` — that field maps

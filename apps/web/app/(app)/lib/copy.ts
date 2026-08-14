@@ -888,8 +888,8 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Three conversation blocks: what you are building and why it wins, the three Minimum Loveable features and their benefits, then ranking and honest assumption risks.",
       },
       {
-        lead: "Upload your interview notes first.",
-        body: "Add whatever you already have — interview write-ups, research, notes — to the documents on this module. Your assistant reads them at the start of the conversation, and quotes only ever come from what you actually recorded.",
+        lead: "Share your interview notes first.",
+        body: "Paste or attach whatever you already have — interview write-ups, research, notes — directly in the chat. Your assistant transcribes and saves them at the start of the conversation, and quotes only ever come from what you actually recorded.",
       },
       {
         lead: "Expect your differentiator to be challenged.",
@@ -899,14 +899,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         lead: "Three features, not ten.",
         body: "Your assistant proposes the three and you correct them — picking them yourself would be doing the prioritisation you came here for help with.",
       },
-    ],
-    documentsBody:
-      "Your interview notes matter most here. They are the only source your assistant will quote customers from, and the only thing that lets a feature be called validated rather than assumed.",
-    documentsSuggestions: [
-      "Your interview write-ups from the conversations Module 3 prepared",
-      "A feature list, backlog or product spec, however rough",
-      "Notes on what makes your approach different from the alternatives",
-      "Anything a customer sent you unprompted asking for something",
     ],
     questionsLabel: "Eight solution questions",
     progressVerdict: "Solution documents saved to your workspace",
@@ -945,14 +937,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "5 means least effort, so the score sorts quick wins customers care about to the top.",
       },
     ],
-    documentsBody:
-      "Anything that constrains what can realistically ship first. Your assistant writes the stories; these stop it writing ones your team cannot build or has already built.",
-    documentsSuggestions: [
-      "An existing backlog, roadmap or feature list",
-      "Technical constraints or architecture notes the stories must respect",
-      "Notes on team size, sprint length or anything else limiting scope",
-      "Designs or flows already agreed, described in text",
-    ],
     questionsLabel: "Six backlog questions",
     progressVerdict: "Backlog documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -990,14 +974,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Honest gaps are fine. Stating no traction plainly is stronger than implying some.",
       },
     ],
-    documentsBody:
-      "Whatever competitor research you have already gathered. You will still paste live URLs into the conversation — these are for the work you have done that a web page would not show.",
-    documentsSuggestions: [
-      "Competitor research, comparison notes or battlecards",
-      "Saved pricing or positioning pages, exported as PDF or text",
-      "Analyst reports, market maps or category write-ups",
-      "Notes on why a customer chose a competitor over you, or the reverse",
-    ],
     questionsLabel: "Nine competitive questions",
     progressVerdict: "Competitive documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -1034,14 +1010,6 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         lead: "Steps that need real conversations are marked.",
         body: "A cash plan that never requires talking to a customer gets flagged as exactly that.",
       },
-    ],
-    documentsBody:
-      "Anything with real numbers in it. Your assistant will not invent figures, so what you bring is the difference between a benchmarked model and one built entirely on assumptions.",
-    documentsSuggestions: [
-      "A financial model, budget or runway calculation — export spreadsheets as CSV",
-      "Current or planned pricing, and how you arrived at it",
-      "Cost estimates: tools, contractors, ads, anything already being paid for",
-      "Competitor pricing you have collected, or quotes customers have given you",
     ],
     questionsLabel: "Eight business-model questions",
     progressVerdict: "Business model documents saved to your workspace",

@@ -12,10 +12,12 @@ import type {
 // packages/toolkit-content/skills/module-04-solution-statement/ — this
 // file is the seeded copy, kept in sync by anti-drift.test.ts.
 //
-// Interview material no longer arrives as a structured website form. The
-// Founder uploads interview notes as prep documents on the Work step, and
-// the facilitator reads them via get_module_context / get_prep_document.
-// That is why there is no interview_evidence artifact here any more.
+// Interview material no longer arrives as a structured website form. Module
+// 4 has no website Documents step: the Founder shares interview notes
+// directly in chat, the facilitator transcribes them and saves the extract
+// via save_prep_extract, then reads it back via get_module_context /
+// get_prep_document. That is why there is no interview_evidence artifact
+// here any more.
 
 const NORTH_STAR_TEMPLATE = `# North Star
 
