@@ -609,6 +609,17 @@ async function clean(deps: Deps): Promise<number> {
     "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [ids],
   );
+  // Invitations reference users without ON DELETE CASCADE (invited_by /
+  // invited / accepted / revoked). Clear those rows before deleting users
+  // or clean fails after a founder has sent invites from a seeded account.
+  await deps.pool.query(
+    `delete from invitations
+     where invited_by_user_id = any($1::uuid[])
+        or invited_user_id = any($1::uuid[])
+        or accepted_by_user_id = any($1::uuid[])
+        or revoked_by_user_id = any($1::uuid[])`,
+    [ids],
+  );
   // Before the ventures: user_active_contexts holds a foreign key to the
   // active venture, and these accounts all have one (setActiveVenture runs
   // during seeding), so deleting ventures first fails on that constraint.
