@@ -160,8 +160,9 @@ Both columns must name a concrete, checkable behaviour or statement an interview
 
 Ask both at the end of every conversation, before any pitch:
 
-<Exactly two: a referral ask and an opt-in-to-pilot ask. Neither names the venture's product or
-solution direction.>
+<Exactly two: a referral ask and a forward-commitment ask (may we follow up when there is something
+to test — not a hypothetical "would you try it" opinion question). Neither names the venture's
+product or solution direction.>
 
 -
 -
