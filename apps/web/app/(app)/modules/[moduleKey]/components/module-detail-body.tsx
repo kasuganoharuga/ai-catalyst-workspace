@@ -27,8 +27,8 @@ import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
 
 // Runtime APP_ENV gate (not NODE_ENV): the staging image is a Next.js
-// production build, so NODE_ENV=production there too. Evaluated in this
-// Server Component so a production APP_ENV never renders the button.
+// production build, so NODE_ENV=production there too. Hidden only when
+// APP_ENV is explicitly production.
 
 type ModuleDetailBodyProps = {
   moduleKey: string;

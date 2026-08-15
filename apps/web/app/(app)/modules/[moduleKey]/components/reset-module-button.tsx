@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { resetModuleProgressAction } from "@/lib/actions/founder-actions";
 
 /**
- * Local/staging testing convenience — module-detail-body.tsx only
- * renders this when APP_ENV is local or staging. Wipes this Module's
+ * Testing convenience — module-detail-body.tsx hides this only when
+ * APP_ENV is production. Wipes this Module's
  * attempts, confirmed Responses, artefacts and prep material, and every
  * Module after it in the same Run, back to never-started.
  */

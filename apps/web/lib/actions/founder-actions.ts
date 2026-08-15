@@ -216,7 +216,7 @@ export async function confirmModuleCompletionAction(
 }
 
 /**
- * Local/staging testing convenience: wipes this Module's attempts,
+ * Testing convenience (disabled only when APP_ENV is production): wipes this Module's attempts,
  * confirmed Responses, artefacts and prep material — and every Module
  * after it in the same Run, since their availability depended on this
  * one having been completed — back to never-started.

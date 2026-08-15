@@ -15,10 +15,11 @@ export { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed
 // a Founder able to work on a Module whose prerequisite no longer has
 // an answer.
 //
-// Allowed on local and staging only. Gated here (defense in depth
-// behind the website action) so a stray call cannot run this against
-// production Founder data. NODE_ENV cannot be the gate: Next.js
-// production builds (including the staging image) set NODE_ENV=production.
+// Allowed unless APP_ENV is explicitly production. Gated here (defense
+// in depth behind the website action). NODE_ENV cannot be the gate:
+// Next.js production builds (including the staging image) set
+// NODE_ENV=production, and the live staging task definition may omit
+// APP_ENV because deploy-aws.yml only rewrites the image.
 
 export interface ResetModuleProgressResult {
   resetModuleIds: string[];

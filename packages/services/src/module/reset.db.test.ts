@@ -438,6 +438,16 @@ describe("resetModuleProgress — database integration", () => {
     expect(result.resetModuleIds).toContain(module1Id);
   });
 
+  it("allows a reset when APP_ENV is unset on a production Node build", async () => {
+    const { actor, module1Id } = await createRunWithModules("unset-app-env");
+    delete process.env.APP_ENV;
+    delete process.env.NEXT_PUBLIC_APP_ENV;
+    process.env.NODE_ENV = "production";
+
+    const result = await resetModuleProgress(actor, module1Id);
+    expect(result.resetModuleIds).toContain(module1Id);
+  });
+
   it("treats an unknown run module id as not found", async () => {
     const { actor } = await createRunWithModules("missing");
     await expect(resetModuleProgress(actor, randomUUID())).rejects.toThrow(
