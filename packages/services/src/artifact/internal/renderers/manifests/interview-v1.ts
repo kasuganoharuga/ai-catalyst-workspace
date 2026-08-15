@@ -67,8 +67,8 @@ export const PROBLEM_INTERVIEW_FIELD_MANIFEST_V1: FieldManifest = {
       kind: "family",
       type: "checkbox",
       suffixTemplate: "kill_criterion_{n}_observed",
-      // Always 3 — Module 3 Kill Criteria section is fixed at three patterns.
-      count: { kind: "fixed", value: 3 },
+      // Always 2 — Module 3 Kill Criteria section is fixed at two patterns.
+      count: { kind: "fixed", value: 2 },
     },
     { kind: "fixed", type: "text", suffix: "evidence_extracts", capacity: 400 },
   ],

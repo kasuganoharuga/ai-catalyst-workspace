@@ -235,7 +235,7 @@ const AVATAR_RESPONSES: { questionKey: string; answerText: string }[] = [
   {
     questionKey: "tier1_signals",
     answerText:
-      "No pricing request, demo booking or pilot start has been identified yet.",
+      "Founder-hypothesized, not yet observed: requesting a demo or pricing, asking about Xero/MYOB integration, requesting a trial for one client file, and assigning someone at the firm to evaluate it.",
   },
   {
     questionKey: "tier2_signals",
@@ -304,7 +304,12 @@ A new client comes on during busy season. The ops person tries to move the clien
 
 ### Tier 1 — high intent (act in 24–48 hrs)
 
-No pricing request, demo booking or pilot start has been identified yet.
+Founder-hypothesized, not yet observed:
+
+- Requesting a demo or pricing
+- Asking about Xero/MYOB integration
+- Requesting a trial for one client file
+- Assigning someone at the firm to evaluate it
 
 ### Tier 2 — building intent, nurture over 4–12 weeks
 

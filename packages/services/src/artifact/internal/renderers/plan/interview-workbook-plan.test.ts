@@ -66,7 +66,6 @@ const MODEL: InterviewGuideModel = {
   killCriteria: [
     "The supervisor treats the work as normal and shows no interest in removing it.",
     "The cost per occurrence is under one hour of a supervisor's time.",
-    "An existing tool would solve it if configured.",
   ],
   assumptions: [
     {
@@ -298,7 +297,7 @@ describe("buildInterviewWorkbookPlan -> renderWorkbookPlan — full pipeline", (
     const fields = doc.getForm().getFields();
     const names = fields.map((f) => f.getName());
     expect(new Set(names).size).toBe(names.length);
-    expect(names).toHaveLength(120);
+    expect(names).toHaveLength(115);
     for (const field of fields) {
       expect(field.acroField.getWidgets()).toHaveLength(1);
     }

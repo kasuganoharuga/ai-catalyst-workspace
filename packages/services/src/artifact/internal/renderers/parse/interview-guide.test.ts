@@ -116,11 +116,10 @@ interviews satisfy the conditions below:**
 
 ## Kill Criteria
 
-**Three patterns that mean this problem is not worth building for and the scope has to change:**
+**Two patterns. True kills mean the problem is not worth pursuing and scope must change:**
 
 1. The supervisor treats the work as normal and shows no interest in removing it.
 2. The cost per occurrence is under one hour of a supervisor's time.
-3. An existing tool would solve it if configured.
 
 ## Assumptions Being Validated
 
@@ -193,8 +192,8 @@ describe("parseInterviewGuide — happy path", () => {
     );
   });
 
-  it("extracts exactly 3 kill criteria", () => {
-    expect(model.killCriteria).toHaveLength(3);
+  it("extracts exactly 2 kill criteria", () => {
+    expect(model.killCriteria).toHaveLength(2);
   });
 
   it("strips markdown emphasis from extracted text", () => {
@@ -296,9 +295,9 @@ describe("parseInterviewGuide — negative cases (each must throw WORKBOOK_RENDE
     );
   });
 
-  it("throws when Kill Criteria has only 2 patterns", () => {
+  it("throws when Kill Criteria has only 1 pattern", () => {
     const bad = fixture().replace(
-      "3. An existing tool would solve it if configured.\n",
+      "2. The cost per occurrence is under one hour of a supervisor's time.\n",
       "",
     );
     expect(() => parseInterviewGuide(bad)).toThrow(

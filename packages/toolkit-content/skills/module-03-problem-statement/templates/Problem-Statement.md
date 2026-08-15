@@ -29,9 +29,9 @@ two is visible. Never rewritten to look better in hindsight.>
 
 ## Five Whys Ladder
 
-<Render each completed rung in order, numbered. Between three and five rungs. The ladder stops where
-the root cause emerges — that may be Why 3 or Why 4. Do not render unused rungs, do not leave a rung
-blank, and never pad to five.>
+<Render exactly three rungs, in order, numbered — Why 1, Why 2, Why 3. Do not render a fourth or
+fifth rung: the fixed script's Why 4 and Why 5 are the root-cause synthesis and the priority
+challenge, not additional rungs.>
 
 1. **Why <the question as it was asked>?**
 
@@ -45,64 +45,20 @@ blank, and never pad to five.>
 
    <the Founder's answer, in their words>
 
-<Continue to a fourth and fifth rung only if the ladder actually went that far.>
-
-**Root cause emerges at Why <n>.**
-
 ## Root Cause
 
 <One short paragraph. The structural, behavioural or systemic reason the problem persists — the
 thing the customer cannot dissolve by trying harder, buying a better tool or being more organised.
-If the ladder did not reach one, say so plainly and record it under Important unknowns.>
+Synthesised at Why 4 from the three rungs above. If the ladder did not reach something structural,
+say so plainly and record it under Important unknowns.>
 
 ## Why This Is Urgent
 
-<Scores are 1–10 and each carries its reasoning. A score with no reasoning is not a score. Where the
-Founder could not answer an axis, write the honest gap in the answer column and leave the score
-blank rather than estimating.>
-
-| Axis | What the Founder described | Score (1–10) | Reasoning |
-|---|---|---|---|
-| Frequency — how often the problem occurs | | | |
-| Cost — time, money or missed opportunity each time | | | |
-| Urgency — how actively they are looking for a solution | | | |
-
-**Verdict:** <Whether the problem currently shows enough potential to proceed to customer
-interviews, which evidence supports that judgement, and what must still be tested before deciding
-to build.>
-
-<The working threshold is met when either case holds.
-
-Standard case — at least two axes score 7 or higher, and no axis scores below 4.
-
-Cycle-based exception — cost and urgency score 7 or higher; frequency is below 4 only because the
-problem occurs once within a meaningful customer cycle, such as each raise, renewal, audit or
-procurement event; and one occurrence carries a major financial, regulatory, contractual or
-operational consequence.
-
-A low calendar frequency is not automatically weak when the event occurs once per meaningful
-customer cycle.>
-
-<This is a judgement about whether to keep investigating, not about whether to start building.>
-
-## What Customers Do Today
-
-<Keep this heading. Immediately under it, state section-level evidence status from this field's own
-OBSERVATION BASIS vs ASSUMPTIONS — not from module-level validation_status alone. If this section
-has supporting observation: "Evidence status: Observed or reported in matching firms." Otherwise:
-"Evidence status: Founder hypothesis; not yet observed in matching firms." Then list every
-workaround, tool, spreadsheet, manual process and market solution the customer uses now — including
-the ones that half-work and the ones they gave up on. This is the real competition. Later competitor
-work reads this section.>
-
-| Tool or workaround | What it does | Where it falls short |
-|---|---|---|
-| | | |
-| | | |
-| | | |
-
-<Doing nothing is a legitimate row, and often the most important one. Record it when it is what the
-customer actually does.>
+<One short paragraph: the Founder's answer to the priority challenge (Why 5) — whether this is the
+problem they would fix first this year — and which of the three evidence grades applies: observed
+behaviour, reported priority, or inference. Say plainly whether the grade supports proceeding to
+customer interviews. This is a judgement about whether to keep investigating, not about whether to
+start building. Never compute a numeric verdict — there are no scores behind this field.>
 
 ## Validation Status
 

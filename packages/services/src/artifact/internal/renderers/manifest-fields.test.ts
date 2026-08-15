@@ -53,19 +53,19 @@ describe("expectedFieldNames — problem_interview_workbook_v1", () => {
     familyCount: (source: string) => (source === "passBarConditions" ? 3 : 0),
   };
 
-  it("produces exactly 120 fields for a 5-section, 3-condition round (matches the verified 12-page sample)", () => {
+  it("produces exactly 115 fields for a 5-section, 3-condition round (two kill-criterion checkboxes per interview)", () => {
     expect(
       expectedFieldNames(PROBLEM_INTERVIEW_FIELD_MANIFEST_V1, context),
-    ).toHaveLength(120);
+    ).toHaveLength(115);
   });
 
-  it("produces exactly 240 fields for a 10-section round", () => {
+  it("produces exactly 230 fields for a 10-section round", () => {
     expect(
       expectedFieldNames(PROBLEM_INTERVIEW_FIELD_MANIFEST_V1, {
         ...context,
         sectionCount: 10,
       }),
-    ).toHaveLength(240);
+    ).toHaveLength(230);
   });
 
   it("uses middle-index naming for the question family (question_1_notes, not question_notes_1)", () => {
@@ -96,7 +96,7 @@ describe("expectedFieldNames — problem_interview_workbook_v1", () => {
     expect(names).toContain("interview_1.pass_bar_4");
   });
 
-  it("always emits exactly 3 kill-criterion checkboxes", () => {
+  it("always emits exactly 2 kill-criterion checkboxes", () => {
     const names = expectedFieldNames(
       PROBLEM_INTERVIEW_FIELD_MANIFEST_V1,
       context,
@@ -104,7 +104,7 @@ describe("expectedFieldNames — problem_interview_workbook_v1", () => {
     const killFields = names.filter(
       (n) => n.includes("kill_criterion") && n.startsWith("interview_1."),
     );
-    expect(killFields).toHaveLength(3);
+    expect(killFields).toHaveLength(2);
   });
 
   it("names every section interview_1..interview_N regardless of round/additional status", () => {

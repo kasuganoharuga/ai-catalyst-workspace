@@ -41,7 +41,7 @@ export interface InterviewGuideModel {
   ];
   momTestRules: string[];
   passBar: { preamble: string; conditions: string[] };
-  killCriteria: [string, string, string];
+  killCriteria: [string, string];
   assumptions: AssumptionRowModel[];
   closingQuestions: [string, string];
   afterEachCall: string[];
@@ -261,8 +261,8 @@ export function parseInterviewGuide(markdown: string): InterviewGuideModel {
   }
 
   const killCriteria = requiredList(markdown, "Kill Criteria", {
-    minimum: 3,
-    maximum: 3,
+    minimum: 2,
+    maximum: 2,
   });
   const assumptions = requiredAssumptionsTable(markdown, {
     minimum: 3,
@@ -287,7 +287,7 @@ export function parseInterviewGuide(markdown: string): InterviewGuideModel {
     questionGuidance,
     momTestRules,
     passBar: { preamble: passBarPreamble, conditions: passBarConditions },
-    killCriteria: killCriteria as [string, string, string],
+    killCriteria: killCriteria as [string, string],
     assumptions,
     closingQuestions: closingQuestions as [string, string],
     afterEachCall,

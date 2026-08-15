@@ -28,7 +28,7 @@ const ROUND_SIZE = 5;
 
 // Fixed renderer chrome — not sourced from the Markdown, ships with the
 // renderer per plan §5.3, does not wait on any future shortLabel content
-// change. Codes are bare (P1/P2/P3, K1/K2/K3) with no summary text: a
+// change. Codes are bare (P1/P2/P3, K1/K2) with no summary text: a
 // hand-truncated condition risks silently dropping the clause that sets
 // the actual bar (plan §5.3's "unprompted, with dates or job numbers
 // attached" example), and a renderer cannot know which words are safe to
@@ -84,7 +84,8 @@ function twoColumnCheckboxes(
   const gutter = 22;
   const colWidth = (layout.usableWidth - gutter) / 2;
   const rightX = layout.margin + colWidth + gutter;
-  const rowsNeeded = Math.max(passBarCount, 3);
+  const killCriteriaCount = 2;
+  const rowsNeeded = Math.max(passBarCount, killCriteriaCount);
   layout.ensure(rowsNeeded * 16 + 24);
 
   const top = layout.y;
@@ -139,7 +140,7 @@ function twoColumnCheckboxes(
   }
   const leftBottom = rowsTop - (passBarCount - 1) * rowPitch - boxSize;
 
-  for (let i = 0; i < 3; i += 1) {
+  for (let i = 0; i < killCriteriaCount; i += 1) {
     const boxY = rowsTop - i * rowPitch - boxSize;
     layout.checkboxAt(
       `interview_${sectionIndex}.kill_criterion_${i + 1}_observed`,
@@ -157,7 +158,7 @@ function twoColumnCheckboxes(
       { x: rightX + boxSize + 6, y: boxY + 2 + 8 },
     );
   }
-  const rightBottom = rowsTop - 2 * rowPitch - boxSize;
+  const rightBottom = rowsTop - (killCriteriaCount - 1) * rowPitch - boxSize;
 
   layout.y = Math.min(leftBottom, rightBottom) - 6;
 }

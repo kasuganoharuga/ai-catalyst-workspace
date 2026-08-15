@@ -68,7 +68,6 @@ const INTERVIEW_MODEL: InterviewGuideModel = {
   killCriteria: [
     "The supervisor treats the work as normal and shows no interest in removing it.",
     "The cost per occurrence is under one hour of a supervisor's time.",
-    "An existing tool would solve it if configured.",
   ],
   assumptions: [
     {

@@ -130,7 +130,7 @@ would do.>
 
 ## Kill Criteria
 
-**Three patterns. True kills mean the problem is not worth pursuing and scope must change.
+**Two patterns. True kills mean the problem is not worth pursuing and scope must change.
 Patterns that only falsify the current root-cause hypothesis must say to re-run Five Whys / revise
 the hypothesis — not to kill the problem:**
 
@@ -139,7 +139,6 @@ consequence — kill/re-scope, or re-run Five Whys.>
 
 1.
 2.
-3.
 
 ## Assumptions Being Validated
 

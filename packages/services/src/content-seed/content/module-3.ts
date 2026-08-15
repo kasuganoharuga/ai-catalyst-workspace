@@ -32,22 +32,6 @@ const PROBLEM_STATEMENT_TEMPLATE = `# Problem Statement
 
 ## Why This Is Urgent
 
-| Axis | What the Founder described | Score (1–10) | Reasoning |
-|---|---|---|---|
-| Frequency — how often the problem occurs | | | |
-| Cost — time, money or missed opportunity each time | | | |
-| Urgency — how actively they are looking for a solution | | | |
-
-**Verdict:**
-
-## What Customers Do Today
-
-| Tool or workaround | What it does | Where it falls short |
-|---|---|---|
-| | | |
-| | | |
-| | | |
-
 ## Validation Status
 
 This section records the evidence available when this version of the Problem Statement was created.
@@ -159,13 +143,12 @@ conditions below (calibrate windows to the confirmed pain cadence):**
 
 ## Kill Criteria
 
-**Three patterns. True kills mean the problem is not worth pursuing and scope must change.
+**Two patterns. True kills mean the problem is not worth pursuing and scope must change.
 Patterns that only falsify the current root-cause hypothesis must say to re-run Five Whys / revise
 the hypothesis — not to kill the problem:**
 
 1.
 2.
-3.
 
 ## Assumptions Being Validated
 
@@ -209,11 +192,11 @@ const VALIDATION_STATUS_OPTIONS = [
   { value: "validated", label: "Validated" },
 ];
 
-// One question per confirmed field. Block 3 (five_whys_ladder / root_cause)
-// takes three to five founder turns for one confirmation — the one
-// deliberate exception to "a block asks once" (see §1). Block 4
-// (problem_statement) is a convergence block: nothing new is collected, the
-// Founder confirms the restated root-cause statement.
+// One question per confirmed field. Block 2 (five_whys_ladder / root_cause /
+// problem_statement / priority_evidence) is a fixed five-step script — three
+// why-turns, then the root-cause synthesis, then the priority challenge —
+// for one confirmation covering all four fields, the one deliberate
+// exception to "a block asks once" (see §1).
 const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
   {
     questionKey: "problem_draft",
@@ -230,22 +213,8 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     conditions: {},
   },
   {
-    questionKey: "current_alternatives",
-    sequenceIndex: 2,
-    questionGroup: "current_alternatives",
-    questionText:
-      "What tools, workarounds, manual processes and paid products does this customer use today, and where does each fall short?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
     questionKey: "five_whys_ladder",
-    sequenceIndex: 3,
+    sequenceIndex: 2,
     questionGroup: "five_whys",
     questionText:
       "Asked in sequence, each building on the last: why does the most severe problem named exist?",
@@ -259,7 +228,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "root_cause",
-    sequenceIndex: 4,
+    sequenceIndex: 3,
     questionGroup: "five_whys",
     questionText:
       "What is the current root-cause hypothesis at the bottom of the ladder — the reason the problem may persist rather than only the reason it hurts?",
@@ -273,7 +242,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "problem_statement",
-    sequenceIndex: 5,
+    sequenceIndex: 4,
     questionGroup: "statement",
     questionText:
       "Restated from the current root-cause hypothesis: who struggles with what, because of which underlying cause, and with what consequence?",
@@ -286,22 +255,8 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
     conditions: {},
   },
   {
-    questionKey: "pain_intensity",
-    sequenceIndex: 6,
-    questionGroup: "why_this_is_urgent",
-    questionText:
-      "Scored in turn: how often does this problem occur, what does it cost each time, and how actively is the customer looking for a solution — each with an evidence basis?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
     questionKey: "priority_evidence",
-    sequenceIndex: 7,
+    sequenceIndex: 5,
     questionGroup: "why_this_is_urgent",
     questionText:
       "What evidence shows this is among the most important problems this customer faces right now?",
@@ -315,7 +270,7 @@ const PROBLEM_STATEMENT_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "validation_status",
-    sequenceIndex: 8,
+    sequenceIndex: 6,
     questionGroup: "validation",
     questionText:
       "What is the highest evidence level reached for this exact problem?",
@@ -334,7 +289,7 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
   sequenceIndex: 1,
   name: "Problem Statement",
   description:
-    "Root-cause problem statement alongside the founder's original draft, the Five Whys ladder, pain intensity and priority evidence, current alternatives, and an internal Validation Status.",
+    "Root-cause problem statement alongside the founder's original draft, the Five Whys ladder, priority evidence, and an internal Validation Status.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -362,7 +317,6 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Five Whys Ladder" },
           { level: 2, heading: "Root Cause" },
           { level: 2, heading: "Why This Is Urgent" },
-          { level: 2, heading: "What Customers Do Today" },
           { level: 2, heading: "Validation Status" },
         ],
       },
@@ -396,69 +350,13 @@ const PROBLEM_STATEMENT_ARTIFACT: ArtifactContent = {
         level: 2,
         heading: "Five Whys Ladder",
         minimum: 3,
-        maximum: 5,
-      },
-      {
-        key: "urgency_row_count",
-        type: "range_table_rows",
-        level: 2,
-        heading: "Why This Is Urgent",
-        minimum: 3,
         maximum: 3,
       },
       {
-        key: "urgency_axis_sequence",
-        type: "table_column_exact_sequence",
+        key: "why_this_is_urgent_present",
+        type: "section_non_empty",
         level: 2,
         heading: "Why This Is Urgent",
-        column: "Axis",
-        values: [
-          "Frequency — how often the problem occurs",
-          "Cost — time, money or missed opportunity each time",
-          "Urgency — how actively they are looking for a solution",
-        ],
-      },
-      {
-        key: "urgency_required_cells",
-        type: "table_required_cells",
-        level: 2,
-        heading: "Why This Is Urgent",
-        requiredColumns: ["What the Founder described", "Reasoning"],
-      },
-      {
-        key: "urgency_score_range",
-        type: "table_column_integer_range",
-        level: 2,
-        heading: "Why This Is Urgent",
-        column: "Score (1–10)",
-        minimum: 1,
-        maximum: 10,
-        allowBlank: true,
-      },
-      {
-        key: "verdict_present",
-        type: "label_present",
-        label: "Verdict",
-        scope: { level: 2, heading: "Why This Is Urgent" },
-      },
-      {
-        key: "alternatives_row_count",
-        type: "minimum_table_rows",
-        level: 2,
-        heading: "What Customers Do Today",
-        minimum: 1,
-        orRecordedUnknown: true,
-      },
-      {
-        key: "alternatives_required_cells",
-        type: "table_required_cells",
-        level: 2,
-        heading: "What Customers Do Today",
-        requiredColumns: [
-          "Tool or workaround",
-          "What it does",
-          "Where it falls short",
-        ],
       },
       {
         key: "based_on_observation_present",
@@ -681,8 +579,8 @@ const PROBLEM_INTERVIEW_GUIDE_ARTIFACT: ArtifactContent = {
         type: "range_named_items",
         level: 2,
         heading: "Kill Criteria",
-        minimum: 3,
-        maximum: 3,
+        minimum: 2,
+        maximum: 2,
       },
       {
         key: "assumptions_table_range",
@@ -731,7 +629,7 @@ export const MODULE_3_CONTENT: ModuleContent = {
   subtitle:
     "Drive the beachhead customer's surface complaint down to a structural root cause, and prepare five interview questions to test it",
   description:
-    "Eight confirmed structured answers saved field by field, a root-cause Problem Statement, and a Problem Interview Guide with five past-behaviour questions. The module prepares the interviews; it does not run them or read their results.",
+    "Six confirmed structured answers saved field by field, a root-cause Problem Statement, and a Problem Interview Guide with five past-behaviour questions. The module prepares the interviews; it does not run them or read their results.",
   objective:
     "Drive the beachhead customer's surface complaint down to a structural root cause, and turn it into five interview questions the Founder can take to real customers.",
   moduleType: "standard",

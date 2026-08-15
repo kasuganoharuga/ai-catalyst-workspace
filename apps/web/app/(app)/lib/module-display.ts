@@ -68,6 +68,37 @@ const MODULE_2_QUESTION_BLOCKS: {
   },
 ];
 
+// Module 3's Block 2 is a fixed five-step Five Whys script that resolves
+// four fields in one confirmation (see module-03-prompt-set.md §1-2) —
+// grouped here the same way Module 2 groups its multi-field blocks, so the
+// work-step list shows three steps, not six.
+const MODULE_3_QUESTION_BLOCKS: {
+  group: string;
+  label: string;
+  questionKeys: string[];
+}[] = [
+  {
+    group: "problem_draft",
+    label: "The problems, ranked most to least severe",
+    questionKeys: ["problem_draft"],
+  },
+  {
+    group: "five_whys",
+    label: "Why it happens, the root cause, and how urgent it is",
+    questionKeys: [
+      "five_whys_ladder",
+      "root_cause",
+      "problem_statement",
+      "priority_evidence",
+    ],
+  },
+  {
+    group: "validation",
+    label: "How much of this is evidenced, not assumption",
+    questionKeys: ["validation_status"],
+  },
+];
+
 /**
  * Short phrases standing in for each Question's full `question_text`.
  * Keyed by Module because the same key can mean different things in
@@ -86,11 +117,9 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
   },
   [MODULE_3_KEY]: {
     problem_draft: "Your first take on the problem",
-    current_alternatives: "What they use instead today",
     five_whys_ladder: "The five whys, one layer at a time",
     root_cause: "The structural root cause underneath",
     problem_statement: "The problem in one clear statement",
-    pain_intensity: "How much this hurts them today",
     priority_evidence: "Why it is a priority, not a nice-to-have",
     validation_status: "How much of this is evidence, not assumption",
   },
@@ -189,21 +218,33 @@ export function requiredOutputArtifactsSaved(
   return required.every((artifact) => artifact.versionNumber !== null);
 }
 
+// Modules whose founder-facing blocks resolve more than one field at once —
+// the work-step list groups by block instead of by question, or a
+// multi-field confirm would show as several separate steps.
+const QUESTION_BLOCKS_BY_MODULE: Record<
+  string,
+  { group: string; label: string; questionKeys: string[] }[]
+> = {
+  [MODULE_2_KEY]: MODULE_2_QUESTION_BLOCKS,
+  [MODULE_3_KEY]: MODULE_3_QUESTION_BLOCKS,
+};
+
 /**
- * Simplified rows for a Module's work-step progress list. Module 2
- * collapses to its eight founder-facing blocks; every other Module gets
- * one row per Question. Either way the row carries a short phrase, not
- * the full `questionText` sentence.
+ * Simplified rows for a Module's work-step progress list. Modules 2 and 3
+ * collapse to their founder-facing blocks (see `QUESTION_BLOCKS_BY_MODULE`);
+ * every other Module gets one row per Question. Either way the row carries
+ * a short phrase, not the full `questionText` sentence.
  */
 export function buildQuestionDisplayGroups(
   moduleKey: string,
   questions: ModuleContextQuestion[],
 ): ModuleQuestionDisplayGroup[] {
-  if (moduleKey === MODULE_2_KEY) {
+  const blocks = QUESTION_BLOCKS_BY_MODULE[moduleKey];
+  if (blocks) {
     const questionByKey = new Map(
       questions.map((question) => [question.questionKey, question]),
     );
-    return MODULE_2_QUESTION_BLOCKS.map((block) => {
+    return blocks.map((block) => {
       const blockQuestions = block.questionKeys
         .map((key) => questionByKey.get(key))
         .filter(

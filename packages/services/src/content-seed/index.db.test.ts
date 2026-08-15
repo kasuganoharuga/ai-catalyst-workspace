@@ -234,11 +234,9 @@ describe("seedToolkitContent", () => {
     );
     expect(questions.rows.map((row) => row.question_key)).toEqual([
       "problem_draft",
-      "current_alternatives",
       "five_whys_ladder",
       "root_cause",
       "problem_statement",
-      "pain_intensity",
       "priority_evidence",
       "validation_status",
     ]);

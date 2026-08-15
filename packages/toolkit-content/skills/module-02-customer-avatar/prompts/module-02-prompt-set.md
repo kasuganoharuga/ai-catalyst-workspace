@@ -360,6 +360,22 @@ Concretely:
   compressing "Sarah's probably the champion, she feels the pain most" down to a recognition-card line
   must not quietly turn "probably" into a bare fact.
 
+This survives at every point the content is touched, not only at save time:
+
+- **Upstream replay.** When you replay a Module 1 (or earlier Module 2) answer — in the opening
+  inherited-context summary, in a block opener's `[Module 1: <key>]` substitution, or in a
+  mid-conversation recap — keep the Founder's own hedge exactly as they said it. Do not tidy
+  "probably" or "I think" out of a quoted replay to make it read more smoothly.
+- **Get it right the first time, not only after correction.** The very first proposed convergence you
+  show the Founder must already carry the marker — "Champion: Sarah (assumed)", not a bare "Champion:
+  Sarah" that only gets the "(assumed)" added once the Founder objects. The bar is the first proposal,
+  not the corrected one.
+- **Founder-described is not observed.** A scenario, quote or behaviour the Founder is describing from
+  imagination, a guess, or a composite must never be presented as if witnessed — never write "in her
+  words" or "as she puts it" unless the Founder has confirmed those are words a real customer actually
+  said. If they are inferring what a customer might say or do, say so plainly — "(Founder's guess at
+  what she might say)" — not a bare quotation.
+
 Worked example — Founder says "Sarah's probably the champion, since she feels the pain most directly":
 
     CONFIRMED ANSWER
@@ -630,7 +646,8 @@ must not be folded into its neighbour:
    This is the status quo (`current_alternatives`), not a buying signal on its own.
 2. Actively moving — what would you actually see if this customer were moving to solve this now —
    evaluating tools, asking for a demo or pricing, allocating budget, starting a pilot, setting an
-   implementation deadline (`tier1_signals`)? "Not identified yet" is a legitimate answer.
+   implementation deadline (`tier1_signals`)? If nothing has been observed yet, do not stop at "not
+   identified yet" — see "Assisted field: Tier 1 buying signals" below.
 3. Earlier — what events, four to twelve weeks out, mean they will need you even though they are not
    looking yet (`tier2_signals`)?
 
@@ -686,6 +703,33 @@ it with this fixed forced choice rather than inventing specific candidate scenar
   steer them back toward A or B.
 - A category choice alone is never `commercial_moment` — do not treat it as confirmed until the
   concrete detail underneath it has been supplied.
+
+## Assisted field: Tier 1 buying signals
+
+"Not identified yet" is a legitimate evidence state for `tier1_signals` — but it is not where the
+field ends. When the Founder says nothing has been observed, do not converge on that sentence and
+move on. Say plainly that nothing has been seen yet, then help them define 3–5 concrete, observable
+candidate signals: things that would tell you this customer is actively moving to solve this, if you
+saw them. Offer examples rather than waiting for the Founder to invent the category themselves:
+
+    Even if you haven't seen this yet, what would it look like if it started? For example:
+
+    — Requesting a demo or pricing
+    — Asking integration or security questions
+    — Requesting a pilot
+    — Allocating budget
+    — Assigning someone time to evaluate
+
+    Which of these feel plausible for this customer, and is there anything else you would add?
+
+Get the Founder's confirmation on 3–5 candidates, then save them as **Founder-hypothesized, not yet
+observed** — recorded under ASSUMPTIONS, not OBSERVATION BASIS, and never disguised as behaviour
+anyone has actually seen.
+
+Reach for the single "not identified yet" sentence only as a last resort — when the Founder, even
+after this guidance, genuinely cannot name a single plausible candidate. Do not let artefact
+validation's 3–5-item requirement be the first place this gets caught; resolve it here, in the
+conversation, while the Founder can still confirm what gets saved.
 
 ## When the Founder does not know
 
@@ -802,6 +846,10 @@ For `customer_where`:
   stored in CARRY-FORWARD CONTEXT — unless a later Module 2 field genuinely needs it. Carry-forward
   exists to serve a later question in this module; nothing in this module consumes a full channel
   list, so parking one there just relocates the dead data.
+- **A channel the Founder has not actually tried is a potential channel, not a validated one.** If
+  they say "I could probably find them via LinkedIn or the CA ANZ directory," the line stays hedged —
+  "Potential channels: LinkedIn, CA ANZ directory (not yet tried)" — never a flat "Findable via
+  LinkedIn, CA ANZ directory" that reads as already-proven reachability.
 
 Worked example for `customer_where`:
 
@@ -824,6 +872,10 @@ For `emotional_needs`:
 
   A short verbatim phrase may stay inside the need when it carries meaning no paraphrase does. A
   bare quote on its own line is not an emotional need.
+- **Never frame a Founder-imagined line as "in her words" or "as she puts it."** Those framings claim
+  a real customer said something; reserve them for words the Founder confirms were actually heard. If
+  the Founder is guessing what the customer would say, keep the guess but frame it as theirs — "the
+  Founder imagines she might say..." — never as a customer quotation.
 - If the Founder volunteers a purchase, approval or commitment trigger, that belongs to
   `tier1_signals`. Put it in CARRY-FORWARD CONTEXT and confirm it again in Block 5 rather than
   writing it into the emotional needs.
@@ -967,8 +1019,9 @@ they are satisfied with it, or just coping?
 
 **`tier1_signals`** — What would you actually see if this customer were moving to solve this now — a
 request for pricing, a demo booked, budget allocated, a pilot started, a deadline set? Is that
-observed or assumed? Is "not identified yet" the honest answer? Never accept a current alternative
-or workaround on its own as the answer here — that belongs to `current_alternatives`.
+observed or assumed? If nothing has been observed, what would it look like if it started — see
+"Assisted field: Tier 1 buying signals". Never accept a current alternative or workaround on its own
+as the answer here — that belongs to `current_alternatives`.
 
 **`tier2_signals`** — Where would this be visible? Could it be measured? Does it happen before or
 after they start evaluating solutions? Has it been observed, or is it your best current hypothesis?
@@ -1050,8 +1103,10 @@ Module 2 is done when:
 3. Needs are written as outcomes, not features.
 4. Current alternatives describe what the customer does today, and are never mistaken for buying
    intent.
-5. Buying signals (Tier 1 and Tier 2) are observable behaviours or events when identified; otherwise
-   the unresolved signal is stated explicitly and recorded under UNKNOWNS.
+5. Buying signals (Tier 1 and Tier 2) are observable behaviours or events when identified. When no
+   Tier 1 signal has actually been observed, the field still holds 3–5 Founder-hypothesized
+   candidates (see "Assisted field: Tier 1 buying signals") rather than settling for a bare "not
+   identified yet" — that sentence is a last resort, not the default outcome.
 6. Disqualifiers contain at least three clear exclusions when defensibly answered; otherwise the
    field carries a specific confirmed unknown rather than invented exclusions.
 7. Core Promise describes the customer result rather than the product when identified; otherwise
