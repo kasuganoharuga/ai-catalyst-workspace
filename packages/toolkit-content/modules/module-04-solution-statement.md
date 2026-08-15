@@ -15,8 +15,8 @@ beachhead, problem, or alternatives already locked in Modules 2–3.
 
 ## Required Inputs
 
-- Module 2 beachhead / ICA
-- Module 3 problem statement and alternatives
+- Module 2 beachhead / ICA and alternatives
+- Module 3 problem statement
 - Confirmed interview evidence
 
 ## Expected Outputs

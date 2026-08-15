@@ -76,7 +76,7 @@ interview notes.
 | M2 `core_promise` | Starting point for the outcome slot — refine only if the Founder wants. |
 | M2 `functional_needs` / `emotional_needs` | Lens for emotional benefits and desirability. |
 | M3 `problem_statement` / `root_cause` | Problem already locked; solution must address it. |
-| M3 `current_alternatives` (+ M1 competitors) | What to differentiate against — including doing nothing. |
+| M2 `current_alternatives` (+ M1 `competitors_alternatives`) | What to differentiate against — including doing nothing. |
 | Interview notes shared in chat (prep extracts) | Only source of interview quotes, counts, workarounds, buying signals. Re-read; never invent. |
 
 Open by briefly summarising who the customer is, what problem was hypothesised, and how many
@@ -100,7 +100,7 @@ From Modules 2–3 and the notes you shared, I already have:
 
     — the customer: [Module 2: beachhead_segment]
     — the problem hypothesis: [Module 3: problem_statement]
-    — how they cope today: [Module 3: current_alternatives]
+    — how they cope today: [Module 2: current_alternatives]
     — the interview notes you shared in this chat
 
 You do not need to repeat any of that. We are writing the internal North Star — not a tagline —
@@ -286,7 +286,7 @@ chat, and you read it yourself with your own native file-reading ability.
 | M2 `core_promise` | Default outcome slot; Founder may refine in Block 1. |
 | M2 needs (functional / emotional) | Lens for emotional benefits and desirability. |
 | M3 problem statement / root cause | Solution must address this hypothesis. |
-| M3 alternatives (+ M1 competitors) | Differentiation baseline, including doing nothing. |
+| M2 alternatives (+ M1 competitors) | Differentiation baseline, including doing nothing. |
 | Interview notes shared in chat | Only interview source. Re-read before grading validated vs assumed. |
 
 Open with a **concise summary**:

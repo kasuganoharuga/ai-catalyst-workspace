@@ -14,8 +14,8 @@ competitor URLs; do not re-ask beachhead, problem, or features.
 
 ## Required Inputs
 
-- Module 2 beachhead
-- Module 3 problem + alternatives (and Module 1 competitors if needed)
+- Module 2 beachhead + alternatives (and Module 1 competitors if needed)
+- Module 3 problem
 - Module 4 North Star + Feature Benefit Map
 - Live competitor / adjacent tool URLs
 

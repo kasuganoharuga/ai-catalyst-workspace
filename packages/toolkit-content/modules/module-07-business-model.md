@@ -17,7 +17,7 @@ Do not re-ask who the customer is or what is being sold.
 - Module 1 pressure-test context (proceed conditions)
 - Module 2 beachhead
 - Module 4 North Star and Feature Benefit Map
-- Module 3 alternatives and Module 6 comparison / landscape where available
+- Module 2 alternatives and Module 6 comparison / landscape where available
 - Founder budget, weekly time, month-1 and month-6 goals
 
 ## Expected Outputs

@@ -79,8 +79,8 @@
       "title": "Solution statement, features & benefits",
       "objective": "Turn locked beachhead, problem, and confirmed interview evidence into a North Star solution statement and three Minimum Loveable features.",
       "founderInputs": [
-        "Module 2 beachhead / ICA",
-        "Module 3 problem statement and alternatives",
+        "Module 2 beachhead / ICA and alternatives",
+        "Module 3 problem statement",
         "Confirmed Interview-Evidence.md"
       ],
       "outputs": [
@@ -114,8 +114,8 @@
       "title": "Competitive analysis & differentiation",
       "objective": "Pressure-test the competitive landscape, feature comparison, moat, positioning, and why-now / why-us claims against live alternatives.",
       "founderInputs": [
-        "Module 2 beachhead",
-        "Module 3 problem and alternatives",
+        "Module 2 beachhead and alternatives",
+        "Module 3 problem",
         "Module 4 North Star and Feature Benefit Map",
         "Live competitor and adjacent-tool URLs"
       ],
@@ -137,7 +137,7 @@
         "Module 1 proceed conditions",
         "Module 2 beachhead",
         "Module 4 North Star and Feature Benefit Map",
-        "Module 3 / 6 alternatives and comparison context",
+        "Module 2 / 6 alternatives and comparison context",
         "Budget, weekly time, month-1 and month-6 goals"
       ],
       "outputs": [

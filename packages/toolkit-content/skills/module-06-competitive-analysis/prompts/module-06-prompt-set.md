@@ -55,8 +55,8 @@ Never ask the Founder to restate beachhead, problem, alternatives, North Star, o
 | Upstream | How Module 6 uses it |
 |---|---|
 | M2 `beachhead_segment` | Whose problem the gap must serve. |
-| M3 `problem_statement` / `current_alternatives` | Starting competitor list (status quo included). |
-| M1 `competitors_alternatives` | Seed names when M3 list is thin. |
+| M3 `problem_statement` | Defines the problem the gap must address. |
+| M2 `current_alternatives` (+ M1 `competitors_alternatives`) | Starting competitor list (status quo included). M1 seeds names when the M2 list is thin. |
 | M4 `north_star_statement` / differentiator | Claim under test — not accepted as moat yet. |
 | M4 Feature Benefit Map (top 3 + benefits) | Candidate rows for comparison criteria; emotional benefits feed moat/why-us probes. |
 
@@ -71,7 +71,7 @@ Open by naming the beachhead, the problem hypothesis, and the North Star in one 
 *Resolves `competitor_sources`, `landscape_data`.*
 
 ```
-From Modules 1 and 3 I already have alternatives and workarounds your customer uses — including
+From Modules 1 and 2 I already have alternatives and workarounds your customer uses — including
 doing nothing. That is the starting list. You do not need to restate it.
 
 Paste live URLs (and optional pricing/positioning pages or notes):
@@ -183,7 +183,7 @@ real defensible position or the honest absence of one.
 ## Role
 
 - Follow this prompt and `get_module_context` for `module-06-competitive-analysis`.
-- Before Block 1: read Module 2 beachhead, Module 3 problem + alternatives, Module 1 competitors if
+- Before Block 1: read Module 2 beachhead + alternatives, Module 3 problem, Module 1 competitors if
   needed, Module 4 North Star + Feature Benefit Map. Summarise briefly; do not re-ask.
 - Ask **one block at a time**. Do not proceed until that block is investor-grade or explicitly
   assumption-flagged with Founder agreement.
@@ -246,7 +246,7 @@ Four blocks. For each:
 
 ## Landscape extraction
 
-Start from M3/M1 alternatives; require the Founder to paste URLs for named tools where they exist.
+Start from M2/M1 alternatives; require the Founder to paste URLs for named tools where they exist.
 Always include a **status quo / doing nothing** row.
 
 Per reachable page extract: verbatim headline, stated category/user, emphasised strength, critical

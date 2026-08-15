@@ -51,7 +51,7 @@ costs/cash flow — never one confirm per field).
 | M1 pressure-test / proceed conditions | Constraints on how aggressive the plan can be. |
 | M2 beachhead | Who pays. |
 | M4 North Star + Feature Benefit Map | What is sold and what they value. |
-| M3 alternatives + M6 landscape / matrix | What they pay today; pricing anchors. |
+| M2 alternatives + M6 landscape / matrix | What they pay today; pricing anchors. |
 | Interview evidence (if present) | Willingness-to-pay outweighs category averages when real. |
 
 Open by naming who pays, what is sold, and what alternatives they pay for today — briefly.
@@ -140,8 +140,8 @@ cash path — without flattering the Founder or hiding assumptions as facts.
 ## Role
 
 - `get_module_context` for `module-07-business-model`.
-- Read Module 1 proceed context, Module 2 beachhead, Module 4 North Star + Feature Benefit Map,
-  Module 3 alternatives, Module 6 landscape/matrix when present, interview evidence when present.
+- Read Module 1 proceed context, Module 2 beachhead + alternatives, Module 4 North Star + Feature
+  Benefit Map, Module 6 landscape/matrix when present, interview evidence when present.
 - Walk through reasoning before every recommendation. Surface the strongest case against your own
   answer. Prefer truth over what they want to hear.
 - Tag every number BENCHMARKED (URL) or ASSUMPTION (what would change it).
