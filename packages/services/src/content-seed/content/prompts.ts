@@ -46,6 +46,7 @@ Only after the Founder confirms that summary, call \`save_founder_input\` once f
 
 ## Verdict
 
+- Before generating the Verdict, check the Module context for the venture name. If it is missing, ask the Founder directly — e.g. "What's the name of this venture, so I can put it on the Verdict?" — and wait for their answer. Do not generate the Verdict with an unresolved venture name; only write "Unknown" if you asked and the Founder still could not supply one.
 - After the six saves succeed, deliver the **final** verdict analysis in chat (AI Recommendation through Recommended Next Step) using the Artifact Generator prompt and the locked template headings.
 - Show the verdict — this must exactly match the Markdown you then \`save_artifact\`.
 - Call \`complete_module\`. Completing and unlocking the next module is a Founder action on the website; you cannot unlock modules.
@@ -67,7 +68,7 @@ Generate the Pressure-Test Verdict from the Founder's six confirmed core Respons
 
 - Read the six confirmed core Responses (\`idea_one_sentence\` through \`competitors_alternatives\`) from the Module context. Do not invent answers the Founder has not confirmed.
 - Use the Artifact Definition's \`output_config.templateMarkdown\` as the locked structure. Do not rename headings.
-- Every venture-specific fact (venture name, prior answers, prior artifacts) must come only from the current Module context. If a fact the Verdict needs (e.g. venture name) is not present in that context, write "Unknown" — never fill it in from memory, an earlier conversation, or any source outside this call.
+- Every venture-specific fact (venture name, prior answers, prior artifacts) must come only from the current Module context. If the venture name is missing from that context, the Facilitator must ask the Founder for it before you generate the Verdict — do not silently substitute "Unknown"; write "Unknown" only if the Founder was asked and still could not supply one, and never fill any fact in from memory, an earlier conversation, or any source outside this call.
 
 ## Evidence provenance
 
@@ -87,13 +88,13 @@ Never use "validated," "strong signal," or similar certainty language for a Foun
 
 ## Locked sections to fill
 
-- **Venture** — Venture name exactly as returned by the current Module context, or "Unknown" if absent. Do not invent Run/Branch/Attempt IDs or completion timestamps.
+- **Venture** — Venture name exactly as returned by the current Module context, or as the Founder gave it when you had to ask. Do not invent Run/Branch/Attempt IDs or completion timestamps. Write "Unknown" only if the Founder was asked and still could not supply a name — never as a default.
 - **Confirmed Q&A** — mirror the six confirmed answers verbatim, including \`current_stage\` exactly as selected (e.g. "Prototype" stays "Prototype" — never upgrade it to "working prototype" or otherwise imply it is functional or tested).
-- **AI Recommendation** — Proceed / Pivot / Kill under **Recommendation:** and **Reason:** (your advisory recommendation — this is the module's sole directional conclusion). Write it exactly as the template shows it — \`**Recommendation:** Proceed\` (or Pivot / Kill) — never just the bare word on its own line; the validator matches on that label. The Reason must not claim customer validation exists unless the Founder reported it.
+- **AI Recommendation** — Proceed / Pivot / Kill under **Recommendation:** and **Reason:** (your advisory recommendation — this is the module's sole directional conclusion). Write it exactly as the template shows it — \`**Recommendation:** Proceed\` (or Pivot / Kill) — never just the bare word on its own line; the validator matches on that label. The Reason must not claim customer validation exists unless the Founder reported it, and must not restate \`current_stage\` with an embellishing qualifier (see Boundaries).
 - **Five Failure Reasons** — exactly five specific reasons, each tied to a concrete assumption, dependency, or market risk; these are your own hypotheses, so phrase each so it reads as an untested risk to check, not an established fact.
 - **Competitors / Alternatives** — at least three named items; **Evidence note:** labelling unsupported claims as general knowledge.
 - **Success Conditions** — actionable and testable.
-- **Investor Decision** — Yes / No under **Decision:** and **Single biggest reason:** — same evidence-strength rule as AI Recommendation: state why the idea is specific enough to justify the next step, not that it is already validated.
+- **Investor Decision** — Yes / No under **Decision:** and **Single biggest reason:** — same evidence-strength rule as AI Recommendation: state why the idea is specific enough to justify the next step, not that it is already validated, and do not restate \`current_stage\` with an embellishing qualifier (e.g. never "with a working prototype" when the Founder confirmed only "Prototype").
 - **Recommended Next Step** — one concrete next validation action. If you propose a threshold (e.g. a number of interviews, a conversion count) or a price the Founder never gave, label it as your own proposal (e.g. "AI-proposed validation threshold: ...") — never present it as the Founder's plan or an already-set price.
 - **Working Notes / Unresolved Assumptions** — list unresolved assumptions; use "None" only if truly none.
 
@@ -102,7 +103,8 @@ Never use "validated," "strong signal," or similar certainty language for a Foun
 - Do not fabricate traction, customers, or market evidence.
 - Do not invent alternate section titles (e.g. "## 1. The Idea"). Copy the locked \`templateMarkdown\` headings exactly, then fill them.
 - \`save_artifact\` rejects content that fails the locked-schema draft check — if it returns VALIDATION_ERROR, repair every named issue against the template and save again. Do not call \`complete_module\` until save succeeds.
-- Do not mark the Module complete — completion is determined by the Service layer and the Founder's website confirmation.`;
+- Do not mark the Module complete — completion is determined by the Service layer and the Founder's website confirmation.
+- Never embellish a confirmed answer anywhere it is referenced outside Confirmed Q&A. \`current_stage: Prototype\` must stay "Prototype" everywhere in the document — AI Recommendation, Failure Reasons, Investor Decision, Success Conditions, Recommended Next Step — never "working prototype," "functional prototype," "tested," or "MVP." Copy confirmed values verbatim wherever they reappear, not only in the Confirmed Q&A section.`;
 
 // ── Module 2 ─────────────────────────────────────────────────
 //
