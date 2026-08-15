@@ -191,6 +191,7 @@ describe("resetModuleProgress — database integration", () => {
   const PROGRAM_KEY = `reset-service-${RUN_SUFFIX}`;
   const createdUserIds: string[] = [];
   const originalNodeEnv = process.env.NODE_ENV;
+  const originalAppEnv = process.env.APP_ENV;
 
   async function createRunWithModules(label: string): Promise<{
     actor: ActorContext;
@@ -305,6 +306,8 @@ describe("resetModuleProgress — database integration", () => {
   afterEach(() => {
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalNodeEnv;
+    if (originalAppEnv === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = originalAppEnv;
   });
 
   afterAll(async () => {
@@ -415,14 +418,24 @@ describe("resetModuleProgress — database integration", () => {
     expect(Number(survivingRows.rows[0].count)).toBeGreaterThan(0);
   });
 
-  it("refuses when NODE_ENV is production", async () => {
+  it("refuses when APP_ENV is production", async () => {
     const { actor, module1Id } = await createRunWithModules("prod-guard");
+    process.env.APP_ENV = "production";
     process.env.NODE_ENV = "production";
 
     await expect(resetModuleProgress(actor, module1Id)).rejects.toMatchObject({
       name: "ServiceError",
       code: "FORBIDDEN",
     });
+  });
+
+  it("allows a reset when APP_ENV is staging even if NODE_ENV is production", async () => {
+    const { actor, module1Id } = await createRunWithModules("staging-guard");
+    process.env.APP_ENV = "staging";
+    process.env.NODE_ENV = "production";
+
+    const result = await resetModuleProgress(actor, module1Id);
+    expect(result.resetModuleIds).toContain(module1Id);
   });
 
   it("treats an unknown run module id as not found", async () => {

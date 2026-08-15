@@ -4,18 +4,21 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 
-// Dev-only testing convenience: wipe one Module's progress — and every
-// Module after it in the same Branch, since their availability depends
-// on this one having been completed — back to "never started". Deleting
-// only the target Module and leaving downstream Modules unlocked would
-// leave a Founder able to work on a Module whose prerequisite no longer
-// has an answer.
+export { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
+
+// Testing convenience: wipe one Module's progress — and every Module
+// after it in the same Branch, since their availability depends on this
+// one having been completed — back to "never started". Deleting only
+// the target Module and leaving downstream Modules unlocked would leave
+// a Founder able to work on a Module whose prerequisite no longer has
+// an answer.
 //
-// Never reachable outside non-production: gated here (defense in depth
-// behind whatever also gates the calling website action) so a stray
-// call, misconfigured flag, or direct script invocation cannot run this
-// against real Founder data.
+// Allowed on local and staging only. Gated here (defense in depth
+// behind the website action) so a stray call cannot run this against
+// production Founder data. NODE_ENV cannot be the gate: Next.js
+// production builds (including the staging image) set NODE_ENV=production.
 
 export interface ResetModuleProgressResult {
   resetModuleIds: string[];
@@ -31,10 +34,10 @@ export async function resetModuleProgress(
   actor: ActorContext,
   programRunModuleIdRaw: string,
 ): Promise<ResetModuleProgressResult> {
-  if (process.env.NODE_ENV === "production") {
+  if (!isModuleResetAllowed()) {
     throw new ServiceError(
       "FORBIDDEN",
-      "Resetting a Module's progress is a development-only testing tool and is disabled in production.",
+      "Resetting a Module's progress is a testing tool and is disabled in production.",
     );
   }
 

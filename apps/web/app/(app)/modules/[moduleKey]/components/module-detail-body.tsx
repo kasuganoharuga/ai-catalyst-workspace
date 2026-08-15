@@ -15,6 +15,7 @@ import {
   moduleAccentStyle,
 } from "../../../lib/module-display";
 import { StatusPill } from "../../components/status-pill";
+import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 import { listPrepDocuments } from "@ai-catalyst/services/prep";
 
 import { loadModuleDetail } from "../lib/load-module-detail";
@@ -25,10 +26,9 @@ import { ResetModuleButton } from "./reset-module-button";
 import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
 
-// Computed here, not inside ResetModuleButton: gating in the Server
-// Component means the button (and its client bundle) never ships to a
-// production build at all, rather than existing but hidden.
-const CAN_RESET_MODULES = process.env.NODE_ENV !== "production";
+// Runtime APP_ENV gate (not NODE_ENV): the staging image is a Next.js
+// production build, so NODE_ENV=production there too. Evaluated in this
+// Server Component so a production APP_ENV never renders the button.
 
 type ModuleDetailBodyProps = {
   moduleKey: string;
@@ -126,7 +126,7 @@ export async function ModuleDetailBody({
           ) : (
             <StatusPill status={entry.catalogStatus} />
           )}
-          {CAN_RESET_MODULES && runModule ? (
+          {isModuleResetAllowed() && runModule ? (
             <ResetModuleButton
               programRunModuleId={runModule.id}
               moduleTitle={entry.title}

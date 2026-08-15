@@ -8,12 +8,10 @@ import { Button } from "@/components/ui/button";
 import { resetModuleProgressAction } from "@/lib/actions/founder-actions";
 
 /**
- * Dev-only testing convenience — never rendered when NODE_ENV is
- * production (module-detail-body.tsx computes that, not this file, so
- * the check happens before any client bundle for this button ships).
- * Wipes this Module's attempts, confirmed Responses, artefacts and prep
- * material, and every Module after it in the same Run, back to
- * never-started.
+ * Local/staging testing convenience — module-detail-body.tsx only
+ * renders this when APP_ENV is local or staging. Wipes this Module's
+ * attempts, confirmed Responses, artefacts and prep material, and every
+ * Module after it in the same Run, back to never-started.
  */
 export function ResetModuleButton({
   programRunModuleId,
@@ -54,7 +52,7 @@ export function ResetModuleButton({
       onClick={handleReset}
       disabled={isPending}
     >
-      {isPending ? "Resetting…" : "Reset (dev)"}
+      {isPending ? "Resetting…" : "Reset (test)"}
     </Button>
   );
 }
