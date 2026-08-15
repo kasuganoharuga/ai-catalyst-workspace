@@ -98,12 +98,21 @@ export async function resetModuleProgress(
     const attemptIds = attempts.rows.map((row) => row.id);
 
     if (attemptIds.length > 0) {
-      // module_events has no ON DELETE on module_attempt_id — detach
-      // rather than delete, so the audit trail survives the reset.
+      // module_events and mcp_tool_audit_logs have no ON DELETE on
+      // module_attempt_id — detach rather than delete, so the audit
+      // trail survives the reset. Skipping the MCP audit detach is
+      // what made Reset fail on staging after a real Claude session.
       await client.query(
         `update module_events
          set module_attempt_id = null
          where module_attempt_id = any($1::uuid[]) and workspace_id = $2`,
+        [attemptIds, workspace.id],
+      );
+      await client.query(
+        `update mcp_tool_audit_logs
+         set module_attempt_id = null
+         where module_attempt_id = any($1::uuid[])
+           and (workspace_id = $2 or workspace_id is null)`,
         [attemptIds, workspace.id],
       );
       // Cascades to module_responses, module_review_context_snapshots,

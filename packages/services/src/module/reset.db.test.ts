@@ -16,6 +16,7 @@ import {
   confirmModuleCompletion,
 } from "@ai-catalyst/services/module/completion";
 import { savePrepExtract } from "@ai-catalyst/services/prep";
+import { recordMcpToolCall } from "@ai-catalyst/services/audit";
 import {
   createFixtureFounderAccount,
   createFixtureVenture,
@@ -312,6 +313,10 @@ describe("resetModuleProgress — database integration", () => {
 
   afterAll(async () => {
     await pool.query(
+      "delete from mcp_tool_audit_logs where user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query(
       "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
@@ -384,6 +389,53 @@ describe("resetModuleProgress — database integration", () => {
       [module1Id],
     );
     expect(Number(after.rows[0].count)).toBe(0);
+  });
+
+  it("detaches mcp_tool_audit_logs from the deleted attempt instead of deleting the audit row", async () => {
+    const { actor, module0Id, module1Id } =
+      await createRunWithModules("mcp-audit");
+    await completeAndConfirm(actor, module0Id, SETUP_ARTIFACT_KEY);
+    const { attempt } = await startOrResumeAttempt(actor, {
+      programRunModuleId: module1Id,
+    });
+    const hierarchy = await pool.query<{
+      workspace_id: string;
+      program_run_id: string;
+      program_run_branch_id: string;
+    }>(
+      `select workspace_id, program_run_id, program_run_branch_id
+       from program_run_modules where id = $1`,
+      [module1Id],
+    );
+    const row = hierarchy.rows[0];
+    await recordMcpToolCall({
+      requestId: randomUUID(),
+      actor,
+      toolName: "save_founder_input",
+      outcome: "success",
+      durationMs: 1,
+      workspaceId: row.workspace_id,
+      programRunId: row.program_run_id,
+      programRunBranchId: row.program_run_branch_id,
+      programRunModuleId: module1Id,
+      moduleAttemptId: attempt.id,
+    });
+
+    await resetModuleProgress(actor, module1Id);
+
+    const stillAttached = await pool.query<{ count: string }>(
+      `select count(*)::text as count from mcp_tool_audit_logs
+       where module_attempt_id = $1`,
+      [attempt.id],
+    );
+    expect(Number(stillAttached.rows[0].count)).toBe(0);
+
+    const survivingRows = await pool.query<{ count: string }>(
+      `select count(*)::text as count from mcp_tool_audit_logs
+       where program_run_module_id = $1`,
+      [module1Id],
+    );
+    expect(Number(survivingRows.rows[0].count)).toBeGreaterThan(0);
   });
 
   it("detaches module_events from the deleted attempt instead of deleting the audit row", async () => {
