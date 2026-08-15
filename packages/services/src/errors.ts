@@ -31,7 +31,8 @@ export type ServiceErrorCode =
   | "WORKBOOK_RENDER_FAILED" // Renderer/content bug (500).
   | "EVIDENCE_NOT_CONFIRMED" // Module 4 evidence not confirmed on website.
   | "EVIDENCE_FROZEN_FOR_ATTEMPT" // Module 4 attempt already pinned evidence snapshot.
-  | "MODULE_4_INTERVIEW_EVIDENCE_MISSING"; // complete_module without pinned evidence.
+  | "MODULE_4_INTERVIEW_EVIDENCE_MISSING" // complete_module without pinned evidence.
+  | "INTERVIEW_GATE_NOT_MET"; // Module 4 Solution blocks attempted before the confirmed-interview floor is met.
 
 export class ServiceError extends Error {
   constructor(

@@ -35,6 +35,7 @@ function statusForCode(code: ServiceErrorCode): number {
     case "EVIDENCE_NOT_CONFIRMED":
     case "EVIDENCE_FROZEN_FOR_ATTEMPT":
     case "MODULE_4_INTERVIEW_EVIDENCE_MISSING":
+    case "INTERVIEW_GATE_NOT_MET":
       return 409;
     case "INTERNAL_INVARIANT_ERROR":
       return 500;

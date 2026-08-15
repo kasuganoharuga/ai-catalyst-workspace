@@ -297,6 +297,7 @@ export async function ModuleDetailBody({
               coreQuestions={coreQuestions}
               artifacts={artifactViews}
               prepDocuments={prepDocuments}
+              interviewGate={context.interviewGate}
               hasAttempt={activeAttempt !== null}
               needsRetry={needsRetry}
               awaitingConfirmation={awaitingConfirmation}
@@ -323,6 +324,7 @@ export async function ModuleDetailBody({
             coreQuestions={[]}
             artifacts={artifactViews}
             prepDocuments={prepDocuments}
+            interviewGate={null}
             hasAttempt={false}
             needsRetry={false}
             awaitingConfirmation={false}

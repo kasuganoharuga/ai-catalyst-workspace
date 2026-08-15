@@ -31,6 +31,7 @@ export function Module1WorkStep({
   preview,
   needsRetry,
   accent,
+  interviewGate,
   lockAssistant = false,
   lockAssistantNote,
 }: Module1RunProps & {
@@ -64,7 +65,8 @@ export function Module1WorkStep({
   const checksReady =
     (awaitingConfirmation || isCompleted) &&
     requiredOutputArtifactsSaved(moduleKey, artifacts) &&
-    questionsComplete;
+    questionsComplete &&
+    (interviewGate === null || interviewGate.gateMet);
   const [questionsOpen, setQuestionsOpen] = useState(false);
 
   const previewBody =
@@ -118,6 +120,24 @@ export function Module1WorkStep({
           assistant asks those one at a time; reading them cold here would
           invite pre-drafted answers). */}
       <dl className="mt-8 text-sm">
+        {/* First, because it gates every row under it: Solution work cannot
+            start (Claude will refuse to save any answer) below the floor.
+            Only module-04-solution-statement ever has a non-null
+            interviewGate. */}
+        {interviewGate ? (
+          <CheckLine
+            ok={interviewGate.gateMet}
+            label="Interview transcripts"
+            detail={
+              interviewGate.gateMet
+                ? `${interviewGate.confirmedInterviewCount} / ${interviewGate.minimumRequired} minimum met`
+                : `${interviewGate.confirmedInterviewCount} / ${interviewGate.minimumRequired} — add ${
+                    interviewGate.minimumRequired -
+                    interviewGate.confirmedInterviewCount
+                  } more to continue`
+            }
+          />
+        ) : null}
         {/* First, because it gates every row under it: the assistant will not
             open the questions until this has arrived. */}
         {copy.workPrerequisite ? (

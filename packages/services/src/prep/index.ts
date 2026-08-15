@@ -11,7 +11,9 @@ import {
 
 import {
   MAX_PREP_DOCUMENTS_PER_MODULE,
+  MINIMUM_CONFIRMED_INTERVIEWS,
   type PrepDocument,
+  type PrepDocumentKind,
   type SavePrepExtractInput,
   type UploadPrepDocumentInput,
 } from "@ai-catalyst/services/prep/types";
@@ -35,7 +37,8 @@ import {
 // alias, while the insert's `returning` has no alias to qualify.
 const PREP_COLUMN_NAMES = `
   id, program_run_module_id, storage_object_id, extracted_text,
-  original_filename, content_type, note, created_at
+  original_filename, content_type, note, document_kind, interview_count,
+  created_at
 `;
 const PREP_COLUMNS = PREP_COLUMN_NAMES.trim()
   .split(/,\s*/)
@@ -50,6 +53,8 @@ interface PrepRow {
   original_filename: string;
   content_type: string;
   note: string;
+  document_kind: PrepDocumentKind;
+  interview_count: number | null;
   created_at: Date;
   size_bytes: string | null;
 }
@@ -65,8 +70,45 @@ function mapPrepRow(row: PrepRow): PrepDocument {
     // bigint arrives as a string from `pg`; parsed at the DTO boundary.
     sizeBytes: row.size_bytes === null ? null : Number(row.size_bytes),
     note: row.note,
+    documentKind: row.document_kind,
+    interviewCount: row.interview_count,
     uploadedAt: row.created_at,
   };
+}
+
+/**
+ * Validates a caller-supplied documentKind/interviewCount pair against the
+ * module_prep_documents_source_xor-style rule enforced by the check
+ * constraint added in 0021: interviewCount is required (and must be a
+ * positive integer) when the kind is "interview_transcript", and must be
+ * omitted for every other kind. Returns the normalised pair to insert.
+ */
+function resolveDocumentKindAndCount(
+  documentKind: PrepDocumentKind | undefined,
+  interviewCount: number | undefined,
+): { documentKind: PrepDocumentKind; interviewCount: number | null } {
+  const kind = documentKind ?? "other";
+  if (kind === "interview_transcript") {
+    if (
+      typeof interviewCount !== "number" ||
+      !Number.isInteger(interviewCount) ||
+      interviewCount < 1
+    ) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        'interviewCount must be a positive integer when documentKind is "interview_transcript" — ' +
+          "the number of distinct interviews this document actually contains, not the number of files shared.",
+      );
+    }
+    return { documentKind: kind, interviewCount };
+  }
+  if (interviewCount !== undefined) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      'interviewCount may only be set when documentKind is "interview_transcript".',
+    );
+  }
+  return { documentKind: kind, interviewCount: null };
 }
 
 /**
@@ -142,6 +184,11 @@ export async function uploadPrepDocument(
     );
   }
 
+  const { documentKind, interviewCount } = resolveDocumentKindAndCount(
+    input.documentKind,
+    input.interviewCount,
+  );
+
   // Bytes first: an upload that fails validation or storage must not
   // leave a prep row pointing at nothing.
   const stored = await uploadFile(actor, {
@@ -154,9 +201,10 @@ export async function uploadPrepDocument(
   const result = await pool.query<PrepRow>(
     `insert into module_prep_documents (
        workspace_id, program_run_module_id, storage_object_id,
-       original_filename, content_type, note, uploaded_by_user_id
+       original_filename, content_type, note, document_kind,
+       interview_count, uploaded_by_user_id
      )
-     values ($1, $2, $3, $4, $5, $6, $7)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      returning ${PREP_COLUMN_NAMES}`,
     [
       workspaceId,
@@ -165,6 +213,8 @@ export async function uploadPrepDocument(
       stored.filename,
       stored.contentType,
       input.note?.trim() ?? "",
+      documentKind,
+      interviewCount,
       actor.userId,
     ],
   );
@@ -270,6 +320,11 @@ export async function savePrepExtract(
     );
   }
 
+  const { documentKind, interviewCount } = resolveDocumentKindAndCount(
+    input.documentKind,
+    input.interviewCount,
+  );
+
   const existing = await pool.query<{ count: string }>(
     `select count(*)::text as count
      from module_prep_documents
@@ -287,9 +342,10 @@ export async function savePrepExtract(
   const result = await pool.query<PrepRow>(
     `insert into module_prep_documents (
        workspace_id, program_run_module_id, extracted_text,
-       original_filename, content_type, note, uploaded_by_user_id
+       original_filename, content_type, note, document_kind,
+       interview_count, uploaded_by_user_id
      )
-     values ($1, $2, $3, $4, 'text/plain', $5, $6)
+     values ($1, $2, $3, $4, 'text/plain', $5, $6, $7, $8)
      returning ${PREP_COLUMN_NAMES}`,
     [
       workspaceId,
@@ -297,6 +353,8 @@ export async function savePrepExtract(
       extractedText,
       input.filename,
       input.note?.trim() ?? "",
+      documentKind,
+      interviewCount,
       actor.userId,
     ],
   );
@@ -304,9 +362,49 @@ export async function savePrepExtract(
   return mapPrepRow({ ...result.rows[0], size_bytes: null });
 }
 
+/**
+ * Sum of interviewCount across every live, confirmed interview-transcript
+ * document for one Module — the number Module 4's floor is measured
+ * against. "Confirmed" here means the row exists at all: a save is only
+ * ever called after the facilitator has shown the Founder the
+ * transcription and gotten their confirmation (see savePrepExtract's own
+ * docstring), the same trust boundary as every other save in this codebase.
+ */
+export async function getConfirmedInterviewCount(
+  actor: ActorContext,
+  programRunModuleIdRaw: string,
+): Promise<number> {
+  const { programRunModuleId } = await authorizeRunModule(
+    actor,
+    programRunModuleIdRaw,
+  );
+  return countConfirmedInterviews(programRunModuleId);
+}
+
+/**
+ * Same sum as {@link getConfirmedInterviewCount}, callable from inside an
+ * already-open transaction/actor-authorized context (e.g. saveFounderResponse's
+ * gate check) that has no reason to re-authorize the run module.
+ */
+export async function countConfirmedInterviews(
+  programRunModuleId: string,
+): Promise<number> {
+  const result = await pool.query<{ total: string }>(
+    `select coalesce(sum(interview_count), 0)::text as total
+     from module_prep_documents
+     where program_run_module_id = $1
+       and withdrawn_at is null
+       and document_kind = 'interview_transcript'`,
+    [programRunModuleId],
+  );
+  return Number(result.rows[0]?.total ?? "0");
+}
+
 export {
   MAX_PREP_DOCUMENTS_PER_MODULE,
+  MINIMUM_CONFIRMED_INTERVIEWS,
   type PrepDocument,
+  type PrepDocumentKind,
   type SavePrepExtractInput,
   type UploadPrepDocumentInput,
 };

@@ -85,6 +85,7 @@ function context(
     })),
     prompts: [],
     prepDocuments: [],
+    interviewGate: null,
   };
 }
 

@@ -49,6 +49,16 @@ export type PrepDocumentView = {
 /** Why the module is read-only: locked behind prior module, or no run yet. */
 export type ModulePreviewReason = "locked" | "not-started" | null;
 
+/**
+ * Live confirmed-interview count against Module 4's floor. Null for every
+ * other module, and null for Module 4 itself before a run module exists.
+ */
+export type InterviewGateView = {
+  confirmedInterviewCount: number;
+  minimumRequired: number;
+  gateMet: boolean;
+};
+
 /** Module identity colour as an inline style. */
 export type ModuleAccent = { backgroundColor: string };
 
@@ -86,6 +96,8 @@ export type Module1RunProps = {
   artifacts: ModuleArtifactView[];
   /** Founder-uploaded material for this module's Work step. */
   prepDocuments: PrepDocumentView[];
+  /** Non-null only for module-04-solution-statement. */
+  interviewGate: InterviewGateView | null;
   hasAttempt: boolean;
   needsRetry: boolean;
   awaitingConfirmation: boolean;

@@ -67,6 +67,11 @@ export interface ModuleContext {
   // Module with no upload step. Metadata only — fetch the content with
   // get_prep_document.
   prepDocuments: ModuleContextPrepDocument[];
+  // Null for every Module except module-04-solution-statement, which
+  // cannot start Block 1 (or any later block) until this many confirmed
+  // interview transcripts have been saved. See
+  // packages/services/src/prep/types.ts's MINIMUM_CONFIRMED_INTERVIEWS.
+  interviewGate: ModuleInterviewGateStatus | null;
 }
 
 /**
@@ -80,5 +85,16 @@ export interface ModuleContextPrepDocument {
   filename: string;
   contentType: string;
   sizeBytes: number | null;
+  /** "other" unless the assistant explicitly marked this as an interview transcript. */
+  documentKind: "interview_transcript" | "other";
+  /** Number of distinct interviews this document represents; null unless documentKind is "interview_transcript". */
+  interviewCount: number | null;
   uploadedAt: string;
+}
+
+/** Live count of confirmed interview transcripts against Module 4's floor. */
+export interface ModuleInterviewGateStatus {
+  confirmedInterviewCount: number;
+  minimumRequired: number;
+  gateMet: boolean;
 }

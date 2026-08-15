@@ -11,12 +11,14 @@ import type {
   ModuleContextPrepDocument,
   ModuleContextPrompt,
   ModuleContextQuestion,
+  ModuleInterviewGateStatus,
   ModuleResponseStatus,
   ModuleResponseType,
   RunModuleSummary,
 } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import { MINIMUM_CONFIRMED_INTERVIEWS } from "@ai-catalyst/services/prep/types";
 import {
   mapAttemptRow,
   type AttemptRow,
@@ -27,6 +29,12 @@ import {
 } from "@ai-catalyst/services/workflow";
 
 const log = loggerForService(SERVICE_NAMES.services);
+
+// Mirrors apps/web/app/(app)/lib/module-display.ts's MODULE_4_KEY — this
+// layer does not depend on the web app, so the content-stable key is
+// repeated here rather than imported, matching how content-seed also
+// keeps its own copy of the same literal.
+const MODULE_4_KEY = "module-04-solution-statement";
 
 interface QuestionRow {
   question_key: string;
@@ -484,6 +492,12 @@ function assembleModuleContext(
     });
   }
 
+  const prepDocuments = prepDocumentsByRunModuleId.get(runModule.id) ?? [];
+  const interviewGate: ModuleInterviewGateStatus | null =
+    runModule.moduleKey === MODULE_4_KEY
+      ? buildInterviewGateStatus(prepDocuments)
+      : null;
+
   return {
     runModule,
     activeAttempt,
@@ -493,7 +507,27 @@ function assembleModuleContext(
     artifacts,
     prompts:
       promptsByModuleDefinitionId.get(runModule.moduleDefinitionId) ?? [],
-    prepDocuments: prepDocumentsByRunModuleId.get(runModule.id) ?? [],
+    prepDocuments,
+    interviewGate,
+  };
+}
+
+/**
+ * Confirmed-interview count against Module 4's floor, computed from the
+ * same prepDocuments already loaded for this context — see
+ * countConfirmedInterviews in packages/services/src/prep/index.ts for the
+ * equivalent standalone query used by saveFounderResponse's gate check.
+ */
+function buildInterviewGateStatus(
+  prepDocuments: ModuleContextPrepDocument[],
+): ModuleInterviewGateStatus {
+  const confirmedInterviewCount = prepDocuments
+    .filter((document) => document.documentKind === "interview_transcript")
+    .reduce((total, document) => total + (document.interviewCount ?? 0), 0);
+  return {
+    confirmedInterviewCount,
+    minimumRequired: MINIMUM_CONFIRMED_INTERVIEWS,
+    gateMet: confirmedInterviewCount >= MINIMUM_CONFIRMED_INTERVIEWS,
   };
 }
 
@@ -520,10 +554,13 @@ async function loadPrepDocumentsByRunModuleIds(
     original_filename: string;
     content_type: string;
     size_bytes: string | null;
+    document_kind: "interview_transcript" | "other";
+    interview_count: number | null;
     created_at: Date;
   }>(
     `select d.id, d.program_run_module_id, d.original_filename,
-            d.content_type, s.size_bytes, d.created_at
+            d.content_type, s.size_bytes, d.document_kind, d.interview_count,
+            d.created_at
      from module_prep_documents d
      left join storage_objects s on s.id = d.storage_object_id
      where d.program_run_module_id = any($1::uuid[])
@@ -539,6 +576,8 @@ async function loadPrepDocumentsByRunModuleIds(
       filename: row.original_filename,
       contentType: row.content_type,
       sizeBytes: row.size_bytes === null ? null : Number(row.size_bytes),
+      documentKind: row.document_kind,
+      interviewCount: row.interview_count,
       uploadedAt: row.created_at.toISOString(),
     });
     byRunModuleId.set(row.program_run_module_id, list);

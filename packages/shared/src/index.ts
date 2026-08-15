@@ -54,6 +54,7 @@ export type {
   ModuleContextArtifactSummary,
   ModuleContextPrepDocument,
   ModuleContextPrompt,
+  ModuleInterviewGateStatus,
 } from "./module-context.js";
 export type {
   UserProfile,

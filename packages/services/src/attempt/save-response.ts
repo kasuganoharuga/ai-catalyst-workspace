@@ -18,6 +18,11 @@ import {
   ATTEMPT_COLUMNS,
   type AttemptRow,
 } from "@ai-catalyst/services/attempt/internal/rows";
+import { MINIMUM_CONFIRMED_INTERVIEWS } from "@ai-catalyst/services/prep/types";
+
+// Mirrors apps/web/app/(app)/lib/module-display.ts's MODULE_4_KEY — see
+// packages/services/src/module/context.ts's own copy of this comment.
+const MODULE_4_KEY = "module-04-solution-statement";
 
 const RESPONSE_COLUMNS = `
   id, module_attempt_id, question_key, sequence_index, question_text_snapshot,
@@ -390,11 +395,12 @@ export async function saveFounderResponse(
 
     const runModuleResult = await client.query<{
       id: string;
+      module_key: string;
       module_definition_id: string;
       program_run_id: string;
       program_run_branch_id: string;
     }>(
-      `select id, module_definition_id, program_run_id, program_run_branch_id
+      `select id, module_key, module_definition_id, program_run_id, program_run_branch_id
        from program_run_modules
        where id = $1 and workspace_id = $2`,
       [attemptRow.program_run_module_id, workspace.id],
@@ -407,6 +413,33 @@ export async function saveFounderResponse(
         "INTERNAL_INVARIANT_ERROR",
         `Attempt ${attemptRow.id} has no owning program_run_module.`,
       );
+    }
+
+    // Module 4's Solution blocks (product_definition onward) cannot be
+    // saved until the confirmed-interview floor is met — see
+    // MINIMUM_CONFIRMED_INTERVIEWS. This blocks every question_key in the
+    // Module, not a subset: there is no prep-related question_key here to
+    // exempt, since interview transcripts are saved through save_prep_extract,
+    // a separate tool.
+    if (runModule.module_key === MODULE_4_KEY) {
+      const interviewCountResult = await client.query<{ total: string }>(
+        `select coalesce(sum(interview_count), 0)::text as total
+         from module_prep_documents
+         where program_run_module_id = $1
+           and withdrawn_at is null
+           and document_kind = 'interview_transcript'`,
+        [runModule.id],
+      );
+      const confirmedInterviewCount = Number(
+        interviewCountResult.rows[0]?.total ?? "0",
+      );
+      if (confirmedInterviewCount < MINIMUM_CONFIRMED_INTERVIEWS) {
+        throw new ServiceError(
+          "INTERVIEW_GATE_NOT_MET",
+          `Module 4 needs at least ${MINIMUM_CONFIRMED_INTERVIEWS} confirmed interview transcripts before Solution work can proceed ` +
+            `(currently ${confirmedInterviewCount}/${MINIMUM_CONFIRMED_INTERVIEWS}). Save more interview transcripts with save_prep_extract first.`,
+        );
+      }
     }
 
     const questionResult = await client.query<QuestionRow>(
