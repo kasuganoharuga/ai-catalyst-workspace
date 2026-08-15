@@ -372,6 +372,7 @@ describe("resetModuleProgress — database integration", () => {
       programRunModuleId: module1Id,
       filename: "shared-in-chat.pdf",
       extractedText: "Some transcribed content.",
+      documentKind: "other",
     });
 
     const before = await pool.query<{ count: string }>(

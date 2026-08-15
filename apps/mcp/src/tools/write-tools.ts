@@ -42,7 +42,7 @@ const SAVE_PREP_EXTRACT_SHAPE = {
   filename: z.string().min(1),
   extractedText: z.string().min(1),
   note: z.string().optional(),
-  documentKind: z.enum(["interview_transcript", "other"]).optional(),
+  documentKind: z.enum(["interview_transcript", "other"]),
   interviewCount: z.number().int().min(1).optional(),
 };
 
@@ -200,7 +200,7 @@ export function registerWriteTools(mcp: McpServer, actor: ActorContext): void {
       title: "Save prep extract",
       description:
         "Persists your own transcription of a file the Founder shared directly in this chat, for a Module with no website Documents step. Read the file yourself first (this server has no upload/parsing path for it); extractedText must be a faithful transcription of the original — preserve the Founder's own words and specific facts, not a condensed summary — and never the raw file bytes. There is no uploaded file behind this record, so this is the only copy: show the Founder what you extracted and get their confirmation before calling this, the same as any other save. Shows up in get_module_context's prepDocuments and is readable back via get_prep_document, same as an uploaded file. " +
-        'Set documentKind to "interview_transcript" when what was shared is one or more customer interviews (omit it, or set "other", for anything else — a pitch deck, research notes, etc.). When documentKind is "interview_transcript", interviewCount is REQUIRED and must be the true number of distinct interviews contained in extractedText, not the number of files the Founder shared — if the Founder pasted several interviews into one message or one document, read it, separate the distinct interviews yourself, and report the actual count (e.g. extractedText containing three separate conversations is interviewCount: 3, even though it was shared as a single message). Getting this count right matters: some Modules (e.g. Module 4) will not let Solution work proceed until enough confirmed interview transcripts exist, and that count is computed by summing interviewCount across every interview_transcript document — an inflated or deflated count defeats the gate in both directions.',
+        'documentKind is REQUIRED — "interview_transcript" when what was shared is one or more customer interviews, "other" for anything else (a pitch deck, research notes, etc.). Do not omit it: an omitted kind is rejected, not stored as "other". When documentKind is "interview_transcript", interviewCount is REQUIRED and must be the true number of distinct interviews contained in extractedText, not the number of files the Founder shared — if the Founder pasted several interviews into one message or one document, read it, separate the distinct interviews yourself, and report the actual count (e.g. extractedText containing three separate conversations is interviewCount: 3, even though it was shared as a single message). Getting this count right matters: some Modules (e.g. Module 4) will not let Solution work proceed until enough confirmed interview transcripts exist, and that count is computed by summing interviewCount across every interview_transcript document — an inflated or deflated count defeats the gate in both directions.',
       inputSchema: SAVE_PREP_EXTRACT_SHAPE,
     },
     async (args) => {

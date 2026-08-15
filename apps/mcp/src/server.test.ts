@@ -139,6 +139,39 @@ describe("POST /mcp — tools/list", () => {
       res.body.result.tools.map((tool: { name: string }) => tool.name).sort(),
     ).toEqual([...EXPECTED_TOOL_NAMES].sort());
   });
+
+  it("requires documentKind on save_prep_extract so an omitted kind cannot silently become other", async () => {
+    const res = await request(buildApp())
+      .post("/mcp")
+      .set("Host", "localhost")
+      .set("Accept", "application/json, text/event-stream")
+      .set("Authorization", `Bearer ${VALID_TOKEN}`)
+      .send({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+
+    const tool = (
+      res.body.result.tools as Array<{
+        name: string;
+        inputSchema: {
+          required?: string[];
+          properties?: Record<string, { enum?: string[] }>;
+        };
+      }>
+    ).find((entry) => entry.name === "save_prep_extract");
+    expect(tool).toBeDefined();
+    expect(tool?.inputSchema.required).toEqual(
+      expect.arrayContaining([
+        "programRunModuleId",
+        "filename",
+        "extractedText",
+        "documentKind",
+      ]),
+    );
+    expect(tool?.inputSchema.required).not.toContain("interviewCount");
+    expect(tool?.inputSchema.properties?.documentKind.enum).toEqual([
+      "interview_transcript",
+      "other",
+    ]);
+  });
 });
 
 describe("GET /.well-known/oauth-protected-resource", () => {

@@ -82,6 +82,9 @@ function mapPrepRow(row: PrepRow): PrepDocument {
  * constraint added in 0021: interviewCount is required (and must be a
  * positive integer) when the kind is "interview_transcript", and must be
  * omitted for every other kind. Returns the normalised pair to insert.
+ *
+ * Website uploads may omit documentKind (treated as "other"). Chat extracts
+ * must pass it explicitly — see savePrepExtract.
  */
 function resolveDocumentKindAndCount(
   documentKind: PrepDocumentKind | undefined,
@@ -317,6 +320,16 @@ export async function savePrepExtract(
     throw new ServiceError(
       "VALIDATION_ERROR",
       "extractedText must not be empty.",
+    );
+  }
+
+  if (
+    input.documentKind !== "interview_transcript" &&
+    input.documentKind !== "other"
+  ) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      'documentKind is required — "interview_transcript" for customer interviews, "other" for anything else.',
     );
   }
 

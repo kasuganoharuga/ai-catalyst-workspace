@@ -19,6 +19,7 @@ import {
 
 import {
   MAX_PREP_DOCUMENTS_PER_MODULE,
+  getConfirmedInterviewCount,
   listPrepDocuments,
   readPrepDocument,
   savePrepExtract,
@@ -184,6 +185,7 @@ describe("module prep documents — database integration", () => {
       extractedText:
         "They pay $400/month. Six interviews, all ANZ accounting firms.",
       note: "shared directly in chat",
+      documentKind: "other",
     });
 
     expect(saved.filename).toBe("pitch-deck.pdf");
@@ -193,6 +195,8 @@ describe("module prep documents — database integration", () => {
     );
     expect(saved.sizeBytes).toBeNull();
     expect(saved.note).toBe("shared directly in chat");
+    expect(saved.documentKind).toBe("other");
+    expect(saved.interviewCount).toBeNull();
 
     // No storage object to read — the saved text is the only content.
     const { document, content } = await readPrepDocument(actor, saved.id);
@@ -207,6 +211,7 @@ describe("module prep documents — database integration", () => {
         programRunModuleId,
         filename: "notes.txt",
         extractedText: "   ",
+        documentKind: "other",
       }),
     ).rejects.toThrow(/must not be empty/);
   });
@@ -223,6 +228,7 @@ describe("module prep documents — database integration", () => {
       programRunModuleId,
       filename: "shared-in-chat.pdf",
       extractedText: "Transcribed from the Founder's deck.",
+      documentKind: "other",
     });
 
     const documents = await listPrepDocuments(actor, programRunModuleId);
@@ -243,6 +249,7 @@ describe("module prep documents — database integration", () => {
         programRunModuleId,
         filename: `note-${i}.txt`,
         extractedText: `transcribed note ${i}`,
+        documentKind: "other",
       });
     }
 
@@ -251,6 +258,7 @@ describe("module prep documents — database integration", () => {
         programRunModuleId,
         filename: "one-too-many.txt",
         extractedText: "nope",
+        documentKind: "other",
       }),
     ).rejects.toThrow(/already has/);
   });
@@ -425,6 +433,7 @@ describe("module prep documents — database integration", () => {
       programRunModuleId,
       filename: "shared-in-chat.pdf",
       extractedText: "Extracted from the Founder's deck.",
+      documentKind: "other",
     });
 
     const context = await getModuleContext(actor, { moduleKey: MODULE_KEY });
@@ -434,6 +443,61 @@ describe("module prep documents — database integration", () => {
       id: saved.id,
       filename: "shared-in-chat.pdf",
     });
+  });
+
+  it("rejects a chat extract that omits documentKind instead of defaulting to other", async () => {
+    const { actor, programRunModuleId } = await newRunModule("kind-required");
+    await expect(
+      savePrepExtract(actor, {
+        programRunModuleId,
+        filename: "notes.txt",
+        extractedText: "A customer interview.",
+      } as never),
+    ).rejects.toThrow(/documentKind is required/);
+  });
+
+  it("counts interview_transcript extracts toward the confirmed-interview floor and ignores other", async () => {
+    const { actor, programRunModuleId } = await newRunModule("kind-count");
+
+    const transcript = await savePrepExtract(actor, {
+      programRunModuleId,
+      filename: "three-interviews.md",
+      extractedText: "Three distinct conversations in one paste.",
+      documentKind: "interview_transcript",
+      interviewCount: 3,
+    });
+    expect(transcript.documentKind).toBe("interview_transcript");
+    expect(transcript.interviewCount).toBe(3);
+    expect(await getConfirmedInterviewCount(actor, programRunModuleId)).toBe(3);
+
+    await savePrepExtract(actor, {
+      programRunModuleId,
+      filename: "pitch-deck.pdf",
+      extractedText: "A deck, not an interview.",
+      documentKind: "other",
+    });
+    expect(await getConfirmedInterviewCount(actor, programRunModuleId)).toBe(3);
+  });
+
+  it("rejects interview_transcript without interviewCount, and other with a count", async () => {
+    const { actor, programRunModuleId } = await newRunModule("kind-xor");
+    await expect(
+      savePrepExtract(actor, {
+        programRunModuleId,
+        filename: "interview.md",
+        extractedText: "One conversation.",
+        documentKind: "interview_transcript",
+      }),
+    ).rejects.toThrow(/interviewCount must be a positive integer/);
+    await expect(
+      savePrepExtract(actor, {
+        programRunModuleId,
+        filename: "notes.md",
+        extractedText: "Research notes.",
+        documentKind: "other",
+        interviewCount: 1,
+      }),
+    ).rejects.toThrow(/interviewCount may only be set/);
   });
 
   it("treats an unknown run module id as not found", async () => {

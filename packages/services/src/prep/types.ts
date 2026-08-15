@@ -61,8 +61,12 @@ export interface SavePrepExtractInput {
    */
   extractedText: string;
   note?: string;
-  /** Defaults to "other" when omitted. */
-  documentKind?: PrepDocumentKind;
+  /**
+   * Required. "interview_transcript" for customer interviews; "other" for
+   * everything else. Unlike website uploads, this is never defaulted —
+   * omitting it used to silently store "other" and fail Module 4's gate.
+   */
+  documentKind: PrepDocumentKind;
   /**
    * Required when documentKind is "interview_transcript": the number of
    * distinct interviews transcribed in extractedText, not the number of
