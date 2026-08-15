@@ -178,6 +178,7 @@ describe("seedToolkitContent", () => {
       "customer_situation",
       "functional_needs",
       "emotional_needs",
+      "current_alternatives",
       "tier1_signals",
       "tier2_signals",
       "disqualifiers",

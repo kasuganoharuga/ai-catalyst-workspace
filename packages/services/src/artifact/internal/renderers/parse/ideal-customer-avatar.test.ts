@@ -43,6 +43,12 @@ Has proven the product works and now needs capital to hire and scale, but the ra
 2. Certainty over vibes — wants a checklist and a system.
 3. Protect their credibility with their best investor relationships.
 
+## Current Alternatives
+
+- Runs the raise off spreadsheets and cold emails.
+- Asks friends who raised before for informal advice.
+- Uses a generic CRM not built for fundraising.
+
 ## Buying Signals
 
 ### Tier 1 — high intent (act in 24–48 hrs)
@@ -127,6 +133,11 @@ describe("parseIdealCustomerAvatar — happy path", () => {
     expect(model.unmetNeeds.functional).toHaveLength(3);
     expect(model.unmetNeeds.emotional).toHaveLength(3);
     expect(model.unmetNeeds.functional[0]).toContain("Close the round");
+  });
+
+  it("extracts 3 current alternatives", () => {
+    expect(model.currentAlternatives).toHaveLength(3);
+    expect(model.currentAlternatives[0]).toContain("spreadsheets");
   });
 
   it("extracts 3 Tier 1 and 3 Tier 2 buying signals", () => {

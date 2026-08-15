@@ -47,8 +47,9 @@ const MODULE_2_QUESTION_BLOCKS: {
   },
   {
     group: "buying_signals",
-    label: "What they do without you, and what's coming",
-    questionKeys: ["tier1_signals", "tier2_signals"],
+    label:
+      "What they do without you, what shows real intent, and what's coming",
+    questionKeys: ["current_alternatives", "tier1_signals", "tier2_signals"],
   },
   {
     group: "disqualifiers",

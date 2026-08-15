@@ -307,6 +307,11 @@ const AVATAR_MODEL: IdealCustomerAvatarModel = {
       "Protect their credibility.",
     ],
   },
+  currentAlternatives: [
+    "Runs the raise off spreadsheets and cold emails.",
+    "Asks friends who raised before for informal advice.",
+    "Uses a generic CRM not built for fundraising.",
+  ],
   buyingSignals: {
     tier1: [
       "Searches how to raise a seed round.",

@@ -43,6 +43,12 @@ const IDEAL_CUSTOMER_AVATAR_TEMPLATE = `# Ideal Customer Avatar
 2.
 3.
 
+## Current Alternatives
+
+-
+-
+-
+
 ## Buying Signals
 
 ### Tier 1 — high intent (act in 24–48 hrs)
@@ -196,9 +202,9 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     conditions: {},
   },
   {
-    questionKey: "tier1_signals",
+    questionKey: "current_alternatives",
     sequenceIndex: 8,
-    questionGroup: "buying_signals",
+    questionGroup: "current_alternatives",
     questionText:
       "What would this customer currently be doing to address the problem without this idea?",
     helpText: null,
@@ -210,8 +216,22 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
     conditions: {},
   },
   {
-    questionKey: "tier2_signals",
+    questionKey: "tier1_signals",
     sequenceIndex: 9,
+    questionGroup: "buying_signals",
+    questionText:
+      "What observable behaviour would show this customer is actively moving to solve this problem now?",
+    helpText: null,
+    placeholderText: null,
+    responseType: "long_text",
+    isRequired: true,
+    allowSkip: false,
+    options: [],
+    conditions: {},
+  },
+  {
+    questionKey: "tier2_signals",
+    sequenceIndex: 10,
     questionGroup: "buying_signals",
     questionText:
       "What observable events show this customer will need a solution within four to twelve weeks?",
@@ -225,7 +245,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "disqualifiers",
-    sequenceIndex: 10,
+    sequenceIndex: 11,
     questionGroup: "disqualifiers",
     questionText:
       "Who looks like this customer but should be excluded, and why?",
@@ -239,7 +259,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "core_promise",
-    sequenceIndex: 11,
+    sequenceIndex: 12,
     questionGroup: "core_promise",
     questionText:
       "What result, reduced risk or retained capability is this customer actually buying?",
@@ -253,7 +273,7 @@ const AVATAR_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "validation_status",
-    sequenceIndex: 12,
+    sequenceIndex: 13,
     questionGroup: "validation",
     questionText:
       "What is the highest evidence level reached for this exact customer profile?",
@@ -272,7 +292,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
   sequenceIndex: 1,
   name: "Ideal Customer Avatar",
   description:
-    "Locked-schema avatar: segment, snapshot, situation, functional and emotional unmet needs, tiered buying signals, disqualifiers, core promise, plus an internal Validation Status separating evidence from assumption.",
+    "Locked-schema avatar: segment, snapshot, situation, functional and emotional unmet needs, current alternatives, tiered buying signals, disqualifiers, core promise, plus an internal Validation Status separating evidence from assumption.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -300,6 +320,7 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
           { level: 2, heading: "Snapshot" },
           { level: 2, heading: "Situation" },
           { level: 2, heading: "Unmet Needs" },
+          { level: 2, heading: "Current Alternatives" },
           { level: 2, heading: "Buying Signals" },
           { level: 2, heading: "Disqualifiers" },
           { level: 2, heading: "Core Promise" },
@@ -388,6 +409,15 @@ const IDEAL_CUSTOMER_AVATAR_ARTIFACT: ArtifactContent = {
         heading: "Emotional and social — what they feel",
         minimum: 3,
         maximum: 6,
+        orRecordedUnknown: true,
+      },
+      {
+        key: "current_alternatives_range",
+        type: "range_named_items",
+        level: 2,
+        heading: "Current Alternatives",
+        minimum: 3,
+        maximum: 5,
         orRecordedUnknown: true,
       },
       {

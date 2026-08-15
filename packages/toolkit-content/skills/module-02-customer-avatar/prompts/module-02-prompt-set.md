@@ -46,18 +46,19 @@ does not own.
 | 3 | `customer_situation` | Situation | Functional needs | inherits Module 1 context |
 | 4 | `functional_needs` | Unmet Needs → Functional | Core Promise | inherits Module 1 context |
 | 4 | `emotional_needs` | Unmet Needs → Emotional and social | Tier 1 signals | inherits Module 1 context |
+| 5 | `current_alternatives` | Current Alternatives | — | status quo, not a buying signal |
 | 5 | `tier1_signals` | Buying Signals → Tier 1 | — | |
 | 5 | `tier2_signals` | Buying Signals → Tier 2 | — | |
 | 6 | `disqualifiers` | Disqualifiers | — | inherits Module 1 context |
 | 7 | `core_promise` | Core Promise | — | inherits Module 1 context |
 | 8 | `validation_status` | Validation Status → Current level | — | single_choice |
 
-Twelve stored fields, **eight founder-facing conversation blocks**. A block asks once, converges
+Thirteen stored fields, **eight founder-facing conversation blocks**. A block asks once, converges
 into every field it covers, takes one confirmation, then saves each field separately. No conditional
 rows — every block runs for every Founder.
 
-Twelve separate ask-probe-converge-confirm cycles would be heavier than this module needs. The
-deliverable is a complete, correctly structured Avatar, not twelve interrogations, and the
+Thirteen separate ask-probe-converge-confirm cycles would be heavier than this module needs. The
+deliverable is a complete, correctly structured Avatar, not thirteen interrogations, and the
 previous generation of this module reached a comparable output in roughly seven founder-facing
 turns. Grouping keeps the artefact intact and the conversation reasonable.
 
@@ -65,7 +66,7 @@ turns. Grouping keeps the artefact intact and the conversation reasonable.
 answer helps fill. It is not a forecast of what a later module might do with the material.
 
 The remaining Validation Status subsections are not separate questions — they are aggregated from
-the evidence metadata saved alongside the twelve content fields. This module does not ask the
+the evidence metadata saved alongside the thirteen content fields. This module does not ask the
 Founder to recount customer interviews; it records what evidence exists and what does not.
 
 Conversation order is not document order — you describe a customer before you can name the
@@ -206,19 +207,27 @@ them defensibly, I will say so rather than invent an order.
 
 ### Block 5 — How do we recognise intent?
 
-*Resolves `tier1_signals`, `tier2_signals`.*
+*Resolves `current_alternatives`, `tier1_signals`, `tier2_signals`.*
 
 ```
-Two angles, both observable from the outside.
+Three angles, all observable from the outside.
 
 Right now: if this idea did not exist, what would this customer currently be doing instead to deal
-with the problem — the workaround, the tool, the manual process, or simply living with it?
+with the problem — the workaround, the tool, the manual process, or simply living with it? This is
+the status quo, not evidence of buying intent by itself.
+
+Actively moving: what would you actually see if this customer were moving to solve this now —
+evaluating tools, asking for a demo or pricing, allocating budget, starting a pilot, setting an
+implementation deadline? If nothing like that has happened yet, "not identified yet" is a fine
+answer here.
 
 Earlier: what events mean this customer will need you in four to twelve weeks, even though they are
 not looking yet? A hire, a funding event, a new contract, a deadline appearing on the calendar, a
 tool they adopt, a community they join, content they start consuming.
 
-Both have to be things we could see, search for or measure. "They feel frustrated" is not a signal.
+All three have to be things we could see, search for or measure. "They feel frustrated" is not a
+signal — and neither is "they use spreadsheets" by itself, since a workaround shows the problem is
+real, not that they are about to buy.
 
 If you have observed these behaviours, say so. If not, give me your best current hypothesis and I
 will record it as something still to be tested.
@@ -288,7 +297,7 @@ Which level best describes the profile today?
 
 ## 3. Question rows
 
-Twelve `module_questions` rows. These `question_text` values are the **canonical statement of what
+Thirteen `module_questions` rows. These `question_text` values are the **canonical statement of what
 each field must establish** — they are stored in the database, returned by `get_module_context`, and
 snapshotted onto each Response for the audit trail. They are **not read aloud**; the conversation
 blocks in §2 are what the Founder hears.
@@ -302,11 +311,12 @@ blocks in §2 are what the Founder hears.
 | 5 | `customer_situation` | What concrete moment makes the problem urgent — the trigger, the goal, what they tried, why it fell short, and the cost of doing nothing? | long_text |
 | 6 | `functional_needs` | What outcomes does this customer need but cannot reliably achieve today? | long_text |
 | 7 | `emotional_needs` | What is emotionally and socially at stake for this customer in this problem? | long_text |
-| 8 | `tier1_signals` | What would this customer currently be doing to address the problem without this idea? | long_text |
-| 9 | `tier2_signals` | What observable events show this customer will need a solution within four to twelve weeks? | long_text |
-| 10 | `disqualifiers` | Who looks like this customer but should be excluded, and why? | long_text |
-| 11 | `core_promise` | What result, reduced risk or retained capability is this customer actually buying? | long_text |
-| 12 | `validation_status` | What is the highest evidence level reached for this exact customer profile? | single_choice |
+| 8 | `current_alternatives` | What would this customer currently be doing to address the problem without this idea? | long_text |
+| 9 | `tier1_signals` | What observable behaviour would show this customer is actively moving to solve this problem now? | long_text |
+| 10 | `tier2_signals` | What observable events show this customer will need a solution within four to twelve weeks? | long_text |
+| 11 | `disqualifiers` | Who looks like this customer but should be excluded, and why? | long_text |
+| 12 | `core_promise` | What result, reduced risk or retained capability is this customer actually buying? | long_text |
+| 13 | `validation_status` | What is the highest evidence level reached for this exact customer profile? | single_choice |
 
 `validation_status` options: `assumed`, `interviewed`, `prototyped`, `paying`.
 
@@ -331,6 +341,37 @@ confirm the narrowing. You are helping them choose, not testing them.
 - Read all six confirmed Module 1 Responses and the Pressure-Test Verdict before the first question.
 - The Founder supplies the raw material. You do the narrowing. Never invent customers, quotations,
   traction or market evidence. Quotation marks are reserved for words a customer actually said.
+
+## Epistemic status
+
+The Founder's own certainty is part of the record, not just their words. Watch for hedges: *probably,
+might, could, my guess, I think, I'd probably, possible, not sure, assumed, believe*. Whenever the
+Founder's answer carries one of these markers, that status must survive unchanged through every step
+between here and the finished artefact — conversation, block convergence, the saved Response, and
+artefact generation. Never upgrade a hedge into an unqualified fact at any of those steps, and never
+silently drop it either.
+
+Concretely:
+
+- A hedged claim always produces an ASSUMPTIONS entry when you save — never CONFIRMED ANSWER alone.
+- When the hedged fact is load-bearing for a Snapshot recognition line, the line itself keeps a short
+  inline marker rather than reading as settled (see the Artifact Generator's Snapshot provenance rule).
+- Converging a wide answer into a tight recognition line changes its *shape*, not its *certainty* —
+  compressing "Sarah's probably the champion, she feels the pain most" down to a recognition-card line
+  must not quietly turn "probably" into a bare fact.
+
+Worked example — Founder says "Sarah's probably the champion, since she feels the pain most directly":
+
+    CONFIRMED ANSWER
+    Primary users: Admin & ops · Champion: Sarah (assumed) · Buyer: Managing partner
+
+    ASSUMPTIONS
+    Founder believes Sarah is the champion because she feels the pain most directly; not yet
+    confirmed with Sarah.
+
+This is the same discipline the Save protocol already asks for field-by-field; this section names it
+once, up front, because it is the single most common way a confirmed Response drifts from what the
+Founder actually said.
 
 ## Prep materials
 
@@ -404,7 +445,7 @@ relevant confirmed Module 1 Response before speaking the block. When that Respon
 the Module context, drop the replay line and ask the remainder as an open question — never say "you
 previously said" about something that was never said.
 
-The placeholders belong to the block openers only. The twelve `question_text` values in
+The placeholders belong to the block openers only. The thirteen `question_text` values in
 `module_questions` are short canonical field statements and contain no placeholders — do not put
 them back there.
 
@@ -433,14 +474,14 @@ to resolve it:
 grouped.** A `question_text` is the canonical statement of what a field must establish — not a script
 to read out, and not a turn the Founder has to sit through on its own.
 
-The Founder experiences **eight conversation blocks**, not twelve questions. Each block resolves
+The Founder experiences **eight conversation blocks**, not thirteen questions. Each block resolves
 one to three fields, takes one answer, converges into every field it covers, takes one confirmation,
 and then saves each field separately.
 
 This differs from Module 1 deliberately. Module 1 is a collect-only interview where rephrasing could
 bias a first answer, so it reads its questions verbatim, one at a time. Module 2 inherits Module 1's
 answers and narrows them, so verbatim delivery would make the Founder repeat themselves and
-twelve separate cycles would make a customer-definition exercise feel like a form. Do not "correct"
+thirteen separate cycles would make a customer-definition exercise feel like a form. Do not "correct"
 this back to one-question-at-a-time verbatim delivery.
 
 For every block:
@@ -579,13 +620,19 @@ the customer, not the same judgement asked three ways:
 Skip any of the three the Founder has already volunteered while answering an earlier turn. The Founder
 still confirms functional_needs and emotional_needs together at the end, in one step.
 
-Block 5 covers two distinct angles, not one bundle: what this customer does today without the idea,
-and what leading indicators show up months earlier. Two separate atomic turns, in this order:
+Block 5 covers three distinct angles, not one bundle: what this customer does today without the
+idea, what would show they are actively moving to solve it now, and what leading indicators show up
+months earlier. Three separate atomic turns, in this order — each is a different time horizon and
+must not be folded into its neighbour:
 
 1. Right now — if this idea did not exist, what would this customer currently be doing instead to
    deal with the problem — the workaround, the tool, the manual process, or simply living with it?
-2. Earlier — what events, four to twelve weeks out, mean they will need you even though they are not
-   looking yet?
+   This is the status quo (`current_alternatives`), not a buying signal on its own.
+2. Actively moving — what would you actually see if this customer were moving to solve this now —
+   evaluating tools, asking for a demo or pricing, allocating budget, starting a pilot, setting an
+   implementation deadline (`tier1_signals`)? "Not identified yet" is a legitimate answer.
+3. Earlier — what events, four to twelve weeks out, mean they will need you even though they are not
+   looking yet (`tier2_signals`)?
 
 Blocks 6, 7 and 8 each resolve a single narrative or a single choice, not several unrelated facts, so
 they are short enough to ask in one turn. In every case the confirmation is still a single step
@@ -787,7 +834,7 @@ For OBSERVATION BASIS, ASSUMPTIONS and UNKNOWNS:
   heading.
 - That is what gets **persisted**, for reliable parsing on resume. It is not what gets **said**: in
   conversation, show only metadata that carries meaning. Never read "None recorded" categories back
-  to the Founder — a convergence summary listing three empty headings is noise, and twelve of them
+  to the Founder — a convergence summary listing three empty headings is noise, and thirteen of them
   is a form.
 - Never infer evidence merely because the Founder stated something confidently. Confidence is not
   observation.
@@ -817,6 +864,10 @@ Rules:
 - Store only the confirmed response for the current `question_key`.
 - Material belonging to a later field goes under CARRY-FORWARD CONTEXT. Never silently write it into
   a field it does not own.
+- **CARRY-FORWARD CONTEXT may only contain what the Founder actually said in this block.** Do not
+  write an AI-generated hypothesis about a later field into it and present it as if the Founder had
+  already supplied it — note it to yourself as something worth asking about later instead, and raise
+  it as a genuine question when that block is actually reached.
 - When you reuse it later, replay it and ask the Founder to confirm or refine it *in the context of
   that field*:
 
@@ -839,7 +890,7 @@ Rules:
 
 ## Content rules
 
-Four rules govern what may be written, taken from the reference handout:
+Five rules govern what may be written, taken from the reference handout:
 
 1. **Write needs, not features.** Every unmet need is something the customer wants to be true, never
    a description of what we sell. Rewrite "an AI dashboard" as "knowing which actions to prioritise
@@ -849,7 +900,13 @@ Four rules govern what may be written, taken from the reference handout:
    feel frustrated", "they value innovation", "they want growth".
 3. **Tier by urgency.** Separate act-now from nurture. Same person, different message, different
    speed of response.
-4. **Do not infer disqualifiers from positive beachhead, tool, size or capability criteria.**
+4. **Do not conflate the status quo with buying intent.** A current alternative or workaround
+   (spreadsheets, a manual process, a competitor tool already in use) is evidence the problem is
+   real — it is not evidence the customer is moving to buy. Keep `current_alternatives` and
+   `tier1_signals` separate: the former is what they do today, the latter is what would show they
+   are actively moving to solve it now. A Founder who has used the same workaround for years, with no
+   sign of moving off it, is not a Tier 1 signal.
+5. **Do not infer disqualifiers from positive beachhead, tool, size or capability criteria.**
    Block 1's beachhead selection, and any tool or team-size detail the
    Founder mentions while describing the strongest-fit customer, are hypotheses about who fits best —
    never evidence about who to exclude, even when they read as a boundary. A small team, a lean
@@ -904,9 +961,18 @@ disappoint? What reputation or relationship is at risk? What would make them fee
 exact words have you heard — or is this your inference? If a commitment trigger surfaces here, carry
 it to `tier1_signals` rather than recording it as an emotional need.
 
-**`tier1_signals` / `tier2_signals`** — Where would this be visible? Could it be measured? Does it show intent or
-only interest? Does it happen before or after they start evaluating solutions? Has it been observed,
-or is it assumed? What should we do when it appears?
+**`current_alternatives`** — What do they use today instead — a tool, a manual process, a competitor,
+or just living with it? Could a stranger watching them work actually observe this? Does using it mean
+they are satisfied with it, or just coping?
+
+**`tier1_signals`** — What would you actually see if this customer were moving to solve this now — a
+request for pricing, a demo booked, budget allocated, a pilot started, a deadline set? Is that
+observed or assumed? Is "not identified yet" the honest answer? Never accept a current alternative
+or workaround on its own as the answer here — that belongs to `current_alternatives`.
+
+**`tier2_signals`** — Where would this be visible? Could it be measured? Does it happen before or
+after they start evaluating solutions? Has it been observed, or is it your best current hypothesis?
+What should we do when it appears?
 
 **`disqualifiers`** — Can they pay? Are they the economic buyer, or do they need someone else to
 approve? Who is solving a different problem? Who wants it done entirely for them? Who would sign up
@@ -979,17 +1045,19 @@ interview questions. Module 2 defines who to talk to; it does not plan or run th
 
 Module 2 is done when:
 
-1. All 12 Responses are confirmed and saved, across the eight blocks.
+1. All 13 Responses are confirmed and saved, across the eight blocks.
 2. Every locked Avatar field is resolved (see below).
 3. Needs are written as outcomes, not features.
-4. Buying signals are observable behaviours or events when identified; otherwise the unresolved
-   signal is stated explicitly and recorded under UNKNOWNS.
-5. Disqualifiers contain at least three clear exclusions when defensibly answered; otherwise the
+4. Current alternatives describe what the customer does today, and are never mistaken for buying
+   intent.
+5. Buying signals (Tier 1 and Tier 2) are observable behaviours or events when identified; otherwise
+   the unresolved signal is stated explicitly and recorded under UNKNOWNS.
+6. Disqualifiers contain at least three clear exclusions when defensibly answered; otherwise the
    field carries a specific confirmed unknown rather than invented exclusions.
-6. Core Promise describes the customer result rather than the product when identified; otherwise
+7. Core Promise describes the customer result rather than the product when identified; otherwise
    the unresolved promise is stated explicitly and recorded under UNKNOWNS.
-7. Validation Status honestly distinguishes observation, assumption and unknowns.
-8. `Ideal-Customer-Avatar.md` is shown, confirmed and saved.
+8. Validation Status honestly distinguishes observation, assumption and unknowns.
+9. `Ideal-Customer-Avatar.md` is shown, confirmed and saved.
 
 **Resolved does not mean answered.** Every locked Avatar field must hold one of:
 
@@ -1035,6 +1103,10 @@ tell them the Module is complete.
 - If `save_artifact` fails a locked-schema draft check, repair the named issues and retry. Do not
   invent a different document shape.
 - If a save fails, tell the Founder immediately and stop.
+- Do not pre-populate or persist a later block's Founder-answer field before that block is reached
+  and confirmed. You may privately note a question worth exploring later, but never write an
+  AI-generated hypothesis into CARRY-FORWARD CONTEXT as if the Founder already said it, and never
+  save under a later block's `question_key` ahead of that block's own confirmation.
 ```
 
 ---
@@ -1053,7 +1125,7 @@ Facilitator while the Founder could confirm it — do not run a second round of 
 
 ## Inputs
 
-- Read the 12 confirmed Responses (`customer_picture` through `validation_status`) from the Module
+- Read the 13 confirmed Responses (`customer_picture` through `validation_status`) from the Module
   context. Use nothing the Founder has not confirmed.
 - Each Response is stored in the save protocol's shape:
   - **CONFIRMED ANSWER** fills the customer-facing sections (Snapshot fields should already be
@@ -1127,6 +1199,24 @@ Do not replace confirmed language with inferred descriptors. Do not compress
 "5+ staff, 3+ disconnected tools, limited automation" into "growing firm with fragmented workflows"
 unless the Founder explicitly confirmed that wording.
 
+**PROVENANCE IN THE SNAPSHOT:**
+
+A reader must never have to open Validation Status to learn that a Snapshot headline is unvalidated.
+When the Response backing a Snapshot cell is ASSUMPTIONS-sourced rather than OBSERVATION BASIS —
+the Founder's estimate, guess or hedge, not something observed — the recognition line itself carries
+a short inline marker, not just a longer explanation buried downstream:
+
+    **CURRENT COMMERCIAL MOMENT:** Crossing an onboarding-volume threshold — Founder estimate,
+    roughly 4–6 simultaneous onboardings; not yet validated.
+
+The same applies to WHO whenever a role attribution (user / champion / buyer) is still the Founder's
+guess rather than confirmed directly with that person — keep the compact label, add `(assumed)`:
+
+    **WHO:** Primary users: Admin & ops · Champion: Sarah (assumed) · Buyer: Managing partner
+
+Do not add the marker to a fact that has real OBSERVATION BASIS behind it — this is for
+ASSUMPTIONS-sourced Snapshot content only, not a blanket disclaimer on every cell.
+
 Canonical density (Capital Raise worked example):
 
     **WHO:** 32–42, technical or domain-expert founder; 2–8 person team
@@ -1145,7 +1235,8 @@ Canonical density (Capital Raise worked example):
 | Situation | `customer_situation` — one paragraph; also receives confirmed trigger / "why the problem bites now" facts that must not sit in Snapshot |
 | Unmet Needs → Functional | `functional_needs` — 3–6, in the Founder-confirmed order. Do not invent a ranking when no defensible order was established |
 | Unmet Needs → Emotional and social | `emotional_needs` — 3–6 |
-| Buying Signals → Tier 1 | `tier1_signals` — 3–5 observable current alternatives or workarounds |
+| Current Alternatives | `current_alternatives` — 3–5 observable current alternatives or workarounds. Status quo, never restated as a buying signal |
+| Buying Signals → Tier 1 | `tier1_signals` — 3–5 observable buying-intent behaviours, or "not identified yet" |
 | Buying Signals → Tier 2 | `tier2_signals` — 3–5 observable trigger events |
 | Disqualifiers | `disqualifiers` — 3 or more; hard exclusions live here, not restated as Snapshot prose |
 | Core Promise | `core_promise` — one concise paragraph of one or two sentences describing the customer result and, where relevant, the risk reduced or the capability retained. Not all three apply to every product. It should say what they are really buying beyond the product itself, but must not add subheadings that are not in the locked template |
@@ -1188,6 +1279,11 @@ what actually shows the field-by-field mix.
 
 When assembling Validation Status, consolidate duplicate or overlapping items across Responses.
 Preserve the strongest confirmed wording and do not repeat the same evidence under multiple bullets.
+
+**Never resolve or drop an assumption's hedge while consolidating.** An ASSUMPTIONS item keeps its
+Founder-uncertain framing ("Founder believes...", "probably...", "assumed to be...") when it moves
+into Founder assumptions — do not fold it into Based on observation, and do not tighten the wording
+into an unqualified statement just because it now sits in a formal-looking section.
 
 Ignore structural "None recorded." markers while aggregating — they mark an empty category on one
 Response, not a finding. Write "None recorded" in a final subsection only when no substantive items
@@ -1265,12 +1361,12 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
 - **"Borderline cases" was dropped** from Disqualifiers. It came from an intermediate draft, not the
   handout, and the settled rule is that the artefact matches the handout plus Validation Status.
   Easy to add back if it earns its place.
-- **Twelve stored fields, eight conversation blocks.** The fields are what the artefact needs;
-  the blocks are what the Founder sits through. Twelve separate confirm cycles were heavier than
+- **Thirteen stored fields, eight conversation blocks.** The fields are what the artefact needs;
+  the blocks are what the Founder sits through. Thirteen separate confirm cycles were heavier than
   the deliverable warrants, and the earlier generation of this module reached a comparable output in
   roughly seven founder-facing turns. Grouping changes the pacing, not the artefact — every field
   still has one owner, one confirmed answer and its own Response row.
-- **12 rows, no conditionals.** The five interview-evidence questions were removed: they ask the
+- **13 rows, no conditionals.** The five interview-evidence questions were removed: they ask the
   Founder to recount real conversations, which is analysis of validation results rather than
   definition of the customer. A Founder who already has that experience still records it — under
   OBSERVATION BASIS and CONTRADICTIONS in the content fields' metadata — without five extra
@@ -1278,9 +1374,13 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
 - **`customer_stage` was removed.** The STAGE Snapshot cell and its dedicated Block 2 turn added a
   fourth line of thinking the artefact did not need; `current_stage`'s remaining job is the
   `validation_status` reconciliation in Block 8, not a customer-facing Snapshot fact.
-- **`tier1_signals` reframed.** It now asks what this customer currently does *without* the idea —
-  the status-quo workaround — rather than what observable action they take within 24–48 hours. Tier
-  2 (leading indicators, four to twelve weeks out) is unchanged.
+- **`current_alternatives` split out of `tier1_signals`.** A QA pass found the artefact labelling
+  status-quo workarounds ("uses spreadsheets", "possibly Zapier") as "Tier 1 — high intent" buying
+  signals — a workaround is evidence the problem is real, not evidence the customer is about to buy.
+  `tier1_signals` now asks what would show this customer is *actively moving* to solve it now
+  (evaluating tools, requesting pricing, allocating budget); the old status-quo question moved to its
+  own field and its own artefact section, `Current Alternatives`. Tier 2 (leading indicators, four to
+  twelve weeks out) is unchanged.
 - **`validation_barrier` was removed** with the plan it was designed to shape.
 - **`validation_status` gained a fourth tier, `prototyped`,** between `interviewed` and `paying`.
   Talking to a matching person and a matching person actually using or reacting to a prototype are
@@ -1324,3 +1424,12 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
   and the payer are usually three people. The line offered as the alternative ("act first, find the
   budget or approval, champion your product loudest") keeps more of the original voice if that reads
   better.
+- **`## Epistemic status`, the Snapshot provenance clause and the future-block-contamination boundary
+  were added from a QA pass**, not the original design. The save protocol already asked for
+  OBSERVATION BASIS / ASSUMPTIONS / UNKNOWNS field-by-field, but testing found Founder hedges
+  ("probably", "might", "I think") still disappearing during convergence or artefact generation, a
+  Snapshot cell reading as settled when only Validation Status marked it as an assumption, and one
+  case of a block preparing carry-forward content for a later block's field from the AI's own
+  inference rather than something the Founder said. These three additions are reinforcement of
+  existing rules, not new mechanics — there is still no code that parses or enforces hedge language;
+  it remains entirely the Facilitator and Artifact Generator's job to honour it.

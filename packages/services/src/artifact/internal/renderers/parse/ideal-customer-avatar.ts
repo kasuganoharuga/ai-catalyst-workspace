@@ -17,6 +17,7 @@ export interface IdealCustomerAvatarModel {
   snapshot: { who: string; where: string; stage: string; raise: string };
   situation: string;
   unmetNeeds: { functional: string[]; emotional: string[] };
+  currentAlternatives: string[];
   buyingSignals: { tier1: string[]; tier2: string[] };
   disqualifiers: string[];
   corePromise: string;
@@ -162,6 +163,16 @@ export function parseIdealCustomerAvatar(
     ),
   };
 
+  const currentAlternatives = requiredItemsOrUnknown(
+    markdown,
+    2,
+    "Current Alternatives",
+    {
+      minimum: 3,
+      maximum: 5,
+    },
+  );
+
   const buyingSignals = {
     tier1: requiredItemsOrUnknown(
       markdown,
@@ -215,6 +226,7 @@ export function parseIdealCustomerAvatar(
     snapshot,
     situation,
     unmetNeeds,
+    currentAlternatives,
     buyingSignals,
     disqualifiers,
     corePromise,

@@ -373,6 +373,32 @@ function unmetNeeds(
   layout.y = top - consumed - SECTION_GAP;
 }
 
+function currentAlternatives(
+  layout: LayoutBuilder,
+  model: IdealCustomerAvatarModel,
+): void {
+  layout.ensure(50);
+  const headingHeight = sectionRule(
+    layout,
+    "current_alternatives",
+    "Current alternatives — the status quo, not a buying signal",
+    layout.y,
+  );
+  const top = layout.y - headingHeight;
+  const listH = bulletList(
+    layout,
+    "current_alternatives",
+    model.currentAlternatives,
+    top,
+    layout.margin,
+    layout.usableWidth,
+    BODY_SIZE,
+    MUTED_BODY,
+    6,
+  );
+  layout.y = top - listH - SECTION_GAP;
+}
+
 function buyingSignalCard(
   layout: LayoutBuilder,
   top: number,
@@ -683,6 +709,7 @@ export function buildIdealCustomerAvatarPlan(
   snapshotGrid(layout, model);
   situation(layout, model);
   unmetNeeds(layout, model);
+  currentAlternatives(layout, model);
   buyingSignals(layout, model);
   disqualifiers(layout, model);
   corePromise(layout, model);
@@ -719,6 +746,11 @@ export function assertIdealCustomerAvatarPlan(
   assertAllPresent(plan, [model.situation], "situation");
   assertAllPresent(plan, model.unmetNeeds.functional, "functional unmet need");
   assertAllPresent(plan, model.unmetNeeds.emotional, "emotional unmet need");
+  assertAllPresent(
+    plan,
+    model.currentAlternatives,
+    "current alternative or workaround",
+  );
   assertAllPresent(plan, model.buyingSignals.tier1, "Tier 1 buying signal");
   assertAllPresent(plan, model.buyingSignals.tier2, "Tier 2 buying signal");
   assertAllPresent(plan, model.disqualifiers, "disqualifier");

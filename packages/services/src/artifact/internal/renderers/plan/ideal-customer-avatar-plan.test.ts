@@ -32,6 +32,11 @@ const MODEL: IdealCustomerAvatarModel = {
       "Protect their credibility.",
     ],
   },
+  currentAlternatives: [
+    "Runs the raise off spreadsheets and cold emails.",
+    "Asks friends who raised before for informal advice.",
+    "Uses a generic CRM not built for fundraising.",
+  ],
   buyingSignals: {
     tier1: [
       "Searches how to raise a seed round.",
@@ -135,13 +140,16 @@ describe("buildIdealCustomerAvatarPlan — every locked model field is present s
     expect(allText).toContain(MODEL.snapshot.raise);
   });
 
-  it("includes the situation, every unmet need and every buying signal", () => {
+  it("includes the situation, every unmet need, current alternative and buying signal", () => {
     expect(allText).toContain(MODEL.situation);
     for (const need of [
       ...MODEL.unmetNeeds.functional,
       ...MODEL.unmetNeeds.emotional,
     ]) {
       expect(allText).toContain(need);
+    }
+    for (const alternative of MODEL.currentAlternatives) {
+      expect(allText).toContain(alternative);
     }
     for (const signal of [
       ...MODEL.buyingSignals.tier1,

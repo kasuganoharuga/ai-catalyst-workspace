@@ -228,9 +228,14 @@ const AVATAR_RESPONSES: { questionKey: string; answerText: string }[] = [
       "They fear being the reason a client leaves.\nThey want to feel in control instead of dreading Monday mornings during onboarding season.\nThey want to feel credible in front of the managing partner rather than visibly behind.",
   },
   {
-    questionKey: "tier1_signals",
+    questionKey: "current_alternatives",
     answerText:
       "Manually copying client details between email and the practice-management tool\nKeeping a shared spreadsheet to track onboarding status\nThe managing partner personally chasing missed steps",
+  },
+  {
+    questionKey: "tier1_signals",
+    answerText:
+      "No pricing request, demo booking or pilot start has been identified yet.",
   },
   {
     questionKey: "tier2_signals",
@@ -289,13 +294,17 @@ A new client comes on during busy season. The ops person tries to move the clien
 2. They want to feel in control instead of dreading Monday mornings during onboarding season.
 3. They want to feel credible in front of the managing partner rather than visibly behind.
 
-## Buying Signals
-
-### Tier 1 — high intent (act in 24–48 hrs)
+## Current Alternatives
 
 - Manually copying client details between email and the practice-management tool
 - Keeping a shared spreadsheet to track onboarding status
 - The managing partner personally chasing missed steps
+
+## Buying Signals
+
+### Tier 1 — high intent (act in 24–48 hrs)
+
+No pricing request, demo booking or pilot start has been identified yet.
 
 ### Tier 2 — building intent, nurture over 4–12 weeks
 

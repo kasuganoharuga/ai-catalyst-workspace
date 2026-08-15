@@ -47,12 +47,23 @@ never a description of what we sell.>
 2.
 3.
 
+## Current Alternatives
+
+<3–5 observable current alternatives or workarounds — what this customer does today without this
+idea. This is the status quo, not a buying signal: using a workaround shows the problem is real, not
+that the customer is about to buy.>
+
+-
+-
+-
+
 ## Buying Signals
 
 ### Tier 1 — high intent (act in 24–48 hrs)
 
-<3–5 observable current alternatives or workarounds — what this customer does today without this
-idea. A signal must be something that could be seen, searched for or measured.>
+<3–5 observable behaviours that show this customer is actively moving to solve this now — evaluating
+tools, asking for a demo or pricing, allocating budget, starting a pilot, setting a deadline. A signal
+must be something that could be seen, searched for or measured. Not the same as Current Alternatives.>
 
 -
 -
