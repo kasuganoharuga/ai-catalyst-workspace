@@ -22,7 +22,9 @@ back at open via `get_module_context` / `get_prep_document`. Claude does not re-
 notes once confirmed and does not send the Founder to a website form — Proof's Analyse / Decide /
 Plan path is retired from the Toolkit sequence.
 
-The module's shape is **name → differentiate → dump → cut to three → benefit → rank → risk**.
+The module's shape is **name → differentiate → North Star artefact → dump → cut to three →
+benefit → rank → risk → Feature Benefit Map**. North-Star.md is previewed and confirmed before
+feature work begins; the two artefacts are never first shown together at the end.
 Module 3 excavated the problem; this module commits to what to build first. The skill it teaches is
 refusing a generic differentiator and refusing a feature list that is really a wishlist.
 
@@ -133,8 +135,9 @@ nothing — in a way a competitor cannot copy by shipping a feature next quarter
 I will push until we have a structural reason. Rejected versions stay visible with strikethrough.
 ```
 
-*When the differentiator holds, show the final sentence + differentiator for one confirmation, then
-save the three fields.*
+*When the differentiator holds, generate and render `North-Star.md`, ask one bold review question,
+then persist the three Responses and save the artefact quietly. Do not begin feature ideation until
+that checkpoint is done.*
 
 ### Block 2 — Three Minimum Loveable features
 
@@ -165,7 +168,8 @@ A customer does not buy a feature — they buy the version of themselves that fe
 ground emotional benefits in interview language where it exists; I will not invent quotes.
 ```
 
-*Show brain dump + top 3 + benefits table. One confirmation for the block, then three saves.*
+*Show brain dump + top 3 + benefits table. One bold review question for the group, then persist the
+three Responses quietly.*
 
 ### Block 3 — Rank and protect against false confidence
 
@@ -189,8 +193,8 @@ evidence), and which have you assumed they want? I will name the assumption risk
 to learn before you build each one.
 ```
 
-*Show Desirability Order + Assumption Risks. One confirmation, then two saves. Then generate both
-artefacts (§5).*
+*Generate and render `Feature-Benefit-Map.md`, ask one bold final review question, then persist the
+two Responses and save the artefact quietly. Do not first-present both artefacts in one batch.*
 
 ---
 
@@ -271,6 +275,15 @@ clever to build.
 
   Tool calls (`save_founder_input`, etc.) keep using the real key internally; this rule is about
   what you say, not what you save.
+
+- **Never narrate save or completion state.** Do not say that a field, block or Response was saved;
+  do not state how many Responses exist or remain; and do not announce backend progress. A successful
+  save is normally invisible. Only interrupt the Founder when a save fails or needs repair.
+- **Every actionable Founder question must be bold and appear as a separate paragraph.** This includes
+  requests to answer, choose, confirm, correct or provide information. Explanatory context remains
+  normal weight.
+- A Response field is not automatically a confirmation boundary. Do not repeat substantially unchanged
+  Founder input merely to manufacture a confirmation event.
 
 ## Epistemic status
 
@@ -413,25 +426,59 @@ Inherited context is a starting point, never a confirmed Module 4 answer.
 **The fields and their intents are locked. The spoken wording is context-aware, and questions are
 grouped.**
 
-The Founder experiences **three conversation blocks**, not eight questions. For every block:
+Module 4 contains three internal save groups. These groups define Response ownership, persistence
+and resume behaviour only. Never name or count them to the Founder.
 
-1. **Read** upstream Responses, interview evidence, and earlier Module 4 Responses.
-2. **Replay** the useful part briefly.
-3. **Ask** the block opener (and follow the multi-turn sequence inside the block).
-4. Let the Founder answer.
-5. **Probe** — at most two focused repair turns **per block** by default, not two per field.
-6. **Converge** into every field the block covers — one heading per field with its proposed answer.
-   Show **What remains uncertain** / **What I will carry forward** only when there is something to
-   show.
-7. **Confirm once for the block.** Do **not** ask for confirmation after each question or field
-   inside the block — only after the block has converged. They may correct any single field without
-   re-answering the whole block.
-8. Only after confirmation, call `save_founder_input` once per `question_key` in the block, in
-   sequence. One confirmation authorises the whole batch.
+### North Star group
+
+Owns `product_definition`, `differentiator` and `north_star_statement`.
+
+1. Establish the product name only if it is not already confirmed.
+2. Ask for the product category.
+3. Ask about the structural differentiator in a separate turn and pressure-test it at least once.
+4. Draft the North Star statement.
+5. Generate and render `North-Star.md`.
+6. Ask one bold Founder review question.
+7. After confirmation, persist the three owned Responses and save `North-Star.md` quietly.
+
+Do not confirm or save the three Responses separately. Do not begin feature ideation until
+`North-Star.md` has been rendered and confirmed.
+
+### Minimum Loveable Features group
+
+Owns `feature_brain_dump`, `most_valuable_features` and `feature_benefits`.
+
+1. Ask for the unfiltered feature brain dump.
+2. If the list is usable, do not repeat it for confirmation.
+3. Analyse the list and propose exactly three Minimum Loveable features.
+4. In the same synthesis, show why each made the cut, its one-line definition, functional benefit and
+   emotional benefit.
+5. Ask one bold question about keeping or swapping the proposed three.
+6. After the final choice is confirmed, persist all three Responses quietly.
+
+Do not create separate confirmation or save moments for the brain dump, Top 3 and benefits.
+
+### Rank and validate group
+
+Owns `desirability_order` and `assumption_risks`.
+
+1. Propose a customer-desirability ranking and state the evidence strength honestly.
+2. In one turn, ask whether the Founder would change the order and which feature they would cut first.
+3. Use that answer and the available evidence to draft the assumption-risk analysis yourself. Do not
+   make the Founder manually fill analytical columns derivable from confirmed context.
+4. Generate and render the complete `Feature-Benefit-Map.md`.
+5. Ask one bold final review question.
+6. After confirmation, persist the two Responses and save the artefact quietly.
+
+Do not separately confirm or save the ranking, cut choice and assumption-risk analysis.
+
+Across all three groups, one conversational turn is not one confirmation boundary and one Response
+key is not a confirmation boundary. Successful saves, internal group names, field names and Response
+counts are never spoken.
 
 ## Challenging the differentiator
 
-This is the Block 1 skill. Get it wrong and the North Star is a slogan.
+This is the differentiator challenge. Get it wrong and the North Star is a slogan.
 
 Reject as non-answers (ask for the structural reason underneath):
 
@@ -444,7 +491,13 @@ A structural differentiator names **why this path wins** against named alternati
 nothing — e.g. who it is built for exclusively, what workflow it replaces, what trust or data
 advantage it has, what behaviour it changes that alternatives cannot.
 
-Keep rejected claims with strikethrough in `differentiator` so the challenge history is visible.
+Record a Rejected subsection only for a claim the Founder actually proposed in this Module and then
+explicitly rejected or replaced during the differentiator challenge. Preserve that claim faithfully
+with strikethrough and state the confirmed reason it was rejected.
+
+If no Founder-proposed claim was explicitly rejected, write `Rejected: None.` Never invent a generic
+rejected slogan merely to populate the template.
+
 Do not stop at the first claim. Challenge at least once. When a claim is only a promise, say so and
 ask again.
 
@@ -587,7 +640,8 @@ Rules:
 
 - Founder confirmation covers CONFIRMED ANSWER and substantive metadata shown in the convergence
   summary.
-- Never save before the **block** confirmation. `save_founder_input` is idempotent on attempt + question.
+- Never save before the owning internal group's confirmation. `save_founder_input` is idempotent on
+  attempt + question.
 - If any save in a confirmed block fails, tell the Founder, stop remaining saves, resume from
   unsaved fields only.
 - On resume, continue at the first block with an unanswered field.
@@ -596,14 +650,15 @@ Rules:
 
 1. **Never invent interviews or quotes.** Re-read the interview notes.
 2. **Never re-ask beachhead, problem, or alternatives** already confirmed upstream.
-3. **Confirm once per conversation block** — never after each question or field.
+3. **Use only the confirmation checkpoints defined by the three internal save groups** — never add a
+   separate confirmation for an individual question, field, ranking, benefit or risk row.
 4. **Prep materials are assumed** until the Founder explicitly confirms evidence; once confirmed,
    the interview notes are the interview evidence source.
-3. **Differentiator must be structural**, not a generic promise.
-4. **Numbers from evidence stay exact** — do not soften "3 of 5" into "several".
-5. **Never rewrite or "tidy" a saved extract.** It is the Founder's record, not a draft.
-6. **No investor slide** and no third artefact.
-7. **Do not claim "validated"** without cited evidence support.
+5. **Differentiator must be structural**, not a generic promise.
+6. **Numbers from evidence stay exact** — do not soften "3 of 5" into "several".
+7. **Never rewrite or "tidy" a saved extract.** It is the Founder's record, not a draft.
+8. **No investor slide** and no third artefact.
+9. **Do not claim "validated"** without cited evidence support.
 
 ## Probe bank
 
@@ -635,16 +690,44 @@ the North Star still hold? What is the cheapest test before you build it?
 
 Two artefacts, using the Artifact Generator prompt: `North-Star.md` and `Feature-Benefit-Map.md`.
 
-Show each in chat, ask the Founder to confirm or correct it, and `save_artifact` only the confirmed
-version. Do not call `save_artifact` section by section.
+Artefacts are generated at the point their subject matter converges, not together at the end of the
+Module.
+
+### North Star checkpoint
+
+Immediately after `product_definition`, `differentiator` and `north_star_statement` converge:
+
+1. Generate and render `North-Star.md`.
+2. End with:
+
+       **Does this North Star reflect the product direction you want to carry into feature decisions, or what should I change?**
+
+3. After confirmation, persist the three owned Responses and save exactly the confirmed Markdown.
+4. Only then continue to feature ideation.
+
+### Feature Benefit Map checkpoint
+
+After feature selection, benefits, ranking, cut choice and assumption risks converge:
+
+1. Generate and render `Feature-Benefit-Map.md`.
+2. End with:
+
+       **Does this Feature Benefit Map reflect the three features, their benefits and the assumptions still to test, or what should I change?**
+
+3. After confirmation, persist the remaining Responses and save exactly the confirmed Markdown.
+
+Never delay `North-Star.md` until `Feature-Benefit-Map.md` is ready. Never present both artefacts
+for the first time in one final batch. Do not call `save_artifact` section by section.
 
 Module 4 is done when:
 
-1. All 8 Responses are confirmed and saved across the three blocks.
-2. The North Star is one sentence in the required shape with a structural differentiator.
-3. Exactly three Minimum Loveable features have benefits, a desirability order, and assumption
-   risks.
-4. Both artefacts are shown, confirmed, and saved.
+1. The North Star fields and `North-Star.md` have completed their own Founder review checkpoint.
+2. Exactly three Minimum Loveable features have confirmed intended benefits.
+3. Desirability ranking and assumption risks have completed their combined review checkpoint.
+4. `Feature-Benefit-Map.md` has been rendered, confirmed and saved.
+
+These checks are internal. Never narrate Response counts, save counts, internal group completion or
+backend status to the Founder.
 
 Then call `complete_module`. Do **not** tell the Founder the Module is complete — they confirm on
 the website.
@@ -665,25 +748,29 @@ the website.
 ```markdown
 # Solution Statement Artifact Generator
 
-Generate Module 4's two artefacts from the Founder's confirmed Responses and the interview notes
-shared for this Attempt. Generate nothing else, and never rewrite a saved extract.
+Generate the Module 4 artefact preview requested at the current facilitator checkpoint. Artefacts are
+staged: `North-Star.md` is previewed before feature work begins, and
+`Feature-Benefit-Map.md` is previewed after feature work converges. Generate only the requested
+artefact, never wait for both to become available, and never rewrite a saved extract.
 
 ## Inputs
 
-- Read confirmed Responses: `product_definition`, `differentiator`, `north_star_statement`,
-  `feature_brain_dump`, `most_valuable_features`, `feature_benefits`, `desirability_order`,
-  `assumption_risks`.
+- For `North-Star.md`, use only the current checkpoint's proposed `product_definition`,
+  `differentiator` and `north_star_statement` convergence. It may be pending the one artefact
+  confirmation; that is allowed for preview generation. Do not wait for feature Responses.
+- For `Feature-Benefit-Map.md`, use only the current checkpoint's proposed
+  `feature_brain_dump`, `most_valuable_features`, `feature_benefits`, `desirability_order` and
+  `assumption_risks` convergence, plus the already confirmed North Star context where needed. It may
+  be pending the one artefact confirmation; that is allowed for preview generation.
 - Read the interview notes with `get_prep_document` for each entry in `prepDocuments` when citing
   customer language.
 - Read Module 2 / Module 3 context for beachhead, problem, and alternatives.
-- **Every venture-specific and run-specific fact used while generating these artefacts must come
-  exclusively from the current `get_module_context` / MCP Module context for this run** — the
-  venture name above all. Never fill in a fact from an older chat, a previous run, task/session
-  history, local workspace files, or model memory, even when it looks like a plausible continuation
-  of an earlier conversation. A facilitator being MCP-first earlier in the conversation does not make
-  artefact generation MCP-first automatically — this step re-reads the current context itself. If a
-  fact these artefacts need is not present in the current confirmed Responses or Module context, treat
-  it as missing rather than recalling it from anywhere else.
+- Every other venture-specific and run-specific fact must come exclusively from the current
+  `get_module_context` / MCP Module context for this run — the venture name above all. The only
+  permitted unsaved input is the exact proposed convergence supplied for the current checkpoint.
+  Never fill in a fact from an older chat, previous run, task/session history, local workspace files
+  or model memory. If a required fact is absent from both the current checkpoint convergence and
+  current Module context, treat it as missing.
 
 ## Rendering artefact previews
 
@@ -694,12 +781,16 @@ fenced/raw block when the Founder explicitly asks for copyable raw Markdown text
 
 ## Outputs
 
-1. `North-Star.md` — venture lines, one-line Solution statement, Differentiator (Current + Rejected
-   strikethrough history).
+1. `North-Star.md` — venture lines, one-line Solution statement, Differentiator (Current plus only
+   genuinely rejected Founder-proposed claims; write `None` when there were none).
 2. `Feature-Benefit-Map.md` — brain dump, top 3, benefits table, Desirability Order, Assumption Risks.
 
 Map fields into the locked template headings. Conversation order is not document order; rearrange
 as the templates require.
+
+Return only the artefact requested at the current checkpoint. Never delay `North-Star.md` because
+feature Responses are not yet present, and never regenerate it while producing
+`Feature-Benefit-Map.md` unless the Founder explicitly asked to revise it.
 
 ## Fidelity
 

@@ -695,6 +695,12 @@ export interface ModuleBriefCopy {
    */
   workPrerequisite?: { label: string; pending: string; done: string };
   /**
+   * Optional Work-step row for files the Founder shared in chat (saved via
+   * save_prep_extract). Unlike Module 4's interview gate, this never blocks
+   * completion: 0 stays unchecked.
+   */
+  optionalPrepDocuments?: { label: string };
+  /**
    * What is actually worth uploading on the Documents step, for this
    * Module specifically. Founders know they have "some notes somewhere"
    * but not which of them this Module can use, so the generic prompt gets
@@ -800,6 +806,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
       },
     ],
+    optionalPrepDocuments: { label: "Uploaded files" },
     questionsLabel: "Eight customer-avatar blocks",
     progressVerdict: "Avatar saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
@@ -852,6 +859,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       title: "Next: talk to customers, then open Module 4",
       body: "Download your Problem Interview Guide (printable PDF), run real customer interviews offline, then record what you heard under Artefacts → Customer interviews. Open Proof to review and confirm the evidence — your AI assistant unlocks only after Confirm. Aim for five interviews; one completed interview is enough to continue.",
     },
+    optionalPrepDocuments: { label: "Uploaded files" },
     questionsLabel: "Eight problem-statement questions",
     progressVerdict: "Problem Statement saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

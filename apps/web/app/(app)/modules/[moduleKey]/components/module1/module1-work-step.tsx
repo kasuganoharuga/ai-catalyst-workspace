@@ -32,6 +32,7 @@ export function Module1WorkStep({
   needsRetry,
   accent,
   interviewGate,
+  prepDocuments,
   lockAssistant = false,
   lockAssistantNote,
 }: Module1RunProps & {
@@ -135,6 +136,19 @@ export function Module1WorkStep({
                     interviewGate.minimumRequired -
                     interviewGate.confirmedInterviewCount
                   } more to continue`
+            }
+          />
+        ) : null}
+        {/* Modules 2 and 3: optional files shared in chat. Never a gate —
+            0 stays unchecked so skipping upload does not look unfinished. */}
+        {copy.optionalPrepDocuments ? (
+          <CheckLine
+            ok={prepDocuments.length > 0}
+            label={copy.optionalPrepDocuments.label}
+            detail={
+              prepDocuments.length === 0
+                ? "0"
+                : `${prepDocuments.length} uploaded`
             }
           />
         ) : null}
