@@ -218,19 +218,6 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
     sourcePath:
       "module-03-problem-statement/templates/Problem-Interview-Guide.md",
   },
-];
-
-// Artefacts with no validator of their own. They still must not drift from
-// their authoring template, but the "skeleton fails its own draft check"
-// test below is meaningless without rules to fail — a null validator_key
-// carries an empty validationConfig by construction
-// (validateConfigForValidator), so there is nothing for runDraftCheck to
-// reject.
-const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
-  // Module 4 Solution's two artifacts carry validatorKey: null for now,
-  // so they belong here rather than in TEMPLATE_FIXTURES — there are no
-  // rules for the skeleton to fail. Move them up once a validator for
-  // the North Star sentence shape and the three-feature tables exists.
   {
     moduleKey: "module-04-solution-statement",
     artifactKey: "north_star",
@@ -241,6 +228,15 @@ const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
     artifactKey: "feature_benefit_map",
     sourcePath: "module-04-solution-statement/templates/Feature-Benefit-Map.md",
   },
+];
+
+// Artefacts with no validator of their own. They still must not drift from
+// their authoring template, but the "skeleton fails its own draft check"
+// test below is meaningless without rules to fail — a null validator_key
+// carries an empty validationConfig by construction
+// (validateConfigForValidator), so there is nothing for runDraftCheck to
+// reject.
+const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
   {
     moduleKey: "module-05-epics-user-stories",
     artifactKey: "epic_charter",

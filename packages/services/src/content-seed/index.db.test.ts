@@ -324,14 +324,14 @@ describe("seedToolkitContent", () => {
       {
         artifact_key: "north_star",
         required_filename: "North-Star.md",
-        validator_key: null,
+        validator_key: "structured_markdown_v1",
         renderer_key: null,
         is_required: true,
       },
       {
         artifact_key: "feature_benefit_map",
         required_filename: "Feature-Benefit-Map.md",
-        validator_key: null,
+        validator_key: "structured_markdown_v1",
         renderer_key: null,
         is_required: true,
       },
