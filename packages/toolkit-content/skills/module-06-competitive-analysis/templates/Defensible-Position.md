@@ -1,7 +1,8 @@
 # Defensible Position
 
-<Moat claims must be structural. Rejected pillars stay visible with why they failed. Every Why Now /
-Why Us claim is Evidence or Assumption.>
+<Moat claims must be structural. Accept 0–3 pillars; None proven at this stage is valid and
+must not be filled with invented pillars. Rejected pillars stay visible with why they failed.
+Every Why Now / Why Us claim is Evidence or Assumption.>
 
 ## Venture
 - Venture name:
@@ -61,4 +62,5 @@ Why Us claim is Evidence or Assumption.>
 
 ## Closing position statement
 
-<One sentence an investor can repeat: why this team wins this gap now.>
+<One sentence an investor can repeat: why this team wins this gap hypothesis now. Use current
+gap hypothesis / testing hypothesis, never genuine gap.>

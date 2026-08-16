@@ -968,7 +968,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     before: [
       {
         lead: "Allow 50–55 minutes.",
-        body: "Four blocks: landscape, comparison matrix, moat and positioning, then why now and why you.",
+        body: "Five blocks: live landscape, customer criteria and matrix, moat, positioning, then why now and why you.",
       },
       {
         lead: "Have competitor URLs ready to paste.",
@@ -983,6 +983,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "Honest gaps are fine. Stating no traction plainly is stronger than implying some.",
       },
     ],
+    optionalPrepDocuments: { label: "Uploaded files" },
     questionsLabel: "Nine competitive questions",
     progressVerdict: "Competitive documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

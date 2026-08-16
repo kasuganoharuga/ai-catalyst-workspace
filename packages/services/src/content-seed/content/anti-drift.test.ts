@@ -238,15 +238,6 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
     artifactKey: "sprint_backlog",
     sourcePath: "module-05-epics-user-stories/templates/Sprint-Backlog.md",
   },
-];
-
-// Artefacts with no validator of their own. They still must not drift from
-// their authoring template, but the "skeleton fails its own draft check"
-// test below is meaningless without rules to fail — a null validator_key
-// carries an empty validationConfig by construction
-// (validateConfigForValidator), so there is nothing for runDraftCheck to
-// reject.
-const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
   {
     moduleKey: "module-06-competitive-analysis",
     artifactKey: "competitive_landscape",
@@ -259,6 +250,15 @@ const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
     sourcePath:
       "module-06-competitive-analysis/templates/Defensible-Position.md",
   },
+];
+
+// Artefacts with no validator of their own. They still must not drift from
+// their authoring template, but the "skeleton fails its own draft check"
+// test below is meaningless without rules to fail — a null validator_key
+// carries an empty validationConfig by construction
+// (validateConfigForValidator), so there is nothing for runDraftCheck to
+// reject.
+const UNVALIDATED_TEMPLATE_FIXTURES: TemplateFixture[] = [
   {
     moduleKey: "module-07-business-model",
     artifactKey: "business_model",
