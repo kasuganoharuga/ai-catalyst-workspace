@@ -945,6 +945,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
         body: "5 means least effort, so the score sorts quick wins customers care about to the top.",
       },
     ],
+    optionalPrepDocuments: { label: "Uploaded files" },
     questionsLabel: "Six backlog questions",
     progressVerdict: "Backlog documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",

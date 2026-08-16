@@ -132,8 +132,7 @@ const MODULE_5_QUESTIONS: QuestionContent[] = [
     questionKey: "epic_priority",
     sequenceIndex: 2,
     questionGroup: "stories",
-    questionText:
-      "Which epic should be broken into user stories first, and in what order should the three epics be tackled?",
+    questionText: "Which one epic should be broken into user stories first?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -147,7 +146,7 @@ const MODULE_5_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 3,
     questionGroup: "stories",
     questionText:
-      "What are the 3–5 independently shippable user stories under each epic, and what INVEST concerns apply?",
+      "What are the 3–5 independently shippable user stories under each Founder-selected epic, and what INVEST concerns apply?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -161,7 +160,7 @@ const MODULE_5_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 4,
     questionGroup: "stories",
     questionText:
-      "What are the 2–3 Gherkin acceptance criteria for each user story?",
+      "What are the 2–3 Gherkin acceptance criteria for each story the Founder selected to refine?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -205,14 +204,14 @@ const EPIC_CHARTER_ARTIFACT: ArtifactContent = {
   sequenceIndex: 1,
   name: "Epic Charter",
   description:
-    "Three epics, each with its confirmed user stories, INVEST notes and Gherkin acceptance criteria.",
+    "Three epics mapped to Module 4 features, with stories and Gherkin only for the epics and stories the Founder chose to break down.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
   outputFormat: "markdown",
   requiredFilename: "Epic-Charter.md",
   rendererKey: null,
-  validatorKey: null,
+  validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
   maxFiles: 1,
@@ -221,7 +220,52 @@ const EPIC_CHARTER_ARTIFACT: ArtifactContent = {
     templateFormat: "markdown",
     templateMarkdown: EPIC_CHARTER_TEMPLATE,
   },
-  validationConfig: {},
+  validationConfig: {
+    schemaVersion: 1,
+    draftRules: [
+      {
+        key: "required_sections",
+        type: "sections_exist",
+        sections: [
+          { level: 2, heading: "Venture" },
+          { level: 2, heading: "Epic 1" },
+          { level: 2, heading: "Epic 2" },
+          { level: 2, heading: "Epic 3" },
+        ],
+      },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "product_name",
+        type: "label_present",
+        label: "Product name / working title",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "epic_1_title",
+        type: "label_present",
+        label: "Title",
+        scope: { level: 2, heading: "Epic 1" },
+      },
+      {
+        key: "epic_2_title",
+        type: "label_present",
+        label: "Title",
+        scope: { level: 2, heading: "Epic 2" },
+      },
+      {
+        key: "epic_3_title",
+        type: "label_present",
+        label: "Title",
+        scope: { level: 2, heading: "Epic 3" },
+      },
+    ],
+    submissionRules: [],
+  },
 };
 
 const SPRINT_BACKLOG_ARTIFACT: ArtifactContent = {
@@ -236,7 +280,7 @@ const SPRINT_BACKLOG_ARTIFACT: ArtifactContent = {
   outputFormat: "markdown",
   requiredFilename: "Sprint-Backlog.md",
   rendererKey: null,
-  validatorKey: null,
+  validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
   maxFiles: 1,
@@ -245,7 +289,78 @@ const SPRINT_BACKLOG_ARTIFACT: ArtifactContent = {
     templateFormat: "markdown",
     templateMarkdown: SPRINT_BACKLOG_TEMPLATE,
   },
-  validationConfig: {},
+  validationConfig: {
+    schemaVersion: 1,
+    draftRules: [
+      {
+        key: "required_sections",
+        type: "sections_exist",
+        sections: [
+          { level: 2, heading: "Venture" },
+          { level: 2, heading: "Scored backlog" },
+          { level: 2, heading: "Sprint 1 commitment" },
+          { level: 2, heading: "Why this is the Loveable cut" },
+          { level: 3, heading: "Above the line" },
+          { level: 3, heading: "Cut (below the line)" },
+        ],
+      },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "product_name",
+        type: "label_present",
+        label: "Product name / working title",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "scored_backlog_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "Scored backlog",
+        minimum: 1,
+      },
+      {
+        key: "scored_backlog_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "Scored backlog",
+        requiredColumns: [
+          "Priority",
+          "Epic",
+          "Story",
+          "Customer value (1–5)",
+          "Confidence (1–5)",
+          "Effort (1–5, 5=easiest)",
+          "Score",
+          "In Sprint 1?",
+          "MLP?",
+        ],
+      },
+      {
+        key: "sprint_1_present",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Sprint 1 commitment",
+      },
+      {
+        key: "above_the_line_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Above the line",
+      },
+      {
+        key: "cut_present",
+        type: "section_non_empty",
+        level: 3,
+        heading: "Cut (below the line)",
+      },
+    ],
+    submissionRules: [],
+  },
 };
 
 export const MODULE_5_CONTENT: ModuleContent = {
