@@ -146,7 +146,7 @@ const MODULE_5_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 3,
     questionGroup: "stories",
     questionText:
-      "What are the 3–5 independently shippable user stories under each Founder-selected epic, and what INVEST concerns apply?",
+      "What are the 3–5 independently shippable user stories under each of the three epics, and what INVEST concerns apply?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -160,7 +160,7 @@ const MODULE_5_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 4,
     questionGroup: "stories",
     questionText:
-      "What are the 2–3 Gherkin acceptance criteria for each story the Founder selected to refine?",
+      "What are the 2–3 Gherkin acceptance criteria for the one story the Founder selected to sharpen first in each epic?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -204,7 +204,7 @@ const EPIC_CHARTER_ARTIFACT: ArtifactContent = {
   sequenceIndex: 1,
   name: "Epic Charter",
   description:
-    "Three epics mapped to Module 4 features, with stories and Gherkin only for the epics and stories the Founder chose to break down.",
+    "Three epics mapped to Module 4 features, each with 3–5 stories and Gherkin only for the one story per epic the Founder chose to sharpen first.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",

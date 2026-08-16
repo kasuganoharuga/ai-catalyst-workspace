@@ -930,7 +930,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     before: [
       {
         lead: "Allow 45–50 minutes.",
-        body: "Three blocks: epics from your features, then stories and acceptance criteria, then scoring and the cut.",
+        body: "Three blocks: epics from your features, stories for all three epics one at a time, then scoring and the cut.",
       },
       {
         lead: "You supply the scores, not your assistant.",
