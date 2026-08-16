@@ -1,7 +1,8 @@
 # Business Model
 
 <Every number is tagged BENCHMARKED (with source) or ASSUMPTION (with what would change it).
-Do not invent traction. Steps that require live customer conversation are marked explicitly.>
+Do not invent traction, LOIs, or Customer Voice. Steps that require live customer conversation
+are marked explicitly. The AI recommends the model; the Founder reviews it.>
 
 ## Venture
 - Venture name:
@@ -68,12 +69,25 @@ Do not invent traction. Steps that require live customer conversation are marked
 
 ## 90-day week-by-week cash flow
 
-| Week | Outflow | Expected inflow | Source (evidenced / assumed) | Cumulative net | Notes |
-|---|---|---|---|---|---|
-| 1 | | | | | |
-| 2 | | | | | |
-| … | | | | | |
-| 13 | | | | | |
+<13 weeks. Label every inflow EVIDENCED or ASSUMED with its basis. Interviews and forecasts are
+not evidenced revenue. If cumulative net never becomes non-negative, Break-even week is exactly
+"No break-even within 90 days". Never invent inflows to manufacture a break-even week.>
+
+| Week | Outflow | Expected Inflow | Inflow Basis | Weekly Net | Cumulative Net Cash | Notes |
+|---|---|---|---|---|---|---|
+| 1 | | | | | | |
+| 2 | | | | | | |
+| 3 | | | | | | |
+| 4 | | | | | | |
+| 5 | | | | | | |
+| 6 | | | | | | |
+| 7 | | | | | | |
+| 8 | | | | | | |
+| 9 | | | | | | |
+| 10 | | | | | | |
+| 11 | | | | | | |
+| 12 | | | | | | |
+| 13 | | | | | | |
 
 **Break-even week:**
 

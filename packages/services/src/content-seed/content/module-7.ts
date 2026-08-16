@@ -81,12 +81,21 @@ const BUSINESS_MODEL_TEMPLATE = `# Business Model
 
 ## 90-day week-by-week cash flow
 
-| Week | Outflow | Expected inflow | Source (evidenced / assumed) | Cumulative net | Notes |
-|---|---|---|---|---|---|
-| 1 | | | | | |
-| 2 | | | | | |
-| … | | | | | |
-| 13 | | | | | |
+| Week | Outflow | Expected Inflow | Inflow Basis | Weekly Net | Cumulative Net Cash | Notes |
+|---|---|---|---|---|---|---|
+| 1 | | | | | | |
+| 2 | | | | | | |
+| 3 | | | | | | |
+| 4 | | | | | | |
+| 5 | | | | | | |
+| 6 | | | | | | |
+| 7 | | | | | | |
+| 8 | | | | | | |
+| 9 | | | | | | |
+| 10 | | | | | | |
+| 11 | | | | | | |
+| 12 | | | | | | |
+| 13 | | | | | | |
 
 **Break-even week:**
 
@@ -159,7 +168,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 2,
     questionGroup: "model",
     questionText:
-      "What is the shortest concrete path to one paying customer, and which steps require live customer conversation?",
+      "What is the recommended shortest concrete path to one paying customer, and which steps require live customer conversation?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -173,7 +182,21 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 3,
     questionGroup: "model",
     questionText:
-      "What is the primary revenue stream to start with, and which two streams can layer later?",
+      "What is the recommended primary revenue stream to start now, and which two streams should layer later?",
+    helpText: null,
+    placeholderText: null,
+    responseType: "long_text",
+    isRequired: true,
+    allowSkip: false,
+    options: [],
+    conditions: {},
+  },
+  {
+    questionKey: "pricing_strategy",
+    sequenceIndex: 4,
+    questionGroup: "model",
+    questionText:
+      "What recommended exact starting prices apply per stream, with psychology and benchmark or assumption tags?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -184,10 +207,10 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "yes_offer",
-    sequenceIndex: 4,
+    sequenceIndex: 5,
     questionGroup: "model",
     questionText:
-      "What packaged offer (price, inclusions, terms, time-bound element) would make the beachhead accept without negotiating?",
+      "What packaged offer (price, inclusions, terms, time-bound element) is the smallest credible paid yes, and what evidence or remaining conversation supports it?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -198,7 +221,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "cost_structure",
-    sequenceIndex: 5,
+    sequenceIndex: 6,
     questionGroup: "model",
     questionText:
       "What must be spent now, at rough amounts, and what should be avoided for now?",
@@ -212,24 +235,10 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
   },
   {
     questionKey: "cash_flow_90d",
-    sequenceIndex: 6,
+    sequenceIndex: 7,
     questionGroup: "model",
     questionText:
-      "What is the week-by-week 90-day cash flow, and in which week does cumulative net cross positive?",
-    helpText: null,
-    placeholderText: null,
-    responseType: "long_text",
-    isRequired: true,
-    allowSkip: false,
-    options: [],
-    conditions: {},
-  },
-  {
-    questionKey: "pricing_strategy",
-    sequenceIndex: 7,
-    questionGroup: "pricing",
-    questionText:
-      "What exact starting prices apply per stream, with psychology and benchmark or assumption tags?",
+      "What is the week-by-week 90-day cash flow, and what is the actual break-even week or No break-even within 90 days?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -266,7 +275,7 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
   outputFormat: "markdown",
   requiredFilename: "Business-Model.md",
   rendererKey: null,
-  validatorKey: null,
+  validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
   maxFiles: 1,
@@ -275,7 +284,147 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
     templateFormat: "markdown",
     templateMarkdown: BUSINESS_MODEL_TEMPLATE,
   },
-  validationConfig: {},
+  validationConfig: {
+    schemaVersion: 1,
+    draftRules: [
+      {
+        key: "required_sections",
+        type: "sections_exist",
+        sections: [
+          { level: 2, heading: "Venture" },
+          { level: 2, heading: "Inputs" },
+          { level: 2, heading: "Fastest path to first dollar" },
+          {
+            level: 3,
+            heading: "Steps that require talking to customers (cannot skip)",
+          },
+          { level: 3, heading: "Reasoning and risks" },
+          { level: 2, heading: "Revenue streams" },
+          { level: 3, heading: "Why this primary stream first" },
+          { level: 2, heading: "The offer that makes them say yes" },
+          { level: 2, heading: "Cost structure" },
+          { level: 2, heading: "90-day week-by-week cash flow" },
+        ],
+      },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "product_name",
+        type: "label_present",
+        label: "Product name / working title",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "beachhead_customer",
+        type: "label_present",
+        label: "Beachhead customer",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "starting_budget",
+        type: "label_present",
+        label: "Starting budget",
+        scope: { level: 2, heading: "Inputs" },
+      },
+      {
+        key: "available_time",
+        type: "label_present",
+        label: "Available time per week",
+        scope: { level: 2, heading: "Inputs" },
+      },
+      {
+        key: "path_steps",
+        type: "minimum_named_items",
+        level: 2,
+        heading: "Fastest path to first dollar",
+        minimum: 1,
+      },
+      {
+        key: "conversation_steps",
+        type: "minimum_named_items",
+        level: 3,
+        heading: "Steps that require talking to customers (cannot skip)",
+        minimum: 1,
+      },
+      {
+        key: "revenue_stream_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "Revenue streams",
+        minimum: 3,
+      },
+      {
+        key: "revenue_stream_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "Revenue streams",
+        requiredColumns: [
+          "Priority",
+          "Stream",
+          "Who pays",
+          "Unit of value",
+          "Rough timing",
+        ],
+      },
+      {
+        key: "offer_price",
+        type: "label_present",
+        label: "Price / packaging / terms / time-bound element",
+        scope: { level: 2, heading: "The offer that makes them say yes" },
+      },
+      {
+        key: "must_spend_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "Cost structure",
+        minimum: 1,
+      },
+      {
+        key: "must_spend_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "Cost structure",
+        requiredColumns: [
+          "Must spend (now)",
+          "Rough amount",
+          "BENCHMARKED / ASSUMPTION",
+          "Why",
+        ],
+      },
+      {
+        key: "cash_flow_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "90-day week-by-week cash flow",
+        minimum: 13,
+      },
+      {
+        key: "cash_flow_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "90-day week-by-week cash flow",
+        requiredColumns: [
+          "Week",
+          "Outflow",
+          "Expected Inflow",
+          "Inflow Basis",
+          "Weekly Net",
+          "Cumulative Net Cash",
+        ],
+      },
+      {
+        key: "break_even",
+        type: "label_present",
+        label: "Break-even week",
+        scope: { level: 2, heading: "90-day week-by-week cash flow" },
+      },
+    ],
+    submissionRules: [],
+  },
 };
 
 const PRICING_STRATEGY_ARTIFACT: ArtifactContent = {
@@ -290,7 +439,7 @@ const PRICING_STRATEGY_ARTIFACT: ArtifactContent = {
   outputFormat: "markdown",
   requiredFilename: "Pricing-Strategy.md",
   rendererKey: null,
-  validatorKey: null,
+  validatorKey: "structured_markdown_v1",
   allowedMimeTypes: ["text/markdown", "text/plain"],
   maxFileSizeBytes: 262_144,
   maxFiles: 1,
@@ -299,7 +448,89 @@ const PRICING_STRATEGY_ARTIFACT: ArtifactContent = {
     templateFormat: "markdown",
     templateMarkdown: PRICING_STRATEGY_TEMPLATE,
   },
-  validationConfig: {},
+  validationConfig: {
+    schemaVersion: 1,
+    draftRules: [
+      {
+        key: "required_sections",
+        type: "sections_exist",
+        sections: [
+          { level: 2, heading: "Venture" },
+          { level: 2, heading: "Price points" },
+          { level: 3, heading: "Reasoning before the numbers" },
+          { level: 3, heading: "Strongest case against these prices" },
+          { level: 2, heading: "Pricing pressure-test" },
+          { level: 3, heading: "Counter-arguments" },
+          {
+            level: 3,
+            heading:
+              "Evidence that would change the recommendation by more than 30%",
+          },
+          { level: 3, heading: "2-week falsifiable experiment" },
+        ],
+      },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "product_name",
+        type: "label_present",
+        label: "Product name / working title",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "beachhead_customer",
+        type: "label_present",
+        label: "Beachhead customer",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "price_point_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "Price points",
+        minimum: 3,
+      },
+      {
+        key: "price_point_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "Price points",
+        requiredColumns: [
+          "Stream",
+          "Starting price",
+          "Inclusions / terms",
+          "Psychology (why this number, not ±20%)",
+          "Behavioural anchor",
+          "BENCHMARKED source or ASSUMPTION",
+        ],
+      },
+      {
+        key: "counter_arguments",
+        type: "minimum_named_items",
+        level: 3,
+        heading: "Counter-arguments",
+        minimum: 3,
+      },
+      {
+        key: "flip_evidence",
+        type: "section_non_empty",
+        level: 3,
+        heading:
+          "Evidence that would change the recommendation by more than 30%",
+      },
+      {
+        key: "experiment_hypothesis",
+        type: "label_present",
+        label: "Hypothesis",
+        scope: { level: 3, heading: "2-week falsifiable experiment" },
+      },
+    ],
+    submissionRules: [],
+  },
 };
 
 export const MODULE_7_CONTENT: ModuleContent = {

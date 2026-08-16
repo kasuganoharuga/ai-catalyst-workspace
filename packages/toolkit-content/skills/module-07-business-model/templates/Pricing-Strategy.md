@@ -1,7 +1,9 @@
 # Pricing Strategy
 
-<Exact dollar amounts — not "premium". Competitor prices cite source URLs when benchmarked.
-Willingness-to-pay from interviews outweighs category averages when present.>
+<Exact dollar amounts — not "premium". The AI recommends prices; the Founder reviews. Competitor
+prices cite source URLs when benchmarked. Willingness-to-pay from interviews outweighs category
+averages when present. Do not upgrade interview opinion into a purchase, deposit, LOI, or paid
+pilot.>
 
 ## Venture
 - Venture name:

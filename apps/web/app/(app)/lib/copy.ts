@@ -1006,7 +1006,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     before: [
       {
         lead: "Allow 50–55 minutes.",
-        body: "Three blocks: your constraints and goals, the model and cash flow, then pricing and its pressure-test.",
+        body: "Three blocks: your constraints and goals, an AI-led model including prices and cash flow, then a pricing pressure-test.",
       },
       {
         lead: "Know your budget and your hours.",
@@ -1014,13 +1014,14 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Exact prices, not 'premium'.",
-        body: "You will be asked why this number and not twenty percent either side, and what evidence would change it.",
+        body: "Your assistant proposes exact prices. You review why this number and not twenty percent either side, and what evidence would change it.",
       },
       {
         lead: "Steps that need real conversations are marked.",
         body: "A cash plan that never requires talking to a customer gets flagged as exactly that.",
       },
     ],
+    optionalPrepDocuments: { label: "Uploaded files" },
     questionsLabel: "Eight business-model questions",
     progressVerdict: "Business model documents saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
