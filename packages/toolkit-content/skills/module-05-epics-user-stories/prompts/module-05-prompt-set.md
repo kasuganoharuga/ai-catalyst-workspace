@@ -528,6 +528,12 @@ Then `complete_module`. Do not tell the Founder the Module is complete — they 
   reasoning lives inside `Sprint-Backlog.md`).
 - Do not rename locked template headings.
 - If `save_artifact` fails a locked-schema check, repair and retry.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -592,6 +598,12 @@ what they contain.
 - Do not narrate tool calls, attempt IDs, Response counts, saves, or completion state.
 - If `save_artifact` fails a locked-schema check, repair and retry without narrating backend
   progress.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---

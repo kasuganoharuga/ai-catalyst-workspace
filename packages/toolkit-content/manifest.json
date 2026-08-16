@@ -141,8 +141,9 @@
         "Budget, weekly time, month-1 and month-6 goals"
       ],
       "outputs": [
-        "Business model memo (including 90-day cash flow)",
-        "Pricing strategy (with pressure-test)"
+        "Business model memo",
+        "Pricing strategy (with pressure-test)",
+        "90-day cash-flow projection"
       ],
       "status": "draft",
       "skillPath": "/skills/module-07-business-model",

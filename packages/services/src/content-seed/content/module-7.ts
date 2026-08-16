@@ -45,6 +45,15 @@ const BUSINESS_MODEL_TEMPLATE = `# Business Model
 
 -
 
+### Prospects-to-paid-pilots funnel
+
+| Stage | Quantity | Conversion assumption | What would change it |
+|---|---|---|---|
+| Prospects | | | |
+| Conversations / replies | | | |
+| Qualified calls | | | |
+| Paid pilots | | | |
+
 ### Reasoning and risks
 
 -
@@ -65,6 +74,8 @@ const BUSINESS_MODEL_TEMPLATE = `# Business Model
 
 **Price / packaging / terms / time-bound element:**
 
+**Operational capacity boundary:**
+
 **Why this works for the beachhead (cite evidence or say missing):**
 
 **Conversation still needed (if evidence is thin):**
@@ -78,29 +89,6 @@ const BUSINESS_MODEL_TEMPLATE = `# Business Model
 | Explicitly avoid for now | Why |
 |---|---|
 | | |
-
-## 90-day week-by-week cash flow
-
-| Week | Outflow | Expected Inflow | Inflow Basis | Weekly Net | Cumulative Net Cash | Notes |
-|---|---|---|---|---|---|---|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| 3 | | | | | | |
-| 4 | | | | | | |
-| 5 | | | | | | |
-| 6 | | | | | | |
-| 7 | | | | | | |
-| 8 | | | | | | |
-| 9 | | | | | | |
-| 10 | | | | | | |
-| 11 | | | | | | |
-| 12 | | | | | | |
-| 13 | | | | | | |
-
-**Break-even week:**
-
-**Strongest case this projection is wrong:**
--
 `;
 
 const PRICING_STRATEGY_TEMPLATE = `# Pricing Strategy
@@ -145,6 +133,55 @@ const PRICING_STRATEGY_TEMPLATE = `# Pricing Strategy
 **What we do:**
 
 **What would falsify it:**
+
+**Failure type (whole-offer / price-specific):**
+-
+`;
+
+const CASH_FLOW_TEMPLATE = `# 90-Day Cash Flow
+
+## Venture
+- Venture name:
+- Product name / working title:
+- Beachhead customer:
+
+## Projection assumptions
+
+-
+
+## 90-day week-by-week cash flow
+
+| Week | Outflow | Expected Inflow | Inflow Basis | Weekly Net | Cumulative Net Cash | Notes |
+|---|---|---|---|---|---|---|
+| 1 | | | | | | |
+| 2 | | | | | | |
+| 3 | | | | | | |
+| 4 | | | | | | |
+| 5 | | | | | | |
+| 6 | | | | | | |
+| 7 | | | | | | |
+| 8 | | | | | | |
+| 9 | | | | | | |
+| 10 | | | | | | |
+| 11 | | | | | | |
+| 12 | | | | | | |
+| 13 | | | | | | |
+
+**Break-even week:**
+
+## Month-1 / Month-6 goal cross-check
+
+**Month-1:**
+
+**Month-6:**
+
+## Downside case
+
+-
+
+## Key assumptions
+
+**Strongest case this projection is wrong:**
 -
 `;
 
@@ -168,7 +205,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 2,
     questionGroup: "model",
     questionText:
-      "What is the recommended shortest concrete path to one paying customer, and which steps require live customer conversation?",
+      "What is the recommended shortest concrete path to one paying customer, which steps require live customer conversation, and what prospects-to-paid-pilots funnel assumptions apply?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -196,7 +233,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 4,
     questionGroup: "model",
     questionText:
-      "What recommended exact starting prices apply per stream, with psychology and benchmark or assumption tags?",
+      "What recommended exact starting prices apply per near-term stream, with psychology and benchmark or assumption tags, and which future streams are Not yet priceable?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -210,7 +247,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 5,
     questionGroup: "model",
     questionText:
-      "What packaged offer (price, inclusions, terms, time-bound element) is the smallest credible paid yes, and what evidence or remaining conversation supports it?",
+      "What packaged offer (price, inclusions, terms, time-bound element, operational capacity boundary) is the smallest credible paid yes, and what evidence or remaining conversation supports it?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -238,7 +275,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 7,
     questionGroup: "model",
     questionText:
-      "What is the week-by-week 90-day cash flow, and what is the actual break-even week or No break-even within 90 days?",
+      "What is the week-by-week 90-day cash flow, the actual break-even week or No break-even within 90 days, and does the base case support the Month-1 and Month-6 goals?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -252,7 +289,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 8,
     questionGroup: "pricing",
     questionText:
-      "What are the strongest counter-arguments, the evidence that would flip pricing more than 30%, and the 2-week falsifiable experiment?",
+      "What are the strongest counter-arguments, the evidence that would flip pricing more than 30%, and the 2-week falsifiable experiment — distinguishing whole-offer failure from price-specific failure?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -268,7 +305,7 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
   sequenceIndex: 1,
   name: "Business Model",
   description:
-    "Founder constraints, fastest path to first dollar, revenue streams, the yes-offer, cost structure and the 90-day cash flow.",
+    "Founder constraints, fastest path to first dollar, prospects-to-paid-pilots funnel, revenue streams, the yes-offer with capacity boundary, and cost structure.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -298,12 +335,12 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
             level: 3,
             heading: "Steps that require talking to customers (cannot skip)",
           },
+          { level: 3, heading: "Prospects-to-paid-pilots funnel" },
           { level: 3, heading: "Reasoning and risks" },
           { level: 2, heading: "Revenue streams" },
           { level: 3, heading: "Why this primary stream first" },
           { level: 2, heading: "The offer that makes them say yes" },
           { level: 2, heading: "Cost structure" },
-          { level: 2, heading: "90-day week-by-week cash flow" },
         ],
       },
       {
@@ -377,6 +414,31 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
         scope: { level: 2, heading: "The offer that makes them say yes" },
       },
       {
+        key: "operational_capacity",
+        type: "label_present",
+        label: "Operational capacity boundary",
+        scope: { level: 2, heading: "The offer that makes them say yes" },
+      },
+      {
+        key: "funnel_rows",
+        type: "minimum_table_rows",
+        level: 3,
+        heading: "Prospects-to-paid-pilots funnel",
+        minimum: 4,
+      },
+      {
+        key: "funnel_cells",
+        type: "table_required_cells",
+        level: 3,
+        heading: "Prospects-to-paid-pilots funnel",
+        requiredColumns: [
+          "Stage",
+          "Quantity",
+          "Conversion assumption",
+          "What would change it",
+        ],
+      },
+      {
         key: "must_spend_rows",
         type: "minimum_table_rows",
         level: 2,
@@ -394,33 +456,6 @@ const BUSINESS_MODEL_ARTIFACT: ArtifactContent = {
           "BENCHMARKED / ASSUMPTION",
           "Why",
         ],
-      },
-      {
-        key: "cash_flow_rows",
-        type: "minimum_table_rows",
-        level: 2,
-        heading: "90-day week-by-week cash flow",
-        minimum: 13,
-      },
-      {
-        key: "cash_flow_cells",
-        type: "table_required_cells",
-        level: 2,
-        heading: "90-day week-by-week cash flow",
-        requiredColumns: [
-          "Week",
-          "Outflow",
-          "Expected Inflow",
-          "Inflow Basis",
-          "Weekly Net",
-          "Cumulative Net Cash",
-        ],
-      },
-      {
-        key: "break_even",
-        type: "label_present",
-        label: "Break-even week",
-        scope: { level: 2, heading: "90-day week-by-week cash flow" },
       },
     ],
     submissionRules: [],
@@ -528,6 +563,116 @@ const PRICING_STRATEGY_ARTIFACT: ArtifactContent = {
         label: "Hypothesis",
         scope: { level: 3, heading: "2-week falsifiable experiment" },
       },
+      {
+        key: "failure_type",
+        type: "label_present",
+        label: "Failure type (whole-offer / price-specific)",
+        scope: { level: 3, heading: "2-week falsifiable experiment" },
+      },
+    ],
+    submissionRules: [],
+  },
+};
+
+const CASH_FLOW_ARTIFACT: ArtifactContent = {
+  artifactKey: "cash_flow_90d",
+  sequenceIndex: 3,
+  name: "90-Day Cash Flow",
+  description:
+    "Assumptions, 13-week cash-flow projection, break-even, Month-1/Month-6 goal cross-check, and downside case.",
+  isRequired: true,
+  artifactType: "document",
+  sourceFormat: "markdown",
+  outputFormat: "markdown",
+  requiredFilename: "90-Day-Cash-Flow.md",
+  rendererKey: null,
+  validatorKey: "structured_markdown_v1",
+  allowedMimeTypes: ["text/markdown", "text/plain"],
+  maxFileSizeBytes: 262_144,
+  maxFiles: 1,
+  outputConfig: {
+    schemaVersion: 1,
+    templateFormat: "markdown",
+    templateMarkdown: CASH_FLOW_TEMPLATE,
+  },
+  validationConfig: {
+    schemaVersion: 1,
+    draftRules: [
+      {
+        key: "required_sections",
+        type: "sections_exist",
+        sections: [
+          { level: 2, heading: "Venture" },
+          { level: 2, heading: "Projection assumptions" },
+          { level: 2, heading: "90-day week-by-week cash flow" },
+          { level: 2, heading: "Month-1 / Month-6 goal cross-check" },
+          { level: 2, heading: "Downside case" },
+          { level: 2, heading: "Key assumptions" },
+        ],
+      },
+      {
+        key: "venture_name",
+        type: "label_present",
+        label: "Venture name",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "product_name",
+        type: "label_present",
+        label: "Product name / working title",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "beachhead_customer",
+        type: "label_present",
+        label: "Beachhead customer",
+        scope: { level: 2, heading: "Venture" },
+      },
+      {
+        key: "cash_flow_rows",
+        type: "minimum_table_rows",
+        level: 2,
+        heading: "90-day week-by-week cash flow",
+        minimum: 13,
+      },
+      {
+        key: "cash_flow_cells",
+        type: "table_required_cells",
+        level: 2,
+        heading: "90-day week-by-week cash flow",
+        requiredColumns: [
+          "Week",
+          "Outflow",
+          "Expected Inflow",
+          "Inflow Basis",
+          "Weekly Net",
+          "Cumulative Net Cash",
+        ],
+      },
+      {
+        key: "break_even",
+        type: "label_present",
+        label: "Break-even week",
+        scope: { level: 2, heading: "90-day week-by-week cash flow" },
+      },
+      {
+        key: "month_1_goal",
+        type: "label_present",
+        label: "Month-1",
+        scope: { level: 2, heading: "Month-1 / Month-6 goal cross-check" },
+      },
+      {
+        key: "month_6_goal",
+        type: "label_present",
+        label: "Month-6",
+        scope: { level: 2, heading: "Month-1 / Month-6 goal cross-check" },
+      },
+      {
+        key: "downside_case",
+        type: "section_non_empty",
+        level: 2,
+        heading: "Downside case",
+      },
     ],
     submissionRules: [],
   },
@@ -550,5 +695,9 @@ export const MODULE_7_CONTENT: ModuleContent = {
   estimatedMinutes: 55,
   isPublishable: true,
   questions: MODULE_7_QUESTIONS,
-  artifacts: [BUSINESS_MODEL_ARTIFACT, PRICING_STRATEGY_ARTIFACT],
+  artifacts: [
+    BUSINESS_MODEL_ARTIFACT,
+    PRICING_STRATEGY_ARTIFACT,
+    CASH_FLOW_ARTIFACT,
+  ],
 };

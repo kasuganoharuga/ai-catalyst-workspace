@@ -739,6 +739,12 @@ the website.
   separate files — those are sections of the two locked artefacts.
 - If `save_artifact` fails a locked-schema draft check, repair and retry.
 - Never invent quotes. Never overwrite interview evidence.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -813,6 +819,12 @@ feature Responses are not yet present, and never regenerate it while producing
 - Do not rename locked template headings.
 - Do not add an investor-slide section.
 - If a save fails, tell the Founder and stop.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---

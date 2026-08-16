@@ -998,7 +998,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-07-business-model": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant turns everything you've locked in into a money path: the shortest route to a first paying customer, which revenue streams start when, the offer that earns a yes, what to spend on, a week-by-week 90-day cash flow, and exact prices with the reasoning behind each number.",
+      "Your AI assistant turns everything you've locked in into a money path: the shortest route to a first paying customer, which revenue streams start when, the offer that earns a yes, what to spend on, a separate week-by-week 90-day cash flow, and exact prices with the reasoning behind each number.",
     whyBody:
       "Pricing decided by feel is the most expensive guess a founder makes, and a plan that never requires talking to anyone is the most comfortable way to avoid finding out. Every number here is tagged as benchmarked or assumption so you can see which is which.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -1027,10 +1027,10 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
     progressVerdictPending: "Nothing saved yet.",
     confirmTitle: "Confirm your business model documents",
     confirmBody:
-      "Your Business Model and Pricing Strategy are saved. Confirming marks this module done.",
+      "Your Business Model, Pricing Strategy, and 90-Day Cash Flow are saved. Confirming marks this module done.",
     confirmNoFileTitle: "No files yet",
     confirmNoFileBody:
-      "Your Module 7 documents haven't arrived yet. Return to your AI assistant and ask it to save Business Model and Pricing Strategy, then refresh this page.",
+      "Your Module 7 documents haven't arrived yet. Return to your AI assistant and ask it to save Business Model, Pricing Strategy, and 90-Day Cash Flow, then refresh this page.",
   },
 };
 

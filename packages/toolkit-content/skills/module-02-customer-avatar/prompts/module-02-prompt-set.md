@@ -1176,6 +1176,12 @@ tell them the Module is complete.
   and confirmed. You may privately note a question worth exploring later, but never write an
   AI-generated hypothesis into CARRY-FORWARD CONTEXT as if the Founder already said it, and never
   save under a later block's `question_key` ahead of that block's own confirmation.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -1431,6 +1437,12 @@ asks the Founder whether they went looking for disconfirming evidence, so do not
   `ready_for_review`; the Founder confirms it on the website.
 - Produce exactly one avatar file. Never write a variant such as
   `Validated-Ideal-Customer-Avatar.md` or `Beachhead-Customer-Profile-Final.md` alongside it.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---

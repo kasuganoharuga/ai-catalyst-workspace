@@ -260,6 +260,11 @@ const TEMPLATE_FIXTURES: TemplateFixture[] = [
     artifactKey: "pricing_strategy",
     sourcePath: "module-07-business-model/templates/Pricing-Strategy.md",
   },
+  {
+    moduleKey: "module-07-business-model",
+    artifactKey: "cash_flow_90d",
+    sourcePath: "module-07-business-model/templates/90-Day-Cash-Flow.md",
+  },
 ];
 
 // Artefacts with no validator of their own. They still must not drift from

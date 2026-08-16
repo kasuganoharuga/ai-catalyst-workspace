@@ -464,6 +464,12 @@ tell the Founder the Module is complete — they confirm on the website.
 - If a URL cannot be fetched, say so and proceed only on Founder-supplied text.
 - Closing statements must use `current gap hypothesis` or `testing hypothesis`; never `genuine
   gap`, `currently unclaimed gap`, or equivalent certainty.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -529,6 +535,12 @@ Generate Module 6's two artefacts from confirmed Responses. Generate nothing els
 - Do not rename locked template headings.
 - Generate exactly the two named Markdown artefacts, not a combined third document or index.
 - If a save fails, tell the Founder and stop.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---

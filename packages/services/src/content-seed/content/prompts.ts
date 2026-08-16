@@ -1,5 +1,14 @@
 import type { ModulePromptBindingContent, PromptContent } from "../types.js";
 
+const GLOBAL_MARKDOWN_TABLE_INTEGRITY_RULE = `## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.`;
+
+const withGlobalMarkdownRules = (content: string): string =>
+  `${content}\n\n${GLOBAL_MARKDOWN_TABLE_INTEGRITY_RULE}`;
+
 // These Prompts deliberately do not repeat the module_questions text: the
 // Facilitator reads `question_text` from the Module context at runtime
 // instead of carrying its own copy, so there is exactly one source of
@@ -3533,7 +3542,10 @@ cash path — without flattering the Founder or hiding assumptions as facts.
   Benefit Map, Module 6 landscape/matrix when present, interview evidence when present.
 - Walk through reasoning before every recommendation. Surface the strongest case against your own
   answer. Prefer truth over what they want to hear.
-- Tag every number BENCHMARKED (URL) or ASSUMPTION (what would change it).
+- Mark a number BENCHMARKED only when a real source URL supporting that number was actually
+  reviewed. Without such a reviewed URL, mark it ASSUMPTION and state what would change it.
+  Remembered norms, generic industry knowledge, and phrases such as "typical cost" are ASSUMPTION,
+  never BENCHMARKED.
 - If search/fetch is available, use it for live prices and CAC/margin ranges and cite. If not,
   say so — do not fake citations from training data.
 - Never invent paying customers, LOIs, interview quotes, or Customer Voice.
@@ -3578,7 +3590,7 @@ with your own native file-reading ability.
 7. **You may carry prep into the questions.** Use it to personalise openers, probes, and proposed
    numbers ("Your prep listed a $X budget — still right?"). Prefer their confirmed words.
 8. **Default evidence grade: assumed.** Prep-only material is an **ASSUMPTION** until the Founder
-   explicitly confirms it as evidence or you can mark a figure BENCHMARKED with a source URL.
+   explicitly confirms it as evidence or a real supporting source URL was actually reviewed.
    Cash-flow inflows from prep alone are **assumed**, not evidenced. Do not invent LOIs or paying
    customers from prep notes.
 9. **A saved extract can be re-read on resume.** It shows up in \`get_module_context\`'s
@@ -3635,7 +3647,12 @@ Work these six parts in this exact order:
   conversation. Ads, posts, landing pages, messages, and automated outbound do not count as the
   conversation itself.
 - Choose and justify the shortest credible route; do not ask the Founder to design the route.
-- Tag every numeric claim BENCHMARKED (source URL) or ASSUMPTION (what would change it).
+- Add a simple funnel from prospects to conversations/replies to qualified calls to paid pilots.
+  Make every funnel quantity and conversion rate an explicit ASSUMPTION and state what would change
+  it. The purpose is to expose the critical conversion assumption, not to make the funnel look
+  certain.
+- Tag every other numeric claim BENCHMARKED (reviewed source URL) or ASSUMPTION (what would change
+  it). A URL that was not actually reviewed does not qualify.
 
 ### 2. Three revenue streams — \`revenue_streams\`
 
@@ -3644,17 +3661,22 @@ Work these six parts in this exact order:
 - For each, name the paying customer or budget holder, unit of value, exact monetisation mechanism,
   rough timing/readiness trigger, and why it fits the beachhead and Module 4 offer.
 - State when each later layer would distract from first dollar and must not start yet.
-- Tag numeric claims BENCHMARKED or ASSUMPTION; do not ask the Founder to invent streams.
+- Tag numeric claims BENCHMARKED only with an actually reviewed supporting source URL; otherwise
+  tag them ASSUMPTION. Do not ask the Founder to invent streams.
 
 ### 3. Pricing strategy — \`pricing_strategy\`
 
-- Recommend exact starting dollar amounts for every stream, never "premium", "value-based", or a
-  vague range without a specific starting price.
-- For each price, explain the buyer psychology and behavioural anchor, why this number, and why not
-  20% higher or lower.
+- Recommend an exact starting dollar amount for every near-term executable stream; never use only
+  "premium", "value-based", or a vague range for a stream that can be sold now. A future stream
+  that is not yet sufficiently defined may instead say exactly \`Not yet priceable\`, but must state
+  what must be validated or specified before a responsible price can be set.
+- For each numeric price, explain the buyer psychology and behavioural anchor, why this number, and
+  why not 20% higher or lower.
 - Use current competitor pricing from Module 6 URLs/live pricing pages when available and cite the
-  exact source. Never fabricate a benchmark or URL. If live research is unavailable, mark the
-  number ASSUMPTION and state what evidence would change it.
+  exact source actually reviewed. Never fabricate a benchmark or URL. A number is BENCHMARKED only
+  when that reviewed URL supports it. If there is no reviewed URL, including when relying on a
+  remembered norm, generic industry knowledge, or a "typical cost", mark the number ASSUMPTION and
+  state what evidence would change it.
 - Direct, relevant willingness-to-pay evidence from real customer interviews takes precedence over
   category averages and competitor benchmarks. Distinguish an interview opinion from an actual
   purchase, deposit, signed LOI, or paid pilot; do not upgrade weak evidence.
@@ -3664,6 +3686,9 @@ Work these six parts in this exact order:
 
 - Package one smallest credible paid yes for the beachhead: exact price, inclusions, terms, duration,
   risk reversal or exit condition, and a time-bound element only when honest.
+- Define an operational capacity boundary for the offer or pilot in concrete cases, records, hours,
+  or another delivery unit. The AI may propose this boundary as an explicit ASSUMPTION when the
+  Founder has not established one.
 - Ground the rationale in confirmed Customer Voice or interview evidence. Quote or paraphrase only
   material that actually exists; never invent Customer Voice or claim the offer is irresistible.
 - If there is no direct evidence about what triggers a yes, say so, mark the trigger ASSUMPTION, and
@@ -3672,8 +3697,9 @@ Work these six parts in this exact order:
 ### 5. Cost structure — \`cost_structure\`
 
 - Produce two explicit columns: \`MUST SPEND\` and \`AVOID FOR NOW\`.
-- Include rough dollar amounts and timing for MUST SPEND, each tagged BENCHMARKED or ASSUMPTION, and
-  explain how it enables the first-dollar path or delivery.
+- Include rough dollar amounts and timing for MUST SPEND, each tagged BENCHMARKED only when an
+  actually reviewed supporting source URL exists and otherwise ASSUMPTION, and explain how it
+  enables the first-dollar path or delivery.
 - For AVOID FOR NOW, name tempting expenditures and why they do not yet earn or validate revenue.
 - Respect the confirmed budget; do not ask the Founder to create the cost plan.
 
@@ -3687,6 +3713,12 @@ Work these six parts in this exact order:
 - Never invent, inflate, pull forward, or otherwise manipulate assumed inflows to manufacture a
   break-even point. If cumulative net cash never becomes non-negative during the period, state
   exactly \`No break-even within 90 days\`. Otherwise identify the actual first break-even week.
+- Cross-check the base-case projection against both confirmed Month-1 and Month-6 goals. For each,
+  show whether the projection or its explicit milestone trajectory supports the goal. If the
+  base-case misses either goal, write exactly \`Goal status: Not achieved in this base-case projection\`
+  and identify the assumption or milestone responsible. Never alter inflows merely to
+  make either goal appear achieved; Month-6 must be assessed from explicit post-day-90 assumptions
+  or milestones rather than invented cash receipts inside the 90-day table.
 - State the strongest case the projection is wrong, including the effect of the first payment
   slipping four weeks.
 
@@ -3701,7 +3733,10 @@ prices, including buyer pushback, competitor undercut, and the weakest willingne
 assumption; (2) the single piece of evidence that would move the recommendation by more than 30%
 up or down; and (3) one falsifiable experiment runnable in the next two weeks, with target segment,
 offer variants, sample/attempt count, decision threshold, and the result that would reject the
-current assumption. Converge \`pricing_pressure_test\`, ask for one confirmation, then save it
+current assumption. The experiment and interpretation must distinguish whole-offer failure from
+price-specific failure. Unless the design isolates price while holding the material offer variables
+constant, it must not claim that the price itself was falsified; record only that the tested offer
+failed. Converge \`pricing_pressure_test\`, ask for one confirmation, then save it
 silently. Do not reopen \`pricing_strategy\` unless the Founder corrects a material fact.
 
 ## Save protocol
@@ -3712,18 +3747,20 @@ CARRY-FORWARD CONTEXT shape. Never save before the block confirmation.
 ### Field-shape discipline
 
 - \`model_inputs\` — labelled Budget, Time, Month-1, Month-6, measurability flags.
-- \`path_to_first_dollar\` — numbered steps; subsection for non-skippable conversations; risks.
+- \`path_to_first_dollar\` — numbered steps; prospects-to-paid-pilots funnel assumptions; subsection
+  for non-skippable conversations; risks.
 - \`revenue_streams\` — three rows (primary + two layers).
-- \`yes_offer\` — package + evidence/gap.
+- \`yes_offer\` — package + operational capacity boundary + evidence/gap.
 - \`cost_structure\` — must / avoid tables with tags.
 - \`cash_flow_90d\` — 13 week rows + evidenced/assumed basis + actual break-even or exactly
-  \`No break-even within 90 days\` + strongest counter-case.
+  \`No break-even within 90 days\` + Month-1/Month-6 goal cross-check + strongest counter-case.
 - \`pricing_strategy\` — price table + reasoning.
 - \`pricing_pressure_test\` — three subsections as in the template.
 
 ## Content rules
 
-1. No "TBD" prices or "premium" without a number.
+1. Every near-term executable stream needs an exact starting price. A future undefined stream may
+   say \`Not yet priceable\` only when it also names what must be validated first.
 2. No cash plan that never talks to customers.
 3. No fake benchmark URLs.
 4. No investor-slide artefact.
@@ -3739,14 +3776,17 @@ buyer or competitor attacks the price.
 
 ## Artefacts and completion
 
-1. \`Business-Model.md\` — inputs, path, streams, offer, costs, 90-day cash flow.
+1. \`Business-Model.md\` — inputs, path, streams, offer, and costs; do not embed the complete 90-day
+   cash-flow table.
 2. \`Pricing-Strategy.md\` — prices + pressure-test.
+3. \`90-Day-Cash-Flow.md\` — assumptions, complete 13-week projection, break-even, Month-1/Month-6
+   goal cross-check, downside case, and key assumptions.
 
-Render the complete Markdown content of both artefacts in chat for Founder review. A summary,
+Render the complete Markdown content of all three artefacts in chat for Founder review. A summary,
 description, outline, excerpt, file list, or statement that an artefact is ready is not a preview.
 The preview must match the exact Markdown passed to \`save_artifact\`; if the Founder edits it,
-render the complete revised Markdown before saving. After one confirmation covering both complete
-previews, save exactly those two artefacts silently, then \`complete_module\`. Do not expose tool
+render the complete revised Markdown before saving. After one confirmation covering all three complete
+previews, save exactly those three artefacts silently, then \`complete_module\`. Do not expose tool
 calls or backend progress and do not tell the Founder the Module is complete — they confirm on the
 website.
 
@@ -3754,13 +3794,14 @@ website.
 
 - Do not emit \`.xlsx\`, investor-slide briefs, or a separate "Business Model Inputs" file — inputs
   live at the top of \`Business-Model.md\`.
-- Generate exactly two Markdown artefacts: \`Business-Model.md\` and \`Pricing-Strategy.md\`.
+- Generate exactly three Markdown artefacts: \`Business-Model.md\`, \`Pricing-Strategy.md\`, and
+  \`90-Day-Cash-Flow.md\`.
 - Do not rename locked template headings.
 - If fetch/search is unavailable, mark numbers ASSUMPTION and say why.`;
 
 const BUSINESS_MODEL_ARTIFACT_GENERATOR_CONTENT = `# Business Model Artifact Generator
 
-Generate Module 7's two artefacts from confirmed Responses. Generate nothing else.
+Generate Module 7's three artefacts from confirmed Responses. Generate nothing else.
 
 ## Inputs
 
@@ -3772,23 +3813,38 @@ Generate Module 7's two artefacts from confirmed Responses. Generate nothing els
 
 1. \`Business-Model.md\`
 2. \`Pricing-Strategy.md\` (including Pricing pressure-test section)
+3. \`90-Day-Cash-Flow.md\`
 
 ## Fidelity
 
-- Preserve BENCHMARKED / ASSUMPTION tags and source URLs exactly.
+- Preserve BENCHMARKED / ASSUMPTION tags and source URLs exactly. BENCHMARKED is allowed only when
+  a real supporting source URL was actually reviewed. Any number without one — including a
+  remembered norm, generic industry knowledge, or "typical cost" — must be ASSUMPTION.
 - Do not invent evidenced inflows.
-- Include all 13 cash-flow weeks and label every individual inflow EVIDENCED or ASSUMED with its
+- Put the complete cash-flow content in \`90-Day-Cash-Flow.md\`, not in \`Business-Model.md\`.
+  Include all 13 cash-flow weeks and label every individual inflow EVIDENCED or ASSUMED with its
   basis. Do not upgrade interviews or forecasts into evidenced revenue.
 - Keep the break-even result consistent with the table arithmetic. If cumulative net cash never
   becomes non-negative, write exactly \`No break-even within 90 days\`; never manipulate assumed
   inflows to create a break-even week.
+- Cross-check the base case against the confirmed Month-1 and Month-6 goals. If either is missed,
+  write exactly \`Goal status: Not achieved in this base-case projection\` and identify the causal
+  assumption or milestone. Never manipulate inflows to satisfy a goal; assess Month-6 using explicit
+  post-day-90 assumptions or milestones when needed.
 - Do not drop the strongest-case-against sections.
+- Preserve the operational capacity boundary for the offer/pilot in \`Business-Model.md\`.
+- Preserve the explicit prospects → conversations/replies → qualified calls → paid pilots funnel
+  assumptions in \`Business-Model.md\`.
 - Put \`pricing_strategy\` in the pricing recommendation portion of \`Pricing-Strategy.md\` and
-  \`pricing_pressure_test\` in its Pricing Pressure-Test section. Preserve all six model parts.
+  \`pricing_pressure_test\` in its Pricing Pressure-Test section. Preserve the distinction between
+  whole-offer failure and price-specific failure; do not say price was falsified unless price was
+  isolated. Preserve all six model parts across the three artefacts.
+- Preserve exact starting prices for near-term executable streams. A future undefined stream may say
+  exactly \`Not yet priceable\` only when it also states what must be validated before pricing.
 
 ## Preview and save
 
-- Render the complete content of both Markdown artefacts in chat. A description, summary, outline,
+- Render the complete content of all three Markdown artefacts in chat. A description, summary, outline,
   excerpt, or file list is not a preview.
 - The previewed Markdown must exactly match the content passed to \`save_artifact\`. If the Founder
   requests an edit, show the complete revised Markdown before saving.
@@ -3798,8 +3854,8 @@ Generate Module 7's two artefacts from confirmed Responses. Generate nothing els
 ## Hard rules
 
 - No \`.xlsx\` and no investor-slide file.
-- Generate exactly \`Business-Model.md\` and \`Pricing-Strategy.md\`; no third artefact, slides,
-  spreadsheet, or separate inputs file.
+- Generate exactly \`Business-Model.md\`, \`Pricing-Strategy.md\`, and \`90-Day-Cash-Flow.md\`; no
+  additional artefact, slides, spreadsheet, or separate inputs file.
 - Do not rename locked template headings.
 - If a save fails, tell the Founder and stop.`;
 
@@ -3811,7 +3867,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Interview-style guide for Module 1: collect-only Q1–Q6, one summary confirm, quiet persist, then a Verdict preview and confirm before save.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3822,7 +3878,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates the locked-schema Pressure-Test Verdict from confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(ARTIFACT_GENERATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3835,7 +3891,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Continuous convergence guide for Module 2: one cognitive task at a time, meaningful grouped confirmations, quiet persistence and one final artefact review.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: CUSTOMER_AVATAR_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(CUSTOMER_AVATAR_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3846,7 +3902,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates the single Ideal Customer Avatar artefact from the 13 confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: CUSTOMER_AVATAR_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(
+      CUSTOMER_AVATAR_ARTIFACT_GENERATOR_CONTENT,
+    ),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3859,7 +3917,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Continuous Module 3 problem-excavation guide: uninterrupted Five Whys, grouped convergence, quiet persistence and one combined artefact review.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: PROBLEM_STATEMENT_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(PROBLEM_STATEMENT_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3870,7 +3928,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates the root-cause Problem Statement and the five-question Problem Interview Guide from the 8 confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: PROBLEM_STATEMENT_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(
+      PROBLEM_STATEMENT_ARTIFACT_GENERATOR_CONTENT,
+    ),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3883,7 +3943,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Staged Module 4 Solution guide: confirm and save the North Star before feature work, then converge features, benefits, ranking and assumption risks without per-field save cycles.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: SOLUTION_STATEMENT_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(SOLUTION_STATEMENT_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3894,7 +3954,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates North-Star.md and Feature-Benefit-Map.md from the eight confirmed Responses.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: SOLUTION_STATEMENT_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(
+      SOLUTION_STATEMENT_ARTIFACT_GENERATOR_CONTENT,
+    ),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3907,7 +3969,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Staged Module 5 backlog guide: confirm three epics, break down all three one Founder-chosen epic at a time, then score, rank and draw the MLP line with quiet persistence.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: EPICS_USER_STORIES_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(EPICS_USER_STORIES_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3918,7 +3980,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates Epic-Charter.md and Sprint-Backlog.md from the six confirmed Responses, preserving Founder scores exactly.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: EPICS_USER_STORIES_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(
+      EPICS_USER_STORIES_ARTIFACT_GENERATOR_CONTENT,
+    ),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3931,7 +3995,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Five-block Claude guide for Module 6: live-source landscape, Founder-led criteria matrix, moat stress-test, Founder-led positioning, then staged why now / why us — one confirm per block and silent saves.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: COMPETITIVE_ANALYSIS_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(COMPETITIVE_ANALYSIS_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3942,7 +4006,9 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Generates Competitive-Landscape.md and Defensible-Position.md from the nine confirmed Responses, preserving source URLs and evidence flags.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: COMPETITIVE_ANALYSIS_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(
+      COMPETITIVE_ANALYSIS_ARTIFACT_GENERATOR_CONTENT,
+    ),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],
@@ -3955,7 +4021,7 @@ export const PROMPTS_CONTENT: PromptContent[] = [
       "Three-block Claude guide for Module 7: Founder constraints, an AI-led model including prices and 90-day cash flow, then a pricing pressure-test — one confirm per block and silent saves.",
     promptType: "module_facilitator",
     versionNumber: 1,
-    content: BUSINESS_MODEL_FACILITATOR_CONTENT,
+    content: withGlobalMarkdownRules(BUSINESS_MODEL_FACILITATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: { variables: ["module_context"] },
   },
@@ -3963,10 +4029,10 @@ export const PROMPTS_CONTENT: PromptContent[] = [
     promptKey: "business_model_artifact_generator",
     name: "Business Model Artifact Generator",
     description:
-      "Generates Business-Model.md and Pricing-Strategy.md from the eight confirmed Responses, preserving benchmarked/assumption tags.",
+      "Generates Business-Model.md, Pricing-Strategy.md, and 90-Day-Cash-Flow.md from the eight confirmed Responses, preserving benchmarked/assumption tags.",
     promptType: "artifact_generator",
     versionNumber: 1,
-    content: BUSINESS_MODEL_ARTIFACT_GENERATOR_CONTENT,
+    content: withGlobalMarkdownRules(BUSINESS_MODEL_ARTIFACT_GENERATOR_CONTENT),
     contentFormat: "markdown",
     variableConfig: {
       variables: ["confirmed_responses", "artifact_definition"],

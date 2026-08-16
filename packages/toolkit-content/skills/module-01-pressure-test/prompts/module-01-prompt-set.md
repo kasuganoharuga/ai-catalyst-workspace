@@ -179,6 +179,12 @@ or their completion.
 - Do not rename locked verdict headings — use the Artifact Generator template verbatim.
 - If `save_artifact` fails with a locked-schema draft check error, repair the named issues and retry; do not invent a different document shape.
 - If a save fails, tell the Founder immediately and stop.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -231,6 +237,12 @@ Never use "validated," "strong signal," or similar certainty language for a Foun
 - `save_artifact` rejects content that fails the locked-schema draft check — if it returns VALIDATION_ERROR, repair every named issue against the template and save again. Do not call `complete_module` until save succeeds.
 - Do not mark the Module complete — completion is determined by the Service layer and the Founder's website confirmation.
 - Never embellish a confirmed answer anywhere it is referenced outside Confirmed Q&A. `current_stage: Prototype` must stay "Prototype" everywhere in the document — AI Recommendation, Failure Reasons, Investor Decision, Success Conditions, Recommended Next Step — never "working prototype," "functional prototype," "tested," or "MVP." Copy confirmed values verbatim wherever they reappear, not only in the Confirmed Q&A section.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---

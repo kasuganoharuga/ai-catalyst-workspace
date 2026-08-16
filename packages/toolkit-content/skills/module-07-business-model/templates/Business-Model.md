@@ -1,8 +1,10 @@
 # Business Model
 
-<Every number is tagged BENCHMARKED (with source) or ASSUMPTION (with what would change it).
-Do not invent traction, LOIs, or Customer Voice. Steps that require live customer conversation
-are marked explicitly. The AI recommends the model; the Founder reviews it.>
+<Every number is tagged BENCHMARKED only when a real supporting source URL was actually reviewed,
+otherwise ASSUMPTION (with what would change it). Remembered norms and "typical cost" are
+ASSUMPTION. Do not invent traction, LOIs, or Customer Voice. Steps that require live customer
+conversation are marked explicitly. The AI recommends the model; the Founder reviews it. The 90-day
+cash-flow table belongs in 90-Day-Cash-Flow.md, not here.>
 
 ## Venture
 - Venture name:
@@ -33,6 +35,18 @@ are marked explicitly. The AI recommends the model; the Founder reviews it.>
 
 -
 
+### Prospects-to-paid-pilots funnel
+
+<Every funnel quantity and conversion is an explicit ASSUMPTION. State what would change it. Do not
+make the funnel look certain.>
+
+| Stage | Quantity | Conversion assumption | What would change it |
+|---|---|---|---|
+| Prospects | | | |
+| Conversations / replies | | | |
+| Qualified calls | | | |
+| Paid pilots | | | |
+
 ### Reasoning and risks
 
 -
@@ -53,6 +67,10 @@ are marked explicitly. The AI recommends the model; the Founder reviews it.>
 
 **Price / packaging / terms / time-bound element:**
 
+**Operational capacity boundary:**
+
+<Concrete cases, records, hours, or another delivery unit. The AI may propose this as ASSUMPTION.>
+
 **Why this works for the beachhead (cite evidence or say missing):**
 
 **Conversation still needed (if evidence is thin):**
@@ -66,30 +84,3 @@ are marked explicitly. The AI recommends the model; the Founder reviews it.>
 | Explicitly avoid for now | Why |
 |---|---|
 | | |
-
-## 90-day week-by-week cash flow
-
-<13 weeks. Label every inflow EVIDENCED or ASSUMED with its basis. Interviews and forecasts are
-not evidenced revenue. If cumulative net never becomes non-negative, Break-even week is exactly
-"No break-even within 90 days". Never invent inflows to manufacture a break-even week.>
-
-| Week | Outflow | Expected Inflow | Inflow Basis | Weekly Net | Cumulative Net Cash | Notes |
-|---|---|---|---|---|---|---|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| 3 | | | | | | |
-| 4 | | | | | | |
-| 5 | | | | | | |
-| 6 | | | | | | |
-| 7 | | | | | | |
-| 8 | | | | | | |
-| 9 | | | | | | |
-| 10 | | | | | | |
-| 11 | | | | | | |
-| 12 | | | | | | |
-| 13 | | | | | | |
-
-**Break-even week:**
-
-**Strongest case this projection is wrong:**
--

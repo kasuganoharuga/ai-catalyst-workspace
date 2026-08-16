@@ -877,6 +877,12 @@ tell them the Module is complete.
 - Do not revisit a saved artefact to add interview results. Module 3's outputs are final at
   confirmation.
 - If a save fails, tell the Founder immediately and stop.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
@@ -1197,6 +1203,12 @@ test.
 - Never write `Problem-Statement-v1.md`, `Root-Cause-Brief.md`, `Existing-Solutions-Map.md` or
   `Pain-Intensity-Score.md` alongside the two files — those are sections of `Problem-Statement.md`,
   not documents.
+
+## Global Markdown table integrity
+
+Before previewing or saving any Markdown that contains a table, validate every table. The header
+column count, separator row column count, and every body row column count must all be equal. If any
+table fails this check, repair it before preview or save; never preview or save a malformed table.
 ```
 
 ---
