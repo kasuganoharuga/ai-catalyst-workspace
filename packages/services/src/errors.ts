@@ -32,7 +32,8 @@ export type ServiceErrorCode =
   | "EVIDENCE_NOT_CONFIRMED" // Module 4 evidence not confirmed on website.
   | "EVIDENCE_FROZEN_FOR_ATTEMPT" // Module 4 attempt already pinned evidence snapshot.
   | "MODULE_4_INTERVIEW_EVIDENCE_MISSING" // complete_module without pinned evidence.
-  | "INTERVIEW_GATE_NOT_MET"; // Module 4 Solution blocks attempted before the confirmed-interview floor is met.
+  | "INTERVIEW_GATE_NOT_MET" // Module 4 Solution blocks attempted before the confirmed-interview floor is met.
+  | "EMAIL_SEND_FAILED"; // Transport rejected the message (SES throttle, unverified recipient in sandbox, credentials).
 
 export class ServiceError extends Error {
   constructor(

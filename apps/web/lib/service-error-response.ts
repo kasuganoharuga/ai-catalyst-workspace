@@ -53,6 +53,9 @@ function statusForCode(code: ServiceErrorCode): number {
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
     case "WORKBOOK_RENDER_FAILED":
       return 500;
+    // Upstream provider failure, not the caller's fault.
+    case "EMAIL_SEND_FAILED":
+      return 502;
     default: {
       const _exhaustive: never = code;
       return _exhaustive;

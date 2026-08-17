@@ -86,9 +86,19 @@ module "s3" {
 }
 
 module "secrets" {
-  source       = "../../modules/secrets"
-  name         = var.name
-  secret_names = ["database-url", "better-auth-secret"]
+  source = "../../modules/secrets"
+  name   = var.name
+  # Placeholders only — values are set manually after apply (see
+  # infra/aws/README.md "Secrets & rotation"). The google-* pair is needed
+  # only once AUTH_GOOGLE_ENABLED is flipped in
+  # apps/web/lib/feature-flags.ts; creating the placeholders ahead of that is
+  # free and means the flip is not blocked on a Terraform round trip.
+  secret_names = [
+    "database-url",
+    "better-auth-secret",
+    "google-client-id",
+    "google-client-secret",
+  ]
 }
 
 module "ses" {

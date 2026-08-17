@@ -11,6 +11,7 @@
     "auth:check": "tsx scripts/check-auth-schema.ts",
     "seed:test-founders": "tsx scripts/seed-test-founders.ts",
     "capture:onboarding": "tsx scripts/capture-onboarding.ts",
+    "capture:auth": "tsx scripts/capture-auth.ts",
     "oauth:cleanup": "tsx scripts/oauth-cleanup.ts",
     "test:standalone": "node scripts/verify-standalone-build.mjs"
   },

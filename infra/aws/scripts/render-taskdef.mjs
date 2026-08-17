@@ -42,6 +42,15 @@ const rendered = services.map((service) => {
     : [
         { name: "STORAGE_PROVIDER", value: "s3" },
         { name: "EMAIL_PROVIDER", value: "ses" },
+        // EMAIL_FROM is required whenever EMAIL_PROVIDER=ses —
+        // loadEmailConfigFromEnv() throws without it, so omitting it here
+        // rendered a task definition that could not boot. Terraform sets the
+        // real value from var.ses_email_identity (envs/staging/main.tf); this
+        // renderer is dry-run shape validation only, hence the placeholder.
+        {
+          name: "EMAIL_FROM",
+          value: process.env.EMAIL_FROM ?? "noreply@example.com",
+        },
         { name: "AWS_REGION", value: "ap-southeast-2" },
         ...(service === "web"
           ? [

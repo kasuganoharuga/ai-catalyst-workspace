@@ -359,8 +359,13 @@ async function seedFounder(deps: Deps): Promise<string> {
   await deps.auth.api.signUpEmail({
     body: { name: "PDF Test Founder", email: EMAIL, password: PASSWORD },
   });
+  // email_verified matters beyond realism: Better Auth hardcodes it false on
+  // password sign-up, and implicit account linking requires a verified local
+  // row (see accountLinking in lib/auth.ts), so an unverified fixture cannot
+  // later link a Google identity on the same address. Same reasoning as
+  // seed-test-founders.ts.
   const result = await deps.pool.query<{ id: string }>(
-    "update users set role = 'founder' where email = $1 returning id",
+    "update users set role = 'founder', email_verified = true where email = $1 returning id",
     [EMAIL],
   );
   const userId = result.rows[0]?.id;

@@ -4,8 +4,9 @@ import type {
   EmailSender,
   EmailTransport,
 } from "./types.js";
-import { NoopEmailTransport } from "./transports/noop.js";
-import { SesEmailTransport } from "./transports/ses.js";
+// Package paths, not "./transports/*.js" — see the note in index.ts.
+import { NoopEmailTransport } from "@ai-catalyst/services/email/transports/noop";
+import { SesEmailTransport } from "@ai-catalyst/services/email/transports/ses";
 
 export function resolveEmailTransport(config: EmailConfig): EmailTransport {
   if (config.kind === "noop") {

@@ -1,9 +1,12 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, type BetterAuthPlugin } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { mcp } from "better-auth/plugins";
+import { emailOTP, mcp } from "better-auth/plugins";
 import { pool } from "@ai-catalyst/db";
 import { revokeAllMcpConnectionsForUserId } from "@ai-catalyst/services/mcp-auth";
 
+import { SIGN_IN_CODE_TTL_SECONDS, signInCodeEmail } from "./auth-emails";
+import { getEmailSender, isEmailDiscarded } from "./email";
+import { AUTH_EMAIL_OTP_ENABLED, AUTH_GOOGLE_ENABLED } from "./feature-flags";
 import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
 import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
 
@@ -22,14 +25,90 @@ function requireEnv(name: string): string {
 // OAuth issuer — apps/web base URL; MCP protected-resource metadata points clients here.
 const authIssuerUrl = requireEnv("AUTH_ISSUER_URL");
 
+/**
+ * Google, registered only when AUTH_GOOGLE_ENABLED.
+ *
+ * The credentials are read inside this branch, not at module scope, so a build
+ * with the flag off requires no Google env vars at all and cannot fail to boot
+ * on a missing secret.
+ *
+ * Redirect URI to register in the Google console is
+ * `${AUTH_ISSUER_URL}/api/auth/callback/google`. `baseURL` above is the same
+ * value, so the usual cause of `redirect_uri_mismatch` is AUTH_ISSUER_URL not
+ * matching the registered string exactly (scheme, trailing slash, apex vs www).
+ */
+const socialProviders = AUTH_GOOGLE_ENABLED
+  ? {
+      google: {
+        clientId: requireEnv("GOOGLE_CLIENT_ID"),
+        clientSecret: requireEnv("GOOGLE_CLIENT_SECRET"),
+      },
+    }
+  : {};
+
+/**
+ * Sign-in by six-digit emailed code, registered only when
+ * AUTH_EMAIL_OTP_ENABLED.
+ *
+ * A code rather than a magic link, deliberately: this sign-in page carries a
+ * `returnTo` holding the MCP authorize query (see app/oauth/continue/route.ts),
+ * and a link clicked in a mail client opens a fresh browser context that would
+ * lose it. A code keeps the user on the page that already holds `returnTo`.
+ */
+function buildEmailOtpPlugin(): BetterAuthPlugin[] {
+  if (!AUTH_EMAIL_OTP_ENABLED) {
+    return [];
+  }
+  return [
+    emailOTP({
+      otpLength: 6,
+      expiresIn: SIGN_IN_CODE_TTL_SECONDS,
+      // Hashed at rest so a database read cannot yield a usable sign-in code.
+      // This is a different knob from `verification.storeIdentifier` below,
+      // which must stay "plain" for MCP — do not conflate the two.
+      storeOTP: "hashed",
+      // Matches today's public registration: an unknown address is allowed to
+      // create an account, which lands at role `pending` via the
+      // user.create.before hook and can do nothing until an invitation
+      // upgrades it.
+      disableSignUp: false,
+      sendVerificationOTP: async ({ email, otp, type }) => {
+        // Only the sign-in flow is wired. Email-verification / password-reset /
+        // change-email variants would each need their own copy, and silently
+        // sending the sign-in body for them would be misleading.
+        if (type !== "sign-in") {
+          throw new Error(
+            `emailOTP type "${type}" has no template — only "sign-in" is supported.`,
+          );
+        }
+        // Local development on the noop transport: the code is discarded, so
+        // print it or there is no way to complete the flow. `lib/email.ts`
+        // refuses to boot a real environment on noop, which is what keeps this
+        // from ever logging a live code in staging or production.
+        if (isEmailDiscarded()) {
+          console.info(`[auth] sign-in code for ${email}: ${otp}`);
+        }
+        await getEmailSender().enqueue(signInCodeEmail({ to: email, otp }));
+      },
+    }),
+  ];
+}
+
 export const auth = betterAuth({
   database: pool,
   baseURL: authIssuerUrl,
   secret: requireEnv("BETTER_AUTH_SECRET"),
 
+  // Still enabled: the new methods land alongside it and password removal is a
+  // separate, later change. While both live, note that a password-created
+  // account has email_verified = false (Better Auth hardcodes it), so it
+  // cannot implicitly link a Google identity on the same address — see
+  // account.accountLinking below.
   emailAndPassword: {
     enabled: true,
   },
+
+  socialProviders,
 
   advanced: {
     database: {
@@ -83,6 +162,32 @@ export const auth = betterAuth({
     },
     // OAuth tokens must never be stored in plaintext (see migration baseline).
     encryptOAuthTokens: true,
+
+    /**
+     * Stated explicitly rather than inherited, because the defaults decide
+     * whether one person ends up with one account or two.
+     *
+     * Implicit linking stays ON: it is what makes both orderings converge on a
+     * single user — code-first then Google links onto the existing row (the
+     * code flow marks the address verified), and Google-first then code simply
+     * finds the user by email and issues a session.
+     *
+     * `requireLocalEmailVerified` stays at its default of true. It is the guard
+     * against a classic account-takeover shape: pre-register an address you do
+     * not own, wait for its real owner to arrive via Google, and inherit their
+     * session. The cost of keeping it is that a password-created account
+     * (email_verified = false) refuses to link Google and reports
+     * "account not linked" — that refusal is the feature, not a bug to patch.
+     *
+     * `updateUserInfoOnLink` is left off: it overwrites the local name/image
+     * from the provider on every link, which would silently undo whatever the
+     * founder set in onboarding.
+     */
+    accountLinking: {
+      enabled: true,
+      requireLocalEmailVerified: true,
+      updateUserInfoOnLink: false,
+    },
   },
 
   verification: {
@@ -100,11 +205,29 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user) => {
-          // Defense in depth: name = email, role = pending on every creation path.
+          // `role` is forced on every creation path unconditionally — this is
+          // the security-critical half and must never become flag-dependent. A
+          // provider, or a crafted sign-up body, does not get to choose its
+          // own role.
+          //
+          // `name` is different. Forcing it to the email is the long-standing
+          // behaviour and is kept verbatim while Google is off, so enabling
+          // these new methods changes nothing about the existing password
+          // path. Once Google is live it supplies a real display name, and
+          // discarding it just to re-ask for it in onboarding is pointless —
+          // so the flag relaxes this to "default, not override". The email
+          // remains the fallback either way, including for the code flow,
+          // which creates users with an empty name.
+          const providedName =
+            typeof user.name === "string" ? user.name.trim() : "";
+          const name =
+            AUTH_GOOGLE_ENABLED && providedName !== ""
+              ? providedName
+              : user.email;
           return {
             data: {
               ...user,
-              name: user.email,
+              name,
               role: "pending",
             },
           };
@@ -141,6 +264,11 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    // Before mcp(): the schema-override plugin below rewrites the tables mcp()
+    // registers, and it must sit immediately after mcp() for that to work — so
+    // anything unrelated goes in front of the pair, never between them. Empty
+    // array while AUTH_EMAIL_OTP_ENABLED is false.
+    ...buildEmailOtpPlugin(),
     // OAuth 2.1 Authorization Server for MCP; apps/mcp verifies Bearer tokens issued here.
     mcp({
       // Preserves authorize query across sign-in (see /oauth/continue).

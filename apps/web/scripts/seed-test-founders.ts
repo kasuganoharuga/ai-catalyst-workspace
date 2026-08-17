@@ -395,8 +395,18 @@ async function createSignedUpFounder(
   // A new user starts at role 'pending' (forced by the databaseHooks in
   // lib/auth.ts). Promoting to 'founder' is what invitation acceptance
   // would normally do.
+  //
+  // `email_verified` is set here too, and it is not cosmetic. Better Auth
+  // hardcodes emailVerified = false on password sign-up, while implicit
+  // account linking requires the local row to be verified
+  // (accountLinking.requireLocalEmailVerified in lib/auth.ts). A seeded
+  // account left unverified therefore *refuses* to link a Google identity on
+  // the same address and reports "account not linked" — which reads like a
+  // broken OAuth config rather than a seeding artefact, and would burn an
+  // afternoon to diagnose. These are fixtures for addresses this script owns,
+  // so treating them as verified is accurate as well as convenient.
   const result = await deps.pool.query<{ id: string }>(
-    "update users set role = 'founder' where email = $1 returning id",
+    "update users set role = 'founder', email_verified = true where email = $1 returning id",
     [email],
   );
   const userId = result.rows[0]?.id;
@@ -648,6 +658,21 @@ async function clean(deps: Deps): Promise<number> {
  * can be dropped straight into a given state without walking the login
  * form. Only ever works for `@seed.test` addresses, whose password this
  * script generated in the first place.
+ *
+ * This still goes through the password endpoint, which is fine while password
+ * sign-in exists. **It is the one thing here that breaks when password auth is
+ * removed**, so it needs a replacement at that point, and the obvious-looking
+ * option is the wrong one: hand-signing the cookie means reproducing Better
+ * Auth's `setSignedCookie` format (an HMAC over the session token, via
+ * better-call — not even a direct dependency of this app), which would break
+ * silently on a version bump with no test to catch it.
+ *
+ * The path that stays on public API: enable the email-OTP flow, call
+ * `auth.api.sendVerificationOTP`, capture the code from this app's own
+ * `sendVerificationOTP` implementation in lib/auth.ts (it already prints the
+ * code when mail is discarded), then redeem it via `auth.api.signInEmailOTP`
+ * with `asResponse: true` and read `set-cookie` exactly as below. That keeps
+ * Better Auth in charge of session creation and cookie signing.
  */
 async function printSessionCookie(deps: Deps, label: string): Promise<void> {
   const email = `${label}@${EMAIL_DOMAIN}`;

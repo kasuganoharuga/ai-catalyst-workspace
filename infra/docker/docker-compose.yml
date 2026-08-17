@@ -29,6 +29,12 @@ services:
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
       AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      # Google sign-in. Unset by default and NOT :?-required — lib/auth.ts only
+      # reads these when AUTH_GOOGLE_ENABLED is true in
+      # apps/web/lib/feature-flags.ts, so requiring them here would break every
+      # local stack that has no Google client configured.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Must match the mcp service's own MCP_RESOURCE_URL below exactly —
       # see apps/web/lib/mcp-oauth-compat/hooks.ts.
       MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp

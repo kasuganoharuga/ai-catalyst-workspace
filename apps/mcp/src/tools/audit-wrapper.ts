@@ -72,6 +72,10 @@ function outcomeForServiceErrorCode(
     case "INTERNAL_INVARIANT_ERROR":
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
     case "WORKBOOK_RENDER_FAILED":
+    // Provider-side failure — not a caller mistake, so it must not be
+    // recorded as validation_error. No MCP tool sends email today; the case
+    // exists to keep this switch exhaustive.
+    case "EMAIL_SEND_FAILED":
       return "system_error";
     default: {
       const exhaustive: never = code;

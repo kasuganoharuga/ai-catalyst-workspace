@@ -3,47 +3,31 @@
  * every state, so the flow and its copy can be reviewed as a set rather
  * than page by page.
  *
+ * Sign-in appears here once, in the state that is live today. The other
+ * authentication methods are behind build-time flags and need the source
+ * edited to be seen at all, which is scripts/capture-auth.ts's job.
+ *
  * Local development only. It signs in as the `@seed.test` fixtures created
  * by scripts/seed-test-founders.ts — run that first.
  *
  *   pnpm --filter web capture:onboarding
  *   pnpm --filter web capture:onboarding -- --out ../../screenshots
- *
- * Uses playwright-core against the Chrome already installed on this
- * machine rather than pulling down Playwright's own browser bundle.
  */
 import fs from "node:fs/promises";
 import path from "node:path";
 
-import { chromium, type Browser, type Page } from "playwright-core";
+import type { Browser, Page } from "playwright-core";
+
+import {
+  DEVICE_SCALE_FACTOR,
+  launchCaptureBrowser,
+  resolveOutDir,
+  VIEWPORT,
+  writeIndex,
+} from "./capture-support";
 
 const BASE_URL = process.env.CAPTURE_BASE_URL ?? "http://localhost:3000";
 const PASSWORD = "TestFounder!2026";
-const VIEWPORT = { width: 1440, height: 900 };
-
-const CHROME_CANDIDATES = [
-  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
-  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
-  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium",
-];
-
-async function resolveBrowserPath(): Promise<string> {
-  for (const candidate of CHROME_CANDIDATES) {
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      // Try the next one.
-    }
-  }
-  throw new Error(
-    "No Chrome or Edge found. Set CAPTURE_BROWSER_PATH to a Chromium binary.",
-  );
-}
 
 interface Shot {
   /** File name, without extension. Numbered so the set reads in order. */
@@ -79,7 +63,8 @@ const SHOTS: Shot[] = [
     name: "01-sign-in",
     account: "",
     path: "/",
-    looksAt: "Sign-in page. Marketing copy and the cohort note.",
+    looksAt:
+      "Sign-in page as it ships today: email and password only. scripts/capture-auth.ts has the same page with Google and the emailed code turned on.",
   },
   {
     name: "02-dashboard-first-visit",
@@ -300,7 +285,7 @@ async function capture(
 ): Promise<void> {
   const context = await browser.newContext({
     viewport: VIEWPORT,
-    deviceScaleFactor: 2,
+    deviceScaleFactor: DEVICE_SCALE_FACTOR,
   });
   const page = await context.newPage();
 
@@ -338,15 +323,10 @@ async function capture(
 }
 
 async function main(): Promise<void> {
-  const outFlag = process.argv.indexOf("--out");
-  const outDir = path.resolve(
-    outFlag === -1 ? "screenshots/onboarding" : process.argv[outFlag + 1],
-  );
+  const outDir = resolveOutDir("screenshots/onboarding");
   await fs.mkdir(outDir, { recursive: true });
 
-  const executablePath =
-    process.env.CAPTURE_BROWSER_PATH ?? (await resolveBrowserPath());
-  const browser = await chromium.launch({ executablePath, headless: true });
+  const browser = await launchCaptureBrowser();
 
   const failures: string[] = [];
   try {
