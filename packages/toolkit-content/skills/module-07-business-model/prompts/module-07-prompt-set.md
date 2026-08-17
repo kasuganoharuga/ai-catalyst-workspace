@@ -100,10 +100,13 @@ average is a live cite.
 I will only ask a new factual question when a material fact is genuinely missing. We will cover,
 in order:
 1. Fastest path to first dollar — concrete steps; flag every step that requires talking to customers;
-   prospects → conversations/replies → qualified calls → paid pilots funnel (every number ASSUMPTION)
+   prospects → conversations/replies → qualified calls → paid pilots funnel (every number ASSUMPTION).
+   Agreement to test a free prototype is a non-revenue milestone, not a paid pilot
 2. Three revenue streams — primary now + two later layers, with when later layers must not start
 3. Pricing — exact starting dollars per near-term stream, psychology, and reviewed-URL benchmark or
-   assumption; a future undefined stream may say exactly "Not yet priceable"
+   assumption; a competitor's reviewed price may be BENCHMARKED, but the venture price stays
+   ASSUMPTION until buying evidence supports that specific number; a future undefined stream may
+   say exactly "Not yet priceable"
 4. The offer that makes them say yes — smallest credible paid yes, operational capacity boundary;
    cite evidence or name the gap
 5. Cost structure — must spend vs explicitly avoid
@@ -135,12 +138,12 @@ I will attack the confirmed prices rather than ask you to redesign them:
 | # | `question_key` | `question_text` | Type |
 |---|---|---|---|
 | 1 | `model_inputs` | What is the starting budget, weekly time available, and measurable month-1 and month-6 goals? | long_text |
-| 2 | `path_to_first_dollar` | What is the recommended shortest concrete path to one paying customer, which steps require live customer conversation, and what prospects-to-paid-pilots funnel assumptions apply? | long_text |
+| 2 | `path_to_first_dollar` | What is the recommended shortest concrete path to one paying customer, which steps require live customer conversation, and what prospects-to-paid-pilots funnel assumptions apply — keeping free-prototype tests distinct from paid pilots? | long_text |
 | 3 | `revenue_streams` | What is the recommended primary revenue stream to start now, and which two streams should layer later? | long_text |
-| 4 | `pricing_strategy` | What recommended exact starting prices apply per near-term stream, with psychology and benchmark or assumption tags, and which future streams are Not yet priceable? | long_text |
+| 4 | `pricing_strategy` | What recommended exact starting prices apply per near-term stream, with psychology and benchmark or assumption tags — a venture price informed by a competitor benchmark stays ASSUMPTION until buying evidence supports it — and which future streams are Not yet priceable? | long_text |
 | 5 | `yes_offer` | What packaged offer (price, inclusions, terms, time-bound element, operational capacity boundary) is the smallest credible paid yes, and what evidence or remaining conversation supports it? | long_text |
 | 6 | `cost_structure` | What must be spent now, at rough amounts, and what should be avoided for now? | long_text |
-| 7 | `cash_flow_90d` | What is the week-by-week 90-day cash flow, the actual break-even week or No break-even within 90 days, and does the base case support the Month-1 and Month-6 goals? | long_text |
+| 7 | `cash_flow_90d` | What is the week-by-week 90-day cash flow, the actual break-even week or No break-even within 90 days, and does the base case support the Month-1 and Month-6 goals — without converting a free-prototype test into evidenced inflow? | long_text |
 | 8 | `pricing_pressure_test` | What are the strongest counter-arguments, the evidence that would flip pricing more than 30%, and the 2-week falsifiable experiment — distinguishing whole-offer failure from price-specific failure? | long_text |
 
 ---
@@ -269,6 +272,10 @@ Work these six parts in this exact order:
   Make every funnel quantity and conversion rate an explicit ASSUMPTION and state what would change
   it. The purpose is to expose the critical conversion assumption, not to make the funnel look
   certain.
+- Keep non-paid testing stages semantically distinct. Agreement or willingness to test a free
+  prototype is a non-revenue milestone, not a paid pilot, paying customer, LOI, or evidenced inflow.
+  Show the later paid-conversion conversation as a separate, non-guaranteed step unless a real paid
+  commitment already exists.
 - Tag every other numeric claim BENCHMARKED (reviewed source URL) or ASSUMPTION (what would change
   it). A URL that was not actually reviewed does not qualify.
 
@@ -295,6 +302,10 @@ Work these six parts in this exact order:
   when that reviewed URL supports it. If there is no reviewed URL, including when relying on a
   remembered norm, generic industry knowledge, or a "typical cost", mark the number ASSUMPTION and
   state what evidence would change it.
+- A competitor's reviewed price may be BENCHMARKED; the venture's recommended price does not inherit
+  that status merely because the benchmark informed it. Label the venture price `ASSUMPTION —
+  informed by BENCHMARKED competitor pricing` until direct, relevant buying evidence supports that
+  specific price.
 - Direct, relevant willingness-to-pay evidence from real customer interviews takes precedence over
   category averages and competitor benchmarks. Distinguish an interview opinion from an actual
   purchase, deposit, signed LOI, or paid pilot; do not upgrade weak evidence.
@@ -328,6 +339,9 @@ Work these six parts in this exact order:
 - Label every individual inflow EVIDENCED or ASSUMED and identify its basis. EVIDENCED requires a
   real commitment such as an existing paying customer, paid pilot, deposit, or signed LOI; an
   interview or forecast alone is not evidenced revenue.
+- A commitment or willingness to test a free prototype is not a paid commitment and must never be
+  converted into a paid-pilot inflow. Preserve it only as a non-revenue milestone unless a separate
+  paid-conversion commitment exists.
 - Never invent, inflate, pull forward, or otherwise manipulate assumed inflows to manufacture a
   break-even point. If cumulative net cash never becomes non-negative during the period, state
   exactly `No break-even within 90 days`. Otherwise identify the actual first break-even week.
@@ -450,7 +464,13 @@ Generate Module 7's three artefacts from confirmed Responses. Generate nothing e
 - Preserve BENCHMARKED / ASSUMPTION tags and source URLs exactly. BENCHMARKED is allowed only when
   a real supporting source URL was actually reviewed. Any number without one — including a
   remembered norm, generic industry knowledge, or "typical cost" — must be ASSUMPTION.
+- A reviewed competitor price may be BENCHMARKED, but a venture price derived from it remains
+  `ASSUMPTION — informed by BENCHMARKED competitor pricing` until direct, relevant buying evidence
+  supports that specific venture price.
 - Do not invent evidenced inflows.
+- Preserve the distinction between a free-prototype test commitment and a paid pilot. Willingness or
+  agreement to test is a non-revenue milestone and must not become a paying customer, paid pilot,
+  LOI, or EVIDENCED inflow without a separate real paid commitment.
 - Put the complete cash-flow content in `90-Day-Cash-Flow.md`, not in `Business-Model.md`.
   Include all 13 cash-flow weeks and label every individual inflow EVIDENCED or ASSUMED with its
   basis. Do not upgrade interviews or forecasts into evidenced revenue.
@@ -509,6 +529,11 @@ table fails this check, repair it before preview or save; never preview or save 
   `No break-even within 90 days`. If Month-1 or Month-6 is missed, write exactly
   `Goal status: Not achieved in this base-case projection`.
 - **BENCHMARKED only with a reviewed URL.** Remembered norms and "typical cost" are ASSUMPTION.
+  A competitor's reviewed price may be BENCHMARKED; the venture's recommended price does not inherit
+  that status. Label it `ASSUMPTION — informed by BENCHMARKED competitor pricing` until buying
+  evidence supports that specific price.
+- **Free-prototype tests are not paid pilots.** Willingness to test is a non-revenue milestone and
+  must never become a paying customer, paid-pilot inflow, LOI, or EVIDENCED cash-flow line.
 - **No investor slide.** Same call as Modules 3–6.
 - **Cash flow is Markdown**, not `.xlsx` — seedable and reviewable; export can come later.
 - **Search/Extended Thinking** are client toggles; the facilitator must not fake live benchmarks.

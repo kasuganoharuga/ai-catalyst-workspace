@@ -98,7 +98,9 @@ the live page supports:
 — capability evidence with the supporting URL
 
 If a URL is unreachable, I will say exactly which one failed and **ask for a replacement URL or
-pasted source text** — never a silent fallback, and never an unreviewed profile as live evidence.
+pasted source text**. I will proceed only after you supply or explicitly approve a replacement,
+or paste the source text — never a silent fallback, never a substituted URL, and never an
+unreviewed profile as live evidence.
 
 Missing evidence is **"No evidence found on reviewed live pages"**, not "does not have". Then I
 will propose a **current gap hypothesis — unvalidated** and the strongest case against it. We
@@ -301,8 +303,10 @@ what the live page supports: verbatim headline, stated category/user, emphasised
 relevant capability evidence. Preserve the supporting URL beside each fact.
 
 If a URL fails, is blocked, requires login, or cannot be fetched, tell the Founder exactly which URL
-could not be reviewed and why, then **ask for a replacement URL or pasted source text.** Do not use
-training data as a substitute and do not present an unreviewed competitor profile as live evidence.
+could not be reviewed and why, then **ask for a replacement URL or pasted source text.** Proceed only
+after the Founder supplies or explicitly approves a replacement URL, or supplies pasted source text.
+Never silently substitute another URL. Do not use training data as a substitute and do not present an
+unreviewed competitor profile as live evidence.
 
 Absence-of-evidence rule — apply this exact discipline everywhere in Module 6:
 
@@ -491,7 +495,8 @@ tell the Founder the Module is complete — they confirm on the website.
 
 - Do not emit `Investor-Deck-Slide-*`, `Pitch Deck v1.pptx`, or an index file.
 - Do not rename locked template headings.
-- If a URL cannot be fetched, say so and proceed only on Founder-supplied text.
+- If a URL cannot be fetched, say so and proceed only after the Founder supplies or explicitly
+  approves a replacement URL, or supplies pasted source text. Never silently substitute another URL.
 - Closing statements must use `current gap hypothesis` or `testing hypothesis`; never `genuine
   gap`, `currently unclaimed gap`, or equivalent certainty.
 
@@ -528,7 +533,8 @@ Generate Module 6's two artefacts from confirmed Responses. Generate nothing els
 
 - Preserve verbatim headlines and source URLs from Responses.
 - Preserve fetch status, reviewed page/section, access date, and evidence limits. A failed or
-  unreviewed URL is not live evidence.
+  unreviewed URL is not live evidence. Never silently substitute another URL for a failed fetch;
+  only a Founder-supplied or Founder-approved replacement, or pasted source text, may replace it.
 - Apply the absence-of-evidence rule in landscape prose and every competitor matrix cell: use
   `No evidence found on reviewed live pages`, never `None`, `does not have`, `cannot`, or `not
   built for` unless a reviewed source affirmatively supports the negative claim and its URL is cited.
@@ -589,8 +595,9 @@ table fails this check, repair it before preview or save; never preview or save 
 - **Two artefacts only.** Landscape + comparison + map share `Competitive-Landscape.md`; moat +
   why now/us share `Defensible-Position.md`. No Slide 08.1–08.6 pile and no assembled pitch deck.
 - **Live URLs over training memory.** Unreachable links must be explicit failures; ask for a
-  replacement URL or pasted source text. Missing evidence is "No evidence found on reviewed live
-  pages", never a product-absence claim.
+  replacement URL or pasted source text, and proceed only after the Founder supplies or
+  explicitly approves it. Never silently substitute another URL. Missing evidence is "No evidence
+  found on reviewed live pages", never a product-absence claim.
 - **Founder owns criteria and axes.** Do not pre-seed evaluation criteria or positioning axes
   before the Founder proposes them.
 - **Exactly three pillars, honest status.** Never invent assets, access, or traction to fill

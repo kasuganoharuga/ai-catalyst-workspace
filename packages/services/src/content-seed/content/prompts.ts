@@ -2311,6 +2311,10 @@ chat, and you read it yourself with your own native file-reading ability.
    contains before saving anything — do not assume one shared document equals one interview.
    Prepare a faithful transcription of what you read — a short filename/title and an
    \`extractedText\` that preserves the interviewee's own words, exact counts and specific facts.
+   If any transcript is synthetic or QA/test material, save it as a separate extract and begin its
+   \`extractedText\` with exactly \`SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE\`. Do not mix
+   synthetic and real interviews in one extract: the source-status label must remain machine-visible
+   when later Responses and artefacts are generated.
    This is not a condensed gist: there is no uploaded file behind it, so your transcription is the
    only copy that will ever exist, and it is the only source later blocks can cite as validated.
    Compressing away a detail now means it is gone for good.
@@ -2788,6 +2792,9 @@ feature Responses are not yet present, and never regenerate it while producing
   checkpoint. Do not silently revert to an unreviewed Module 2 default.
 - Format confirmed answers — do not re-strengthen claims. "Reported interest" stays "reported".
 - Quotes only from the interview notes.
+- Any prep extract labelled \`SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE\` is pressure-test
+  material only. Never present its words as Customer Voice, observed evidence or validation, and
+  never use it to raise a feature's evidence status above assumption.
 - Do not label a feature validated in the artefact unless \`assumption_risks\` / evidence supports it.
 - Differentiator must remain structural in the saved file.
 - Any claim about a competitor or incumbent's limitation stays framed as a current hypothesis in the
@@ -3321,8 +3328,10 @@ what the live page supports: verbatim headline, stated category/user, emphasised
 relevant capability evidence. Preserve the supporting URL beside each fact.
 
 If a URL fails, is blocked, requires login, or cannot be fetched, tell the Founder exactly which URL
-could not be reviewed and why, then **ask for a replacement URL or pasted source text.** Do not use
-training data as a substitute and do not present an unreviewed competitor profile as live evidence.
+could not be reviewed and why, then **ask for a replacement URL or pasted source text.** Proceed only
+after the Founder supplies or explicitly approves a replacement URL, or supplies pasted source text.
+Never silently substitute another URL. Do not use training data as a substitute and do not present an
+unreviewed competitor profile as live evidence.
 
 Absence-of-evidence rule — apply this exact discipline everywhere in Module 6:
 
@@ -3511,7 +3520,8 @@ tell the Founder the Module is complete — they confirm on the website.
 
 - Do not emit \`Investor-Deck-Slide-*\`, \`Pitch Deck v1.pptx\`, or an index file.
 - Do not rename locked template headings.
-- If a URL cannot be fetched, say so and proceed only on Founder-supplied text.
+- If a URL cannot be fetched, say so and proceed only after the Founder supplies or explicitly
+  approves a replacement URL, or supplies pasted source text. Never silently substitute another URL.
 - Closing statements must use \`current gap hypothesis\` or \`testing hypothesis\`; never \`genuine
   gap\`, \`currently unclaimed gap\`, or equivalent certainty.`;
 
@@ -3536,7 +3546,8 @@ Generate Module 6's two artefacts from confirmed Responses. Generate nothing els
 
 - Preserve verbatim headlines and source URLs from Responses.
 - Preserve fetch status, reviewed page/section, access date, and evidence limits. A failed or
-  unreviewed URL is not live evidence.
+  unreviewed URL is not live evidence. Never silently substitute another URL for a failed fetch;
+  only a Founder-supplied or Founder-approved replacement, or pasted source text, may replace it.
 - Apply the absence-of-evidence rule in landscape prose and every competitor matrix cell: use
   \`No evidence found on reviewed live pages\`, never \`None\`, \`does not have\`, \`cannot\`, or \`not
   built for\` unless a reviewed source affirmatively supports the negative claim and its URL is cited.
@@ -3703,6 +3714,10 @@ Work these six parts in this exact order:
   Make every funnel quantity and conversion rate an explicit ASSUMPTION and state what would change
   it. The purpose is to expose the critical conversion assumption, not to make the funnel look
   certain.
+- Keep non-paid testing stages semantically distinct. Agreement or willingness to test a free
+  prototype is a non-revenue milestone, not a paid pilot, paying customer, LOI, or evidenced inflow.
+  Show the later paid-conversion conversation as a separate, non-guaranteed step unless a real paid
+  commitment already exists.
 - Tag every other numeric claim BENCHMARKED (reviewed source URL) or ASSUMPTION (what would change
   it). A URL that was not actually reviewed does not qualify.
 
@@ -3729,6 +3744,10 @@ Work these six parts in this exact order:
   when that reviewed URL supports it. If there is no reviewed URL, including when relying on a
   remembered norm, generic industry knowledge, or a "typical cost", mark the number ASSUMPTION and
   state what evidence would change it.
+- A competitor's reviewed price may be BENCHMARKED; the venture's recommended price does not inherit
+  that status merely because the benchmark informed it. Label the venture price \`ASSUMPTION —
+  informed by BENCHMARKED competitor pricing\` until direct, relevant buying evidence supports that
+  specific price.
 - Direct, relevant willingness-to-pay evidence from real customer interviews takes precedence over
   category averages and competitor benchmarks. Distinguish an interview opinion from an actual
   purchase, deposit, signed LOI, or paid pilot; do not upgrade weak evidence.
@@ -3762,6 +3781,9 @@ Work these six parts in this exact order:
 - Label every individual inflow EVIDENCED or ASSUMED and identify its basis. EVIDENCED requires a
   real commitment such as an existing paying customer, paid pilot, deposit, or signed LOI; an
   interview or forecast alone is not evidenced revenue.
+- A commitment or willingness to test a free prototype is not a paid commitment and must never be
+  converted into a paid-pilot inflow. Preserve it only as a non-revenue milestone unless a separate
+  paid-conversion commitment exists.
 - Never invent, inflate, pull forward, or otherwise manipulate assumed inflows to manufacture a
   break-even point. If cumulative net cash never becomes non-negative during the period, state
   exactly \`No break-even within 90 days\`. Otherwise identify the actual first break-even week.
@@ -3872,7 +3894,13 @@ Generate Module 7's three artefacts from confirmed Responses. Generate nothing e
 - Preserve BENCHMARKED / ASSUMPTION tags and source URLs exactly. BENCHMARKED is allowed only when
   a real supporting source URL was actually reviewed. Any number without one — including a
   remembered norm, generic industry knowledge, or "typical cost" — must be ASSUMPTION.
+- A reviewed competitor price may be BENCHMARKED, but a venture price derived from it remains
+  \`ASSUMPTION — informed by BENCHMARKED competitor pricing\` until direct, relevant buying evidence
+  supports that specific venture price.
 - Do not invent evidenced inflows.
+- Preserve the distinction between a free-prototype test commitment and a paid pilot. Willingness or
+  agreement to test is a non-revenue milestone and must not become a paying customer, paid pilot,
+  LOI, or EVIDENCED inflow without a separate real paid commitment.
 - Put the complete cash-flow content in \`90-Day-Cash-Flow.md\`, not in \`Business-Model.md\`.
   Include all 13 cash-flow weeks and label every individual inflow EVIDENCED or ASSUMED with its
   basis. Do not upgrade interviews or forecasts into evidenced revenue.

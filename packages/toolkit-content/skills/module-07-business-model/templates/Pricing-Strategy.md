@@ -4,7 +4,9 @@
 stream may say exactly "Not yet priceable" and must state what must be validated first. The AI
 recommends prices; the Founder reviews. A number is BENCHMARKED only when a real supporting source
 URL was actually reviewed. Remembered norms, generic industry knowledge, and "typical cost" are
-ASSUMPTION. Willingness-to-pay from interviews outweighs category averages when present. Do not
+ASSUMPTION. A competitor's reviewed price may be BENCHMARKED; the venture's recommended price stays
+ASSUMPTION — informed by BENCHMARKED competitor pricing until buying evidence supports that specific
+number. Willingness-to-pay from interviews outweighs category averages when present. Do not
 upgrade interview opinion into a purchase, deposit, LOI, or paid pilot.>
 
 ## Venture

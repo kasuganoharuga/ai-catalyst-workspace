@@ -339,6 +339,10 @@ chat, and you read it yourself with your own native file-reading ability.
    contains before saving anything — do not assume one shared document equals one interview.
    Prepare a faithful transcription of what you read — a short filename/title and an
    `extractedText` that preserves the interviewee's own words, exact counts and specific facts.
+   If any transcript is synthetic or QA/test material, save it as a separate extract and begin its
+   `extractedText` with exactly `SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE`. Do not mix
+   synthetic and real interviews in one extract: the source-status label must remain machine-visible
+   when later Responses and artefacts are generated.
    This is not a condensed gist: there is no uploaded file behind it, so your transcription is the
    only copy that will ever exist, and it is the only source later blocks can cite as validated.
    Compressing away a detail now means it is gone for good.
@@ -828,6 +832,9 @@ feature Responses are not yet present, and never regenerate it while producing
   checkpoint. Do not silently revert to an unreviewed Module 2 default.
 - Format confirmed answers — do not re-strengthen claims. "Reported interest" stays "reported".
 - Quotes only from the interview notes.
+- Any prep extract labelled `SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE` is pressure-test
+  material only. Never present its words as Customer Voice, observed evidence or validation, and
+  never use it to raise a feature's evidence status above assumption.
 - Do not label a feature validated in the artefact unless `assumption_risks` / evidence supports it.
 - Differentiator must remain structural in the saved file.
 - Any claim about a competitor or incumbent's limitation stays framed as a current hypothesis in the
@@ -873,6 +880,10 @@ table fails this check, repair it before preview or save; never preview or save 
   at North Star review. The Module 2 beachhead is replayed for confirmation or refinement, never
   recreated from scratch. Validated vs assumed is derived from interview and upstream evidence, not
   Founder self-classification.
+- **Synthetic / QA transcripts.** Save them as a separate extract whose `extractedText` begins with
+  exactly `SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE`. They may meet the count floor and
+  pressure-test a hypothesis, but must never become Customer Voice, observed evidence, or a reason
+  to raise a feature above assumption.
 - **The 5-interview floor is deliberately narrow, not a return to the old interview system.**
   Migration `0018_retire_interview_tables.sql` retired `interview_activities`/`interview_records` and
   the website form in front of them, arguing against a database-enforced floor. The floor added here

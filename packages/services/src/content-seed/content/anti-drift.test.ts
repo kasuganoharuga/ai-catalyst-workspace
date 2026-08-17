@@ -452,3 +452,43 @@ describe("seeded prompt content matches the reviewed prompt set", () => {
     });
   }
 });
+
+describe("Modules 4-7 QA hardening contracts", () => {
+  it("keeps synthetic Module 4 transcripts out of customer evidence", () => {
+    expect(promptContentByKey("solution_statement_facilitator")).toContain(
+      "SOURCE STATUS: SYNTHETIC / QA — NOT CUSTOMER EVIDENCE",
+    );
+    expect(
+      promptContentByKey("solution_statement_artifact_generator"),
+    ).toContain(
+      "Never present its words as Customer Voice, observed evidence or validation",
+    );
+  });
+
+  it("requires Founder approval before a Module 6 replacement URL is used", () => {
+    expect(promptContentByKey("competitive_analysis_facilitator")).toContain(
+      "approves a replacement URL",
+    );
+    expect(
+      promptContentByKey("competitive_analysis_artifact_generator"),
+    ).toContain("Never silently substitute another URL for a failed fetch");
+  });
+
+  it("keeps Module 7 test commitments separate from paid pilots", () => {
+    expect(promptContentByKey("business_model_facilitator")).toContain(
+      "prototype is a non-revenue milestone",
+    );
+    expect(promptContentByKey("business_model_artifact_generator")).toContain(
+      "free-prototype test commitment and a paid pilot",
+    );
+  });
+
+  it("does not transfer competitor benchmark status to a venture price", () => {
+    expect(promptContentByKey("business_model_facilitator")).toContain(
+      "venture's recommended price does not inherit",
+    );
+    expect(promptContentByKey("business_model_artifact_generator")).toContain(
+      "a venture price derived from it remains",
+    );
+  });
+});

@@ -205,7 +205,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 2,
     questionGroup: "model",
     questionText:
-      "What is the recommended shortest concrete path to one paying customer, which steps require live customer conversation, and what prospects-to-paid-pilots funnel assumptions apply?",
+      "What is the recommended shortest concrete path to one paying customer, which steps require live customer conversation, and what prospects-to-paid-pilots funnel assumptions apply — keeping free-prototype tests distinct from paid pilots?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -233,7 +233,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 4,
     questionGroup: "model",
     questionText:
-      "What recommended exact starting prices apply per near-term stream, with psychology and benchmark or assumption tags, and which future streams are Not yet priceable?",
+      "What recommended exact starting prices apply per near-term stream, with psychology and benchmark or assumption tags — a venture price informed by a competitor benchmark stays ASSUMPTION until buying evidence supports it — and which future streams are Not yet priceable?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -275,7 +275,7 @@ const MODULE_7_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 7,
     questionGroup: "model",
     questionText:
-      "What is the week-by-week 90-day cash flow, the actual break-even week or No break-even within 90 days, and does the base case support the Month-1 and Month-6 goals?",
+      "What is the week-by-week 90-day cash flow, the actual break-even week or No break-even within 90 days, and does the base case support the Month-1 and Month-6 goals — without converting a free-prototype test into evidenced inflow?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",

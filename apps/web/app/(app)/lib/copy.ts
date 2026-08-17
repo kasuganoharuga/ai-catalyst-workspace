@@ -736,7 +736,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-01-pressure-test": {
     briefTitle: "What this module is for",
     briefBody:
-      "The goal of this module is to pressure-test your initial idea. The output is supporting analysis — success conditions, potential failure reasons, recommended next steps, and unresolved assumptions — to help you hone the idea.",
+      "The goal of this module is to pressure-test your initial idea. The output will be supporting analysis for your idea that will include success conditions, potential failure reasons, recommended next steps and unresolved assumptions to help you hone your idea.",
     whyBody:
       "Most ideas fail because nobody asked the hard questions early enough. By the time the market answers them, a year and a lot of money are gone. This is the cheap version of that conversation.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -783,7 +783,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-02-customer-avatar": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant narrows a broad customer category into one specific beachhead customer — precise enough to find, interview and act on. You'll define who they are, what they need, and how to recognise when they're ready to buy, then confirm a structured Ideal Customer Avatar.",
+      "The purpose of this module is to help you create a hypothesised ideal customer avatar with a beachhead profile to further validate in customer interviews. At the end of this module you will receive a completed artefact that will include detail on who your beachhead customer could be, where to find them, what triggers their problem, what they need, buying signals, and who to include.",
     whyBody:
       'A product built for "everyone" is a product nobody urgently needs. Naming one beachhead customer precisely turns a vague idea into something you can actually find, interview and test with.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -832,7 +832,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-03-problem-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to dig into the most valuable problems your customer has, the root causes behind them, and how intense and urgent the pain really is. You'll come away with a draft problem statement and a customer discovery interview guide to validate the problem space.",
+      "The purpose of this module is to dig into the most valuable problems your customer has, the root causes of them, the intensity and priority need. You will receive a draft problem statement and a Customer Discovery Interview Guide for you to use to validate the problem space.",
     whyBody:
       "The first complaint a customer names is rarely the reason the problem persists. Building for the symptom instead of a testable root-cause hypothesis is how founders end up solving the wrong problem very well.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -885,7 +885,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-04-solution-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant turns the customer and problem you already locked in into a North Star solution statement — one sentence precise enough to guide what gets built — and the three features worth building first, ranked by what your customer actually wants rather than what is interesting to build. The customer from Module 2 is replayed so you can confirm or refine it; the product name and outcome are carried forward unless you correct them.",
+      "The purpose of this module is to turn the confirmed customer and problem understanding into a clear product direction, North Star, and three Minimum Loveable Features.",
     whyBody:
       '"Faster", "easier" and "AI-powered" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -897,7 +897,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Share your interview notes first.",
-        body: "Paste or attach whatever you already have — interview write-ups, research, notes — directly in the chat. Your assistant transcribes and saves them at the start of the conversation, and quotes only ever come from what you actually recorded.",
+        body: "Paste or attach whatever you already have — interview write-ups, research, notes — directly in the chat. Your assistant transcribes and saves them at the start of the conversation. Quotes and validated features come only from real customer evidence, not from synthetic or QA material.",
       },
       {
         lead: "Expect your differentiator to be challenged.",
@@ -922,7 +922,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-05-epics-user-stories": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant turns the three features you chose into a backlog a developer could pick up: three epics, user stories with acceptance criteria written as Given/When/Then, a scored priority order, and an explicit line under what makes the first release loveable rather than merely usable.",
+      "The purpose of this module is to turn the three confirmed Minimum Loveable Features into clear Epics, customer-focused user stories, a prioritised Sprint backlog, and a defined Minimum Loveable Product.",
     whyBody:
       "Most first backlogs are a list of things to build, written from the team's side. Stories written as customer outcomes survive contact with reality better, because you can tell when one is actually done and whether anyone cares.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -960,7 +960,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-06-competitive-analysis": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant takes the position of a Series A investor and tests whether you can actually win this market. You'll build a landscape from live competitor pages, compare on the criteria your customer uses, and leave with exactly three status-labelled defensibility pillars, a position, and why now and why you.",
+      "The purpose of this module is to pressure-test the venture's competitive position using live competitor evidence, then define the market gap, three defensibility pillars, positioning, Why Now, and Why Us.",
     whyBody:
       '"We have no real competitors" is never true — the status quo is a competitor, and it usually wins. Knowing precisely who you are beating, and why they cannot copy you next quarter, is what makes the rest of the plan credible.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -972,7 +972,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Have competitor URLs ready to paste.",
-        body: "Your assistant reads the live pages rather than recalling them. If a link cannot be fetched it will say so rather than guess.",
+        body: "Your assistant reads the live pages rather than recalling them. If a link cannot be fetched it will ask you for a replacement or pasted source text rather than pick another URL.",
       },
       {
         lead: '"Better, faster, cheaper" will be rejected.',
@@ -998,7 +998,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-07-business-model": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant turns everything you've locked in into a money path: the shortest route to a first paying customer, which revenue streams start when, the offer that earns a yes, what to spend on, a separate week-by-week 90-day cash flow, and exact prices with the reasoning behind each number.",
+      "The purpose of this module is to turn the venture into a practical first-dollar business model: how to reach the first paying customer, what to charge, what to spend, what the first 90 days could look like, and how to pressure-test the pricing before relying on it.",
     whyBody:
       "Pricing decided by feel is the most expensive guess a founder makes, and a plan that never requires talking to anyone is the most comfortable way to avoid finding out. Every number here is tagged as benchmarked or assumption so you can see which is which.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -1018,7 +1018,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Steps that need real conversations are marked.",
-        body: "A cash plan that never requires talking to a customer gets flagged as exactly that.",
+        body: "A cash plan that never requires talking to a customer gets flagged as exactly that. Agreeing to test a free prototype is not a paying customer.",
       },
     ],
     optionalPrepDocuments: { label: "Uploaded files" },

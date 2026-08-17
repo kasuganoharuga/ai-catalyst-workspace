@@ -2,9 +2,10 @@
 
 <Every number is tagged BENCHMARKED only when a real supporting source URL was actually reviewed,
 otherwise ASSUMPTION (with what would change it). Remembered norms and "typical cost" are
-ASSUMPTION. Do not invent traction, LOIs, or Customer Voice. Steps that require live customer
-conversation are marked explicitly. The AI recommends the model; the Founder reviews it. The 90-day
-cash-flow table belongs in 90-Day-Cash-Flow.md, not here.>
+ASSUMPTION. Do not invent traction, LOIs, or Customer Voice. Agreement to test a free prototype is
+a non-revenue milestone, not a paid pilot. Steps that require live customer conversation are marked
+explicitly. The AI recommends the model; the Founder reviews it. The 90-day cash-flow table belongs
+in 90-Day-Cash-Flow.md, not here.>
 
 ## Venture
 - Venture name:
