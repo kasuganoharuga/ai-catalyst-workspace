@@ -960,7 +960,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-06-competitive-analysis": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant takes the position of a Series A investor and tests whether you can actually win this market. You'll build a landscape from live competitor pages, compare on the criteria your customer uses, and defend a moat, a position, and why now and why you.",
+      "Your AI assistant takes the position of a Series A investor and tests whether you can actually win this market. You'll build a landscape from live competitor pages, compare on the criteria your customer uses, and leave with exactly three status-labelled defensibility pillars, a position, and why now and why you.",
     whyBody:
       '"We have no real competitors" is never true — the status quo is a competitor, and it usually wins. Knowing precisely who you are beating, and why they cannot copy you next quarter, is what makes the rest of the plan credible.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -976,7 +976,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: '"Better, faster, cheaper" will be rejected.',
-        body: "So will first-mover advantage. Expect to be pushed for something that is genuinely hard to copy within 18 months.",
+        body: "So will first-mover advantage. You will leave with exactly three pillars, each marked Evidence-backed or Emerging / Assumption — never invented to fill the count.",
       },
       {
         lead: "Every claim is marked evidence or assumption.",

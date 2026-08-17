@@ -64,6 +64,61 @@ const COMPETITIVE_LANDSCAPE_TEMPLATE = `# Competitive Landscape
 -
 `;
 
+const PILLAR_STATUS_ALLOWED = [
+  "Evidence-backed",
+  "Emerging / Assumption",
+] as const;
+
+function defensiblePillarDraftRules(pillarNumber: 1 | 2 | 3) {
+  const scope = { level: 4, heading: `Pillar ${pillarNumber}` };
+  const prefix = `pillar_${pillarNumber}`;
+  return [
+    {
+      key: `${prefix}_name`,
+      type: "label_present" as const,
+      label: "Name",
+      scope,
+    },
+    {
+      key: `${prefix}_mechanism`,
+      type: "label_present" as const,
+      label: "Structural mechanism",
+      scope,
+    },
+    {
+      key: `${prefix}_status`,
+      type: "label_enum" as const,
+      label: "Status",
+      allowed: [...PILLAR_STATUS_ALLOWED],
+      scope,
+    },
+    {
+      key: `${prefix}_basis`,
+      type: "label_present" as const,
+      label: "Evidence or assumption basis",
+      scope,
+    },
+    {
+      key: `${prefix}_compounds`,
+      type: "label_present" as const,
+      label: "Why it could compound with usage",
+      scope,
+    },
+    {
+      key: `${prefix}_hard_to_copy`,
+      type: "label_present" as const,
+      label: "Why it could become hard to copy within 18 months",
+      scope,
+    },
+    {
+      key: `${prefix}_still_to_prove`,
+      type: "label_present" as const,
+      label: "What still must be proven or built",
+      scope,
+    },
+  ];
+}
+
 const DEFENSIBLE_POSITION_TEMPLATE = `# Defensible Position
 
 ## Venture
@@ -72,31 +127,55 @@ const DEFENSIBLE_POSITION_TEMPLATE = `# Defensible Position
 
 ## Differentiation & moat
 
-### Accepted pillars
+### Defensibility pillars
 
 #### Pillar 1
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 #### Pillar 2
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 #### Pillar 3
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 ### Rejected claims
 
@@ -201,7 +280,7 @@ const MODULE_6_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 6,
     questionGroup: "moat",
     questionText:
-      "Which moat pillars survive stress-testing (0–3; none proven is valid), which claims were rejected, and why?",
+      "Which three Founder-confirmed defensibility pillars apply — each with status Evidence-backed or Emerging / Assumption — which claims were rejected, and why?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -243,7 +322,7 @@ const MODULE_6_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 9,
     questionGroup: "timing",
     questionText:
-      "What structural team advantages apply, each flagged as evidence or assumption?",
+      "What structural team advantages apply, each flagged as evidence or assumption — empty traction and no demonstrated proprietary access are valid?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -400,7 +479,7 @@ const DEFENSIBLE_POSITION_ARTIFACT: ArtifactContent = {
   sequenceIndex: 2,
   name: "Defensible Position",
   description:
-    "Accepted moat pillars (0–3; none proven is valid) with rejected claims kept visible, plus Why Now and Why Us.",
+    "Exactly three status-labelled defensibility pillars (Evidence-backed or Emerging / Assumption) with rejected claims kept visible, plus Why Now and Why Us.",
   isRequired: true,
   artifactType: "document",
   sourceFormat: "markdown",
@@ -425,7 +504,10 @@ const DEFENSIBLE_POSITION_ARTIFACT: ArtifactContent = {
         sections: [
           { level: 2, heading: "Venture" },
           { level: 2, heading: "Differentiation & moat" },
-          { level: 3, heading: "Accepted pillars" },
+          { level: 3, heading: "Defensibility pillars" },
+          { level: 4, heading: "Pillar 1" },
+          { level: 4, heading: "Pillar 2" },
+          { level: 4, heading: "Pillar 3" },
           { level: 3, heading: "Rejected claims" },
           { level: 2, heading: "Why now" },
           { level: 2, heading: "Why us" },
@@ -444,6 +526,9 @@ const DEFENSIBLE_POSITION_ARTIFACT: ArtifactContent = {
         label: "Product name / working title",
         scope: { level: 2, heading: "Venture" },
       },
+      ...defensiblePillarDraftRules(1),
+      ...defensiblePillarDraftRules(2),
+      ...defensiblePillarDraftRules(3),
       {
         key: "rejected_claims_rows",
         type: "minimum_table_rows",
@@ -489,9 +574,9 @@ export const MODULE_6_CONTENT: ModuleContent = {
   title: "Competitive analysis",
   subtitle: "Prove you know the market and can win it",
   description:
-    "Pressure-tests the competitive landscape against live competitor pages: feature comparison, moat, positioning, why now and why us — every claim flagged evidence or assumption.",
+    "Pressure-tests the competitive landscape against live competitor pages: feature comparison, exactly three status-labelled defensibility pillars, positioning, why now and why us — every claim flagged evidence or assumption.",
   objective:
-    "Establish a defensible competitive position, or an honest account of why one does not exist yet.",
+    "Establish exactly three structurally credible defensibility pillars, each labelled Evidence-backed or Emerging / Assumption.",
   moduleType: "standard",
   isRequired: true,
   allowRevisions: true,

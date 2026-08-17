@@ -1,8 +1,9 @@
 # Defensible Position
 
-<Moat claims must be structural. Accept 0–3 pillars; None proven at this stage is valid and
-must not be filled with invented pillars. Rejected pillars stay visible with why they failed.
-Every Why Now / Why Us claim is Evidence or Assumption.>
+<Exactly three structurally credible pillars. Never invent assets, access, data
+rights, traction, customer behaviour, or barriers to fill the count. Status is
+exactly Evidence-backed or Emerging / Assumption. Rejected claims stay visible
+with why they failed. Every Why Now / Why Us claim is Evidence or Assumption.>
 
 ## Venture
 - Venture name:
@@ -10,31 +11,55 @@ Every Why Now / Why Us claim is Evidence or Assumption.>
 
 ## Differentiation & moat
 
-### Accepted pillars
+### Defensibility pillars
 
 #### Pillar 1
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 #### Pillar 2
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 #### Pillar 3
 
 **Name:**
 
-**Why it compounds:**
+**Structural mechanism:**
 
-**Why it is hard to copy in 18 months:**
+**Status:**
+
+**Evidence or assumption basis:**
+
+**Why it could compound with usage:**
+
+**Why it could become hard to copy within 18 months:**
+
+**What still must be proven or built:**
 
 ### Rejected claims
 
