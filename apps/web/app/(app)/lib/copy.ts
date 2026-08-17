@@ -885,15 +885,15 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-04-solution-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "Your AI assistant turns the customer and problem you already locked in into a North Star solution statement — one sentence precise enough to guide what gets built — and the three features worth building first, ranked by what your customer actually wants rather than what is interesting to build.",
+      "Your AI assistant turns the customer and problem you already locked in into a North Star solution statement — one sentence precise enough to guide what gets built — and the three features worth building first, ranked by what your customer actually wants rather than what is interesting to build. The customer from Module 2 is replayed so you can confirm or refine it; the product name and outcome are carried forward unless you correct them.",
     whyBody:
       '"Faster", "easier" and "AI-powered" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.',
     whyBuildsOn: (moduleIndex: string) =>
-      `Your beachhead customer and root-cause problem from Modules 2 and ${moduleIndex} are the inputs — you will not be asked to describe either again. The solution has to address that problem, for that customer.`,
+      `Your beachhead customer and root-cause problem from Modules 2 and ${moduleIndex} are the inputs. The customer is replayed so you can confirm or refine it; you will not be asked to recreate the problem.`,
     before: [
       {
         lead: "Allow 40–45 minutes.",
-        body: "Three conversation blocks: what you are building and why it wins, the three Minimum Loveable features and their benefits, then ranking and honest assumption risks.",
+        body: "Three conversation blocks: confirm the customer then name the category and why it wins, the three Minimum Loveable features and their benefits, then ranking and honest assumption risks.",
       },
       {
         lead: "Share your interview notes first.",

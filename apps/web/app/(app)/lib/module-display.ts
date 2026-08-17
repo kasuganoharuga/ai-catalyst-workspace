@@ -124,14 +124,14 @@ const QUESTION_LABELS: Record<string, Record<string, string>> = {
     validation_status: "How much of this is evidence, not assumption",
   },
   [MODULE_4_KEY]: {
-    product_definition: "What you are building, and for whom",
+    product_definition: "The category, and who this is for",
     differentiator: "The structural reason this wins",
     north_star_statement: "The solution in one sentence",
     feature_brain_dump: "Every feature on the table",
     most_valuable_features: "The three worth building first",
     feature_benefits: "What each one does for them",
     desirability_order: "The order they would want them",
-    assumption_risks: "What is validated, and what is assumed",
+    assumption_risks: "What evidence validates, and what is still assumed",
   },
 };
 

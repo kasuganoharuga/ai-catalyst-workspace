@@ -1,8 +1,9 @@
 # North Star
 
 <One-line internal solution statement — not a tagline. Paste-ready at the top of every product doc.
-Structure: "[Product name] is a [category] that helps [beachhead customer] to [outcome] by
-[differentiator].">
+Structure: "[Existing product name] is a [category] that helps [confirmed/refined customer] to
+[outcome derived from Modules 2–3] by [differentiator]. Carry forward name and outcome unless the
+Founder corrects them at review.">
 
 ## Venture
 - Venture name:

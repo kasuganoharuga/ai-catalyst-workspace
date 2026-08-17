@@ -109,7 +109,7 @@ const SOLUTION_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 1,
     questionGroup: "north_star",
     questionText:
-      "What is the product name or working title, what category is it, and what core outcome does it deliver for the beachhead customer?",
+      "What is the product category, and which confirmed or refined customer, carried-forward product name, and outcome from Modules 2–3 should the North Star use?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -137,7 +137,7 @@ const SOLUTION_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 3,
     questionGroup: "north_star",
     questionText:
-      "What is the confirmed one-line North Star solution statement?",
+      "What is the confirmed one-line North Star in the shape: existing product name is a category that helps the confirmed or refined customer to the outcome from Modules 2–3 by the differentiator?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -193,7 +193,7 @@ const SOLUTION_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 7,
     questionGroup: "rank",
     questionText:
-      "In what order would the beachhead customer most want the three features delivered, and what evidence supports that order?",
+      "In what order would the beachhead customer most want the three features delivered, what evidence supports that order, and would the Founder change it?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -207,7 +207,7 @@ const SOLUTION_QUESTIONS: QuestionContent[] = [
     sequenceIndex: 8,
     questionGroup: "rank",
     questionText:
-      "Which feature would be cut first, which are validated vs assumed, and what must be learned before building each?",
+      "Which feature would the Founder cut first, and for each of the three, is it validated or assumed from interview and upstream evidence, and what must still be learned?",
     helpText: null,
     placeholderText: null,
     responseType: "long_text",
@@ -442,7 +442,7 @@ export const MODULE_4_CONTENT: ModuleContent = {
   subtitle:
     "Name what you are building, prove why it wins, and pick the three features worth building first",
   description:
-    "Turns the locked beachhead and problem, plus whatever interview material the Founder uploaded, into a North Star solution statement and three Minimum Loveable features ranked by customer desirability.",
+    "Confirms or refines the Module 2 customer, then turns the locked problem plus interview notes into a North Star solution statement and three Minimum Loveable features ranked by customer desirability.",
   objective:
     "Commit to a precise solution statement with a structural differentiator, and prioritise three features by what the customer actually wants.",
   moduleType: "standard",

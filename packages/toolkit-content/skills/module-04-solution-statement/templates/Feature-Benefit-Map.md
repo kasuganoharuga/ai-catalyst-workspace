@@ -34,7 +34,8 @@ creates — that is what drives purchase.>
 
 ## Desirability Order
 
-<Customer desirability — not technical complexity or founder preference.>
+<Customer desirability — not technical complexity or founder preference. The facilitator proposes
+the ranking and evidence strength first; the Founder may change the order.>
 
 ### Founder ranking
 
@@ -53,6 +54,9 @@ creates — that is what drives purchase.>
 -
 
 ## Assumption Risks
+
+<Validated or assumed is derived from interview notes and upstream evidence. Do not ask the Founder
+to classify each feature.>
 
 | Feature | Validated or assumed | What to learn | How to learn it |
 |---|---|---|---|
