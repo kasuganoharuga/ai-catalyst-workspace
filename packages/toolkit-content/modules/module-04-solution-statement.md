@@ -1,4 +1,4 @@
-# Module 04: Solution statement, features & benefits
+# Module 04: Create a Solution
 
 Define what you are building and why it will win — after interviews are submitted and confirmed.
 

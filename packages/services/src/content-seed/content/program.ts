@@ -5,8 +5,8 @@ import type { ProgramContent } from "../types.js";
 // releaseNotes below is the in-place changelog for this row, not per-edit program_versions.
 const V1_CHANGELOG = [
   "## Modules 1-7 sequenced; Proof retired; interviews become uploaded documents",
-  "The full sequence is now seeded: Pressure-Test, Target Customer, Problem & Five Whys, Solution, ",
-  "Epics & user stories, Competitive analysis, Business model. Module 4 is Solution ",
+  "The full sequence is now seeded: Pressure-Test, Ideal Customer Profile, Problem Statement & Customer Discovery Guide, Solution, ",
+  "Epics & User Stories, Competitor Analysis, Business Model Options. Module 4 is Solution ",
   '("module-04-solution-statement", producing North-Star.md and Feature-Benefit-Map.md); Proof ',
   '("module-04-evidence-of-unmet-need") is archived, and Modules 5-7 replace the label-only ',
   "placeholders that previously sat at those positions. Every entry below this one describes Module ",

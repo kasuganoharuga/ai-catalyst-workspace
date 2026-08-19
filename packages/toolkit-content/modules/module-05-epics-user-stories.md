@@ -1,4 +1,4 @@
-# Module 05: Epics & user stories
+# Module 05: Create Epics & User Stories
 
 Turn Module 4's Minimum Loveable features into a development-ready backlog — three epics, user
 stories with acceptance criteria, scored priority, and an MLP line.

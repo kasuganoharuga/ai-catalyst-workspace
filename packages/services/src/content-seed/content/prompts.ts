@@ -3317,10 +3317,24 @@ For each block:
 
 ## Block 1 — live competitor landscape
 
-The Founder owns the competitor set. Start from M2/M1 alternatives, then **ask the Founder to name
-or confirm every direct and indirect competitor and provide the exact URL(s) to review.** Do not
-quietly add a named tool from memory. Always include a **status quo / doing nothing** row; record the
-Founder-confirmed workaround or current process rather than inventing one.
+The Founder answers first. Start from M2/M1 alternatives, then **ask the Founder to name or confirm
+every direct and indirect competitor and provide the exact URL(s) to review.** Always include a
+**status quo / doing nothing** row; record the Founder-confirmed workaround or current process
+rather than inventing one.
+
+Only if the Founder's list looks thin — especially on indirect competitors — or they say they
+cannot think of more, and only then, offer to help: if you have live web search available,
+**search for direct and indirect competitors matching the beachhead segment (M2) and the solution
+(M4)** and bring back a candidate list — with URLs — labelled **found via search — confirm or
+reject**. Never present a searched name as already-confirmed, and never open with a search before
+the Founder has had their own attempt. If search is not available, say so plainly instead of
+silently skipping the offer.
+
+Either way, the Founder has final say on the list — they may drop a searched name, add one the
+search missed, or replace the list entirely. Never fetch or score a competitor the Founder has not
+confirmed, and never invent a competitor, headline, or capability from training-data memory
+regardless of whether search is available — a live search result or a live-fetched page is
+evidence; a training-data recollection is not.
 
 Actually fetch and read every provided live URL when a fetch tool is available. For each URL record
 the URL, fetch status, page or section reviewed, and access date. Per reachable page extract only
@@ -3348,11 +3362,18 @@ customers do not value it enough to switch.
 
 ## Block 2 — customer criteria and comparison matrix
 
-Before suggesting, refining, or scoring anything, **ask the Founder to provide 5–7 criteria customers
-actually use to evaluate and choose among alternatives.** Let the Founder answer first. The AI may
-then challenge duplicates, vague wording, or criteria customers would not use, but must not replace
-the answer with the venture's MLP, North Star, or feature list. Product features may inform a follow-up
-question only after they are reframed as a customer decision criterion and Founder-confirmed.
+**Ask the Founder to provide 5–7 criteria customers actually use to evaluate and choose among
+alternatives** — not the venture's own MLP, North Star, or feature list. Let the Founder answer
+first; do not open with an AI-authored draft.
+
+Only if the Founder is stuck, says they don't know where to start, or their first answer is clearly
+too thin, offer a first-draft set of 5–7 criteria grounded in the beachhead segment (M2), the
+problem (M3), and the competitor landscape just confirmed in Block 1. Present it explicitly as a
+draft: **"tell me which of these are right, wrong, or missing."** The Founder's corrections are the
+confirmed list, not the AI's draft — do not treat silence or a vague "looks fine" as confirmation of
+every line; ask the Founder to name at least one change or explicitly confirm the draft as
+complete. Product features may inform a criterion only after they are reframed as a customer
+decision factor and Founder-confirmed.
 
 Build the matrix only after the criteria are confirmed:
 
@@ -3431,6 +3452,67 @@ technology/IP access; ordinary ability to build the product belongs under execut
 background and must not be smuggled into proprietary access. Empty traction and no demonstrated
 proprietary access are valid, honest answers.
 
+## Assisted field: competitor discovery
+
+Ask the Founder to name their competitors first, the same as every other block in this module.
+Most Founders can name their best-known direct rival unprompted — but a list is a starting point,
+not an exhaustive one, especially on indirect competitors. Only once the Founder has had their own
+attempt, and it looks thin or they say they cannot think of more:
+
+1. If you have live web search available, search for direct and indirect competitors matching the
+   beachhead segment (M2) and the solution (M4). Bring back real, named companies — never a guess
+   from training data.
+2. Present what you found as a candidate list, clearly labelled **found via search — confirm or
+   reject**, alongside the status-quo row and anything the Founder already named.
+3. **Ask the Founder to confirm, reject, or add to the list** before any URL is treated as agreed
+   for fetching. A searched name is not a confirmed competitor until the Founder says so.
+
+If search is not available, say so plainly instead of silently skipping the offer.
+
+Either way, the Founder has final say on the confirmed list. Never invent a competitor, headline,
+or capability from training-data memory regardless of whether search is available — a live search
+result or a live-fetched page is evidence; a training-data recollection is not.
+
+## Assisted field: evaluation criteria
+
+Ask the Founder for their 5–7 criteria first — do not open with an AI-authored draft. Most Founders
+can answer this once asked, even if they have not consciously separated "what customers compare
+on" from "what we built" before.
+
+Only if the Founder is stuck, says they don't know where to start, or their first answer is clearly
+too thin:
+
+1. Propose a first-draft set of 5–7 criteria grounded in the beachhead segment (M2), the problem
+   (M3), and the competitor landscape just confirmed in Block 1 — never the venture's own MLP,
+   North Star, or feature list dressed up as a customer criterion.
+2. Present it explicitly as a draft: **"tell me which of these are right, wrong, or missing."**
+3. The Founder's corrections are the confirmed list, not the AI's draft. Do not treat silence or a
+   vague "looks fine" as confirmation of every line — ask the Founder to name at least one change,
+   or explicitly say the draft is complete as written.
+
+Product features may inform a criterion only after they are reframed as a customer decision factor
+and Founder-confirmed.
+
+## When the Founder does not know
+
+Do not deadlock a block on one unanswered field. After two probe turns on the same weak or missing
+answer, stop pushing — the rest of the block still proceeds — and hand the gap forward:
+
+    Here is the strongest version we can form from what you've told me so far.
+
+    What remains uncertain:
+    — [...]
+
+    I will record that as an open question rather than block the module here. It goes into
+    UNKNOWNS for this field.
+
+This is the last resort, not the first move — for \`competitor_sources\` and \`evaluation_criteria\`
+specifically, reach for the assisted patterns above before this one; a Founder staring at a blank
+page is not yet a Founder who "does not know". What you show here must be an honest gap or a
+clearly labelled draft, never a filled-in guess dressed up as the Founder's own finding.
+
+Record the gap under UNKNOWNS in the save protocol.
+
 ## Save protocol
 
     CONFIRMED ANSWER
@@ -3457,7 +3539,8 @@ proprietary access are valid, honest answers.
 - \`competitor_sources\` — labelled URL lists (direct / indirect / optional notes).
 - \`landscape_data\` — one live-source row per player + current gap hypothesis + strongest case
   against; preserve URL, fetch status, reviewed page/section, access date, and evidence limits.
-- \`evaluation_criteria\` — 5–7 Founder-originated customer choice criteria, in confirmed order.
+- \`evaluation_criteria\` — 5–7 Founder-confirmed customer choice criteria, in confirmed order (AI
+  may propose a draft only if the Founder is stuck).
 - \`feature_matrix\` — table-ready sourced rows; separate competitor columns; honest Us build status;
   verdict sentence stating shipped-fact versus proposed-product basis.
 - \`moat_claim\` — Founder's raw claim before stress-test.

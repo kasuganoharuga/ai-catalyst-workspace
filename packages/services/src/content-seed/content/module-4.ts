@@ -438,7 +438,7 @@ const FEATURE_BENEFIT_MAP_ARTIFACT: ArtifactContent = {
 export const MODULE_4_CONTENT: ModuleContent = {
   moduleKey: "module-04-solution-statement",
   sequenceIndex: 4,
-  title: "Solution",
+  title: "Create a Solution",
   subtitle:
     "Name what you are building, prove why it wins, and pick the three features worth building first",
   description:

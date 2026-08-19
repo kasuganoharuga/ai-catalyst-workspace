@@ -1,4 +1,4 @@
-# Module 07: Business model & revenue architecture
+# Module 07: Create Business Model Options
 
 Turn the locked customer, solution, and competitive context into a concrete path to revenue —
 inputs, model, pricing, and a 90-day cash-flow plan.

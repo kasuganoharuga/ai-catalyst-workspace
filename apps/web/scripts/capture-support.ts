@@ -16,10 +16,10 @@ export const VIEWPORT = { width: 1440, height: 900 };
 export const DEVICE_SCALE_FACTOR = 2;
 
 const CHROME_CANDIDATES = [
-  "C:\Program Files\Google\Chrome\Application\chrome.exe",
-  "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-  "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-  "C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+  "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe",
+  "C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
   "/usr/bin/google-chrome",
   "/usr/bin/chromium",

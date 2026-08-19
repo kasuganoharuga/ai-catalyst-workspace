@@ -366,7 +366,7 @@ const SPRINT_BACKLOG_ARTIFACT: ArtifactContent = {
 export const MODULE_5_CONTENT: ModuleContent = {
   moduleKey: "module-05-epics-user-stories",
   sequenceIndex: 5,
-  title: "Epics & user stories",
+  title: "Create Epics & User Stories",
   subtitle:
     "Turn the three Minimum Loveable features into a development-ready backlog",
   description:

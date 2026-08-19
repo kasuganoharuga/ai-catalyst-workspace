@@ -153,7 +153,7 @@ describe("seedToolkitContent", () => {
     ]);
   });
 
-  it("loads Module 2 (Target Customer) content with the right question and artifact contracts", async () => {
+  it("loads Module 2 (Ideal Customer Profile) content with the right question and artifact contracts", async () => {
     const result = await withTransaction((client) =>
       seedToolkitContent(client, TEST_CONTENT),
     );

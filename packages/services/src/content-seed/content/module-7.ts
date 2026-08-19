@@ -681,7 +681,7 @@ const CASH_FLOW_ARTIFACT: ArtifactContent = {
 export const MODULE_7_CONTENT: ModuleContent = {
   moduleKey: "module-07-business-model",
   sequenceIndex: 7,
-  title: "Business model",
+  title: "Create Business Model Options",
   subtitle:
     "Turn the locked customer and solution into a concrete path to revenue",
   description:

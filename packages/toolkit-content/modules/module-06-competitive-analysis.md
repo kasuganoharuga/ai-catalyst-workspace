@@ -1,4 +1,4 @@
-# Module 06: Competitive analysis & differentiation
+# Module 06: Create a Competitor Analysis
 
 Prove you know the market and can win it — landscape, feature comparison, moat, positioning, why
 now, and why us — after Modules 2–4 have locked customer, problem, and solution.

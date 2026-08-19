@@ -24,6 +24,8 @@ import { config as loadEnv } from "dotenv";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { PreferredAiProvider } from "@ai-catalyst/shared";
 
+import { MODULE_FIXTURES } from "./seed-module-content";
+
 // Must run before importing anything that reads process.env at module load
 // time (lib/auth.ts's BETTER_AUTH_SECRET, @ai-catalyst/db's DATABASE_URL) —
 // hence the dynamic imports in loadDeps() rather than static ones, which
@@ -49,6 +51,7 @@ type Deps = {
   saveFounderResponse: typeof import("@ai-catalyst/services/attempt").saveFounderResponse;
   saveArtifactSubmission: typeof import("@ai-catalyst/services/artifact").saveArtifactSubmission;
   completeModuleAttempt: typeof import("@ai-catalyst/services/module/completion").completeModuleAttempt;
+  confirmModuleCompletion: typeof import("@ai-catalyst/services/module/completion").confirmModuleCompletion;
 };
 
 async function loadDeps(): Promise<Deps> {
@@ -85,6 +88,7 @@ async function loadDeps(): Promise<Deps> {
     saveFounderResponse: attempt.saveFounderResponse,
     saveArtifactSubmission: artifact.saveArtifactSubmission,
     completeModuleAttempt: completion.completeModuleAttempt,
+    confirmModuleCompletion: completion.confirmModuleCompletion,
   };
 }
 
@@ -274,7 +278,7 @@ interface SeedSpec {
    * other fixture sets it so the screens underneath can be reached at all.
    */
   provider: PreferredAiProvider | null;
-  run: "none" | "setup-open" | "module-1" | "verdict-saved";
+  run: "none" | "setup-open" | "module-1" | "verdict-saved" | "modules-1-6";
 }
 
 const SPECS: SeedSpec[] = [
@@ -376,6 +380,17 @@ const SPECS: SeedSpec[] = [
     passwordChanged: true,
     provider: "claude",
     run: "verdict-saved",
+  },
+  {
+    label: "toolkit",
+    displayName: "Toolkit Founder",
+    shows:
+      "Modules 1-6 all confirmed with real saved artefacts, Module 7 open and waiting. For screenshotting every module's Brief/Work content and a multi-module Artefacts list — see scripts/seed-module-content.ts.",
+    profileName: { firstName: "Shafi", lastName: "Goldwasser" },
+    connected: true,
+    passwordChanged: true,
+    provider: "claude",
+    run: "modules-1-6",
   },
 ];
 
@@ -535,7 +550,11 @@ async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
     }
   }
 
-  if (spec.run === "module-1" || spec.run === "verdict-saved") {
+  if (
+    spec.run === "module-1" ||
+    spec.run === "verdict-saved" ||
+    spec.run === "modules-1-6"
+  ) {
     const { run } = await deps.getOrCreateProgramRun(actor, { ventureId });
     const outcome = await deps.autoCompleteSetupModule(actor, {
       programRunId: run.id,
@@ -548,6 +567,28 @@ async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
 
     if (spec.run === "verdict-saved") {
       await seedSavedVerdict(deps, actor, run.id);
+    }
+
+    if (spec.run === "modules-1-6") {
+      await seedSavedVerdict(deps, actor, run.id);
+      // seedSavedVerdict leaves Module 1 at ready_for_review on purpose (see
+      // the "verdict" persona above) — confirm it here so Module 2 unlocks.
+      const module1Row = await deps.pool.query<{ id: string }>(
+        `select id from program_run_modules
+         where program_run_id = $1 and module_key = $2`,
+        [run.id, MODULE_1_KEY],
+      );
+      const module1Id = module1Row.rows[0]?.id;
+      if (!module1Id) {
+        throw new Error(`No ${MODULE_1_KEY} run module on run ${run.id}.`);
+      }
+      await deps.confirmModuleCompletion(actor, {
+        programRunModuleId: module1Id,
+      });
+
+      for (const fixture of MODULE_FIXTURES) {
+        await completeModuleFixture(deps, actor, run.id, fixture);
+      }
     }
   }
 }
@@ -599,6 +640,73 @@ async function seedSavedVerdict(
     ].join("; ");
     throw new Error(`Seeded verdict did not pass validation — ${detail}`);
   }
+}
+
+/**
+ * Generic version of seedSavedVerdict for Modules 2-6: unlike Module 1,
+ * these have no fixed questionKey/artifactKey constants baked into this
+ * script, so the fixture (scripts/seed-module-content.ts) carries its own
+ * module/artifact/question keys and this just plays them back through the
+ * same startOrResumeAttempt → saveFounderResponse → saveArtifactSubmission →
+ * completeModuleAttempt sequence. Must run in module order — each call
+ * depends on the previous module already being confirmed to unlock the next.
+ */
+async function completeModuleFixture(
+  deps: Deps,
+  actor: ActorContext,
+  programRunId: string,
+  fixture: (typeof MODULE_FIXTURES)[number],
+): Promise<void> {
+  const moduleRow = await deps.pool.query<{ id: string }>(
+    `select id from program_run_modules
+     where program_run_id = $1 and module_key = $2`,
+    [programRunId, fixture.moduleKey],
+  );
+  const programRunModuleId = moduleRow.rows[0]?.id;
+  if (!programRunModuleId) {
+    throw new Error(
+      `No ${fixture.moduleKey} run module on run ${programRunId}.`,
+    );
+  }
+
+  const { attempt } = await deps.startOrResumeAttempt(actor, {
+    programRunModuleId,
+  });
+
+  for (const response of fixture.responses) {
+    await deps.saveFounderResponse(actor, {
+      attemptId: attempt.id,
+      questionKey: response.questionKey,
+      value: response.value,
+    });
+  }
+
+  for (const artifact of fixture.artifacts) {
+    await deps.saveArtifactSubmission(actor, {
+      attemptId: attempt.id,
+      artifactKey: artifact.artifactKey,
+      content: artifact.content,
+    });
+  }
+
+  const completion = await deps.completeModuleAttempt(actor, {
+    attemptId: attempt.id,
+  });
+  if (!completion.passed) {
+    const detail = [
+      ...completion.missingArtifactKeys.map((k) => `missing artifact "${k}"`),
+      ...completion.validationErrors.map((e) => `${e.key}: ${e.message}`),
+    ].join("; ");
+    throw new Error(
+      `Seeded ${fixture.moduleKey} did not pass validation — ${detail}`,
+    );
+  }
+
+  // completeModuleAttempt only validates and leaves the Attempt at
+  // ready_for_review (MCP complete_module stops there so the Founder signs
+  // off) — confirmModuleCompletion is the founder-confirms-on-website step
+  // that actually marks the Module completed and unlocks the next one.
+  await deps.confirmModuleCompletion(actor, { programRunModuleId });
 }
 
 async function clean(deps: Deps): Promise<number> {

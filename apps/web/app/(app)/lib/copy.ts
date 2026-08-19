@@ -783,11 +783,11 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-02-customer-avatar": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to help you create a hypothesised ideal customer avatar with a beachhead profile to further validate in customer interviews. At the end of this module you will receive a completed artefact that will include detail on who your beachhead customer could be, where to find them, what triggers their problem, what they need, buying signals, and who to include.",
+      "The purpose of this module is to help you create a hypothesised ideal customer profile with a beachhead profile to further validate in customer interviews. At the end of this module you will receive a completed artefact that will include detail on who your beachhead customer could be, where to find them, what triggers their problem, what they need, buying signals, and who to include.",
     whyBody:
       'A product built for "everyone" is a product nobody urgently needs. Naming one beachhead customer precisely turns a vague idea into something you can actually find, interview and test with.',
     whyBuildsOn: (moduleIndex: string) =>
-      `Every module after Module ${moduleIndex} builds on the customer you name here. A vague Avatar makes every later module vaguer too.`,
+      `Every module after Module ${moduleIndex} builds on the customer you name here. A vague profile makes every later module vaguer too.`,
     before: [
       {
         lead: "Most founders take around 40–60 minutes.",
@@ -803,19 +803,19 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
       },
       {
         lead: "Treat the result as a hypothesis, not evidence.",
-        body: "Completing the Avatar doesn't validate it — that's checked separately, field by field.",
+        body: "Completing the profile doesn't validate it — that's checked separately, field by field.",
       },
     ],
     optionalPrepDocuments: { label: "Uploaded files" },
-    questionsLabel: "Eight customer-avatar blocks",
-    progressVerdict: "Avatar saved to your workspace",
+    questionsLabel: "Eight customer-profile blocks",
+    progressVerdict: "Customer profile saved to your workspace",
     progressVerdictPending: "Nothing saved yet.",
     confirmTitle: "Read it over, then confirm",
     confirmBody:
-      "Your Ideal Customer Avatar is saved. Confirming marks this module done and opens the next one.",
+      "Your Ideal Customer Profile is saved. Confirming marks this module done and opens the next one.",
     confirmNoFileTitle: "No file yet",
     confirmNoFileBody:
-      "Your Ideal Customer Avatar hasn't arrived yet. Return to your AI assistant and ask it to save the Avatar, then refresh this page.",
+      "Your Ideal Customer Profile hasn't arrived yet. Return to your AI assistant and ask it to save the profile, then refresh this page.",
     coachingCard: {
       heading: "From testable to targetable",
       weakLabel: "What Module 1 established",
@@ -885,7 +885,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-04-solution-statement": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to turn the confirmed customer and problem understanding into a clear product direction, North Star, and three Minimum Loveable Features.",
+      "The purpose of this module is to turn the first beachhead customer and problem validation into a Minimum Loveable Product (MLP) solution with three Minimum Loveable Features, rational and emotional benefits, and a longer-term product North Star. Before you get started you will need to upload your raw transcripts from the customer interviews.",
     whyBody:
       '"Faster", "easier" and "AI-powered" are promises, not differences; a competitor can ship any of them next quarter. And a first version usually starts as a wishlist. This module refuses both — it pushes for a structural reason you win, and cuts the feature list to three.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -922,7 +922,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-05-epics-user-stories": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to turn the three confirmed Minimum Loveable Features into clear Epics, customer-focused user stories, a prioritised Sprint backlog, and a defined Minimum Loveable Product.",
+      "The purpose of this module is to translate three agreed Minimum Loveable Product (MLP) features into clear Epics, customer-focused user stories, a prioritised Sprint backlog that we can use to brief a developer.",
     whyBody:
       "Most first backlogs are a list of things to build, written from the team's side. Stories written as customer outcomes survive contact with reality better, because you can tell when one is actually done and whether anyone cares.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -960,7 +960,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-06-competitive-analysis": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to pressure-test the venture's competitive position using live competitor evidence, then define the market gap, three defensibility pillars, positioning, Why Now, and Why Us.",
+      "The purpose of this module is to pressure-test the proposed competitive position using live competitor evidence, then define the market gap, curate three defensibility pillars, recommended positioning, Why Now, and Why Us.",
     whyBody:
       '"We have no real competitors" is never true — the status quo is a competitor, and it usually wins. Knowing precisely who you are beating, and why they cannot copy you next quarter, is what makes the rest of the plan credible.',
     whyBuildsOn: (moduleIndex: string) =>
@@ -998,7 +998,7 @@ export const MODULE_BRIEF_COPY: Record<string, ModuleBriefCopy> = {
   "module-07-business-model": {
     briefTitle: "What this module is for",
     briefBody:
-      "The purpose of this module is to turn the venture into a practical first-dollar business model: how to reach the first paying customer, what to charge, what to spend, what the first 90 days could look like, and how to pressure-test the pricing before relying on it.",
+      "The purpose of this module is to turn the venture into a practical first-dollar business model: how to reach the first paying customer, comparisons on what to charge, what to spend, what the first 90 days could look like, and how to pressure-test the pricing before relying on it.",
     whyBody:
       "Pricing decided by feel is the most expensive guess a founder makes, and a plan that never requires talking to anyone is the most comfortable way to avoid finding out. Every number here is tagged as benchmarked or assumption so you can see which is which.",
     whyBuildsOn: (moduleIndex: string) =>
@@ -1159,7 +1159,7 @@ export const artefactsCopy = {
   // in the sequence without a step number to lean on.
   interviewNotesTitle: "Interview notes",
   interviewNotesSubtitle:
-    "The Problem & Five Whys interviews as you recorded them. Hand them to your assistant in whatever shape you have — a file, a doc, or pasted text — and what's kept here is formatted Markdown for Proof to grade.",
+    "The customer discovery interviews as you recorded them. Hand them to your assistant in whatever shape you have — a file, a doc, or pasted text — and what's kept here is formatted Markdown for Proof to grade.",
 
   interviewRecordsTitle: "Customer interviews",
   interviewRecordsSubtitle:
