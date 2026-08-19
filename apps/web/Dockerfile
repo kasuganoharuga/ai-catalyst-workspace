@@ -31,6 +31,20 @@ ENV DATABASE_URL=${DATABASE_URL}
 ENV BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET}
 ENV AUTH_ISSUER_URL=${AUTH_ISSUER_URL}
 
+# These three are different in kind from the placeholders above: they are baked
+# into the client bundle and cannot be supplied later. Next.js substitutes
+# NEXT_PUBLIC_* at `next build`, so a task-definition variable never reaches
+# the browser — setting NEXT_PUBLIC_SENTRY_DSN on the ECS service looks correct
+# and reports nothing. Browser error tracking has to be decided here or not at
+# all. Empty defaults keep local and CI builds unchanged: instrumentation-client.ts
+# skips Sentry.init without a DSN.
+ARG NEXT_PUBLIC_SENTRY_DSN=""
+ARG NEXT_PUBLIC_APP_ENV=""
+ARG NEXT_PUBLIC_RELEASE=""
+ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
+ENV NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV}
+ENV NEXT_PUBLIC_RELEASE=${NEXT_PUBLIC_RELEASE}
+
 RUN pnpm --filter web build
 
 FROM node:22-slim AS runner
@@ -40,6 +54,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+
+# Server-side release marker, deliberately baked in rather than set on the ECS
+# task definition. An image and its release are the same fact, so pinning it
+# here cannot drift: deploy-aws.yml rewrites only the image on redeploy, which
+# means a task-definition RELEASE would keep reporting whichever SHA was
+# current when that definition was last hand-edited. Read by
+# packages/observability's resolveRelease() and attached to every Sentry event.
+ARG RELEASE=""
+ENV RELEASE=${RELEASE}
 
 # `output: "standalone"` traces server code but explicitly does not copy
 # `public/` or the client-side `.next/static` assets — both must be added

@@ -10,11 +10,22 @@ export type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LOG_LEVELS: readonly LogLevel[] = ["debug", "info", "warn", "error"];
 
-function readEnv(name: string): string | undefined {
-  const value = process.env[name];
+function normalizeEnv(value: string | undefined): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+/**
+ * Runtime lookup, for server-side reads only.
+ *
+ * The bracket access is load-bearing on the server: it stops Next/Turbopack
+ * substituting a build-time value, so a container reads whatever its task
+ * definition actually sets. The browser needs the exact opposite — see
+ * `resolveBrowserAppEnv` below.
+ */
+function readEnv(name: string): string | undefined {
+  return normalizeEnv(process.env[name]);
 }
 
 export function resolveAppEnv(
@@ -28,14 +39,33 @@ export function resolveAppEnv(
   return "local";
 }
 
-/** Browser / Next client: prefer NEXT_PUBLIC_* then fall back to server names. */
+/**
+ * Browser / Next client: prefer NEXT_PUBLIC_* then fall back to server names.
+ *
+ * The `NEXT_PUBLIC_*` reads below are written as literal member access, not
+ * `readEnv("NEXT_PUBLIC_APP_ENV")`, and that is the whole reason these two
+ * functions exist separately from `resolveAppEnv` / `resolveRelease`. Next.js
+ * exposes a public variable to the browser by substituting the exact source
+ * text `process.env.NEXT_PUBLIC_APP_ENV` at build; a dynamic
+ * `process.env[name]` lookup is not matched, survives into the bundle as-is,
+ * and evaluates to undefined in a browser that has no `process`. Reading these
+ * through `readEnv` therefore silently reported every client-side Sentry event
+ * with no environment and no release, however the build was configured.
+ *
+ * The server-name fallbacks stay on `readEnv` on purpose: they are only
+ * reachable when this runs on the server, where a runtime read is correct.
+ */
 export function resolveBrowserAppEnv(): AppEnv {
-  return resolveAppEnv(readEnv("NEXT_PUBLIC_APP_ENV") ?? readEnv("APP_ENV"));
+  return resolveAppEnv(
+    normalizeEnv(process.env.NEXT_PUBLIC_APP_ENV) ?? readEnv("APP_ENV"),
+  );
 }
 
 export function resolveBrowserRelease(): string | undefined {
   return resolveRelease(
-    readEnv("NEXT_PUBLIC_RELEASE") ?? readEnv("RELEASE") ?? readEnv("GIT_SHA"),
+    normalizeEnv(process.env.NEXT_PUBLIC_RELEASE) ??
+      readEnv("RELEASE") ??
+      readEnv("GIT_SHA"),
   );
 }
 

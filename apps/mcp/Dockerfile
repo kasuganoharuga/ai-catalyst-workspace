@@ -18,6 +18,12 @@ RUN pnpm install --frozen-lockfile
 ENV NODE_ENV=production
 ENV MCP_PORT=8787
 
+# Baked in for the same reason as apps/web/Dockerfile's copy: deploy-aws.yml
+# rewrites only the image, so a task-definition RELEASE would go stale while
+# looking current. src/sentry.ts attaches it to every event.
+ARG RELEASE=""
+ENV RELEASE=${RELEASE}
+
 EXPOSE 8787
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \

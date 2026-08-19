@@ -73,6 +73,14 @@ jobs:
 
       - name: Build and push images
         shell: bash
+        env:
+          # Browser-side Sentry has to be decided at build time — Next.js inlines
+          # NEXT_PUBLIC_* into the client bundle, so unlike SENTRY_DSN (which the
+          # task definition supplies to the server) this one cannot be added
+          # later. Unset leaves it empty and instrumentation-client.ts skips
+          # Sentry.init, so the build works with no repository variable
+          # configured.
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
         run: |
           set -euo pipefail
 
@@ -83,9 +91,16 @@ jobs:
           API_REPO="${REGISTRY}/${ENV_PREFIX}/api"
           MCP_REPO="${REGISTRY}/${ENV_PREFIX}/mcp"
 
-          docker build -f apps/web/Dockerfile -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
+          docker build -f apps/web/Dockerfile \
+            --build-arg "RELEASE=${GITHUB_SHA}" \
+            --build-arg "NEXT_PUBLIC_RELEASE=${GITHUB_SHA}" \
+            --build-arg "NEXT_PUBLIC_APP_ENV=${ENV_NAME}" \
+            --build-arg "NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}" \
+            -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
           docker build -f apps/api/Dockerfile -t "${API_REPO}:${IMAGE_TAG}" -t "${API_REPO}:latest" .
-          docker build -f apps/mcp/Dockerfile -t "${MCP_REPO}:${IMAGE_TAG}" -t "${MCP_REPO}:latest" .
+          docker build -f apps/mcp/Dockerfile \
+            --build-arg "RELEASE=${GITHUB_SHA}" \
+            -t "${MCP_REPO}:${IMAGE_TAG}" -t "${MCP_REPO}:latest" .
 
           docker push "${WEB_REPO}:${IMAGE_TAG}"
           docker push "${WEB_REPO}:latest"

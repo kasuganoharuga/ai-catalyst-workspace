@@ -45,6 +45,32 @@ variable "db_password" {
   sensitive = true
 }
 
+variable "sentry_dsn" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Server-side Sentry DSN for web / api / mcp. Empty leaves Sentry
+    uninitialised — every entry point checks for a DSN before calling
+    Sentry.init (apps/web/sentry.server.config.ts, apps/mcp/src/sentry.ts), so
+    an unset value disables error reporting silently rather than failing.
+
+    Not a Secrets Manager entry: a DSN is an ingest endpoint, not a
+    credential, and the browser half of it ships inside the client bundle
+    regardless.
+
+    This covers server-side only. Browser errors need NEXT_PUBLIC_SENTRY_DSN,
+    which Next.js inlines at `next build` — a task-definition variable cannot
+    reach the client bundle, so that one is a Docker build arg in
+    .github/workflows/deploy-aws.yml instead.
+  EOT
+}
+
+variable "log_level" {
+  type        = string
+  default     = "info"
+  description = "packages/observability minimum level: debug | info | warn | error."
+}
+
 variable "web_image" {
   type    = string
   default = "public.ecr.aws/docker/library/nginx:alpine"
@@ -180,6 +206,13 @@ module "rds" {
   subnet_ids             = module.vpc.private_subnet_ids
   vpc_security_group_ids = [aws_security_group.rds.id]
   password               = var.db_password
+
+  # Staging is deliberately disposable — reset-staging-db.yml exists to wipe it
+  # — so it opts out of the module's careful defaults. A production root must
+  # not copy these three lines; leaving them off is what makes that stack
+  # undestroyable-by-accident and snapshot-on-destroy.
+  deletion_protection = false
+  skip_final_snapshot = true
 }
 
 module "iam" {
@@ -196,15 +229,25 @@ module "ecs_cluster" {
 }
 
 locals {
-  common_env = {
-    AWS_REGION                    = var.aws_region
+  # Only set when supplied. An empty SENTRY_DSN would be indistinguishable from
+  # a real one to a reader of the task definition while reporting nothing.
+  sentry_env = var.sentry_dsn == "" ? {} : { SENTRY_DSN = var.sentry_dsn }
+
+  common_env = merge({
+    AWS_REGION = var.aws_region
+    # Load-bearing, not cosmetic: `isModuleResetAllowed`
+    # (packages/services/src/module/reset-allowed.ts) allow-lists this value,
+    # and a task definition that loses it hides the Module reset tool. The
+    # production stack must set APP_ENV=production for the same reason in
+    # reverse — there the tool is irreversible data loss.
     APP_ENV                       = "staging"
+    LOG_LEVEL                     = var.log_level
     STORAGE_PROVIDER              = "s3"
     STORAGE_CONTAINER             = module.s3.bucket_name
     EMAIL_PROVIDER                = "ses"
     EMAIL_FROM                    = var.ses_email_identity
     MCP_OAUTH_TRUST_PROXY_HEADERS = "true"
-  }
+  }, local.sentry_env)
 }
 
 module "web" {

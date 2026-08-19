@@ -94,6 +94,7 @@
     "./prep": "./src/prep/index.ts",
     "./prep/types": "./src/prep/types.ts",
     "./audit": "./src/audit/index.ts",
+    "./audit/account-events": "./src/audit/account-events.ts",
     "./errors": "./src/errors.ts",
     "./workspace": "./src/workspace/index.ts",
     "./workspace/active-context": "./src/workspace/active-context.ts",

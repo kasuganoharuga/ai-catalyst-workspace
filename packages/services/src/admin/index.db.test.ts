@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
@@ -9,6 +9,7 @@ import {
   getAdminDashboardStats,
   listAdminUsers,
   listAssignableMentors,
+  resetUserPassword,
   softDeleteUser,
 } from "./index.js";
 
@@ -236,5 +237,238 @@ describe("admin user management — database integration", () => {
 
     // secondAdmin is still live after restore — keep the fixture usable.
     expect(secondAdmin.userId).toBeTruthy();
+  });
+});
+
+describe("admin password reset — database integration", () => {
+  const emailPrefix = `admin-reset-${randomUUID()}`;
+  const createdUserIds: string[] = [];
+  const clientId = `admin-reset-client-${randomUUID()}`;
+  let admin: ActorContext;
+  let founder: ActorContext;
+  let mentor: ActorContext;
+  let founderEmail: string;
+  let socialOnlyUserId: string;
+
+  /** Records what the service asked the caller to persist, without hashing. */
+  const writes: { userId: string; password: string }[] = [];
+  async function recordWrite(userId: string, password: string): Promise<void> {
+    writes.push({ userId, password });
+  }
+
+  function testEmail(label: string): string {
+    return `${emailPrefix}-${label}@example.com`;
+  }
+
+  async function insertUser(
+    label: string,
+    role: "admin" | "mentor" | "founder" | "pending",
+  ): Promise<string> {
+    const email = testEmail(label);
+    const result = await pool.query<{ id: string }>(
+      "insert into users (name, email, role) values ($1, $2, $3) returning id",
+      [email, email, role],
+    );
+    createdUserIds.push(result.rows[0].id);
+    return result.rows[0].id;
+  }
+
+  /** The row Better Auth writes for email + password sign-in. */
+  async function insertCredentialAccount(userId: string): Promise<void> {
+    await pool.query(
+      `insert into accounts (user_id, account_id, provider_id, password)
+       values ($1, $2, 'credential', $3)`,
+      [userId, userId, "hash-of-the-old-password"],
+    );
+  }
+
+  async function insertSession(userId: string): Promise<void> {
+    await pool.query(
+      `insert into sessions (user_id, token, expires_at)
+       values ($1, $2, now() + interval '7 days')`,
+      [userId, `admin-reset-session-${randomUUID()}`],
+    );
+  }
+
+  async function countSessions(userId: string): Promise<number> {
+    const result = await pool.query<{ count: string }>(
+      "select count(*)::text as count from sessions where user_id = $1",
+      [userId],
+    );
+    return Number(result.rows[0].count);
+  }
+
+  async function countMcpAccessTokens(userId: string): Promise<number> {
+    const result = await pool.query<{ count: string }>(
+      `select count(*)::text as count
+       from mcp_oauth_access_tokens
+       where user_id = $1`,
+      [userId],
+    );
+    return Number(result.rows[0].count);
+  }
+
+  async function insertMcpAccessToken(userId: string): Promise<void> {
+    await pool.query(
+      `insert into mcp_oauth_access_tokens
+         (access_token, refresh_token, access_token_expires_at,
+          refresh_token_expires_at, client_id, user_id, scopes)
+       values ($1, $2, now() + interval '1 hour',
+               now() + interval '30 days', $3, $4, 'mcp:connect')`,
+      [
+        `admin-reset-access-${randomUUID()}`,
+        `admin-reset-refresh-${randomUUID()}`,
+        clientId,
+        userId,
+      ],
+    );
+  }
+
+  beforeAll(async () => {
+    const adminId = await insertUser("admin", "admin");
+    const mentorId = await insertUser("mentor", "mentor");
+    const founderId = await insertUser("founder", "founder");
+    socialOnlyUserId = await insertUser("social-only", "founder");
+
+    admin = { userId: adminId, role: "admin" };
+    mentor = { userId: mentorId, role: "mentor" };
+    founder = { userId: founderId, role: "founder" };
+    founderEmail = testEmail("founder");
+
+    await insertCredentialAccount(adminId);
+    await insertCredentialAccount(founderId);
+    // socialOnlyUserId deliberately gets no credential account.
+
+    await pool.query(
+      `insert into mcp_oauth_applications
+         (name, client_id, redirect_urls, type)
+       values ($1, $2, $3, 'public')`,
+      ["Admin reset test client", clientId, "https://example.com/callback"],
+    );
+  });
+
+  afterEach(() => {
+    writes.length = 0;
+  });
+
+  afterAll(async () => {
+    // accounts / sessions / mcp_oauth_* all cascade from users.
+    await pool.query("delete from users where id = any($1::uuid[])", [
+      createdUserIds,
+    ]);
+    await pool.query(
+      "delete from mcp_oauth_applications where client_id = $1",
+      [clientId],
+    );
+  });
+
+  it("issues a temporary password and revokes what the old one reached", async () => {
+    await insertSession(founder.userId);
+    await insertMcpAccessToken(founder.userId);
+    expect(await countSessions(founder.userId)).toBe(1);
+    expect(await countMcpAccessTokens(founder.userId)).toBe(1);
+
+    const result = await resetUserPassword(admin, {
+      userId: founder.userId,
+      writePassword: recordWrite,
+    });
+
+    expect(result.email).toBe(founderEmail);
+    // Unambiguous alphabet, pinned: this password gets retyped by hand.
+    expect(result.temporaryPassword).toMatch(
+      /^[abcdefghjkmnpqrstuvwxyz23456789]{16}$/,
+    );
+    // The caller is handed exactly what it must persist, for the right user.
+    expect(writes).toEqual([
+      { userId: founder.userId, password: result.temporaryPassword },
+    ]);
+
+    expect(await countSessions(founder.userId)).toBe(0);
+    expect(await countMcpAccessTokens(founder.userId)).toBe(0);
+  });
+
+  it("issues a different password every time", async () => {
+    const first = await resetUserPassword(admin, {
+      userId: founder.userId,
+      writePassword: recordWrite,
+    });
+    const second = await resetUserPassword(admin, {
+      userId: founder.userId,
+      writePassword: recordWrite,
+    });
+
+    expect(first.temporaryPassword).not.toBe(second.temporaryPassword);
+  });
+
+  it("refuses a non-admin actor and writes nothing", async () => {
+    await expect(
+      resetUserPassword(mentor, {
+        userId: founder.userId,
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    expect(writes).toEqual([]);
+  });
+
+  it("sends an admin resetting their own password to Account security", async () => {
+    await expect(
+      resetUserPassword(admin, {
+        userId: admin.userId,
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "Use Account security to change your own password.",
+    });
+
+    expect(writes).toEqual([]);
+  });
+
+  it("refuses an account with no password sign-in", async () => {
+    await expect(
+      resetUserPassword(admin, {
+        userId: socialOnlyUserId,
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+      message: "This account has no password sign-in to reset.",
+    });
+
+    // The point of the check: no temporary password may be handed out for an
+    // account that could never sign in with one.
+    expect(writes).toEqual([]);
+  });
+
+  it("refuses an unknown, malformed, or soft-deleted user", async () => {
+    await expect(
+      resetUserPassword(admin, {
+        userId: randomUUID(),
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    await expect(
+      resetUserPassword(admin, {
+        userId: "not-a-uuid",
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    const deletedUserId = await insertUser("deleted", "founder");
+    await insertCredentialAccount(deletedUserId);
+    await pool.query("update users set deleted_at = now() where id = $1", [
+      deletedUserId,
+    ]);
+
+    await expect(
+      resetUserPassword(admin, {
+        userId: deletedUserId,
+        writePassword: recordWrite,
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(writes).toEqual([]);
   });
 });

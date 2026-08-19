@@ -47,7 +47,8 @@ describe("assertEmailProviderAllowed", () => {
   });
 
   // Deny-list: an unrecognised environment name is allowed through rather than
-  // blocking a boot. Same trade-off isModuleResetAllowed makes.
+  // blocking a boot. Opposite of isModuleResetAllowed, which hides the reset
+  // tool when APP_ENV is unknown.
   it("allows noop for an environment name it does not recognise", () => {
     expect(() =>
       assertEmailProviderAllowed({

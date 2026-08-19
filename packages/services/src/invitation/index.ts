@@ -12,6 +12,7 @@ import type {
   WorkspaceSummary,
 } from "@ai-catalyst/shared";
 
+import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
@@ -276,7 +277,16 @@ async function createInvitation(
 
     await client.query("commit");
 
-    return { invitation: mapInvitation(result.rows[0]), rawToken };
+    const invitation = mapInvitation(result.rows[0]);
+    // The invited email is deliberately absent — it is a denied log key. The
+    // invitation id resolves back to it in `invitations` when the trail is read.
+    recordAccountEvent("account_invitation_created", {
+      actor,
+      invitationId: invitation.id,
+      inviteRole,
+    });
+
+    return { invitation, rawToken };
   } catch (error) {
     // 23505 aborts txn — rollback before mapping, not after.
     await client.query("rollback");
@@ -386,6 +396,13 @@ async function revokeInvitation(
   if (deferredError) {
     throw deferredError;
   }
+
+  recordAccountEvent("account_invitation_revoked", {
+    actor,
+    invitationId: invitation!.id,
+    inviteRole,
+  });
+
   return invitation!;
 }
 
@@ -890,10 +907,25 @@ export async function acceptInvitation(
 
   if (inviteRole === "mentor") {
     const { invitation } = await acceptMentorInvitation(actor, token);
+    recordAccountEvent("account_invitation_accepted", {
+      actor,
+      invitationId: invitation.id,
+      inviteRole,
+    });
     return { inviteRole, invitation };
   }
 
-  return { inviteRole, ...(await acceptFounderInvitation(actor, token, deps)) };
+  const accepted = await acceptFounderInvitation(actor, token, deps);
+  // The moment a `pending` account becomes a real one — the completion of a
+  // hand-delivered code, and the event this trail exists to pair with
+  // `account_invitation_created`.
+  recordAccountEvent("account_invitation_accepted", {
+    actor,
+    invitationId: accepted.invitation.id,
+    inviteRole,
+    workspaceId: accepted.workspace.id,
+  });
+  return { inviteRole, ...accepted };
 }
 
 export async function listFounderInvitations(

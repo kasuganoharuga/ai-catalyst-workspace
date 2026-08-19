@@ -181,7 +181,7 @@ export function UserList({
             <span className="min-w-0 flex-1">User</span>
             <span className="w-28">Role</span>
             <span className="w-56">Mentor</span>
-            <span className="w-24" aria-hidden="true" />
+            <span className="w-56" aria-hidden="true" />
           </div>
 
           <div className="flex flex-col">

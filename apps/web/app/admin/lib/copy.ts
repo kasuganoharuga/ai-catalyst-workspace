@@ -5,6 +5,7 @@ export const adminActionCopy = {
   inviteRevoked: "Invitation revoked",
   mentorAssigned: "Mentor updated",
   userDeleted: "User deleted",
+  passwordReset: "Temporary password issued",
 } as const;
 
 export const adminDashboardCopy = {

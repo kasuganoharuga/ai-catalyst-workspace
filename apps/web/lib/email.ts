@@ -33,13 +33,15 @@ const DELIVERING_APP_ENVS = new Set(["staging", "production"]);
 /**
  * Environments where a discarded (noop) email is an acceptable default.
  *
- * Deny-list, not allow-list, matching `isModuleResetAllowed`
- * (packages/services/src/module/reset-allowed.ts) — only an explicitly named
- * deployment is treated as real. An allow-list is what broke this the first
- * time: it recognised `development`/`test` but not `local`, which is what this
- * repo actually uses (.env.example, and all three services in
- * infra/docker/docker-compose.yml), so every local `next dev` and every
- * compose `web` container died at boot on the default EMAIL_PROVIDER=noop.
+ * Deny-list, not allow-list — the opposite construction to
+ * `isModuleResetAllowed` (packages/services/src/module/reset-allowed.ts).
+ * There, the dangerous state is an unnamed deployment exposing irreversible
+ * delete, so unknown/unset APP_ENV hides the tool. Here, the dangerous state
+ * is a *named* deployment silently discarding mail, and an allow-list is what
+ * broke this the first time: it recognised `development`/`test` but not
+ * `local`, which is what this repo actually uses (.env.example, and all three
+ * services in infra/docker/docker-compose.yml), so every local `next dev` and
+ * every compose `web` container died at boot on the default EMAIL_PROVIDER=noop.
  *
  * Keyed on APP_ENV and deliberately NOT on NODE_ENV, for the same reason the
  * rest of the app is (see the "Runtime APP_ENV gate (not NODE_ENV)" note in
@@ -49,12 +51,12 @@ const DELIVERING_APP_ENVS = new Set(["staging", "production"]);
  * NODE_ENV=production and no EMAIL_* set, which would turn this guard into a
  * build break.
  *
- * Known limit, stated rather than papered over: staging's live task definition
- * often has APP_ENV unset (deploy-aws.yml only rewrites the image — see the
- * comment in reset-allowed.ts), so this guard will not fire there. It is a
- * cheap catch for an obvious misconfiguration, not the thing that guarantees
- * delivery; that is Terraform setting EMAIL_PROVIDER=ses explicitly in
- * common_env.
+ * Known limit, stated rather than papered over: deploy-aws.yml only rewrites
+ * the image, so a live task that has not been through Terraform since
+ * `common_env` started setting APP_ENV=staging can still have it unset — and
+ * this guard will not fire there. It is a cheap catch for an obvious
+ * misconfiguration, not the thing that guarantees delivery; that is Terraform
+ * setting EMAIL_PROVIDER=ses explicitly in common_env.
  */
 function isNonProductionEnv(env: EnvLike = process.env): boolean {
   const appEnv = (env.APP_ENV ?? "").trim().toLowerCase();

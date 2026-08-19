@@ -3,20 +3,34 @@ import { describe, expect, it } from "vitest";
 import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 
 describe("isModuleResetAllowed", () => {
-  it("allows local", () => {
+  it("allows the deployments where wiping progress is a convenience", () => {
     expect(isModuleResetAllowed("local")).toBe(true);
-  });
-
-  it("allows staging", () => {
+    expect(isModuleResetAllowed("development")).toBe(true);
+    expect(isModuleResetAllowed("test")).toBe(true);
     expect(isModuleResetAllowed("staging")).toBe(true);
   });
 
-  it("refuses only an explicit production APP_ENV", () => {
+  it("refuses production", () => {
     expect(isModuleResetAllowed("production")).toBe(false);
   });
 
-  it("allows a missing or blank APP_ENV (staging image / live task)", () => {
-    expect(isModuleResetAllowed("")).toBe(true);
-    expect(isModuleResetAllowed("  ")).toBe(true);
+  // The reason this file exists. A task definition that lost APP_ENV must not
+  // hand Founders an irreversible delete; losing the testing tool is the
+  // cheaper of the two failures.
+  it("refuses a missing or blank APP_ENV", () => {
+    expect(isModuleResetAllowed(undefined)).toBe(false);
+    expect(isModuleResetAllowed("")).toBe(false);
+    expect(isModuleResetAllowed("  ")).toBe(false);
+  });
+
+  it("refuses anything unrecognised, including a near miss", () => {
+    expect(isModuleResetAllowed("prod")).toBe(false);
+    expect(isModuleResetAllowed("stagng")).toBe(false);
+    expect(isModuleResetAllowed("preview")).toBe(false);
+  });
+
+  it("is case- and whitespace-insensitive on the values it does accept", () => {
+    expect(isModuleResetAllowed(" Staging ")).toBe(true);
+    expect(isModuleResetAllowed("LOCAL")).toBe(true);
   });
 });

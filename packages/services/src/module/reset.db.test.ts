@@ -1,5 +1,13 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
@@ -304,6 +312,14 @@ describe("resetModuleProgress — database integration", () => {
     );
   });
 
+  // `isModuleResetAllowed` allow-lists APP_ENV, so an unset value refuses the
+  // reset — which is the point of the gate, and would otherwise make every
+  // test below fail on the guard instead of exercising the reset itself. Tests
+  // that care about a specific value override this.
+  beforeEach(() => {
+    process.env.APP_ENV = "test";
+  });
+
   afterEach(() => {
     if (originalNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = originalNodeEnv;
@@ -491,14 +507,20 @@ describe("resetModuleProgress — database integration", () => {
     expect(result.resetModuleIds).toContain(module1Id);
   });
 
-  it("allows a reset when APP_ENV is unset on a production Node build", async () => {
+  // Reversed deliberately. This used to assert that an unset APP_ENV *allowed*
+  // the reset, which meant a task definition that lost one variable handed
+  // Founders an irreversible delete. Losing the tool is the cheaper failure, so
+  // the gate now allow-lists and an unset value refuses.
+  it("refuses when APP_ENV is unset on a production Node build", async () => {
     const { actor, module1Id } = await createRunWithModules("unset-app-env");
     delete process.env.APP_ENV;
     delete process.env.NEXT_PUBLIC_APP_ENV;
     process.env.NODE_ENV = "production";
 
-    const result = await resetModuleProgress(actor, module1Id);
-    expect(result.resetModuleIds).toContain(module1Id);
+    await expect(resetModuleProgress(actor, module1Id)).rejects.toMatchObject({
+      name: "ServiceError",
+      code: "FORBIDDEN",
+    });
   });
 
   it("treats an unknown run module id as not found", async () => {

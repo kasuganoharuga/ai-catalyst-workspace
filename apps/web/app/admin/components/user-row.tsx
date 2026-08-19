@@ -3,6 +3,7 @@ import type { AdminUserListItem, AssignableMentor } from "@ai-catalyst/shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { AssignMentorControl } from "./assign-mentor-control";
+import { ResetPasswordButton } from "./reset-password-button";
 import { RoleBadge } from "./role-badge";
 import { SoftDeleteUserButton } from "./soft-delete-user-button";
 
@@ -70,9 +71,14 @@ export function UserRow({
         </div>
       </div>
 
-      <div className="flex sm:w-24 sm:justify-end">
+      {/* Both actions are other-people-only: an admin changes their own
+          password from Account security, and cannot delete themselves. */}
+      <div className="flex items-start justify-end gap-2 sm:w-56">
         {isSelf ? null : (
-          <SoftDeleteUserButton userId={user.id} email={user.email} />
+          <>
+            <ResetPasswordButton userId={user.id} email={user.email} />
+            <SoftDeleteUserButton userId={user.id} email={user.email} />
+          </>
         )}
       </div>
     </div>

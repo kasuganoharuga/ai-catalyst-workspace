@@ -98,6 +98,39 @@ Providers never read `process.env` themselves. App wiring builds:
 | `MCP_OAUTH_TRUST_PROXY_HEADERS` | `true`                     | unset                       |
 | `GOTENBERG_URL`                 | Cloud Map Gotenberg URL    | `http://127.0.0.1:3001`     |
 | `APP_ENV` / `SERVICE_NAME`      | `staging` / `aicatalyst-*` | `local` / unset             |
+| `LOG_LEVEL`                     | `info`                     | `info`                      |
+| `SENTRY_DSN`                    | set to enable (optional)   | unset                       |
+
+`APP_ENV` carries behaviour, not just a label: `isModuleResetAllowed`
+(`packages/services/src/module/reset-allowed.ts`) allow-lists `local` /
+`development` / `test` / `staging`, so anything else — **including a task
+definition that lost the variable** — hides the Module reset tool. That default
+is deliberate: the tool permanently deletes a Founder's attempts, answers,
+artefacts and prep material, plus every Module after it in the Run. A production
+stack must set `APP_ENV=production`; a staging stack must set `APP_ENV=staging`
+or testers lose the tool.
+
+### Build-time vs run-time variables
+
+Not everything can be supplied by a task definition. Next.js substitutes
+`NEXT_PUBLIC_*` into the client bundle at `next build`, so those values are
+fixed when the image is built and a task-definition entry for them reaches the
+server only — never the browser. `RELEASE` is baked in for a related reason:
+`deploy-aws.yml` rewrites only the image on redeploy, so a task-definition
+`RELEASE` would keep reporting whichever SHA was current when that definition
+was last hand-edited.
+
+| Variable                 | Where it is set                            |
+| ------------------------ | ------------------------------------------ |
+| `SENTRY_DSN`             | Task definition (server-side, web/api/mcp) |
+| `NEXT_PUBLIC_SENTRY_DSN` | Docker build arg — browser errors          |
+| `NEXT_PUBLIC_APP_ENV`    | Docker build arg — browser Sentry env tag  |
+| `RELEASE`                | Docker build arg, `= github.sha`           |
+| `NEXT_PUBLIC_RELEASE`    | Docker build arg, `= github.sha`           |
+
+The browser DSN comes from the `NEXT_PUBLIC_SENTRY_DSN` repository variable in
+Actions; unset leaves it empty and `instrumentation-client.ts` skips
+`Sentry.init`, so nothing breaks before it is configured.
 
 ## Validate without applying
 
