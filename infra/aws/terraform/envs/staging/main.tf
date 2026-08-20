@@ -272,6 +272,11 @@ locals {
   # from, so the two must not be able to drift apart.
   vpc_cidr_block = "10.30.0.0/16"
 
+  public_host = trimsuffix(
+    trimprefix(trimprefix(var.public_base_url, "https://"), "http://"),
+    "/",
+  )
+
   # Only set when supplied. An empty SENTRY_DSN would be indistinguishable from
   # a real one to a reader of the task definition while reporting nothing.
   sentry_env = var.sentry_dsn == "" ? {} : { SENTRY_DSN = var.sentry_dsn }
@@ -399,6 +404,20 @@ module "mcp" {
   secrets            = local.mcp_secrets
   environment = merge(local.common_env, {
     SERVICE_NAME = "aicatalyst-mcp"
+    MCP_ALLOWED_HOSTS = join(",", [
+      local.public_host,
+      module.alb.alb_dns_name,
+    ])
+    MCP_ALLOWED_ORIGINS = join(",", [
+      var.public_base_url,
+      "https://claude.ai",
+      "https://www.claude.ai",
+      "https://claude.com",
+      "https://chatgpt.com",
+      "https://www.chatgpt.com",
+      "https://chat.openai.com",
+      "https://openai.com",
+    ])
   })
 }
 

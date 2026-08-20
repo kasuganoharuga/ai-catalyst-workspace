@@ -51,10 +51,17 @@ definition.
 
 ```bash
 aws secretsmanager put-secret-value --secret-id ai-catalyst-production/database-url \
-  --secret-string 'postgresql://ai_catalyst:<password>@<rds-endpoint>:5432/ai_catalyst'
+  --secret-string 'postgresql://ai_catalyst:<password>@<rds-endpoint>:5432/ai_catalyst?sslmode=require&uselibpqcompat=true'
 
 aws secretsmanager put-secret-value --secret-id ai-catalyst-production/better-auth-secret \
   --secret-string "$(openssl rand -base64 32)"
+
+RDS Postgres 17 rejects unencrypted clients (`no pg_hba.conf entry … no
+encryption`). `sslmode=require` is mandatory. Current `node-postgres` treats
+`require` as `verify-full`, which fails on the Amazon RDS CA (`self-signed
+certificate in certificate chain`); `uselibpqcompat=true` restores libpq's
+encrypt-without-verify behaviour. Staging's `database-url` already uses both
+query parameters.
 ```
 
 `better-auth-secret` signs every session cookie. Changing it later signs

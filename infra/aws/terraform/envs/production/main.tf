@@ -287,6 +287,14 @@ locals {
   # X-Forwarded-For hops may be believed is the network the ALB forwards from.
   vpc_cidr_block = "10.40.0.0/16"
 
+  # Host header allowlist for apps/mcp. Unset, the process defaults to
+  # localhost / 127.0.0.1 / mcp — every public request then 403s
+  # `Invalid Host` and Claude reports "Couldn't connect to the server".
+  public_host = trimsuffix(
+    trimprefix(trimprefix(var.public_base_url, "https://"), "http://"),
+    "/",
+  )
+
   sentry_env = var.sentry_dsn == "" ? {} : { SENTRY_DSN = var.sentry_dsn }
 
   web_secrets = {
@@ -424,6 +432,26 @@ module "mcp" {
   secrets            = local.mcp_secrets
   environment = merge(local.common_env, {
     SERVICE_NAME = "aicatalyst-mcp"
+    # hostHeaderValidation runs on POST /mcp. Health and RFC 9728 metadata
+    # skip it; Claude's connector probe does not.
+    MCP_ALLOWED_HOSTS = join(",", [
+      local.public_host,
+      module.alb.alb_dns_name,
+    ])
+    # Requests with no Origin (native desktop, curl) are always allowed.
+    # Browser / Electron connectors send one. Exact-match list — keep in
+    # sync with PROVIDER_HOST_SUFFIXES in
+    # packages/services/src/mcp-auth/provider.ts.
+    MCP_ALLOWED_ORIGINS = join(",", [
+      var.public_base_url,
+      "https://claude.ai",
+      "https://www.claude.ai",
+      "https://claude.com",
+      "https://chatgpt.com",
+      "https://www.chatgpt.com",
+      "https://chat.openai.com",
+      "https://openai.com",
+    ])
   })
 }
 
