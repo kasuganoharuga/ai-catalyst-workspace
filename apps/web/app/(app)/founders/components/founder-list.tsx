@@ -13,9 +13,12 @@ function displayName(founder: MentorFounderSummary): string {
 }
 
 /**
- * Search + filtered/sorted founder list for My founders.
+ * Search + filtered/sorted founder list for Founders.
  *
- * Sorted by display name (not workspace name). `children` is the invite button from the server page.
+ * Sorted by display name (not workspace name) — this re-sort takes priority
+ * over the isAssignedToMe-first order the service layer returns, since a
+ * Mentor searching by name expects alphabetical results either way.
+ * `children` is the invite button from the server page.
  */
 export function FounderList({
   founders,

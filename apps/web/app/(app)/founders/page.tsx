@@ -9,11 +9,13 @@ import { PageShell } from "../components/page-shell";
 import { mentorOverviewCopy } from "../lib/copy";
 import { FounderList } from "./components/founder-list";
 
-export const metadata = appPageTitle("My founders");
+export const metadata = appPageTitle("Founders");
 
 /**
- * Mentor-only founder directory. Lives beside /founders/[workspaceId] so the
- * list and detail share one nav prefix; /dashboard is the stats overview.
+ * Mentor-only founder directory. Every Founder on the platform is listed
+ * (MENTOR_SEES_ALL_FOUNDERS), with founders assigned to the viewing Mentor
+ * sorted first and badged. Lives beside /founders/[workspaceId] so the list
+ * and detail share one nav prefix; /dashboard is the stats overview.
  */
 export default async function MentorFoundersPage() {
   const actor = await getCurrentMentorActor();

@@ -124,6 +124,7 @@
     "./mcp-auth/internal/lookups": "./src/mcp-auth/internal/lookups.ts",
     "./testing/db-fixtures": "./src/testing/db-fixtures.ts",
     "./internal/run-module": "./src/internal/run-module.ts",
+    "./internal/mentor-scope": "./src/internal/mentor-scope.ts",
     "./mentor": "./src/mentor/index.ts",
     "./admin": "./src/admin/index.ts"
   },

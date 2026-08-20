@@ -12,6 +12,13 @@ export interface MentorFounderSummary {
   founderName: string | null;
   founderEmail: string;
   /**
+   * True when this Founder's Workspace is assigned to the requesting
+   * Mentor (workspaces.mentor_user_id). Mentors may see every Founder on
+   * the platform (see MENTOR_SEES_ALL_FOUNDERS); this flag is how the UI
+   * still distinguishes "mine" from "everyone else's".
+   */
+  isAssignedToMe: boolean;
+  /**
    * Null when the Founder has not started a Programme Run yet — they have
    * accepted their invitation but never connected an AI assistant. Rendered
    * as "not started", not as zero progress.

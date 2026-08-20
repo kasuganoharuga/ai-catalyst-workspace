@@ -20,6 +20,7 @@ import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fi
 import {
   createPendingGeneratedObject,
   deleteUnverifiedUpload,
+  getGeneratedTextContent,
   getStorageObject,
   writeGeneratedTextContent,
 } from "./index.js";
@@ -523,6 +524,63 @@ describe("storage service — database integration", () => {
 
       expect(secondDelete.uploadStatus).toBe("deleted");
       expect(secondDelete.deletedAt).toBe(firstDelete.deletedAt);
+    });
+  });
+
+  // MENTOR_SEES_ALL_FOUNDERS (packages/services/src/internal/mentor-scope.ts)
+  // is currently true — this is the choke point that governs mentor access
+  // to artefact bytes independently of mentor/index.ts's own checks, so it
+  // gets its own direct coverage rather than relying on the mentor suite's
+  // indirect exercise of it through getMentorArtefactDocument.
+  describe("getGeneratedTextContent — cross-role scope", () => {
+    it("lets a mentor read any workspace's content when MENTOR_SEES_ALL_FOUNDERS is true", async () => {
+      const { actor: founderActor, workspaceId } =
+        await createFounderWithWorkspace("mentor-scope-founder");
+      const pending = await createPendingGeneratedObject(founderActor, {
+        workspaceId,
+        filename: "unmentored.md",
+      });
+      await writeGeneratedTextContent(founderActor, {
+        storageObjectId: pending.id,
+        content: "Only the founder wrote this.",
+      });
+
+      const mentorEmail = `${emailPrefix}-unassigned-mentor-${randomUUID()}@example.com`;
+      const mentorResult = await pool.query<{ id: string }>(
+        "insert into users (name, email, role) values ($1, $2, 'mentor') returning id",
+        [`${emailPrefix}-unassigned-mentor`, mentorEmail],
+      );
+      const mentorUserId = mentorResult.rows[0].id;
+      createdUserIds.push(mentorUserId);
+
+      // Never assigned to this workspace — workspaces.mentor_user_id is
+      // untouched (defaults to null), the platform-wide flag is what grants
+      // access here.
+      const content = await getGeneratedTextContent(
+        { userId: mentorUserId, role: "mentor", source: "web" },
+        pending.id,
+      );
+
+      expect(content).toBe("Only the founder wrote this.");
+    });
+
+    it("still refuses a founder reading another founder's content", async () => {
+      const { actor: ownerActor, workspaceId } =
+        await createFounderWithWorkspace("cross-owner");
+      const { actor: otherActor } =
+        await createFounderWithWorkspace("cross-other");
+      const pending = await createPendingGeneratedObject(ownerActor, {
+        workspaceId,
+        filename: "owner-only.md",
+      });
+      await writeGeneratedTextContent(ownerActor, {
+        storageObjectId: pending.id,
+        content: "Owner's content.",
+      });
+
+      await expect(
+        getGeneratedTextContent(otherActor, pending.id),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
   });
 });
