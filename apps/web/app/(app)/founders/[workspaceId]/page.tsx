@@ -7,7 +7,9 @@ import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { formatDate } from "@/lib/format";
 import { getMentorFounderDetail } from "@/lib/mentor";
 import { appPageTitle } from "@/lib/page-metadata";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
+import { AnalyticsTrack } from "../../components/analytics-track";
 import { ArtefactModuleGroup } from "../../artefacts/components/artefact-module-group";
 import {
   artefactCounts,
@@ -64,6 +66,12 @@ export default async function MentorFounderDetailPage({
 
   return (
     <PageShell>
+      {/* isAssignedToMe lands with the MENTOR_SEES_ALL_FOUNDERS work
+          (packages/services/src/mentor/index.ts) on a separate branch —
+          add it to this event's properties once MentorFounderSummary
+          carries the field, so this doubles as usage data for how much of
+          that widened visibility actually gets used. */}
+      <AnalyticsTrack event={ANALYTICS_EVENTS.mentorFounderOpened} />
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           <Link href="/founders" className="underline-offset-2 hover:underline">

@@ -9,6 +9,7 @@ import { loadAppShellUser } from "@/lib/app-shell";
 import { getCurrentAppActor } from "@/lib/current-app-actor";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 
+import { AnalyticsIdentify } from "./components/analytics-identify";
 import { AppSidebar } from "./components/app-sidebar";
 import { AppSidebarNavigation } from "./components/app-sidebar-navigation";
 import { OnboardingDialog } from "./components/onboarding/onboarding-dialog";
@@ -40,6 +41,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row">
+      <AnalyticsIdentify userId={actor.userId} role={role} />
       {/* Below lg the sidebar is hidden and this bar takes over. Three
          equal-weight grid columns rather than a flex row, so the nav sits
          optically centred regardless of how wide the logo or avatar are.

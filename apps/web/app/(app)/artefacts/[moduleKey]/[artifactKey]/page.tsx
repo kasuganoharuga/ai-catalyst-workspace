@@ -6,7 +6,9 @@ import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { formatDateTime } from "@/lib/format";
 import { appPageTitle } from "@/lib/page-metadata";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
+import { AnalyticsTrack } from "../../../components/analytics-track";
 import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
 import { MarkdownDocument } from "../../../components/markdown-document";
 import { PageShell } from "../../../components/page-shell";
@@ -45,6 +47,14 @@ export default async function ArtefactDetailPage({
 
   return (
     <PageShell>
+      <AnalyticsTrack
+        event={ANALYTICS_EVENTS.artefactViewed}
+        propertiesJson={JSON.stringify({
+          role: "founder",
+          moduleKey,
+          artifactKey,
+        })}
+      />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0 max-w-2xl">
           <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">

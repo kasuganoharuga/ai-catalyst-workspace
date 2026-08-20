@@ -104,6 +104,7 @@ export function Module1ConfirmStep({
   lockClaude?: boolean;
 }) {
   const { isPending, handleConfirm } = useConfirmModuleCompletion({
+    moduleKey,
     programRunModuleId,
     nextModuleTitle,
   });

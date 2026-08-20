@@ -25,6 +25,7 @@ export function Module0ConfirmStep({
   accent,
 }: Module0SetupProps & { accent: ModuleAccent }) {
   const { isPending, handleConfirm } = useConfirmModuleCompletion({
+    moduleKey,
     programRunModuleId,
     nextModuleTitle,
   });

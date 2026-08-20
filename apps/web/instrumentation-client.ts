@@ -7,6 +7,8 @@ import {
 import { buildSentryInitOptions } from "@ai-catalyst/observability/sentry-init";
 import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 
+import { initPostHog } from "@/lib/analytics/posthog";
+
 const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN?.trim();
 
 if (dsn) {
@@ -19,3 +21,5 @@ if (dsn) {
     }) as unknown as Parameters<typeof Sentry.init>[0],
   );
 }
+
+initPostHog();

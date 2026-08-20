@@ -7,7 +7,9 @@ import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { formatDateTime } from "@/lib/format";
 import { getMentorArtefactDocument } from "@/lib/mentor";
 import { appPageTitle } from "@/lib/page-metadata";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
+import { AnalyticsTrack } from "../../../../../components/analytics-track";
 import { MarkdownDocument } from "../../../../../components/markdown-document";
 import { PageShell } from "../../../../../components/page-shell";
 import { mentorArtefactDocumentCopy } from "../../../../../lib/copy";
@@ -67,6 +69,14 @@ export default async function MentorArtefactPage({
 
   return (
     <PageShell>
+      <AnalyticsTrack
+        event={ANALYTICS_EVENTS.artefactViewed}
+        propertiesJson={JSON.stringify({
+          role: "mentor",
+          moduleKey,
+          artifactKey,
+        })}
+      />
       <div className="max-w-2xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
           <Link

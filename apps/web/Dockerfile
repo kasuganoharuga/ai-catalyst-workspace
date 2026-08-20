@@ -45,6 +45,14 @@ ENV NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN}
 ENV NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV}
 ENV NEXT_PUBLIC_RELEASE=${NEXT_PUBLIC_RELEASE}
 
+# Same build-arg-only rule as the Sentry block above — apps/web/lib/analytics/
+# posthog.ts skips posthog.init() without a key, so empty defaults keep local
+# and CI builds unchanged.
+ARG NEXT_PUBLIC_POSTHOG_KEY=""
+ARG NEXT_PUBLIC_POSTHOG_HOST=""
+ENV NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY}
+ENV NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST}
+
 RUN pnpm --filter web build
 
 FROM node:22-slim AS runner

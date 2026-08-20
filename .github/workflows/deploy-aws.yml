@@ -117,6 +117,12 @@ jobs:
           # Sentry.init, so the build works with no repository variable
           # configured.
           NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          # Same rule for PostHog — see apps/web/lib/analytics/posthog.ts.
+          # Staging and production should point at separate PostHog projects
+          # (separate repository variables per GitHub Environment) so test
+          # traffic never lands in the production project's funnels.
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
         run: |
           set -euo pipefail
 
@@ -132,6 +138,8 @@ jobs:
             --build-arg "NEXT_PUBLIC_RELEASE=${GITHUB_SHA}" \
             --build-arg "NEXT_PUBLIC_APP_ENV=${ENV_NAME}" \
             --build-arg "NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}" \
+            --build-arg "NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}" \
+            --build-arg "NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-}" \
             -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
           docker build -f apps/api/Dockerfile -t "${API_REPO}:${IMAGE_TAG}" -t "${API_REPO}:latest" .
           docker build -f apps/mcp/Dockerfile \

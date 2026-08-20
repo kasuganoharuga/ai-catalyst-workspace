@@ -5,6 +5,8 @@ import { useTransition } from "react";
 import { toast } from "sonner";
 
 import { confirmModuleCompletionAction } from "@/lib/actions/founder-actions";
+import { posthog } from "@/lib/analytics/posthog";
+import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 import { errorCopy, toastCopy } from "../../../lib/copy";
 
@@ -17,9 +19,11 @@ import { errorCopy, toastCopy } from "../../../lib/copy";
  * module and lands on it.
  */
 export function useConfirmModuleCompletion({
+  moduleKey,
   programRunModuleId,
   nextModuleTitle,
 }: {
+  moduleKey: string;
   programRunModuleId: string | null;
   nextModuleTitle: string | null;
 }) {
@@ -36,6 +40,11 @@ export function useConfirmModuleCompletion({
         });
         return;
       }
+      // Fired before navigation, at the confirm click itself — this is the
+      // event a PostHog Survey targets for a post-completion thumbs-up/down.
+      // See ANALYTICS_EVENTS.moduleCompleted for why URL matching can't
+      // stand in for this.
+      posthog.capture(ANALYTICS_EVENTS.moduleCompleted, { moduleKey });
       toast.success(toastCopy.moduleConfirmed, {
         description: nextModuleTitle
           ? toastCopy.moduleConfirmedNext(nextModuleTitle)
