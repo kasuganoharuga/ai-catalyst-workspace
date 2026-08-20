@@ -239,6 +239,19 @@ describe("auth invariants independent of sign-in method", () => {
     expect(auth.options.verification?.storeIdentifier).toBe("plain");
   });
 
+  it("resolves a client IP through trusted proxies rather than a shared bucket", () => {
+    // Structural, because the value itself is a deployment fact: Terraform sets
+    // AUTH_TRUSTED_PROXIES to the VPC CIDR, and it is unset here, so the list
+    // is legitimately empty. What must not disappear is the block — delete it
+    // and Better Auth silently reverts to lumping every caller that sends
+    // `X-Forwarded-For` into one "no-trusted-ip" rate-limit bucket, at 3
+    // sign-in attempts per 10 seconds between all of them. See the
+    // `advanced.ipAddress` comment in lib/auth.ts.
+    const ipAddress = auth.options.advanced?.ipAddress;
+    expect(ipAddress).toBeDefined();
+    expect(Array.isArray(ipAddress?.trustedProxies)).toBe(true);
+  });
+
   it("registers exactly the providers the feature flags claim", () => {
     const socialProviders = auth.options.socialProviders ?? {};
     expect("google" in socialProviders).toBe(AUTH_GOOGLE_ENABLED);

@@ -74,9 +74,11 @@ cat > "${TRUST_FILE}" <<EOF
             "repo:${REPO}:ref:refs/heads/develop",
             "repo:${REPO}:ref:refs/heads/main",
             "repo:${REPO}:environment:staging",
+            "repo:${REPO}:environment:production",
             "repo:Torus-Group@${ORG_ID}/ai-catalyst-workspace@${REPO_ID}:ref:refs/heads/develop",
             "repo:Torus-Group@${ORG_ID}/ai-catalyst-workspace@${REPO_ID}:ref:refs/heads/main",
-            "repo:Torus-Group@${ORG_ID}/ai-catalyst-workspace@${REPO_ID}:environment:staging"
+            "repo:Torus-Group@${ORG_ID}/ai-catalyst-workspace@${REPO_ID}:environment:staging",
+            "repo:Torus-Group@${ORG_ID}/ai-catalyst-workspace@${REPO_ID}:environment:production"
           ]
         }
       }

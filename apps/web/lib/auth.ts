@@ -9,6 +9,7 @@ import { getEmailSender, isEmailDiscarded } from "./email";
 import { AUTH_EMAIL_OTP_ENABLED, AUTH_GOOGLE_ENABLED } from "./feature-flags";
 import { mcpOAuthSecurityPlugin } from "./mcp-oauth-compat/hooks";
 import { mcpOAuthSchemaOverridePlugin } from "./mcp-oauth-compat/schema-override";
+import { readTrustedProxies } from "./trusted-proxies";
 
 /**
  * Better Auth: platform Authorization Server (users, sessions, MCP OAuth).
@@ -115,7 +116,34 @@ export const auth = betterAuth({
       // Postgres already defaults ids to gen_random_uuid(); explicit for clarity.
       generateId: "uuid",
     },
+    ipAddress: {
+      // Behind a load balancer, this is what makes rate limiting per-client
+      // instead of global. Better Auth's own resolver already refuses to be
+      // spoofed: with no trusted proxies it believes `X-Forwarded-For` only
+      // when the header holds a single value, so anyone sending their own gets
+      // `null` and lands in one shared "no-trusted-ip" bucket. Safe, but it
+      // means a caller who sends the header — including a legitimate user
+      // behind a corporate proxy — shares a bucket with every other such
+      // caller, and the sign-in default is 3 requests per 10 seconds.
+      //
+      // A non-empty list switches the resolver to walking the chain from the
+      // right, skipping trusted hops, which returns the real client for both
+      // shapes. ALB appends the connecting address rather than replacing the
+      // header (see resolveClientIp in ./mcp-oauth-compat/dcr-validation.ts),
+      // so the value to configure is the network the forwarding hops sit in.
+      // Empty leaves the stricter default untouched, which is what local
+      // development and CI want — there is no proxy to trust there.
+      trustedProxies: readTrustedProxies(),
+    },
   },
+  // rateLimit is left at its defaults on purpose. Better Auth enables it when
+  // NODE_ENV=production — correct here, since that is exactly "a built image"
+  // — and already ships stricter rules for the paths that matter: 3 requests
+  // per 10s on /sign-in*, /sign-up*, /change-password*, /change-email*, and 3
+  // per 60s on the password-reset and verification sends. Storage stays in
+  // memory, which is per-process and cleared on deploy; that is adequate while
+  // the service runs a single task, and the upgrade (`storage: "database"`)
+  // needs its own table and migration.
 
   user: {
     modelName: "users",

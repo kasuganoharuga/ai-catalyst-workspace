@@ -5,6 +5,11 @@ variable "instance_class" {
   type    = string
   default = "db.t4g.micro"
 }
+variable "allocated_storage" {
+  type    = number
+  default = 20
+}
+
 variable "db_name" {
   type    = string
   default = "ai_catalyst"
@@ -49,7 +54,7 @@ resource "aws_db_instance" "this" {
   engine                     = "postgres"
   engine_version             = "17"
   instance_class             = var.instance_class
-  allocated_storage          = 20
+  allocated_storage          = var.allocated_storage
   db_name                    = var.db_name
   username                   = var.username
   password                   = var.password
@@ -69,5 +74,6 @@ resource "aws_db_instance" "this" {
   final_snapshot_identifier = var.skip_final_snapshot ? null : "${var.name}-final"
 }
 
+output "identifier" { value = aws_db_instance.this.identifier }
 output "endpoint" { value = aws_db_instance.this.address }
 output "port" { value = aws_db_instance.this.port }

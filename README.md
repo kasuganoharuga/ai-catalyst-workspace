@@ -163,7 +163,7 @@ Developer → GitHub → Actions → ECR → ECS Fargate → ALB
                                       → RDS / S3 / SES / Secrets Manager
 ```
 
-- `develop` → Staging. The previous AWS production environment has been retired (`main` has no deploy target until a new prod stack exists).
+- `develop` → Staging, `main` → Production. Both deploy on push; production sits behind a GitHub Environment for reviewer approval. Go-live steps, log/audit locations and triage live in [`docs/ops/production-runbook.md`](docs/ops/production-runbook.md).
 - Artifact downloads default to permissioned backend streaming, not browser → signed URL → S3.
 - Local/CI keep `STORAGE_PROVIDER=local` and `EMAIL_PROVIDER=noop`.
 

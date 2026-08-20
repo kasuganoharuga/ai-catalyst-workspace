@@ -27,27 +27,56 @@ function isRateLimited(ip: string): boolean {
   return withinWindow.length > RATE_LIMIT_MAX_REQUESTS;
 }
 
+/** Shared bucket for every request whose client cannot be identified. */
+export const UNKNOWN_CLIENT_IP = "unknown";
+
 /**
- * Resolves the caller's IP for rate-limiting purposes only. Deliberately
- * does *not* trust `X-Forwarded-For` unless `MCP_OAUTH_TRUST_PROXY_HEADERS`
- * is explicitly set to `"true"` — an attacker can set that header on a
- * direct connection to any value they like, so trusting it by default
- * would let them reset their own rate-limit bucket on every request. Only
- * set that env var once this app is deployed behind a proxy/load balancer
- * that itself overwrites (not appends to) that header before forwarding.
+ * Resolves the caller's IP for rate-limiting purposes only.
  *
- * Without a trusted proxy, every request falls into the same `"unknown"`
- * bucket — a coarser, global-per-process limit, not per-client, but enough
- * to blunt naive registration flooding in development.
+ * Deliberately does *not* trust `X-Forwarded-For` unless
+ * `MCP_OAUTH_TRUST_PROXY_HEADERS` is explicitly set to `"true"` — on a direct
+ * connection a caller can set that header to anything, so trusting it by
+ * default would let them reset their own bucket on every request.
+ *
+ * Reads the **rightmost** entry, not the leftmost, and that distinction is the
+ * whole point. `X-Forwarded-For` is append-only and the left of the list is
+ * whatever the caller chose to send; only entries a trusted hop appended can be
+ * believed, and those are on the right. AWS ALB — the proxy this actually runs
+ * behind — appends the address of the connection it received rather than
+ * replacing the header, so with one ALB in front the last entry is the real
+ * client and everything to its left is untrusted input. Taking the first entry,
+ * as this did originally, meant a caller sending
+ * `X-Forwarded-For: <anything>` got a fresh bucket per request and the limiter
+ * did nothing. The header note above said the env var required a proxy that
+ * *overwrites* the header; ALB does not, and the deployment set the var anyway.
+ *
+ * Put a second layer in front (CloudFront, a terminating WAF) and the rightmost
+ * entry becomes that layer's address instead of the client's, collapsing
+ * everyone into one bucket: coarser, still not spoofable. Revisit this function
+ * if that happens.
+ *
+ * Without a trusted proxy every request falls into the same
+ * `UNKNOWN_CLIENT_IP` bucket — a global-per-process limit rather than a
+ * per-client one, but enough to blunt naive registration flooding locally.
+ *
+ * Exported for the test that pins the leftmost/rightmost choice.
  */
-function resolveClientIp(ctx: RequestLikeContext): string {
-  if (process.env.MCP_OAUTH_TRUST_PROXY_HEADERS === "true") {
-    const forwardedFor = ctx.request?.headers.get("x-forwarded-for");
-    if (forwardedFor) {
-      return forwardedFor.split(",")[0]?.trim() || "unknown";
-    }
+export function resolveClientIp(ctx: RequestLikeContext): string {
+  if (process.env.MCP_OAUTH_TRUST_PROXY_HEADERS !== "true") {
+    return UNKNOWN_CLIENT_IP;
   }
-  return "unknown";
+
+  const forwardedFor = ctx.request?.headers.get("x-forwarded-for");
+  if (!forwardedFor) {
+    return UNKNOWN_CLIENT_IP;
+  }
+
+  const hops = forwardedFor
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop.length > 0);
+
+  return hops[hops.length - 1] ?? UNKNOWN_CLIENT_IP;
 }
 
 // ---------------------------------------------------------------------------

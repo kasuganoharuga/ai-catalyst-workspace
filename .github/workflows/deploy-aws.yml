@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - main
   workflow_dispatch:
 
 permissions:
@@ -23,6 +24,12 @@ jobs:
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
 
+    # A real GitHub Environment per branch. For production this is the approval
+    # gate: configure required reviewers on it and a merge to main waits for a
+    # human before touching live infrastructure. Without it, "merge to main"
+    # and "deploy to production" are the same irreversible click.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+
     env:
       AWS_ACCOUNT_ID: "765332581489"
       AWS_REGION: ap-southeast-2
@@ -34,33 +41,62 @@ jobs:
 
       - name: Select deployment environment
         shell: bash
+        env:
+          # Infrastructure ids come from GitHub Actions variables rather than
+          # this file: they are created by `terraform apply` and differ per
+          # environment, so hardcoding them means the workflow silently targets
+          # last month's stack after any rebuild. Print them with
+          # `terraform output` and set them once per environment — the names
+          # below are scoped by the GitHub Environment above, so `main` reads
+          # production's values and `develop` reads staging's.
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PRIVATE_SUBNET_IDS: ${{ vars.PRIVATE_SUBNET_IDS }}
+          ECS_SECURITY_GROUP_ID: ${{ vars.ECS_SECURITY_GROUP_ID }}
+          # ENABLED or DISABLED, for the one-off migrate/seed task below.
+          # Required rather than defaulted because both answers are wrong
+          # somewhere: a task in a private subnet needs DISABLED and reaches ECR
+          # through the NAT gateway, while a task in a public subnet needs
+          # ENABLED or it cannot pull its image at all. Guessing produces a
+          # deploy that hangs on CannotPullContainerError.
+          ASSIGN_PUBLIC_IP: ${{ vars.ASSIGN_PUBLIC_IP }}
         run: |
           set -euo pipefail
 
-          # The AWS production environment is being retired: its cluster, ALB
-          # and task definitions are gone, so main has no deploy target. Fail
-          # loudly rather than letting a dispatch churn against missing
-          # resources. Restore this case only alongside a real production
-          # environment, with its own subnets and security group.
           case "${GITHUB_REF_NAME}" in
             main)
-              echo "main has no deploy target: the AWS production environment was retired." >&2
-              exit 1
+              ENV_NAME=production
               ;;
             develop)
-              {
-                echo "ENV_NAME=staging"
-                echo "ENV_PREFIX=ai-catalyst-staging"
-                echo "CLUSTER=ai-catalyst-staging"
-                echo "SUBNETS=subnet-07b302fc84ea32325,subnet-0463eda6ac077e977"
-                echo "SECURITY_GROUP=sg-0e0aad4d80002be63"
-              } >> "$GITHUB_ENV"
+              ENV_NAME=staging
               ;;
             *)
               echo "Unsupported branch: ${GITHUB_REF_NAME}" >&2
               exit 1
               ;;
           esac
+
+          # Fail before any AWS call rather than half-deploying against blanks.
+          # An empty SUBNETS or SECURITY_GROUP makes `aws ecs run-task` fail
+          # with a message that says nothing about the missing variable.
+          missing=""
+          [ -n "${ECS_CLUSTER}" ] || missing="${missing} ECS_CLUSTER"
+          [ -n "${PRIVATE_SUBNET_IDS}" ] || missing="${missing} PRIVATE_SUBNET_IDS"
+          [ -n "${ECS_SECURITY_GROUP_ID}" ] || missing="${missing} ECS_SECURITY_GROUP_ID"
+          [ -n "${ASSIGN_PUBLIC_IP}" ] || missing="${missing} ASSIGN_PUBLIC_IP"
+          if [ -n "${missing}" ]; then
+            echo "Missing Actions variables for the ${ENV_NAME} environment:${missing}" >&2
+            echo "Set them from \`terraform output\` in infra/aws/terraform/envs/${ENV_NAME}." >&2
+            exit 1
+          fi
+
+          {
+            echo "ENV_NAME=${ENV_NAME}"
+            echo "ENV_PREFIX=ai-catalyst-${ENV_NAME}"
+            echo "CLUSTER=${ECS_CLUSTER}"
+            echo "SUBNETS=${PRIVATE_SUBNET_IDS}"
+            echo "SECURITY_GROUP=${ECS_SECURITY_GROUP_ID}"
+            echo "ASSIGN_PUBLIC_IP=${ASSIGN_PUBLIC_IP}"
+          } >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6
@@ -198,7 +234,7 @@ jobs:
               --cluster "${CLUSTER}" \
               --task-definition "${MCP_TASK_DEF_ARN}" \
               --launch-type FARGATE \
-              --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED}" \
+              --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=${ASSIGN_PUBLIC_IP}}" \
               --overrides "${overrides}" \
               --output json)"
 

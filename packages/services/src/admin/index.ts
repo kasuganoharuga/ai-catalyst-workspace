@@ -379,8 +379,12 @@ const TEMPORARY_PASSWORD_LENGTH = 16;
 /**
  * ~79 bits over the alphabet above. `randomInt` rather than `randomBytes()[i] %
  * length`, which biases toward the front of a 31-character alphabet.
+ *
+ * Exported so the account-creation script hands out passwords of the same shape
+ * as an admin reset — one generator, so "what does a temporary password look
+ * like" has a single answer.
  */
-function generateTemporaryPassword(): string {
+export function generateTemporaryPassword(): string {
   let password = "";
   for (let index = 0; index < TEMPORARY_PASSWORD_LENGTH; index += 1) {
     password +=

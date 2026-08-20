@@ -1,12 +1,17 @@
 # AWS infrastructure
 
-Staging readiness on AWS. The previous AWS production environment has been
-retired; this tree only describes the staging stack. **Do not `terraform apply`
-from this prep alone** — live cutover is a separate, documented apply, and the
-Terraform modules are still not a perfect mirror of the running staging
-resources (short container names, Secrets Manager `secrets` blocks, HTTPS
-listener). Prefer the live staging shape over the modules until they are
-aligned.
+Staging and production on AWS.
+
+**The running staging stack was built by hand and this tree does not yet
+describe it.** Short container names aside, the modules have since gained the
+pieces staging was missing — Secrets Manager injection, an HTTPS listener and
+its routing rules, and a NAT gateway for the private subnets — so applying them
+against the live staging state would try to build a second, different stack.
+Align staging by importing it (`terraform import`) before any apply there.
+
+`envs/production` has no such history: it has never been applied, so it can be
+created directly. See [`docs/ops/production-runbook.md`](../../docs/ops/production-runbook.md)
+for the ordered go-live steps and for where logs, audit events and alarms live.
 
 ## Architecture
 
@@ -40,12 +45,20 @@ Browser → GET /artifacts/:id/download → ArtifactService (authz)
 
 ## Environments
 
-| Git branch | Environment | Terraform root                                     |
-| ---------- | ----------- | -------------------------------------------------- |
-| `develop`  | Staging     | [`terraform/envs/staging`](terraform/envs/staging) |
+| Git branch | Environment | Terraform root                                           |
+| ---------- | ----------- | -------------------------------------------------------- |
+| `develop`  | Staging     | [`terraform/envs/staging`](terraform/envs/staging)       |
+| `main`     | Production  | [`terraform/envs/production`](terraform/envs/production) |
 
-Region default: `ap-southeast-2`. Pushing `main` does not deploy — see
-`deploy-aws.yml`.
+Region default: `ap-southeast-2`. Both branches deploy on push
+(`deploy-aws.yml`); production runs under a GitHub Environment, so put required
+reviewers on it unless a merge to `main` should reach live infrastructure
+unattended.
+
+The two roots are deliberately kept in the same order so they diff cleanly
+against each other — production's differences are `APP_ENV=production`, RDS
+keeping the module's protective defaults, a required certificate, its own CIDR
+and buckets, and alarms wired by default.
 
 ## Remote state
 
@@ -59,8 +72,8 @@ Sources under [`terraform/modules`](terraform/modules). Summary (no per-module R
 
 | Module          | Role                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `vpc`           | Private + public subnets for ECS (public ALB) and RDS (private). Inputs: `name`, `cidr_block`, `azs`. Outputs: `vpc_id`, `public_subnet_ids`, `private_subnet_ids`.                                                                                                                                                                                                                                                                          |
-| `alb`           | Public ALB with target groups for `web` (3000) and `mcp` (8787). `api` stays private. Pass `certificate_arn` when ACM is ready for HTTPS.                                                                                                                                                                                                                                                                                                    |
+| `vpc`           | Private + public subnets for ECS (public ALB) and RDS (private), plus one NAT gateway giving the private subnets egress — without it a Fargate task there cannot pull its image. Inputs: `name`, `cidr_block`, `azs`, `enable_nat_gateway`. Outputs: `vpc_id`, `public_subnet_ids`, `private_subnet_ids`.                                                                                                                                    |
+| `alb`           | Public ALB with target groups for `web` (3000) and `mcp` (8787). `api` stays private. With `certificate_arn` set it adds the HTTPS listener, a port-80 redirect, and the rule sending `/mcp*` and `/.well-known/oauth-protected-resource*` to `mcp`; without it, port 80 refuses every request and nothing routes.                                                                                                                           |
 | `ecr`           | ECR repositories for `web`, `api`, `mcp`.                                                                                                                                                                                                                                                                                                                                                                                                    |
 | `ecs_cluster`   | Single ECS cluster per environment (Container Insights enabled in staging wiring).                                                                                                                                                                                                                                                                                                                                                           |
 | `ecs_service`   | Parameterized Fargate service — instantiate once per container. Inputs include `name`, `cluster_arn`, `subnet_ids`, `security_group_ids`, `cpu`, `memory`, `container_port`, `image`, roles, `desired_count`, `environment`, optional `target_group_arn`. Outputs: `service_name`, `task_definition_arn`. Log groups: `/ecs/<service-name>`.                                                                                                 |

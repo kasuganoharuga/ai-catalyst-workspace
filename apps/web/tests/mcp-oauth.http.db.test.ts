@@ -701,3 +701,69 @@ describe("GET /.well-known/oauth-authorization-server", () => {
     expect(body.jwks_uri).toBeUndefined();
   });
 });
+
+/**
+ * Regression test for a rate-limit bypass on Dynamic Client Registration,
+ * driven through the real route handler. `resolveClientIp` itself is covered
+ * directly in apps/web/tests/dcr-client-ip.test.ts; what this adds is proof
+ * that the endpoint actually behaves.
+ *
+ * ALB appends the connecting address to `X-Forwarded-For` rather than replacing
+ * it, so a caller who sends the header produces `<their value>, <real client>`.
+ * The limiter used to key on the leftmost entry, which the caller controls —
+ * varying it per request bought a fresh bucket every time and the limit never
+ * fired. Keying on the rightmost entry collapses all of them into one bucket.
+ *
+ * Its own describe block, and last in the file: the limiter is module-level
+ * per-process state, so this fills a bucket and must not sit inside the shared
+ * OAuth flow above. The bucket key here is a client IP no other test sends,
+ * which keeps it clear of the `unknown` bucket those tests use.
+ */
+describe("POST /mcp/register rate limiting", () => {
+  const BASE_URL = "http://localhost:3000";
+
+  it("cannot be escaped by varying the client-supplied X-Forwarded-For", async () => {
+    const original = process.env.MCP_OAUTH_TRUST_PROXY_HEADERS;
+    process.env.MCP_OAUTH_TRUST_PROXY_HEADERS = "true";
+
+    const realClient = "203.0.113.42";
+    const statuses: number[] = [];
+    const errors: string[] = [];
+
+    try {
+      // The limiter allows 10 per minute, so 11 attempts must trip it.
+      for (let attempt = 0; attempt < 11; attempt += 1) {
+        const response = await POST(
+          new Request(`${BASE_URL}/api/auth/mcp/register`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              // A different forged leftmost hop each time — the whole point.
+              "x-forwarded-for": `198.51.100.${attempt}, ${realClient}`,
+            },
+            // Deliberately invalid: the rate-limit check runs before body
+            // validation, so the bucket still fills and no client rows are
+            // written for anyone to clean up.
+            body: JSON.stringify({ client_name: "Flooder" }),
+          }),
+        );
+        statuses.push(response.status);
+        const body = await response.json();
+        errors.push(String(body.error_description ?? body.error ?? ""));
+      }
+    } finally {
+      if (original === undefined)
+        delete process.env.MCP_OAUTH_TRUST_PROXY_HEADERS;
+      else process.env.MCP_OAUTH_TRUST_PROXY_HEADERS = original;
+    }
+
+    // The early attempts are refused on their body, not by the limiter — which
+    // is what shows the bucket was filling rather than the requests being
+    // rejected for some unrelated reason.
+    expect(errors[0]).not.toMatch(/Too many client registration attempts/);
+    expect(errors[errors.length - 1]).toMatch(
+      /Too many client registration attempts/,
+    );
+    expect(statuses.every((status) => status === 400)).toBe(true);
+  });
+});

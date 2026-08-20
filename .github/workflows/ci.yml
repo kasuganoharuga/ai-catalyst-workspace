@@ -233,15 +233,20 @@ jobs:
         with:
           terraform_version: 1.9.8
 
-      - name: Terraform fmt / validate (staging)
+      - name: Terraform fmt / validate (all environments)
         run: |
           set -euo pipefail
           terraform fmt -check -recursive infra/aws/terraform
-          terraform -chdir=infra/aws/terraform/envs/staging init -backend=false
-          terraform -chdir=infra/aws/terraform/envs/staging validate
+          for env in staging production; do
+            terraform -chdir="infra/aws/terraform/envs/${env}" init -backend=false
+            terraform -chdir="infra/aws/terraform/envs/${env}" validate
+          done
 
       - name: Dry-run ECS task definition render
-        run: node infra/aws/scripts/render-taskdef.mjs --env staging --all
+        run: |
+          set -euo pipefail
+          node infra/aws/scripts/render-taskdef.mjs --env staging --all
+          node infra/aws/scripts/render-taskdef.mjs --env production --all
 
   # Expensive path — DB tests + docker-compose build/smoke. Skipped on PRs that
   # only touch docs/UI/copy unless they also change migrations/services/Docker.

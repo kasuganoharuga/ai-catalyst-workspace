@@ -1,0 +1,16 @@
+aws_region = "ap-southeast-2"
+
+# Never a bucket staging also uses.
+artifact_bucket_name = "ai-catalyst-artifacts-production"
+
+ses_email_identity = "noreply@example.com"
+db_password        = "replace-me-with-a-strong-password"
+
+# All three are required — see the variable descriptions in main.tf for what
+# each one breaks when it is wrong.
+public_base_url = "https://app.example.com"
+certificate_arn = "arn:aws:acm:ap-southeast-2:000000000000:certificate/REPLACE_ME"
+alarm_email     = "oncall@example.com"
+
+# Strongly recommended: without it, errors are visible only in CloudWatch logs.
+sentry_dsn = ""
