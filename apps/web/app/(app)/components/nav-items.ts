@@ -14,7 +14,7 @@ const FOUNDER_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
 
 const MENTOR_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { href: "/dashboard", label: "Dashboard" },
-  { href: "/founders", label: "My founders" },
+  { href: "/founders", label: "Founders" },
   { href: "/invitations", label: "Invitations" },
 ];
 

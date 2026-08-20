@@ -1262,8 +1262,10 @@ export const profilePromptCopy = {
 export const mentorDashboardCopy = {
   kicker: "Mentor",
   greeting: (name: string) => `Hi ${name}`,
-  intro: "Where your founders stand, and what moved recently.",
-  statFounders: "Founders under you",
+  intro: "Where founders stand, and what moved recently.",
+  // Every Founder on the platform, not just the Mentor's own assignments —
+  // see MENTOR_SEES_ALL_FOUNDERS in packages/services/src/internal/mentor-scope.ts.
+  statFounders: "Founders on the platform",
   statAverageProgress: "Average progress",
   statAverageProgressEmpty: "—",
   statActiveWeek: "Active this week",
@@ -1276,7 +1278,7 @@ export const mentorDashboardCopy = {
     complete: "Complete",
   },
   recentHeading: "Recent activity",
-  recentViewAll: "My founders",
+  recentViewAll: "Founders",
   recentEmpty:
     "No module completions yet — activity shows up here as founders finish work.",
   recentLine: (progress: string, date: string) =>
@@ -1285,14 +1287,14 @@ export const mentorDashboardCopy = {
 
 export const mentorOverviewCopy = {
   kicker: "Mentor",
-  title: "My founders",
+  title: "Founders",
   intro:
-    "Track how each founder is progressing and read what they've saved — sign-off stays with them, not you.",
+    "Every founder on the platform — track how they're progressing and read what they've saved. Sign-off stays with them, not you.",
   summaryLine: (founders: number, started: number, completed: number) =>
     `${founders} founder${founders === 1 ? "" : "s"} · ${started} started · ${completed} module${completed === 1 ? "" : "s"} completed`,
   inviteCta: "Invite a founder",
   emptyTitle: "No founders yet",
-  emptyBody: "Founders appear here as soon as they accept your invitation.",
+  emptyBody: "Founders appear here as soon as they accept an invitation.",
   searchLabel: "Search founders",
   searchPlaceholder: "Search by name, email or workspace",
   noMatchesTitle: "No founders match that search",
@@ -1304,11 +1306,13 @@ export const mentorOverviewCopy = {
   columnProgress: "Progress",
   columnActivity: "Last activity",
   columnStatus: "Status",
+  /** Badge on a row for the Founder(s) assigned to the viewing Mentor. */
+  assignedBadge: "Assigned to you",
 } as const;
 
 export const mentorFounderDetailCopy = {
   kicker: "Founder",
-  backLink: "My founders",
+  backLink: "Founders",
   notStartedTitle: "Hasn't started yet",
   notStartedBody:
     "This founder has accepted their invitation but hasn't opened the programme yet.",
@@ -1335,7 +1339,7 @@ export const mentorInvitationsCopy = {
   title: "Invite founders",
   intro:
     "Share the one-time code with the founder yourself — there is no email delivery yet. When they accept, their workspace is created and comes under your support automatically.",
-  backLink: "My founders",
+  backLink: "Founders",
   formEmailLabel: "Founder email",
   formEmailPlaceholder: "founder@company.com",
   formSubmitIdle: "Invite founder",

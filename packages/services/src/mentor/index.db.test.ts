@@ -22,9 +22,14 @@ import {
  * real Artifact saved through saveArtifactSubmission — then read back from
  * the Mentor side.
  *
- * The negative cases carry most of the weight here. This surface exists to
- * show one Mentor another person's business, so "mentor B cannot see mentor
- * A's Founder" is the property under test, not an afterthought.
+ * MENTOR_SEES_ALL_FOUNDERS (packages/services/src/internal/mentor-scope.ts)
+ * is currently true: every Mentor sees every Founder on the platform, and
+ * isAssignedToMe is how the UI still distinguishes "mine". The tests below
+ * assert that surfacing, plus the properties that still must hold regardless
+ * of scope mode — role enforcement, malformed-id handling, and never leaking
+ * module_responses. Coverage for the scoped (false) mode lives in
+ * mentor-scope.db.test.ts, which flips the flag via module mock rather than
+ * duplicating this fixture setup for a mode nothing runs in today.
  */
 describe("mentor service — database integration", () => {
   const RUN_SUFFIX = randomBytes(4).toString("hex");
@@ -244,7 +249,7 @@ describe("mentor service — database integration", () => {
   });
 
   describe("listMentorFounders", () => {
-    it("lists only the founders this mentor covers", async () => {
+    it("lists every founder on the platform, flagging which are assigned to me", async () => {
       const mentorA = await createUser("list-a", "mentor");
       const mentorB = await createUser("list-b", "mentor");
       const mine = await createFounder("list-mine", mentorA);
@@ -254,9 +259,16 @@ describe("mentor service — database integration", () => {
       const rows = await listMentorFounders(mentorActor(mentorA));
       const workspaceIds = rows.map((row) => row.workspaceId);
 
+      // MENTOR_SEES_ALL_FOUNDERS: nothing is hidden by another mentor's
+      // assignment, or by having no mentor at all.
       expect(workspaceIds).toContain(mine.workspaceId);
-      expect(workspaceIds).not.toContain(theirs.workspaceId);
-      expect(workspaceIds).not.toContain(unmentored.workspaceId);
+      expect(workspaceIds).toContain(theirs.workspaceId);
+      expect(workspaceIds).toContain(unmentored.workspaceId);
+
+      const mineRow = rows.find((r) => r.workspaceId === mine.workspaceId);
+      const theirsRow = rows.find((r) => r.workspaceId === theirs.workspaceId);
+      expect(mineRow?.isAssignedToMe).toBe(true);
+      expect(theirsRow?.isAssignedToMe).toBe(false);
     });
 
     // "Never started" must stay distinguishable from "started, done nothing".
@@ -350,7 +362,7 @@ describe("mentor service — database integration", () => {
       expect(detail.artefacts).toEqual([]);
     });
 
-    it("hides another mentor's founder as not found", async () => {
+    it("surfaces another mentor's founder, unassigned", async () => {
       const mentorA = await createUser("detail-a", "mentor");
       const mentorB = await createUser("detail-b", "mentor");
       const founder = await createFounderWithSavedArtefact(
@@ -358,9 +370,13 @@ describe("mentor service — database integration", () => {
         mentorA,
       );
 
-      await expect(
-        getMentorFounderDetail(mentorActor(mentorB), founder.workspaceId),
-      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      const detail = await getMentorFounderDetail(
+        mentorActor(mentorB),
+        founder.workspaceId,
+      );
+
+      expect(detail.founder.workspaceId).toBe(founder.workspaceId);
+      expect(detail.founder.isAssignedToMe).toBe(false);
     });
 
     it("treats a malformed workspace id as not found", async () => {
@@ -408,7 +424,7 @@ describe("mentor service — database integration", () => {
       ).resolves.toBeNull();
     });
 
-    it("hides another mentor's artefact as not found", async () => {
+    it("returns another mentor's artefact body — bytes, not just the listing, are unscoped", async () => {
       const mentorA = await createUser("doc-a", "mentor");
       const mentorB = await createUser("doc-b", "mentor");
       const founder = await createFounderWithSavedArtefact(
@@ -416,14 +432,18 @@ describe("mentor service — database integration", () => {
         mentorA,
       );
 
-      await expect(
-        getMentorArtefactDocument(
-          mentorActor(mentorB),
-          founder.workspaceId,
-          MODULE_KEY,
-          ARTIFACT_KEY,
-        ),
-      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+      // Exercises storage/index.ts's independent mentor-scope check
+      // (getGeneratedTextContent), not just the mentor/index.ts listing —
+      // that second gate is where a partial fix would go unnoticed: the
+      // founder shows up in the list but the document 404s.
+      const document = await getMentorArtefactDocument(
+        mentorActor(mentorB),
+        founder.workspaceId,
+        MODULE_KEY,
+        ARTIFACT_KEY,
+      );
+
+      expect(document?.content).toBe(ARTIFACT_CONTENT);
     });
 
     it("refuses a founder actor outright", async () => {

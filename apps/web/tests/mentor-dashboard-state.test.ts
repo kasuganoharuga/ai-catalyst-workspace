@@ -13,6 +13,7 @@ function founder(
     founderUserId: overrides.workspaceId,
     founderName: "Ada Lovelace",
     founderEmail: "ada@example.com",
+    isAssignedToMe: false,
     totalModules: null,
     completedModules: null,
     lastCompletedAt: null,

@@ -10,6 +10,7 @@ import type {
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
 import {
   listRunModulesForBranch,
   resolveWorkspaceRunContext,
@@ -19,17 +20,24 @@ import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 // Mentor supervision surface — read-only; cannot advance or roll back Founder progress.
 
 /**
- * Mentor authority is per-Workspace (workspaces.mentor_user_id), never global.
- * NOT_FOUND on mismatch — FORBIDDEN would confirm the Workspace exists (enumeration oracle).
+ * Mentor read authority. When MENTOR_SEES_ALL_FOUNDERS is true, every
+ * Mentor may read every Workspace; otherwise a Mentor is scoped to
+ * Workspaces where workspaces.mentor_user_id points at them.
+ *
+ * NOT_FOUND on mismatch (scoped mode) — FORBIDDEN would confirm the
+ * Workspace exists (enumeration oracle). The existence check stays even in
+ * the "sees all" mode, so a bogus id still resolves to NOT_FOUND.
  */
 async function assertMentorOwnsWorkspace(
   actor: ActorContext,
   workspaceId: string,
 ): Promise<void> {
-  const result = await pool.query(
-    `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
-    [workspaceId, actor.userId],
-  );
+  const result = MENTOR_SEES_ALL_FOUNDERS
+    ? await pool.query(`select 1 from workspaces where id = $1`, [workspaceId])
+    : await pool.query(
+        `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+        [workspaceId, actor.userId],
+      );
 
   if (result.rowCount === 0) {
     throw new ServiceError("NOT_FOUND", "Founder not found.");
@@ -43,6 +51,7 @@ interface FounderSummaryRow {
   founder_user_id: string;
   founder_name: string | null;
   founder_email: string;
+  is_assigned_to_me: boolean;
   total_modules: string | null;
   completed_modules: string | null;
   last_completed_at: Date | null;
@@ -56,6 +65,7 @@ function mapFounderSummaryRow(row: FounderSummaryRow): MentorFounderSummary {
     founderUserId: row.founder_user_id,
     founderName: row.founder_name,
     founderEmail: row.founder_email,
+    isAssignedToMe: row.is_assigned_to_me,
     // bigint counts as strings; null means no Run yet — distinct from "0 of N".
     totalModules: row.total_modules === null ? null : Number(row.total_modules),
     completedModules:
@@ -64,18 +74,24 @@ function mapFounderSummaryRow(row: FounderSummaryRow): MentorFounderSummary {
   };
 }
 
-// Prefers user_profiles display name; falls back to users.name (often email at registration).
+// Prefers user_profiles display name; falls back to users.name (often email at
+// registration). is_assigned_to_me always compares against $1 — every caller
+// binds the requesting Mentor's actor.userId as the first parameter, even
+// when MENTOR_SEES_ALL_FOUNDERS makes the WHERE clause not filter on it.
 const FOUNDER_IDENTITY_COLUMNS = `
   w.id as workspace_id,
   w.name as workspace_name,
   w.status as workspace_status,
   u.id as founder_user_id,
   nullif(trim(concat_ws(' ', p.first_name, p.last_name)), '') as founder_name,
-  coalesce(p.contact_email, u.email) as founder_email
+  coalesce(p.contact_email, u.email) as founder_email,
+  (w.mentor_user_id = $1) as is_assigned_to_me
 `;
 
 /**
- * Every Founder this Mentor covers, with progress for triage.
+ * Every Founder this Mentor covers, with progress for triage. When
+ * MENTOR_SEES_ALL_FOUNDERS is true this is every Founder on the platform,
+ * with isAssignedToMe distinguishing "mine" for sorting/badging.
  * One query with lateral aggregates; null counts when no Run yet.
  * Excludes setup Module 0 — system-driven, hidden from Founder's catalog.
  */
@@ -113,9 +129,8 @@ export async function listMentorFounders(
          and d.module_type <> 'setup'
          and d.status = 'active'
      ) progress on run.active_branch_id is not null
-     where w.mentor_user_id = $1
-       and u.deleted_at is null
-     order by w.name, w.id`,
+     where ${MENTOR_SEES_ALL_FOUNDERS ? "" : "w.mentor_user_id = $1 and "}u.deleted_at is null
+     order by is_assigned_to_me desc, w.name, w.id`,
     [actor.userId],
   );
 
@@ -187,8 +202,8 @@ export async function getMentorFounderDetail(
      from workspaces w
      join users u on u.id = w.founder_user_id
      left join user_profiles p on p.user_id = u.id
-     where w.id = $1`,
-    [workspaceId],
+     where w.id = $2`,
+    [actor.userId, workspaceId],
   );
 
   const founderRow = founderResult.rows[0];

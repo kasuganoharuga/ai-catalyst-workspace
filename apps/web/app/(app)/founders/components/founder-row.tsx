@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 import { StatusBadge } from "../../components/status-badge";
 import { deriveFounderStatus } from "../../lib/founder-status";
+import { mentorOverviewCopy } from "../../lib/copy";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -23,7 +24,7 @@ function formatDate(iso: string): string {
 }
 
 /**
- * One Founder's row on the Mentor "My founders" list.
+ * One Founder's row on the Mentor Founders list.
  *
  * Column widths here are load-bearing: they are repeated on the header row
  * in founder-list.tsx, and the two must stay in step or the labels stop
@@ -49,8 +50,13 @@ export function FounderRow({ founder }: { founder: MentorFounderSummary }) {
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <p className="truncate text-[15px] font-semibold tracking-tight text-foreground">
-            {displayName}
+          <p className="flex items-center gap-2 truncate text-[15px] font-semibold tracking-tight text-foreground">
+            <span className="truncate">{displayName}</span>
+            {founder.isAssignedToMe ? (
+              <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.06em] text-accent-foreground">
+                {mentorOverviewCopy.assignedBadge}
+              </span>
+            ) : null}
           </p>
           <p className="truncate text-xs text-muted-foreground">
             {founder.founderEmail} · {founder.workspaceName}

@@ -12,6 +12,7 @@ import type {
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
 import {
   generateObjectKey,
   sanitizeFilename,
@@ -355,12 +356,18 @@ export async function getGeneratedTextContent(
     }
   }
 
-  // Single choke point for artefact bytes — mentor scope enforced here as NOT_FOUND.
+  // Single choke point for artefact bytes — mentor scope enforced here as
+  // NOT_FOUND, independently of the mentor/index.ts checks (this path is
+  // also reachable directly, e.g. from official validation call sites).
   if (actor.role === "mentor") {
-    const mentored = await pool.query(
-      `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
-      [row.workspace_id, actor.userId],
-    );
+    const mentored = MENTOR_SEES_ALL_FOUNDERS
+      ? await pool.query(`select 1 from workspaces where id = $1`, [
+          row.workspace_id,
+        ])
+      : await pool.query(
+          `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+          [row.workspace_id, actor.userId],
+        );
     if (mentored.rowCount === 0) {
       throw new ServiceError("NOT_FOUND", "Storage object not found.");
     }
