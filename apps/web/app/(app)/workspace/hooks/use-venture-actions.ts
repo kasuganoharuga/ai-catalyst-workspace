@@ -1,7 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+
+import {
+  archiveVentureAction,
+  setActiveVentureAction,
+} from "@/lib/actions/founder-actions";
 
 import type { VentureActionsProps } from "../types";
 
@@ -11,56 +16,40 @@ export function useVentureActions({
   ventureId,
 }: Pick<VentureActionsProps, "ventureId">) {
   const router = useRouter();
-  // Tracks *which* action is running, not just whether one is — the two
-  // buttons share this hook instance, so a plain boolean would make the
-  // Archive button's label flip to "Archiving..." while Set active runs.
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSetActive() {
+  function handleSetActive() {
     setError(null);
     setPendingAction("set-active");
-
-    const response = await fetch("/api/active-context", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ventureId }),
+    startTransition(async () => {
+      const result = await setActiveVentureAction(ventureId);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      router.refresh();
     });
-
-    setPendingAction(null);
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to switch Venture.");
-      return;
-    }
-
-    router.refresh();
   }
 
-  async function handleArchive() {
+  function handleArchive() {
     setError(null);
     setPendingAction("archive");
-
-    const response = await fetch(`/api/ventures/${ventureId}/archive`, {
-      method: "POST",
+    startTransition(async () => {
+      const result = await archiveVentureAction(ventureId);
+      if (!result.ok) {
+        setError(result.message);
+        return;
+      }
+      router.refresh();
     });
-
-    setPendingAction(null);
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to archive Venture.");
-      return;
-    }
-
-    router.refresh();
   }
 
   return {
-    isBusy: pendingAction !== null,
-    isSettingActive: pendingAction === "set-active",
-    isArchiving: pendingAction === "archive",
+    isBusy: isPending,
+    isSettingActive: pendingAction === "set-active" && isPending,
+    isArchiving: pendingAction === "archive" && isPending,
     error,
     handleSetActive,
     handleArchive,

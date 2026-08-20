@@ -1,94 +1,116 @@
 import type { PoolClient } from "pg";
 
 import { DEFAULT_TOOLKIT_CONTENT } from "./content/index.js";
-import { publishProgramVersion } from "./db/publish.js";
+import {
+  activateReconciledContent,
+  markProgramVersionPublished,
+} from "./db/publish.js";
 import { reconcileModules } from "./db/modules.js";
-import { reconcileModulePromptBindings, reconcilePrompts } from "./db/prompts.js";
+import {
+  reconcileModulePromptBindings,
+  reconcilePrompts,
+} from "./db/prompts.js";
 import { reconcileProgram } from "./db/program.js";
 import type { ToolkitSeedContent } from "./types.js";
 
-// Fixed advisory lock key — any distinct bigint works as long as it never
-// collides with another advisory lock user of this database. Picked
-// arbitrarily; must never change once in use.
+// Fixed advisory lock key — must never change once in use.
 const SEED_LOCK_KEY = 727_310_101;
+
+export interface SeedOptions {
+  /**
+   * Allow archive/hard-delete during reconcile. Off by default so accidental
+   * content drops fail loudly instead of archiving on deploy.
+   */
+  allowArchive?: boolean;
+}
 
 export interface SeedResult {
   programId: string;
   programVersionId: string;
   programVersionStatus: "draft" | "published" | "retired";
+  contentLock: "mutable" | "frozen";
   modulesReconciled: number;
   promptsReconciled: number;
   published: boolean;
+  /** Non-zero when a living re-seed activates newly added modules or prompt versions. */
+  promptVersionsActivated: number;
+  modulesActivated: number;
 }
 
 /**
- * Idempotently reconciles `content` (defaults to the reviewed canonical
- * content) into the database and publishes it if the target Program
- * Version was still draft when this run started.
- *
- * Callers must open the transaction themselves before calling this and
- * commit/rollback it afterwards — this function issues no begin/commit/
- * rollback of its own, both so the advisory lock below actually spans the
- * whole reconcile+publish sequence (pg_advisory_xact_lock is a no-op
- * outside an explicit transaction block) and so tests can call it
- * directly against a client whose transaction they control.
+ * Idempotently reconciles content into the DB. First draft run also publishes;
+ * living mutable runs re-reconcile and re-activate in place.
+ * Caller owns the transaction — this function uses pg_advisory_xact_lock only.
  */
 export async function seedToolkitContent(
   client: PoolClient,
   content: ToolkitSeedContent = DEFAULT_TOOLKIT_CONTENT,
+  options: SeedOptions = {},
 ): Promise<SeedResult> {
-  // Transaction-scoped advisory lock: released automatically on commit or
-  // rollback, so two concurrent seed runs never interleave their inserts
-  // and race a unique-constraint violation instead of one simply waiting
-  // for the other.
+  const allowArchive = options.allowArchive ?? false;
+
+  // Exclusive lock for the whole reconcile+activate sequence; shared by reconcile-run-modules readers.
   await client.query("select pg_advisory_xact_lock($1)", [SEED_LOCK_KEY]);
 
   const program = await reconcileProgram(client, content.program);
-  const isDraftEditable = program.programVersionStatus === "draft";
+  // Editable before first publish or while content_lock stays mutable ("living V1").
+  const isFirstPublish = program.programVersionStatus === "draft";
+  const isContentEditable = isFirstPublish || program.contentLock === "mutable";
 
   const modules = await reconcileModules(
     client,
     program.programVersionId,
-    isDraftEditable,
+    isContentEditable,
+    allowArchive,
     content.modules,
   );
 
-  const promptVersions = await reconcilePrompts(client, content.prompts);
+  const promptVersions = await reconcilePrompts(
+    client,
+    content.prompts,
+    program.contentLock,
+  );
 
   await reconcileModulePromptBindings(
     client,
-    isDraftEditable,
+    isContentEditable,
+    allowArchive,
     modules,
     promptVersions,
     content.promptBindings,
   );
 
-  let published = false;
-  if (isDraftEditable) {
-    const expectedModulePromptBindingCounts = new Map<string, number>();
-    for (const binding of content.promptBindings) {
-      expectedModulePromptBindingCounts.set(
-        binding.moduleKey,
-        (expectedModulePromptBindingCounts.get(binding.moduleKey) ?? 0) + 1,
-      );
-    }
+  const expectedModulePromptBindingCounts = new Map<string, number>();
+  for (const binding of content.promptBindings) {
+    expectedModulePromptBindingCounts.set(
+      binding.moduleKey,
+      (expectedModulePromptBindingCounts.get(binding.moduleKey) ?? 0) + 1,
+    );
+  }
 
-    await publishProgramVersion(client, {
-      programVersionId: program.programVersionId,
-      modules,
-      promptVersions,
-      expectedModulePromptBindingCounts,
-    });
-    published = true;
+  // Re-activate on every seed so living V1 additions do not stay draft forever.
+  const activation = await activateReconciledContent(client, {
+    modules,
+    promptVersions,
+    expectedModulePromptBindingCounts,
+  });
+
+  if (isFirstPublish) {
+    await markProgramVersionPublished(client, program.programVersionId);
   }
 
   return {
     programId: program.programId,
     programVersionId: program.programVersionId,
-    programVersionStatus: published ? "published" : program.programVersionStatus,
+    programVersionStatus: isFirstPublish
+      ? "published"
+      : program.programVersionStatus,
+    contentLock: program.contentLock,
     modulesReconciled: modules.length,
     promptsReconciled: promptVersions.length,
-    published,
+    published: isFirstPublish,
+    promptVersionsActivated: activation.promptVersionsPublished,
+    modulesActivated: activation.modulesActivated,
   };
 }
 

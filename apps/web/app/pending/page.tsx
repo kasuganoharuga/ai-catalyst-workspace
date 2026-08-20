@@ -1,8 +1,11 @@
 import { SiteHeader } from "@/components/site-header";
 import { SignOutButton } from "@/components/sign-out-button";
+import { appPageTitle } from "@/lib/page-metadata";
 import { requireAuthenticatedUser } from "@/lib/require-active-user";
 
 import { AcceptInvitationForm } from "./accept-invitation-form";
+
+export const metadata = appPageTitle("Awaiting invitation");
 
 export default async function PendingPage() {
   const session = await requireAuthenticatedUser();
@@ -17,10 +20,17 @@ export default async function PendingPage() {
         <h1 className="mt-5 text-5xl font-semibold tracking-tight">
           Your account is registered but not yet active.
         </h1>
+        {/* "Founder and Mentor" capitalised is the users.role enum showing
+            through. The reader does not need to know which roles exist —
+            only that theirs is waiting on an invitation. */}
         <p className="mt-6 text-lg leading-8 text-muted-foreground">
-          {session.user.email} is signed in, but Founder and Mentor access is
-          currently invitation-only. You&apos;ll be able to reach your workspace
-          as soon as an invitation for this email is accepted.
+          You&apos;re signed in as {session.user.email}, but workspaces are
+          invitation-only. You&apos;ll be able to reach yours as soon as an
+          invitation for this email is accepted.
+        </p>
+        <p className="mt-4 text-lg leading-8 text-muted-foreground">
+          That includes connecting an AI assistant — Claude and ChatGPT can only
+          be connected once your account is active.
         </p>
 
         <AcceptInvitationForm />

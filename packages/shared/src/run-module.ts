@@ -36,4 +36,6 @@ export interface RunModuleSummary {
   unlockedAt: string | null;
   startedAt: string | null;
   completedAt: string | null;
+  // True when module_definitions is archived but this Run still has a row — kept for history, excluded from progression/unlock counts.
+  isArchivedDefinition: boolean;
 }

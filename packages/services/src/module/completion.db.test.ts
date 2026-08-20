@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -12,6 +11,11 @@ import {
   startOrResumeAttempt,
 } from "@ai-catalyst/services/attempt";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 import type { Validator } from "../artifact/internal/validators/types.js";
 
 import {
@@ -42,12 +46,9 @@ const MODULE_1_KEY = "completion-module-01-decision";
 const SETUP_ARTIFACT_KEY = "setup_summary";
 const DECISION_ARTIFACT_KEY = "verdict";
 
-// Deliberately ignores final_decision — unlike
-// artifact/index.db.test.ts's own fixture Validator, this suite's
-// completeModuleAttempt is what reacts to final_decision (Proceed/Pivot/
-// Kill), not the Validator; keeping the two concerns separate here is
-// what lets each Pivot/Proceed test below control the outcome purely
-// through saveFounderResponse.
+// Fixture Validator only checks for a required marker. completeModuleAttempt
+// no longer branches on Founder decision (Proceed/Pivot/Kill all stay at
+// ready_for_review); decision Responses here are for realism only.
 const fixtureValidator: Validator = {
   validatorKey: FIXTURE_VALIDATOR_KEY,
   validatorVersion: "1.0.0-fixture",
@@ -72,23 +73,6 @@ function webFounderActor(userId: string): ActorContext {
 
 function adminActor(userId: string): ActorContext {
   return { userId, role: "admin" };
-}
-
-async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 const DECISION_OPTIONS = [
@@ -194,6 +178,7 @@ function buildFixtureContent(programKey: string): ToolkitSeedContent {
       versionLabel: `v1-${programKey}`,
       versionName: `Fixture v1 ${programKey}`,
       versionDescription: null,
+      contentLock: "frozen",
       releaseNotes: null,
     },
     modules: [buildModule0(), buildModule1()],
@@ -211,37 +196,21 @@ describe("completeModuleAttempt — database integration", () => {
   async function createFounderWithWorkspaceAndVenture(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor = webFounderActor(userResult.rows[0].id);
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "completion-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [
-        actor.userId,
-        `Fixture ${label}`,
-        `completion-service-${label}-${randomUUID()}`,
-      ],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "completion-service-venture",
+    });
 
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [
-        workspaceId,
-        actor.userId,
-        `Fixture Venture ${label}`,
-        `completion-service-venture-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId, ventureId: ventureResult.rows[0].id };
+    return { actor: webFounderActor(userId), workspaceId, ventureId };
   }
 
   async function createRunWithModules(label: string): Promise<{
@@ -386,7 +355,7 @@ describe("completeModuleAttempt — database integration", () => {
     expect(result.passed).toBe(true);
     expect(result.moduleCompleted).toBe(false);
     expect(result.awaitingConfirmation).toBe(true);
-    expect(result.pivoted).toBe(false);
+    expect(result.validationErrors).toEqual([]);
     expect(result.nextModuleUnlocked).toBeNull();
     expect(result.attempt.status).toBe("ready_for_review");
 
@@ -420,6 +389,7 @@ describe("completeModuleAttempt — database integration", () => {
       "attempt_submitted",
       "validation_started",
       "validation_passed",
+      "attempt_ready_for_review",
     ]);
   });
 
@@ -459,6 +429,7 @@ describe("completeModuleAttempt — database integration", () => {
       "attempt_submitted",
       "validation_started",
       "validation_passed",
+      "attempt_ready_for_review",
       "attempt_accepted",
       "module_completed",
     ]);
@@ -549,11 +520,15 @@ describe("completeModuleAttempt — database integration", () => {
       questionKey: "final_decision",
       value: "proceed",
     });
-    await saveArtifactSubmission(fixture.actor, {
-      attemptId: module1Attempt.id,
-      artifactKey: DECISION_ARTIFACT_KEY,
-      content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-    });
+    await saveArtifactSubmission(
+      fixture.actor,
+      {
+        attemptId: module1Attempt.id,
+        artifactKey: DECISION_ARTIFACT_KEY,
+        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
+      },
+      { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } },
+    );
 
     const result = await completeModuleAttempt(
       fixture.actor,
@@ -565,8 +540,8 @@ describe("completeModuleAttempt — database integration", () => {
 
     expect(result.passed).toBe(true);
     expect(result.moduleCompleted).toBe(false);
-    expect(result.pivoted).toBe(false);
-    expect(result.retryAttempt).toBeNull();
+    expect(result.awaitingConfirmation).toBe(true);
+    expect(result.validationErrors).toEqual([]);
     expect(result.attempt.status).toBe("ready_for_review");
 
     const module1Row = await getRunModuleRow(fixture.module1Id);
@@ -574,7 +549,7 @@ describe("completeModuleAttempt — database integration", () => {
     expect(module1Row.active_attempt_id).toBe(module1Attempt.id);
   });
 
-  it("cancels a 'pivot' decision Attempt and starts a Retry Attempt automatically", async () => {
+  it("leaves a 'pivot' decision Attempt ready_for_review without auto-retry", async () => {
     const { fixture } = await completeAndConfirmModule0("pivot");
     const { attempt: module1Attempt } = await startOrResumeAttempt(
       fixture.actor,
@@ -587,11 +562,15 @@ describe("completeModuleAttempt — database integration", () => {
       questionKey: "final_decision",
       value: "pivot",
     });
-    await saveArtifactSubmission(fixture.actor, {
-      attemptId: module1Attempt.id,
-      artifactKey: DECISION_ARTIFACT_KEY,
-      content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
-    });
+    await saveArtifactSubmission(
+      fixture.actor,
+      {
+        attemptId: module1Attempt.id,
+        artifactKey: DECISION_ARTIFACT_KEY,
+        content: `# Verdict\n\n${REQUIRED_MARKER}\n`,
+      },
+      { validators: { [FIXTURE_VALIDATOR_KEY]: fixtureValidator } },
+    );
 
     const result = await completeModuleAttempt(
       fixture.actor,
@@ -603,34 +582,26 @@ describe("completeModuleAttempt — database integration", () => {
 
     expect(result.passed).toBe(true);
     expect(result.moduleCompleted).toBe(false);
-    expect(result.pivoted).toBe(true);
-    expect(result.attempt.status).toBe("cancelled");
-    expect(result.retryAttempt).not.toBeNull();
-    expect(result.retryAttempt?.attemptType).toBe("retry");
-    expect(result.retryAttempt?.basedOnAttemptId).toBe(module1Attempt.id);
-    expect(result.retryAttempt?.status).toBe("draft");
+    expect(result.awaitingConfirmation).toBe(true);
+    expect(result.attempt.status).toBe("ready_for_review");
 
     const attemptRow = await getAttemptRow(module1Attempt.id);
-    expect(attemptRow.status).toBe("cancelled");
-    expect(attemptRow.cancelled_at).not.toBeNull();
+    expect(attemptRow.status).toBe("ready_for_review");
+    expect(attemptRow.cancelled_at).toBeNull();
 
     const module1Row = await getRunModuleRow(fixture.module1Id);
     expect(module1Row.status).toBe("in_progress");
-    expect(module1Row.active_attempt_id).toBe(result.retryAttempt?.id);
+    expect(module1Row.active_attempt_id).toBe(module1Attempt.id);
 
-    const cancelledEvent = await pool.query<{
-      event_type: string;
-      actor_type: string;
-    }>(
-      `select event_type, actor_type from module_events
+    const cancelledEvent = await pool.query<{ event_type: string }>(
+      `select event_type from module_events
        where module_attempt_id = $1 and event_type = 'attempt_cancelled'`,
       [module1Attempt.id],
     );
-    expect(cancelledEvent.rows).toHaveLength(1);
-    expect(cancelledEvent.rows[0].actor_type).toBe("user");
+    expect(cancelledEvent.rows).toHaveLength(0);
   });
 
-  it("returns passed:false with missingArtifactKeys when the required Artifact was never submitted", async () => {
+  it("returns passed:false with missingArtifactKeys and validationErrors when the required Artifact was never submitted", async () => {
     const { fixture } = await completeAndConfirmModule0("validation-failed");
     const { attempt: module1Attempt } = await startOrResumeAttempt(
       fixture.actor,
@@ -655,6 +626,13 @@ describe("completeModuleAttempt — database integration", () => {
     expect(result.passed).toBe(false);
     expect(result.moduleCompleted).toBe(false);
     expect(result.missingArtifactKeys).toEqual([DECISION_ARTIFACT_KEY]);
+    expect(result.validationErrors).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: `missing_artifact:${DECISION_ARTIFACT_KEY}`,
+        }),
+      ]),
+    );
     expect(result.attempt.status).toBe("validation_failed");
   });
 

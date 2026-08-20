@@ -4,8 +4,8 @@ import { getMyProfile as getMyProfileUncached } from "@ai-catalyst/services/prof
 import type { UserProfile } from "@ai-catalyst/shared";
 
 // Thin Next.js shell over packages/services/profile — read path only,
-// same pattern as lib/ventures.ts. Writes go through the route handler
-// at app/api/profile/route.ts.
+// same pattern as lib/ventures.ts. Writes go through the server action
+// in lib/actions/account-actions.ts.
 export const getMyProfile = cache(getMyProfileUncached);
 
 /**

@@ -1,23 +1,25 @@
 import Link from "next/link";
 
+import { Button } from "@/components/ui/button";
+import { PageShell } from "../../components/page-shell";
+
 export default function ModuleNotFound() {
   return (
-    <main className="mx-auto max-w-2xl px-6 py-24 text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+    /* Same type scale and button shape as the rest of the app; this page
+       was still on the older 0.3em / text-3xl / rounded-full set. */
+    <PageShell className="max-w-2xl py-24 text-center">
+      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Module not found
       </p>
-      <h1 className="mt-5 text-3xl font-semibold tracking-tight">
-        This module doesn&apos;t exist.
+      <h1 className="mt-4 font-serif text-2xl font-medium tracking-[-0.01em]">
+        This module doesn&apos;t exist
       </h1>
-      <p className="mt-4 text-base leading-7 text-muted-foreground">
-        Check the link, or head back to your modules list.
+      <p className="mt-3 text-sm leading-6 text-muted-foreground">
+        Check the link, or go back to your modules.
       </p>
-      <Link
-        href="/modules"
-        className="mt-8 inline-block rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-      >
-        Back to modules
-      </Link>
-    </main>
+      <Button asChild size="lg" className="mt-6">
+        <Link href="/modules">Back to modules</Link>
+      </Button>
+    </PageShell>
   );
 }

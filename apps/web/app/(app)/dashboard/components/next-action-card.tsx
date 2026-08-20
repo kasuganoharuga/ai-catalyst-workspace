@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 
-/**
- * The only dark surface on the dashboard, and it earns that weight by
- * carrying the single thing the founder should do next. Everything else
- * on the page reports state; this one asks for a decision.
- */
+/** Dark card for the single next action on the dashboard. */
 export function NextActionCard({
+  kicker = "Next",
   title,
   body,
   children,
 }: {
+  /** "First" on the opening step; "Next" afterwards. */
+  kicker?: string;
   title: string;
   body: string;
   children?: ReactNode;
@@ -18,7 +17,7 @@ export function NextActionCard({
     <section className="flex flex-wrap items-end justify-between gap-6 rounded-xl bg-surface-inverse px-7 py-6 text-surface-inverse-foreground">
       <div className="max-w-xl">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-brand-lime">
-          Next
+          {kicker}
         </p>
         <h2 className="mt-3 font-serif text-2xl font-medium leading-snug tracking-[-0.01em]">
           {title}

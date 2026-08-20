@@ -1,19 +1,41 @@
-# Founder Toolkit V2 — Module 0 and Module 1 Workflow
+# Founder Toolkit V1 — Module 0 and Module 1 Workflow
 
 **Document status:** Draft for product, UX, MCP, and engineering alignment  
-**Version:** 1.2 — StorageService/S3 revision, plan-alignment fixes (2026-07-16)  
+**Version:** 1.5 — AI Recommendation is the sole conclusion, no Founder decision step (2026-08-13)  
 **Modules covered:** Module 0 — Setup and Connection; Module 1 — Pressure-Test My Idea
+
+**Revision notes (1.5):**
+
+- Removed the Founder decision step entirely. The Module no longer asks the Founder to choose Proceed / Pivot / Kill, and no longer collects `founder_decision` / `pivot_detail`. AI Recommendation (in the Verdict artefact) is now the module's sole directional conclusion.
+- The Verdict template's "Founder's Decision" section is removed; the artefact ends at Recommended Next Step, then Working Notes / Unresolved Assumptions.
+- `pressure_test_verdict_v2`'s official check no longer requires `founder_decision` answered or `pivot_detail` when Pivot — those submission rules are removed.
+- Module 1 is now a single confirmation unit (the Q1–Q6 Summary Confirm); the prior second "decision block" confirmation is gone.
+- §14 Decision Routing is no longer decision-dependent: every completed Attempt reaches `ready_for_review` the same way, regardless of what the AI recommends.
+
+**Revision notes (1.4):**
+
+- The Founder chooses Claude or ChatGPT (`user_profiles.preferred_ai_provider`); both connect as Remote MCP clients and use the same Tools. This document no longer names Claude as the only client. It says "the AI assistant" everywhere except §2.1, where naming the two supported products is the point.
+- Founder-facing labels that open one specific app (`Open in <assistant>`) are resolved per provider from `apps/web/app/(app)/lib/assistant.ts`. `apps/web/app/(app)/lib/copy.ts` carries the same rule for website copy and `copy.test.ts` enforces it.
+- Per-assistant connection guidance shipped, so it is no longer listed under §23 "Not required in the first MVP UI".
+- Module 0's Setup Summary "AI client:" line now names the connected assistant, derived from `ActorContext.provider` rather than hardcoded to Claude.
+
+**Revision notes (1.3):**
+
+- Content ships as a new `program_versions` row under `program_key = founder-toolkit-v1`: `version_number = 2`, `version_label = v2-module-1-interview-flow`. Published `v1-module-0-1` stays immutable for in-flight Runs; new Runs pick the highest published `version_number`. This is not a second overall product Program (a future product-line V2 would be a new `programs.program_key`).
+- Module 1 Q1–Q6 is collect-only: per-question repeat-back confirm does **not** persist. A fixed Summary Confirm authorizes six sequential `save_founder_input` calls.
+- Verdict uses locked template + validator key `pressure_test_verdict_v2`. Venture metadata is **Venture name only**. AI Recommendation lives only in the artefact; Founder Decision is `founder_decision` (+ `pivot_detail` when Pivot), mirrored into the artefact.
+- Removed Pivot auto-cancel / auto-retry. Proceed / Pivot / Kill all reach `ready_for_review`; website `confirmModuleCompletion` unlocks the next module for any decision (website CTAs differ by decision).
+- `get_module_context` returns module-bound prompts and `displayAttempt` (answers remain visible after `validation_failed`). `complete_module` returns `validationErrors` on failure.
 
 **Revision notes (1.2):**
 
 - Canonical artefact filenames hyphenated: `Founder-Toolkit-Setup-Summary.md` and `Pressure-Test-Verdict.md`, matching the §22 object key convention.
 - Module 0 completion rule made explicit for V1: system-completed on validation pass (`completion_mode = 'system'`); no Mentor review for Module 0.
-- Founder decision persistence defined: `initial_decision`, `final_decision`, and `pivot_detail` are structured Responses (question keys 7–9) saved through `save_founder_input`; the strongest counter-case is recorded in the Verdict artefact and enforced by the draft check.
-- V1 Pivot creates a linked revised Attempt (`based_on`) on the single main branch; new Branches/Forks are deferred beyond V1, consistent with the V1 constraints in the iteration plan.
+- Earlier draft used `initial_decision` / `final_decision` / `pivot_detail`; current content uses `founder_decision` (+ `pivot_detail` when Pivot).
 
 ---
 
-**Provenance note:** This is the tracked, canonical copy of the product specification (mirrored from the gitignored `local/Module_0_and_Module_1_Workflow_S3.md` working draft as of PR 1.4). The seed script does not parse this file at runtime — the actual database content is authored and reviewed as TypeScript constants in `packages/services/src/content-seed/content/`, derived from this specification. If this document changes, the content constants must be updated and re-reviewed in a follow-up PR; they are not automatically kept in sync.
+**Provenance note:** This is the tracked, canonical product specification. The seed script does not parse this file at runtime — database content is authored as TypeScript constants in `packages/services/src/content-seed/content/`, derived from this specification. If this document changes, those constants must be updated in a follow-up change; they are not kept in sync automatically.
 
 ---
 
@@ -46,15 +68,15 @@ The Founder connects the AI client once. The Founder does not connect a storage 
 
 The Founder Toolkit website manages the journey. The connected AI client provides the conversational experience. Remote MCP connects the AI client to the platform's authorised business capabilities.
 
-| Component | Responsibility |
-|---|---|
-| **Founder Toolkit website** | Login, Venture selection, setup guidance, module overview, progress, status, resume, review checkpoints, and module unlocking |
-| **AI client** | Conversational workspace where the Founder completes module activities; V1 initially supports one Claude Remote MCP client |
-| **Remote MCP server** | Authenticates the client, exposes controlled Tools/Resources/Prompts, loads module context, and calls the shared Service layer |
-| **Service layer** | Enforces permissions, state transitions, idempotency, validation, artefact rules, and completion requirements |
-| **Platform database** | Stores identity, Workspace/Venture ownership, Run/Branch/Module/Attempt state, confirmed responses, artefact metadata, decisions, and audit references |
-| **StorageService** | Stores and retrieves artefact bytes through the configured Local or S3-compatible provider |
-| **S3-compatible storage** | Durable private object storage for Staging and Production artefacts; not exposed directly to the AI client |
+| Component                   | Responsibility                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Founder Toolkit website** | Login, Venture selection, setup guidance, module overview, progress, status, resume, review checkpoints, and module unlocking                          |
+| **AI client**               | Conversational workspace where the Founder completes module activities; V1 supports Claude and ChatGPT, each connected as a Remote MCP client          |
+| **Remote MCP server**       | Authenticates the client, exposes controlled Tools/Resources/Prompts, loads module context, and calls the shared Service layer                         |
+| **Service layer**           | Enforces permissions, state transitions, idempotency, validation, artefact rules, and completion requirements                                          |
+| **Platform database**       | Stores identity, Workspace/Venture ownership, Run/Branch/Module/Attempt state, confirmed responses, artefact metadata, decisions, and audit references |
+| **StorageService**          | Stores and retrieves artefact bytes through the configured Local or S3-compatible provider                                                             |
+| **S3-compatible storage**   | Durable private object storage for Staging and Production artefacts; not exposed directly to the AI client                                             |
 
 ### 2.2 Dependency and trust boundary
 
@@ -63,7 +85,7 @@ Founder
    │
    ├── Website ───────────────┐
    │                           │
-   └── Claude + Remote MCP ───┼──> packages/services
+   └── AI assistant + MCP ────┼──> packages/services
                                │          │
                                │          ├──> packages/db ──> PostgreSQL
                                │          │
@@ -106,7 +128,7 @@ The database is the source of truth for business state and ownership. S3-compati
 
 ### 2.4 One-time client connection
 
-The Founder connects Claude to the Remote MCP server once.
+The Founder connects their chosen AI assistant to the Remote MCP server once.
 
 Later modules do not require:
 
@@ -128,7 +150,7 @@ flowchart TD
     A[Founder accepts invitation and signs in] --> B[Create or select active Venture]
     B --> C[Create Program Run if required]
     C --> D[Open Module 0 setup page]
-    D --> E[Connect Claude through Remote MCP OAuth]
+    D --> E[Connect the AI assistant through Remote MCP OAuth]
     E --> F[Run setup check]
     F -->|Connection or storage check fails| G[Show exact repair action]
     G --> F
@@ -137,18 +159,15 @@ flowchart TD
     I --> J[Module 0 completes automatically after verification - V1 system completion]
     J --> K[Module 1 becomes available according to workflow rules]
     K --> L[Founder opens Module 1 overview]
-    L --> M[Open or resume Claude]
+    L --> M[Open or resume the AI assistant]
     M --> N[MCP loads authorised Module 1 context]
-    N --> O[Ask and confirm six questions]
-    O --> P[Persist each confirmed response]
-    P --> Q[Generate Pressure-Test Verdict]
-    Q --> R[Run draft quality check]
-    R --> S[Founder chooses Proceed, Pivot, or Kill]
-    S --> T[Save versioned Verdict through StorageService]
-    T --> U[Verify hash, metadata, submission, and completion conditions]
-    U -->|Proceed| V[Move to ready for review; next module stays locked until required review]
-    U -->|Pivot| W[Preserve history and create a linked revised Attempt]
-    U -->|Kill| X[Stop current idea path]
+    N --> O[Collect Q1 to Q6 with per-question confirm only]
+    O --> P[Summary Confirm then batch-save six responses]
+    P --> Q[Final verdict analysis in chat, AI Recommendation through Recommended Next Step]
+    Q --> S[Final chat verdict equals saved artefact]
+    S --> T[save_artifact then complete_module]
+    T --> U[ready_for_review regardless of the AI Recommendation]
+    U --> V[Website confirmModuleCompletion unlocks next module]
 ```
 
 ---
@@ -207,9 +226,9 @@ The website explains:
 It also explains:
 
 - the website manages status, progress, and review;
-- the Founder completes the guided conversation in Claude;
+- the Founder completes the guided conversation in their AI assistant;
 - the platform securely stores generated artefacts;
-- the Founder only needs to connect Claude once;
+- the Founder only needs to connect the assistant once;
 - no per-module Skill download is required.
 
 **Primary action:** `Continue setup`
@@ -238,7 +257,7 @@ The Founder must not retype information already stored in the Venture record.
 
 ---
 
-### Step 0.3 — Connect Claude through Remote MCP
+### Step 0.3 — Connect the AI assistant through Remote MCP
 
 The website provides a one-time Remote MCP connection action.
 
@@ -251,7 +270,7 @@ The connection flow must:
 5. verify issuer, audience, expiry, scope, and client ID on every request;
 6. avoid putting a permanent Workspace ID in the token as an authorisation fact.
 
-**Success state:** `Claude connected`
+**Success state:** `Assistant connected`
 
 **Failure states:**
 
@@ -269,7 +288,7 @@ Each failure should show one specific recovery action.
 
 ### Step 0.4 — Run Setup Check
 
-The Founder selects `Run setup check` from the website or starts Module 0 in Claude.
+The Founder selects `Run setup check` from the website or starts Module 0 in their AI assistant.
 
 The system verifies:
 
@@ -306,28 +325,33 @@ Recommended content:
 # Founder Toolkit Setup Summary
 
 ## Founder Context
+
 - Workspace:
 - Venture:
 - Program Run:
 - Active Branch:
 
 ## Connection
+
 - AI client:
 - Remote MCP:
 - OAuth status:
 - Last checked at:
 
 ## Platform Storage
+
 - Storage status:
 - Artefact version:
 - Verification status:
 - Content SHA-256:
 
 ## Module Status
+
 - Module 0:
 - Next available module:
 
 ## Notes
+
 - None
 ```
 
@@ -351,7 +375,7 @@ The resulting database record stores controlled metadata. The AI client receives
 Display:
 
 - active Venture;
-- Claude connection status;
+- assistant connection status;
 - MCP health;
 - platform storage health;
 - Setup Summary status;
@@ -363,7 +387,7 @@ Display:
 
 Display only the failed items and their repair action, for example:
 
-- `Reconnect Claude`
+- `Reconnect the assistant`
 - `Sign in with the correct account`
 - `Retry MCP authorisation`
 - `Restore the active Venture`
@@ -380,7 +404,7 @@ The Founder should not repeat successful steps unnecessarily.
 sequenceDiagram
     participant F as Founder
     participant W as Website
-    participant C as Claude
+    participant C as AI assistant
     participant M as Remote MCP
     participant S as Service Layer
     participant D as PostgreSQL
@@ -393,7 +417,7 @@ sequenceDiagram
     D-->>S: Current state
     S-->>W: Setup status and next action
 
-    F->>W: Connect Claude
+    F->>W: Connect the AI assistant
     W->>M: Start OAuth connection
     M-->>F: Authorise requested scopes
     F-->>M: Approve
@@ -427,16 +451,16 @@ sequenceDiagram
 
 The exact database states remain governed by the shared Run/Module/Attempt state machines. The UI may present these simplified setup states:
 
-| UI state | Meaning |
-|---|---|
-| `not_started` | Module 0 has not started |
-| `connection_required` | Claude/MCP OAuth is not ready |
-| `checking` | Setup check is running |
-| `repair_required` | One or more checks failed |
-| `ready_for_generation` | Connection and storage checks passed |
-| `saving` | Setup Summary is being stored and verified |
-| `completed` | Module 0 passed required validation and was completed automatically (V1: `completion_mode = 'system'`, no review queue) |
-| `history` | Read-only state for an archived Venture or historical branch |
+| UI state               | Meaning                                                                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `not_started`          | Module 0 has not started                                                                                                |
+| `connection_required`  | Assistant/MCP OAuth is not ready                                                                                        |
+| `checking`             | Setup check is running                                                                                                  |
+| `repair_required`      | One or more checks failed                                                                                               |
+| `ready_for_generation` | Connection and storage checks passed                                                                                    |
+| `saving`               | Setup Summary is being stored and verified                                                                              |
+| `completed`            | Module 0 passed required validation and was completed automatically (V1: `completion_mode = 'system'`, no review queue) |
+| `history`              | Read-only state for an archived Venture or historical branch                                                            |
 
 The UI must not invent a state transition that contradicts the canonical Service/database state machine.
 
@@ -479,8 +503,7 @@ The workflow must produce:
 - explicit conditions required for success;
 - a Yes/No investor decision today;
 - the single strongest reason for that decision;
-- a Founder decision: Proceed, Pivot, or Kill;
-- the strongest counter-case against the Founder’s initial decision;
+- a recommended next step;
 - one verified, versioned `Pressure-Test-Verdict.md` artefact.
 
 ---
@@ -495,7 +518,7 @@ Module 1 can start when:
 - Module 0 has reached the prerequisite state defined by the Program Version;
 - Module 1 is `available` or resumable;
 - no conflicting in-progress Attempt exists;
-- Claude/MCP connection is available.
+- the assistant/MCP connection is available.
 
 The Module must be resumed rather than duplicated when a valid in-progress Attempt already exists.
 
@@ -514,7 +537,7 @@ Display:
 - active Venture and Branch;
 - resume point, when applicable;
 - final review requirement;
-- primary action: `Open in Claude` or `Resume in Claude`.
+- primary action: `Open in <assistant>` or `Resume in <assistant>`, named from the Founder's chosen assistant.
 
 The website does not provide the main six-question form in V1.
 
@@ -525,7 +548,6 @@ Possible Founder-facing states:
 - not started;
 - resume at question N;
 - generating verdict;
-- awaiting Founder decision;
 - save/validation failed;
 - ready for review;
 - rejected and retry available;
@@ -540,7 +562,7 @@ The page reads current state from the shared Services. It does not infer complet
 
 ### Step 1A.1 — Load Authorised Context
 
-Claude requests the current Module context through MCP.
+The assistant requests the current Module context through MCP.
 
 The Service verifies:
 
@@ -558,145 +580,75 @@ MCP returns only the context needed to continue safely.
 
 ---
 
-### Step 1A.2 — Evaluator Role
+### Step 1A.2 — Interview Role (collect-only)
 
-The AI acts as a rigorous evaluator, not a supportive copywriter.
+During Q1–Q6 the AI is a structured interviewer, not a debate partner or evaluator.
 
 It should:
 
-- ask one question at a time;
-- require concrete answers;
-- challenge vague or contradictory statements;
-- distinguish evidence from assumptions;
-- preserve the Founder’s meaning;
+- ask one question at a time using each question's exact `question_text` from `get_module_context`;
+- preserve the Founder's meaning;
 - avoid fabricating traction, customers, competitors, or market evidence;
-- repeat back each answer in one sentence;
-- wait for confirmation before moving to the next question.
+- repeat each answer back in one sentence and wait for confirmation before the next question;
+- **not** call `save_founder_input` during Q1–Q6 (per-question confirm ≠ persistence);
+- **not** evaluate, score, pressure-test, or introduce new business questions during Q1–Q6;
+- ask at most one neutral clarification when an answer is blank, refuses the question, or is too thin to record.
+
+Evaluation belongs only in the Verdict after the six answers are saved.
 
 ---
 
-### Step 1A.3 — Six Confirmed Questions
+### Step 1A.3 — Six Questions, then Summary Confirm
 
-Ask in this order:
+Ask in this order (wording from Module context):
 
-1. **What is your idea in one sentence?**
-2. **Who is your target customer? Describe them like a real person, not a segment.**
-3. **What problem does this solve for that target customer?**
-4. **How does this idea make money?**
-5. **What is the idea's current stage — idea only, prototype, early users, or paying customers?**
-6. **What alternatives or competitors do customers use today, including doing nothing?**
+1. Idea in one sentence
+2. Target customer
+3. Customer problem
+4. Business model
+5. Current stage
+6. Competitors, alternatives, and doing nothing
 
-For every question:
+After all six answers are collected, present a fixed Summary Confirm (no freeform). **Only** after the Founder confirms that summary, call `save_founder_input` once per core answer (six sequential saves). That summary confirmation is the sole authorization to persist the six responses.
 
-1. ask the question;
-2. receive the answer;
-3. identify material ambiguity when necessary;
-4. repeat the answer back in one sentence;
-5. ask for confirmation;
-6. persist only the confirmed version;
-7. advance only after confirmation.
-
-Confirmed responses are stored in PostgreSQL through `ResponseService`. They are not reconstructed only from the chat transcript.
+Confirmed responses are stored in PostgreSQL through the Response path. They are not reconstructed only from the chat transcript.
 
 ---
 
-### Step 1A.4 — Generate the Four-Part Verdict
+### Step 1A.4 — Final Verdict Analysis
 
-#### Part 1 — Five reasons the business may fail
+After the six saves succeed, deliver the **final** verdict analysis in chat covering the locked sections from AI Recommendation through Recommended Next Step. This must exactly match the Markdown passed to `save_artifact`.
 
-Requirements:
+Locked analysis sections (see §17 template):
 
-- exactly five substantive reasons;
-- specific to the confirmed idea;
-- no generic filler;
-- each reason linked to a concrete assumption, dependency, or market risk.
-
-#### Part 2 — Existing competitors and alternatives
-
-Requirements:
-
-- at least three named competitors, alternatives, or substitute behaviours;
-- include “doing nothing” when relevant;
-- separate verified current information from general model knowledge;
-- do not invent unsupported claims.
-
-#### Part 3 — Conditions required for success
-
-Requirements:
-
-- actionable and testable;
-- connected to the failure risks;
-- include measurable milestones or evidence where practical.
-
-#### Part 4 — Investor decision today
-
-Required format:
-
-```text
-Would an investor invest today? Yes / No
-
-Single biggest reason:
-...
-```
-
-The decision must reflect current evidence, not the theoretical maximum potential of the idea.
+- AI Recommendation (Proceed / Pivot / Kill + Reason) — the module's sole directional conclusion
+- Five Failure Reasons (exactly five)
+- Competitors / Alternatives (at least three) + Evidence note
+- Success Conditions
+- Investor Decision (Yes / No + Single biggest reason)
+- Recommended Next Step
 
 ---
 
-### Step 1A.5 — Draft Quality Check
+### Step 1A.5 — Draft / Official Quality Check
 
-The draft check verifies at minimum:
+`pressure_test_verdict_v2` draft and official checks verify at minimum:
 
-- all six responses exist and are confirmed;
-- five concrete failure reasons exist;
-- at least three named competitors/alternatives exist;
-- success conditions are actionable;
-- the investor decision is exactly Yes or No;
-- one strongest reason is present;
-- unsupported evidence is labelled;
-- unresolved assumptions are separated;
-- required Markdown sections exist.
+- at least six answered Responses;
+- five concrete failure reasons;
+- at least three named competitors/alternatives;
+- success conditions, evidence note, AI recommendation + reason, investor decision, recommended next step, and required Markdown sections.
 
-Draft Check does not mark the Module complete.
-
-When validation fails:
-
-1. preserve confirmed responses;
-2. identify the exact missing/weak section;
-3. regenerate or repair only that section when possible;
-4. submit a new version rather than overwriting accepted history.
+Draft Check does not mark the Module complete. On official failure, `complete_module` returns `validationErrors` with named checks; confirmed responses are preserved (visible via `displayAttempt` even when `activeAttemptId` is cleared).
 
 ---
 
-### Step 1A.6 — Founder Decision
-
-Present:
-
-- Proceed;
-- Pivot;
-- Kill.
-
-After the Founder chooses, present the strongest counter-case against that choice.
-
-Then ask the Founder to confirm or revise the final decision.
-
-Persist:
-
-- initial decision — structured Response, `question_key = initial_decision` (`single_choice`: proceed / pivot / kill);
-- final decision — structured Response, `question_key = final_decision` (`single_choice`: proceed / pivot / kill);
-- Pivot detail, if applicable — structured Response, `question_key = pivot_detail` (`long_text`, `allow_skip = true`; required by the Service when `final_decision = pivot`);
-- strongest counter-case — recorded in the Verdict artefact's dedicated section (AI-generated, not a question); the draft check verifies the section exists and is non-empty.
-
-Decision Responses are saved through the same idempotent `save_founder_input` path as the six core questions (`attempt_id + question_id` upsert).
-
----
-
-### Step 1A.7 — Save Final Artefact
+### Step 1A.6 — Save Final Artefact
 
 The final Markdown is saved through:
 
 ```text
-Claude
+AI assistant
   → MCP save_artifact
   → ArtifactSubmissionService
   → StorageService
@@ -723,27 +675,9 @@ The system must:
 
 ## 14. Decision Routing
 
-### Proceed
+The AI is an advisor, not a gatekeeper. There is no Founder decision to route on: every Attempt follows the same technical success path after a passing official validation — Attempt → `ready_for_review` → Founder `confirmModuleCompletion` on the website → Module completed and next Module unlocked.
 
-- preserve the completed Verdict;
-- move the Attempt into the configured validation/review state;
-- do not mark the Module completed solely because the Founder selected Proceed;
-- do not unlock the next Module until the Program's required validation/review rule is satisfied.
-
-### Pivot
-
-- preserve the original responses and Verdict as immutable history;
-- V1: create a linked revised Attempt (`based_on = previous_attempt_id`) on the single main branch; new Branches/Forks are deferred beyond V1;
-- record the relationship to the previous work;
-- do not silently copy previous responses as newly confirmed answers;
-- keep the normal next Module locked until the revised path satisfies completion rules.
-
-### Kill
-
-- preserve all work as history;
-- stop normal progression for the current idea path;
-- do not unlock the next Module;
-- allow the Founder to create another Venture or intentionally start an approved new path later.
+Completion and next-Module unlocking never depend on what the AI Recommendation says (Proceed / Pivot / Kill). The Founder is always free to re-run Module 1 deliberately with the assistant on a revised framing; the system never auto-creates a revised Attempt on its own.
 
 ---
 
@@ -753,7 +687,7 @@ The system must:
 sequenceDiagram
     participant F as Founder
     participant W as Website
-    participant C as Claude
+    participant C as AI assistant
     participant M as Remote MCP
     participant S as Service Layer
     participant D as PostgreSQL
@@ -766,7 +700,7 @@ sequenceDiagram
     D-->>S: Current state
     S-->>W: Start/resume/review state
 
-    F->>W: Open or resume Claude
+    F->>W: Open or resume the AI assistant
     C->>M: get_module_context
     M->>S: Load authorised context
     S->>D: Verify ownership and state
@@ -787,31 +721,22 @@ sequenceDiagram
     C->>M: Request verdict generation
     M->>S: Load confirmed structured responses
     S-->>M: Confirmed response set
-    M-->>C: Generate four-part verdict
-    C->>M: save_artifact draft
-    M->>S: Save draft artifact
+    M-->>C: Generate final verdict (AI Recommendation through Recommended Next Step)
+    C-->>F: Present final verdict
+
+    C->>M: save_artifact final
+    M->>S: Save final artifact
     S->>O: Store versioned Markdown
     O->>B: Put private object
     B-->>O: Object metadata
     O-->>S: Verified storage result
     S->>D: Record artifact version and metadata
 
-    C->>M: Run draft check
-    M->>S: Validate draft
+    C->>M: Run official check + complete submission
+    M->>S: Validate + submit Attempt
     S-->>M: Passed or targeted repairs
-    M-->>C: Present verdict and decision options
-    F-->>C: Proceed / Pivot / Kill
-    C-->>F: Strongest counter-case
-    F-->>C: Confirm final decision
-
-    C->>M: Save final decision and complete submission
-    M->>S: Save response + final artifact + submit Attempt
-    S->>O: Store final verified version
-    O->>B: Put private object
-    B-->>O: Object metadata
-    O-->>S: Hash, size, MIME, version
     S->>D: Persist state transition
-    S-->>M: Ready for review / Pivot / Kill route
+    S-->>M: Ready for review
     W->>S: Refresh module state
     S-->>W: Current website status
 ```
@@ -843,7 +768,6 @@ Additional conversational checkpoints may include:
 - awaiting answer confirmation;
 - generating verdict;
 - draft quality review;
-- awaiting Founder decision;
 - saving;
 - storage repair required.
 
@@ -857,11 +781,8 @@ These checkpoints must not bypass canonical state transitions.
 # Pressure-Test Verdict
 
 ## Venture
+
 - Venture name:
-- Run:
-- Branch:
-- Attempt:
-- Completed at:
 
 ## Confirmed Q&A
 
@@ -877,9 +798,13 @@ These checkpoints must not bypass canonical state transitions.
 
 ### 6. Competitors, alternatives, and doing nothing
 
-## Four-Part Verdict
+## AI Recommendation
 
-### 1. Five reasons this business may fail
+**Recommendation:** Proceed / Pivot / Kill
+
+**Reason:**
+
+## Five Failure Reasons
 
 1.
 2.
@@ -887,7 +812,7 @@ These checkpoints must not bypass canonical state transitions.
 4.
 5.
 
-### 2. Existing competitors and alternatives
+## Competitors / Alternatives
 
 1.
 2.
@@ -895,25 +820,15 @@ These checkpoints must not bypass canonical state transitions.
 
 **Evidence note:**
 
-### 3. Conditions required for success
+## Success Conditions
 
-### 4. Would an investor invest today?
+## Investor Decision
 
 **Decision:** Yes / No
 
 **Single biggest reason:**
 
-## Founder's Decision
-
-### Initial decision
-
-Proceed / Pivot / Kill
-
-### Strongest counter-case
-
-### Final confirmed decision
-
-### Pivot detail, if applicable
+## Recommended Next Step
 
 ## Working Notes / Unresolved Assumptions
 
@@ -926,21 +841,15 @@ Proceed / Pivot / Kill
 
 Module 1 reaches the submission/review stage only when:
 
-- all six answers are confirmed;
-- confirmed answers are stored as structured Responses;
-- the four-part verdict is complete;
-- the draft quality check passes;
-- the Founder makes and confirms a Proceed/Pivot/Kill decision;
-- the strongest counter-case is recorded;
+- all six core answers are confirmed via Summary Confirm and stored as structured Responses;
+- AI Recommendation through Recommended Next Step are complete in the locked template;
+- the final chat verdict exactly matches the Markdown saved as `Pressure-Test-Verdict.md`;
 - unsupported claims and unresolved assumptions are labelled;
-- one final versioned `Pressure-Test-Verdict.md` is stored through `StorageService`;
-- the storage object is private and readable by the authorised service;
 - SHA-256, size, MIME type, provider, and version metadata are recorded;
-- the Attempt is submitted through the valid Service state transition;
-- required official validation is performed by an authorised source;
-- the Module enters the configured review state.
+- the Attempt is submitted and official validation (`pressure_test_verdict_v2`) passes;
+- the Module enters `ready_for_review` for website confirmation.
 
-Module completion and next-module unlocking occur only after the required review/acceptance rule. A saved S3 object or successful chat response alone is insufficient.
+Module completion and next-module unlocking occur only after the Founder confirms on the website (`confirmModuleCompletion`). A saved S3 object or successful chat response alone is insufficient.
 
 ---
 
@@ -963,7 +872,7 @@ Module completion and next-module unlocking occur only after the required review
 - repeated `save_artifact` calls must not create uncontrolled duplicate versions;
 - repeated submit/complete requests return the current result;
 - submitted, rejected, accepted, or superseded history is immutable;
-- Pivot creates an explicitly linked revised Attempt (V1: same main branch, `based_on` set);
+- the system never auto-creates a revised Attempt; the Founder may start a new Attempt deliberately;
 - a storage write success followed by a callback failure can be reconciled by hash/version/idempotency key.
 
 Suggested idempotency inputs:
@@ -979,23 +888,23 @@ Suggested idempotency inputs:
 
 ## 20. Error Handling
 
-| Failure | Expected behaviour |
-|---|---|
-| MCP connection unavailable | Preserve platform progress and show a reconnect action |
-| OAuth token invalid or expired | Return 401 with correct authentication metadata; request reconnection |
-| User connected with the wrong account | Reject context loading and expose no Venture data |
-| Venture belongs to another Workspace | Return NOT_FOUND/FORBIDDEN according to the Service contract; never rely on active context |
-| Venture becomes archived | Prevent new writable progression and allow read-only history |
-| Storage provider unavailable | Preserve structured responses; keep the Attempt non-complete; retry only the storage step |
-| Storage write times out | Reconcile using idempotency key and object metadata before attempting another version |
-| Hash or MIME verification fails | Mark the artefact unverified; do not advance the Attempt |
-| Object exists but database callback failed | Reconcile the controlled object key/hash and complete idempotently |
-| Database metadata exists but object is missing | Mark storage repair required; do not report completion |
-| Artefact version already submitted | Return current immutable submission state |
-| Draft validation fails | Preserve confirmed responses and repair only the failed sections |
-| Founder leaves mid-question | Resume at the same unconfirmed question |
-| Website displays stale state | Refresh from the Service; do not rerun the workflow |
-| Current-source research is unavailable | Label findings as incomplete/general knowledge; do not fabricate evidence |
+| Failure                                        | Expected behaviour                                                                         |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| MCP connection unavailable                     | Preserve platform progress and show a reconnect action                                     |
+| OAuth token invalid or expired                 | Return 401 with correct authentication metadata; request reconnection                      |
+| User connected with the wrong account          | Reject context loading and expose no Venture data                                          |
+| Venture belongs to another Workspace           | Return NOT_FOUND/FORBIDDEN according to the Service contract; never rely on active context |
+| Venture becomes archived                       | Prevent new writable progression and allow read-only history                               |
+| Storage provider unavailable                   | Preserve structured responses; keep the Attempt non-complete; retry only the storage step  |
+| Storage write times out                        | Reconcile using idempotency key and object metadata before attempting another version      |
+| Hash or MIME verification fails                | Mark the artefact unverified; do not advance the Attempt                                   |
+| Object exists but database callback failed     | Reconcile the controlled object key/hash and complete idempotently                         |
+| Database metadata exists but object is missing | Mark storage repair required; do not report completion                                     |
+| Artefact version already submitted             | Return current immutable submission state                                                  |
+| Draft validation fails                         | Preserve confirmed responses and repair only the failed sections                           |
+| Founder leaves mid-question                    | Resume at the same unconfirmed question                                                    |
+| Website displays stale state                   | Refresh from the Service; do not rerun the workflow                                        |
+| Current-source research is unavailable         | Label findings as incomplete/general knowledge; do not fabricate evidence                  |
 
 ---
 
@@ -1003,16 +912,16 @@ Suggested idempotency inputs:
 
 Suggested V1 capabilities:
 
-| MCP capability | Service responsibility |
-|---|---|
-| `get_active_context` | Resolve safe navigation context; never treat it as authorisation |
-| `list_modules` | Return authorised modules and canonical status |
-| `get_module_status` | Return current Run/Branch/Module/Attempt state |
+| MCP capability       | Service responsibility                                                                                  |
+| -------------------- | ------------------------------------------------------------------------------------------------------- |
+| `get_active_context` | Resolve safe navigation context; never treat it as authorisation                                        |
+| `list_modules`       | Return authorised modules and canonical status                                                          |
+| `get_module_status`  | Return current Run/Branch/Module/Attempt state                                                          |
 | `get_module_context` | Load authorised definition, prompt, questions, confirmed Responses, resume point, and artefact metadata |
-| `save_founder_input` | Validate and persist confirmed structured Responses idempotently |
-| `get_artifact` | Read an authorised artefact through `StorageService` |
-| `save_artifact` | Validate Artifact Definition, store content, verify metadata, and create a versioned submission |
-| `complete_module` | Check completion requirements and request only the state transition the Actor is permitted to perform |
+| `save_founder_input` | Validate and persist confirmed structured Responses idempotently                                        |
+| `get_artifact`       | Read an authorised artefact through `StorageService`                                                    |
+| `save_artifact`      | Validate Artifact Definition, store content, verify metadata, and create a versioned submission         |
+| `complete_module`    | Check completion requirements and request only the state transition the Actor is permitted to perform   |
 
 Restrictions:
 
@@ -1062,15 +971,15 @@ Rules:
 
 - Founder invitation and login;
 - active Venture selection;
-- one-time Claude Remote MCP connection;
+- one-time Remote MCP connection for the chosen assistant;
 - setup health/status page;
 - Module 0 setup check;
 - platform storage health display without exposing S3 details;
 - Module 0/1 overview pages;
-- `Open in Claude` / resume action;
+- `Open in <assistant>` / resume action;
 - progress and canonical status;
 - final artefact availability through a controlled download/view action;
-- Proceed/Pivot/Kill result display;
+- AI Recommendation result display;
 - validation/review status;
 - clear retry and repair actions.
 
@@ -1083,7 +992,6 @@ Rules:
 - fully embedded website chat;
 - editing the full artefact inside the website;
 - separate per-module Skill installation;
-- separate Claude and Codex onboarding;
 - Mentor review UI before the Mentor iteration;
 - presentation or investor-deck generation.
 
@@ -1096,13 +1004,13 @@ Rules:
 1. Founder signs in.
 2. Founder creates or selects an active Venture.
 3. Founder opens Module 0.
-4. Founder connects Claude through Remote MCP OAuth.
+4. Founder connects their AI assistant through Remote MCP OAuth.
 5. Setup check verifies context, Tool access, database state, and StorageService.
 6. Setup Summary is stored and verified.
 7. Module 0 reaches its configured review/completion state.
 8. Module 1 becomes available according to the Program rules.
-9. Founder completes six confirmed answers in Claude.
-10. Verdict and decision are saved as a versioned artefact.
+9. Founder completes six confirmed answers in the assistant.
+10. Verdict is saved as a versioned artefact.
 11. Draft and official validation follow the permission matrix.
 12. Website displays the correct review and next-route state.
 
@@ -1110,7 +1018,7 @@ Rules:
 
 1. Founder leaves during question 4.
 2. The first three confirmed Responses remain in PostgreSQL.
-3. Claude reconnects and MCP loads the active Attempt.
+3. The assistant reconnects and MCP loads the active Attempt.
 4. The workflow resumes at question 4.
 5. No duplicate Attempt or artefact is created.
 
@@ -1133,13 +1041,12 @@ Rules:
 5. Metadata is reconciled without writing a duplicate object.
 6. The workflow continues from the verified state.
 
-### Scenario E — Pivot
+### Scenario E — AI recommends Pivot
 
-1. Founder chooses Pivot.
-2. The original Responses and Verdict remain read-only history.
-3. A linked revised Attempt (`based_on`) is created on the same main branch.
-4. Previous answers are visible as reference but not automatically reconfirmed.
-5. The normal next Module remains locked until the revised path satisfies completion rules.
+1. The generated Verdict's AI Recommendation is Pivot.
+2. Official validation passes the same way it would for Proceed or Kill; Attempt reaches `ready_for_review` (no auto-cancel / auto-retry).
+3. Founder confirms on the website; the next Module unlocks regardless of the recommendation.
+4. The Founder may re-run Module 1 deliberately with the assistant on a revised framing.
 
 ### Scenario F — Archived Venture history
 
@@ -1162,7 +1069,7 @@ Rules:
 
 The first two modules should prove this loop:
 
-> **Website guidance → one connected Claude workspace → authorised MCP workflow → structured confirmed data → one versioned S3-backed artefact → verified submission → controlled review and unlock.**
+> **Website guidance → one connected AI assistant → authorised MCP workflow → structured confirmed data → one versioned S3-backed artefact → verified submission → controlled review and unlock.**
 
 The Founder should experience S3 as reliable platform storage, not as a storage product they must configure.
 

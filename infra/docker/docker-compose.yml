@@ -7,6 +7,7 @@ services:
       dockerfile: apps/api/Dockerfile
     environment:
       APP_ENV: local
+      SERVICE_NAME: aicatalyst-api
       LOG_LEVEL: INFO
       CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
@@ -23,18 +24,25 @@ services:
       context: ../..
       dockerfile: apps/web/Dockerfile
     environment:
+      APP_ENV: local
+      SERVICE_NAME: aicatalyst-web
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
-      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
+      AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?BETTER_AUTH_SECRET is required}
+      # Google sign-in. Unset by default and NOT :?-required — lib/auth.ts only
+      # reads these when AUTH_GOOGLE_ENABLED is true in
+      # apps/web/lib/feature-flags.ts, so requiring them here would break every
+      # local stack that has no Google client configured.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       # Must match the mcp service's own MCP_RESOURCE_URL below exactly —
       # see apps/web/lib/mcp-oauth-compat/hooks.ts.
       MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
-      # Declares the convention only — see local_storage_data below. The
-      # Local Storage Provider (packages/services/src/storage) does not yet
-      # have a real caller wired into a running container, so this volume
-      # currently has no consumer that actually needs cross-container
-      # sharing; PR 2.5's acceptance note covers this explicitly.
+      # Shared with mcp via local_storage_data. Local provider is fine for
+      # single-process use; prefer S3 (STORAGE_PROVIDER=s3) when web and mcp
+      # must share objects across containers.
       LOCAL_STORAGE_ROOT: /data/storage
+      GOTENBERG_URL: http://gotenberg:3000
     ports:
       - "127.0.0.1:${WEB_PORT:-3000}:3000"
     volumes:
@@ -42,6 +50,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      gotenberg:
+        condition: service_started
 
   mcp:
     build:
@@ -54,16 +64,15 @@ services:
       # container's listener the moment a developer overrides it to dodge a
       # host port clash.
       MCP_PORT: 8787
+      APP_ENV: local
+      SERVICE_NAME: aicatalyst-mcp
       DATABASE_URL: postgresql://ai_catalyst:ai_catalyst@db:5432/ai_catalyst
       # Public-facing URLs only, for OAuth discovery metadata (RFC 9728) —
       # apps/mcp verifies platform Bearer tokens by querying Postgres
-      # directly (DATABASE_URL above), never by calling apps/web over HTTP
-      # (architecture.mdc rule 4).
+      # directly (DATABASE_URL above), never by calling apps/web over HTTP.
       MCP_RESOURCE_URL: http://localhost:${MCP_HOST_PORT:-8787}/mcp
-      AUTH_ISSUER_URL: http://localhost:${WEB_PORT:-3000}
-      # See the web service's LOCAL_STORAGE_ROOT comment above — same
-      # named volume, so both services resolve the same in-container path,
-      # but nothing yet exercises this cross-container sharing for real.
+      AUTH_ISSUER_URL: ${AUTH_ISSUER_URL:-http://localhost:${WEB_PORT:-3000}}
+      # Same named volume as web — same in-container path for both services.
       LOCAL_STORAGE_ROOT: /data/storage
     ports:
       - "127.0.0.1:${MCP_HOST_PORT:-8787}:8787"
@@ -90,12 +99,14 @@ services:
       retries: 10
       start_period: 10s
 
+  # Chromium HTML → PDF for printable Interview Guide (and later Verdict/ICA/Roadmap).
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    ports:
+      - "127.0.0.1:${GOTENBERG_HOST_PORT:-3001}:3000"
+
 volumes:
   postgres_data:
-  # Declares the local-storage convention for the containerized stack (see
-  # the web/mcp services' LOCAL_STORAGE_ROOT above). PR 2.5's Local
-  # Storage Provider only guarantees single-process/test-suite usability
-  # today — a shared bind mount that actually gives web and mcp real
-  # concurrent access to the same files is follow-up work (or is made moot
-  # entirely once 2.10 moves to an S3-compatible provider).
+  # Shared by web and mcp when LOCAL_STORAGE_ROOT=/data/storage. For
+  # multi-container object sharing in Staging/Production, use S3 instead.
   local_storage_data:

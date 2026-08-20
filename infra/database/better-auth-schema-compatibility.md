@@ -2,7 +2,7 @@
 
 How `infra/database/migrations/0001_aidb_v5_baseline.sql`'s `users` /
 `sessions` / `accounts` / `verifications` tables were verified against what
-Better Auth (pinned to `1.6.23`, matching `apps/web/package.json`'s
+Better Auth (pinned to `1.6.25`, matching `apps/web/package.json`'s
 `better-auth` dependency) actually expects — not just what its docs describe.
 
 ## Method
@@ -16,7 +16,7 @@ check, not just documentation-reading:
 ```powershell
 docker compose -f infra/docker/docker-compose.yml down -v
 docker compose -f infra/docker/docker-compose.yml up -d --wait db   # empty db
-pnpm --filter web exec auth generate --output ../../local/better-auth-reference-schema.sql --dialect postgresql -y
+pnpm --filter web exec auth generate --output ../../.data/better-auth-reference-schema.sql --dialect postgresql -y
 ```
 
 Against the **empty** database this generated the full reference schema
@@ -45,12 +45,12 @@ missing-column diff.
 
 ## Field-by-field comparison
 
-| Table | Better Auth requires | `0001_aidb_v5_baseline.sql` has | Verdict |
-|---|---|---|---|
-| `users` | `id`, `name`, `email` (unique), `email_verified`, `image`, `created_at`, `updated_at`, `role` | all of the above, plus `deleted_at`, a `role` check constraint, a `default 'pending'` on `role`, and a case-insensitive unique index on `email` | ✅ compatible — extra columns/constraints don't affect Better Auth, and the `role` check values (`pending`/`founder`/`mentor`/`admin`) already match what `databaseHooks.user.create.before` writes |
-| `sessions` | `id`, `expires_at`, `token` (unique), `created_at`, `updated_at`, `ip_address`, `user_agent`, `user_id` (FK → `users.id` cascade), index on `user_id` | all of the above; index is named `idx_sessions_user` instead of `sessions_user_id_idx` | ✅ compatible — Better Auth reads/writes by column name, not index name |
-| `accounts` | `id`, `account_id`, `provider_id`, `user_id` (FK cascade), `access_token`, `refresh_token`, `id_token`, `access_token_expires_at`, `refresh_token_expires_at`, `scope`, `password`, `created_at`, `updated_at`, index on `user_id` | all of the above, plus a `unique (provider_id, account_id)` constraint and index named `idx_accounts_user` | ✅ compatible — the extra uniqueness constraint is stricter than what Better Auth requires, never violated by it |
-| `verifications` | `id`, `identifier`, `value`, `expires_at`, `created_at`, `updated_at`, index on `identifier` | all columns present; **no index on `identifier`** | ⚠️ gap — see below |
+| Table           | Better Auth requires                                                                                                                                                                                                               | `0001_aidb_v5_baseline.sql` has                                                                                                                 | Verdict                                                                                                                                                                                             |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `users`         | `id`, `name`, `email` (unique), `email_verified`, `image`, `created_at`, `updated_at`, `role`                                                                                                                                      | all of the above, plus `deleted_at`, a `role` check constraint, a `default 'pending'` on `role`, and a case-insensitive unique index on `email` | ✅ compatible — extra columns/constraints don't affect Better Auth, and the `role` check values (`pending`/`founder`/`mentor`/`admin`) already match what `databaseHooks.user.create.before` writes |
+| `sessions`      | `id`, `expires_at`, `token` (unique), `created_at`, `updated_at`, `ip_address`, `user_agent`, `user_id` (FK → `users.id` cascade), index on `user_id`                                                                              | all of the above; index is named `idx_sessions_user` instead of `sessions_user_id_idx`                                                          | ✅ compatible — Better Auth reads/writes by column name, not index name                                                                                                                             |
+| `accounts`      | `id`, `account_id`, `provider_id`, `user_id` (FK cascade), `access_token`, `refresh_token`, `id_token`, `access_token_expires_at`, `refresh_token_expires_at`, `scope`, `password`, `created_at`, `updated_at`, index on `user_id` | all of the above, plus a `unique (provider_id, account_id)` constraint and index named `idx_accounts_user`                                      | ✅ compatible — the extra uniqueness constraint is stricter than what Better Auth requires, never violated by it                                                                                    |
+| `verifications` | `id`, `identifier`, `value`, `expires_at`, `created_at`, `updated_at`, index on `identifier`                                                                                                                                       | all columns present; **no index on `identifier`**                                                                                               | ⚠️ gap — see below                                                                                                                                                                                  |
 
 ## Gap found and fixed
 
@@ -72,7 +72,7 @@ database (`0001` + `0002` applied) confirmed the gap is closed:
 Your schema is already up to date.
 ```
 
-## Deferred (Iteration 3, per `local/00/AI Catalyst V1 迭代计划.md`)
+## Deferred
 
 - OAuth provider schema pre-validation (`socialProviders` config, provider
   columns beyond what email/password needs).
@@ -80,10 +80,9 @@ Your schema is already up to date.
   provider is configured yet in V1, so no OAuth tokens are written to
   `accounts` to exercise it.
 
-## PR 2.2: MCP OAuth provider tables (`mcp_oauth_*`)
+## MCP OAuth provider tables (`mcp_oauth_*`)
 
-Better Auth's legacy `mcp()` plugin (enabled in `apps/web/lib/auth.ts` for
-PR 2.2) needs three tables that its own bundled schema
+Better Auth's legacy `mcp()` plugin needs three tables that its bundled schema
 (`plugins/oidc-provider/schema.mjs`) calls `oauthApplication` /
 `oauthAccessToken` / `oauthConsent`, with camelCase fields. This project
 renames them to `mcp_oauth_applications` / `mcp_oauth_access_tokens` /
@@ -92,9 +91,9 @@ renames them to `mcp_oauth_applications` / `mcp_oauth_access_tokens` /
 — matching every other table in this schema.
 
 **This rename would not work through `mcp()`'s own config.** Confirmed by
-reading `better-auth@1.6.23`'s compiled `plugins/mcp/index.mjs`: `mcp()`
+reading `better-auth@1.6.25`'s compiled `plugins/mcp/index.mjs`: `mcp()`
 internally builds `provider = oidcProvider({...opts})` (whose own schema
-*would* correctly honor an `options.schema` override, via
+_would_ correctly honor an `options.schema` override, via
 `mergeSchema(schema, options?.schema)` — this is how `oidcProvider()` on its
 own supports renaming) but then returns the plugin object with the bare,
 un-merged `schema` import from `oidc-provider/schema.mjs` instead of
@@ -103,12 +102,12 @@ is silently ignored.
 
 The actual fix, in `apps/web/lib/mcp-oauth-compat/schema-override.ts`: a
 second, schema-only plugin object (no endpoints/hooks of its own) declaring
-the desired `modelName`/`fieldName` overrides, placed *after* `mcp()` in the
+the desired `modelName`/`fieldName` overrides, placed _after_ `mcp()` in the
 `plugins` array. Verified empirically (a throwaway script constructing a
 `betterAuth()` instance with both plugins and inspecting
 `getAuthTables(auth.options)` from `@better-auth/core/db`) that
 `getAuthTables()` merges every plugin's `.schema` by table key across the
-*entire* plugins array — independent of what `mcp()`'s own plugin object
+_entire_ plugins array — independent of what `mcp()`'s own plugin object
 carries — so a later plugin's `modelName`/`fieldName` entries for the same
 table key win. Since both the migration-diff tool (`getMigrations`, used by
 `pnpm --filter web run auth:check`) and the live Postgres adapter's
@@ -126,6 +125,40 @@ never causing an error. `verifyMcpBearerToken`
 (`packages/services/src/mcp-auth`) checks `type = 'public'` and an
 empty/null `client_secret` instead, matching the DCR handler's real branch
 (`finalClientSecret = clientType === "public" ? "" : clientSecret`).
+
+### `mcp_oauth_access_tokens.refresh_token` — corrects `0004`'s comments
+
+`0004_mcp_oauth_provider_schema.sql` says in its section-2 comment that
+`refresh_token` is generated but never redeemable, and that a non-null value
+there must not be read as meaning a client can use it. **That is no longer
+true**, and the migration file cannot be edited to say so: `migrate.ts`
+checksums applied migrations, so changing even a comment would fail
+`db:migrate` against every existing database. This section supersedes it.
+
+Refresh tokens are now real. `/mcp/authorize` grants
+`mcp:connect offline_access` on every authorization, which is what makes
+`plugins/mcp/index.mjs` return a `refresh_token` at token time and accept one
+back at `/mcp/token` (its refresh branch reads the `scopes` column looking for
+`offline_access`). Access tokens still live one hour; the refresh token lives
+30 days, sliding — `refreshTokenExpiresIn` in `apps/web/lib/auth.ts`.
+
+Two consequences for anything querying this table:
+
+- **A row is live while _either_ expiry is in the future.** An expired
+  `access_token_expires_at` on a row whose `refresh_token_expires_at` is still
+  ahead is a perfectly healthy connection. `getMcpConnectionStatus` and
+  `cleanupExpiredMcpOAuthState` (both in
+  `packages/services/src/mcp-auth/index.ts`) each depend on this; sweeping or
+  reporting on `access_token_expires_at` alone reintroduces the hourly
+  "connection expired" bug this replaced.
+- **Rows are rotated, not accumulated.** Better Auth creates a new row per
+  refresh and never deletes the old one, so the `/mcp/token` before-hook
+  claims the presented refresh token (`tryClaimRefreshToken` /
+  `mcp_oauth_refresh_claims` from
+  `0007_mcp_oauth_refresh_claims.sql`) and the after-hook
+  (`apps/web/lib/mcp-oauth-compat/token-validation.ts`) deletes every sibling
+  row for that user+client except the newly issued one. A refresh token that
+  no longer has a row is a replay, and is rejected.
 
 **Any Better Auth version bump must re-verify all of the above** — this is
 called out in `apps/web/lib/mcp-oauth-compat/README.md`.

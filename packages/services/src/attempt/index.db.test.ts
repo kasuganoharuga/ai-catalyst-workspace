@@ -1,5 +1,4 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import type { PoolClient } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
@@ -7,8 +6,17 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
+import {
+  createFixtureFounderAccount,
+  createFixtureVenture,
+  withTransaction,
+} from "@ai-catalyst/services/testing/db-fixtures";
 
-import { saveFounderResponse, startOrResumeAttempt, submitAttempt } from "./index.js";
+import {
+  saveFounderResponse,
+  startOrResumeAttempt,
+  submitAttempt,
+} from "./index.js";
 
 /**
  * Integration tests against the real Postgres database, following the
@@ -30,30 +38,12 @@ function webFounderActor(userId: string): ActorContext {
   return { userId, role: "founder", source: "web" };
 }
 
-async function withTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
-
 const CURRENT_STAGE_OPTIONS = [
   { value: "idea_only", label: "Idea only" },
   { value: "pivot", label: "Pivot" },
 ];
 
-// Module A's questions: one long_text with allow_skip: true, one
-// single_choice with options, and one conditional long_text — the exact
-// shape the PR 2.4 plan asks the fixture to cover, mirroring
-// content/module-1.ts's own current_stage / pivot_detail pattern.
+// Fixture questions: long_text, single_choice, and conditional follow-up.
 function buildSharedQuestions(): FixtureQuestion[] {
   return [
     {
@@ -93,7 +83,11 @@ function buildSharedQuestions(): FixtureQuestion[] {
       isRequired: false,
       allowSkip: false,
       options: [],
-      conditions: { depends_on: "current_stage", operator: "equals", value: "pivot" },
+      conditions: {
+        depends_on: "current_stage",
+        operator: "equals",
+        value: "pivot",
+      },
     },
   ];
 }
@@ -140,7 +134,10 @@ function buildFixtureModule(
   };
 }
 
-function buildFixtureContent(programKey: string, modules: FixtureModule[]): ToolkitSeedContent {
+function buildFixtureContent(
+  programKey: string,
+  modules: FixtureModule[],
+): ToolkitSeedContent {
   return {
     program: {
       programKey,
@@ -150,6 +147,7 @@ function buildFixtureContent(programKey: string, modules: FixtureModule[]): Tool
       versionLabel: `v1-${programKey}`,
       versionName: `Fixture v1 ${programKey}`,
       versionDescription: null,
+      contentLock: "frozen",
       releaseNotes: null,
     },
     modules,
@@ -167,33 +165,21 @@ describe("attempt service — database integration", () => {
   async function createFounderWithWorkspaceAndVenture(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string; ventureId: string }> {
-    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor = webFounderActor(userResult.rows[0].id);
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "attempt-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [actor.userId, `Fixture ${label}`, `attempt-service-${label}-${randomUUID()}`],
-    );
-    const workspaceId = workspaceResult.rows[0].id;
+    const ventureId = await createFixtureVenture({
+      workspaceId,
+      createdByUserId: userId,
+      label,
+      slugPrefix: "attempt-service-venture",
+    });
 
-    const ventureResult = await pool.query<{ id: string }>(
-      `insert into ventures (workspace_id, created_by_user_id, name, slug)
-       values ($1, $2, $3, $4) returning id`,
-      [
-        workspaceId,
-        actor.userId,
-        `Fixture Venture ${label}`,
-        `attempt-service-venture-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId, ventureId: ventureResult.rows[0].id };
+    return { actor: webFounderActor(userId), workspaceId, ventureId };
   }
 
   // Module A (sequence_index 0) always starts 'available'; Module B
@@ -206,8 +192,13 @@ describe("attempt service — database integration", () => {
     moduleAId: string;
     moduleBId: string;
   }> {
-    const { actor, workspaceId, ventureId } = await createFounderWithWorkspaceAndVenture(label);
-    const result = await getOrCreateProgramRun(actor, { ventureId }, { programKey: PROGRAM_KEY });
+    const { actor, workspaceId, ventureId } =
+      await createFounderWithWorkspaceAndVenture(label);
+    const result = await getOrCreateProgramRun(
+      actor,
+      { ventureId },
+      { programKey: PROGRAM_KEY },
+    );
 
     const modulesResult = await pool.query<{ id: string; module_key: string }>(
       `select id, module_key from program_run_modules
@@ -215,10 +206,16 @@ describe("attempt service — database integration", () => {
        order by sequence_index`,
       [result.run.activeBranchId],
     );
-    const moduleA = modulesResult.rows.find((row) => row.module_key === "attempt-module-a");
-    const moduleB = modulesResult.rows.find((row) => row.module_key === "attempt-module-b");
+    const moduleA = modulesResult.rows.find(
+      (row) => row.module_key === "attempt-module-a",
+    );
+    const moduleB = modulesResult.rows.find(
+      (row) => row.module_key === "attempt-module-b",
+    );
     if (!moduleA || !moduleB) {
-      throw new Error("Fixture program_run_modules were not seeded as expected.");
+      throw new Error(
+        "Fixture program_run_modules were not seeded as expected.",
+      );
     }
 
     return {
@@ -265,7 +262,9 @@ describe("attempt service — database integration", () => {
         client,
         buildFixtureContent(PROGRAM_KEY, [
           buildFixtureModule("attempt-module-a", 0),
-          buildFixtureModule("attempt-module-b", 1, [buildModuleBOnlyQuestion()]),
+          buildFixtureModule("attempt-module-b", 1, [
+            buildModuleBOnlyQuestion(),
+          ]),
         ]),
       ),
     );
@@ -276,11 +275,16 @@ describe("attempt service — database integration", () => {
       "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
-    await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [
+    await pool.query(
+      "delete from workspaces where founder_user_id = any($1::uuid[])",
+      [createdUserIds],
+    );
+    await pool.query("delete from users where id = any($1::uuid[])", [
       createdUserIds,
     ]);
-    await pool.query("delete from users where id = any($1::uuid[])", [createdUserIds]);
-    await pool.query("delete from programs where program_key = $1", [PROGRAM_KEY]);
+    await pool.query("delete from programs where program_key = $1", [
+      PROGRAM_KEY,
+    ]);
   });
 
   describe("startOrResumeAttempt", () => {
@@ -304,7 +308,9 @@ describe("attempt service — database integration", () => {
     it("creates an Initial Attempt and moves the run_module to in_progress", async () => {
       const { actor, moduleAId } = await createRunWithModules("create-initial");
 
-      const result = await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
+      const result = await startOrResumeAttempt(actor, {
+        programRunModuleId: moduleAId,
+      });
 
       expect(result.created).toBe(true);
       expect(result.attempt.attemptNumber).toBe(1);
@@ -322,16 +328,22 @@ describe("attempt service — database integration", () => {
         `select event_type from module_events where module_attempt_id = $1`,
         [result.attempt.id],
       );
-      expect(eventsResult.rows.map((row) => row.event_type)).toEqual(["attempt_started"]);
+      expect(eventsResult.rows.map((row) => row.event_type)).toEqual([
+        "attempt_started",
+      ]);
     });
 
     it("resumes the same draft Attempt on a second call, writing no extra event", async () => {
       const { actor, moduleAId } = await createRunWithModules("resume");
 
-      const first = await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
+      const first = await startOrResumeAttempt(actor, {
+        programRunModuleId: moduleAId,
+      });
       expect(first.created).toBe(true);
 
-      const second = await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
+      const second = await startOrResumeAttempt(actor, {
+        programRunModuleId: moduleAId,
+      });
       expect(second.created).toBe(false);
       expect(second.attempt.id).toBe(first.attempt.id);
 
@@ -344,7 +356,8 @@ describe("attempt service — database integration", () => {
     });
 
     it("rejects resuming with a mismatched basedOnAttemptId", async () => {
-      const { actor, moduleAId } = await createRunWithModules("resume-mismatch");
+      const { actor, moduleAId } =
+        await createRunWithModules("resume-mismatch");
       await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
 
       await expect(
@@ -352,7 +365,10 @@ describe("attempt service — database integration", () => {
           programRunModuleId: moduleAId,
           basedOnAttemptId: randomUUID(),
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("rejects starting a locked run_module with RUN_MODULE_NOT_AVAILABLE", async () => {
@@ -360,32 +376,46 @@ describe("attempt service — database integration", () => {
 
       await expect(
         startOrResumeAttempt(actor, { programRunModuleId: moduleBId }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "RUN_MODULE_NOT_AVAILABLE" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "RUN_MODULE_NOT_AVAILABLE",
+      });
     });
 
     it("rejects resuming/restarting a Module whose active Attempt is pending review", async () => {
       const { actor, moduleAId } = await createRunWithModules("pending-review");
-      const created = await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
+      const created = await startOrResumeAttempt(actor, {
+        programRunModuleId: moduleAId,
+      });
       await submitAttempt(actor, { attemptId: created.attempt.id });
 
       await expect(
         startOrResumeAttempt(actor, { programRunModuleId: moduleAId }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_PENDING_REVIEW" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "ATTEMPT_PENDING_REVIEW",
+      });
     });
 
     it("rejects a basedOnAttemptId when the Module has no prior Attempts", async () => {
-      const { actor, moduleAId } = await createRunWithModules("no-history-retry");
+      const { actor, moduleAId } =
+        await createRunWithModules("no-history-retry");
 
       await expect(
         startOrResumeAttempt(actor, {
           programRunModuleId: moduleAId,
           basedOnAttemptId: randomUUID(),
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("creates exactly one Attempt when two calls race for the same brand-new run_module", async () => {
-      const { actor, moduleAId } = await createRunWithModules("concurrency-initial");
+      const { actor, moduleAId } = await createRunWithModules(
+        "concurrency-initial",
+      );
 
       const [resultA, resultB] = await Promise.all([
         startOrResumeAttempt(actor, { programRunModuleId: moduleAId }),
@@ -393,7 +423,9 @@ describe("attempt service — database integration", () => {
       ]);
 
       expect(resultA.attempt.id).toBe(resultB.attempt.id);
-      expect([resultA.created, resultB.created].filter(Boolean)).toHaveLength(1);
+      expect([resultA.created, resultB.created].filter(Boolean)).toHaveLength(
+        1,
+      );
 
       const countResult = await pool.query<{ count: string }>(
         `select count(*) as count from module_attempts where program_run_module_id = $1`,
@@ -411,7 +443,9 @@ describe("attempt service — database integration", () => {
         actor: ActorContext,
         runModuleId: string,
       ): Promise<string> {
-        const created = await startOrResumeAttempt(actor, { programRunModuleId: runModuleId });
+        const created = await startOrResumeAttempt(actor, {
+          programRunModuleId: runModuleId,
+        });
         await pool.query(
           `update module_attempts set status = 'rejected', rejected_at = now() where id = $1`,
           [created.attempt.id],
@@ -423,13 +457,20 @@ describe("attempt service — database integration", () => {
         return created.attempt.id;
       }
 
-      it("requires basedOnAttemptId once history exists", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-requires-based-on");
-        await createRejectedAttempt(actor, moduleAId);
+      it("auto-resolves the retry source when basedOnAttemptId is omitted", async () => {
+        const { actor, moduleAId } = await createRunWithModules(
+          "retry-auto-based-on",
+        );
+        const sourceAttemptId = await createRejectedAttempt(actor, moduleAId);
 
-        await expect(
-          startOrResumeAttempt(actor, { programRunModuleId: moduleAId }),
-        ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+        const result = await startOrResumeAttempt(actor, {
+          programRunModuleId: moduleAId,
+        });
+
+        expect(result.created).toBe(true);
+        expect(result.attempt.attemptType).toBe("retry");
+        expect(result.attempt.basedOnAttemptId).toBe(sourceAttemptId);
+        expect(result.attempt.attemptNumber).toBe(2);
       });
 
       it("creates a Retry Attempt with an incremented attempt_number", async () => {
@@ -455,17 +496,24 @@ describe("attempt service — database integration", () => {
            where module_attempt_id = $1`,
           [result.attempt.id],
         );
-        expect(eventsResult.rows.map((row) => row.event_type)).toEqual(["retry_started"]);
+        expect(eventsResult.rows.map((row) => row.event_type)).toEqual([
+          "retry_started",
+        ]);
       });
 
       it("rejects a basedOnAttemptId whose status is not retryable", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-not-retryable");
-        const created = await startOrResumeAttempt(actor, { programRunModuleId: moduleAId });
+        const { actor, moduleAId } = await createRunWithModules(
+          "retry-not-retryable",
+        );
+        const created = await startOrResumeAttempt(actor, {
+          programRunModuleId: moduleAId,
+        });
         // Simulates a 4.2 Mentor Accept — 'accepted' is not in
         // RETRYABLE_ATTEMPT_STATUSES.
-        await pool.query(`update module_attempts set status = 'accepted' where id = $1`, [
-          created.attempt.id,
-        ]);
+        await pool.query(
+          `update module_attempts set status = 'accepted' where id = $1`,
+          [created.attempt.id],
+        );
         await pool.query(
           `update program_run_modules set active_attempt_id = null where id = $1`,
           [moduleAId],
@@ -476,18 +524,23 @@ describe("attempt service — database integration", () => {
             programRunModuleId: moduleAId,
             basedOnAttemptId: created.attempt.id,
           }),
-        ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_RETRY_SOURCE_INVALID" });
+        ).rejects.toMatchObject({
+          name: "ServiceError",
+          code: "ATTEMPT_RETRY_SOURCE_INVALID",
+        });
       });
 
       it("rejects a basedOnAttemptId that belongs to a different Module", async () => {
-        const { actor, moduleAId, moduleBId } = await createRunWithModules("retry-cross-module");
+        const { actor, moduleAId, moduleBId } =
+          await createRunWithModules("retry-cross-module");
         const sourceFromModuleA = await createRejectedAttempt(actor, moduleAId);
 
         // Manufactures Module B into a startable + already-has-history
         // state (unlocking a Module is 4.2's job, not implemented yet).
-        await pool.query(`update program_run_modules set status = 'available' where id = $1`, [
-          moduleBId,
-        ]);
+        await pool.query(
+          `update program_run_modules set status = 'available' where id = $1`,
+          [moduleBId],
+        );
         await createRejectedAttempt(actor, moduleBId);
 
         await expect(
@@ -495,11 +548,15 @@ describe("attempt service — database integration", () => {
             programRunModuleId: moduleBId,
             basedOnAttemptId: sourceFromModuleA,
           }),
-        ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_RETRY_SOURCE_INVALID" });
+        ).rejects.toMatchObject({
+          name: "ServiceError",
+          code: "ATTEMPT_RETRY_SOURCE_INVALID",
+        });
       });
 
       it("rejects a basedOnAttemptId that has already been retried (clean pre-check)", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-already-used");
+        const { actor, moduleAId } =
+          await createRunWithModules("retry-already-used");
         const sourceAttemptId = await createRejectedAttempt(actor, moduleAId);
 
         const firstRetry = await startOrResumeAttempt(actor, {
@@ -511,9 +568,10 @@ describe("attempt service — database integration", () => {
         // Reject the retry too, so the Module has active_attempt_id=null
         // and history again, then try to base a second Retry on the
         // *original* source — already consumed by firstRetry.
-        await pool.query(`update module_attempts set status = 'rejected' where id = $1`, [
-          firstRetry.attempt.id,
-        ]);
+        await pool.query(
+          `update module_attempts set status = 'rejected' where id = $1`,
+          [firstRetry.attempt.id],
+        );
         await pool.query(
           `update program_run_modules set active_attempt_id = null where id = $1`,
           [moduleAId],
@@ -524,11 +582,16 @@ describe("attempt service — database integration", () => {
             programRunModuleId: moduleAId,
             basedOnAttemptId: sourceAttemptId,
           }),
-        ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_RETRY_SOURCE_INVALID" });
+        ).rejects.toMatchObject({
+          name: "ServiceError",
+          code: "ATTEMPT_RETRY_SOURCE_INVALID",
+        });
       });
 
       it("serializes two concurrent Retry creations against the same source Attempt into a single row", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-concurrent-service");
+        const { actor, moduleAId } = await createRunWithModules(
+          "retry-concurrent-service",
+        );
         const sourceAttemptId = await createRejectedAttempt(actor, moduleAId);
 
         // The mandated lock ordering (program_run_modules locked first,
@@ -554,7 +617,9 @@ describe("attempt service — database integration", () => {
         ]);
 
         expect(resultA.attempt.id).toBe(resultB.attempt.id);
-        expect([resultA.created, resultB.created].filter(Boolean)).toHaveLength(1);
+        expect([resultA.created, resultB.created].filter(Boolean)).toHaveLength(
+          1,
+        );
 
         const countResult = await pool.query<{ count: string }>(
           `select count(*) as count from module_attempts where based_on_attempt_id = $1`,
@@ -564,7 +629,9 @@ describe("attempt service — database integration", () => {
       });
 
       it("enforces module_attempts_based_on_unique at the database level under true concurrency", async () => {
-        const { actor, moduleAId } = await createRunWithModules("retry-concurrent-raw");
+        const { actor, moduleAId } = await createRunWithModules(
+          "retry-concurrent-raw",
+        );
         const sourceAttemptId = await createRejectedAttempt(actor, moduleAId);
 
         // Bypasses the Service (and therefore its run_module lock
@@ -601,8 +668,12 @@ describe("attempt service — database integration", () => {
           rawInsertRetry(3),
         ]);
 
-        const fulfilled = results.filter((result) => result.status === "fulfilled");
-        const rejected = results.filter((result) => result.status === "rejected");
+        const fulfilled = results.filter(
+          (result) => result.status === "fulfilled",
+        );
+        const rejected = results.filter(
+          (result) => result.status === "rejected",
+        );
         expect(fulfilled).toHaveLength(1);
         expect(rejected).toHaveLength(1);
         expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
@@ -644,12 +715,17 @@ describe("attempt service — database integration", () => {
       );
 
       await expect(
-        saveFounderResponse(actor, { attemptId: foreignAttemptId, questionKey: "idea_story" }),
+        saveFounderResponse(actor, {
+          attemptId: foreignAttemptId,
+          questionKey: "idea_story",
+        }),
       ).rejects.toMatchObject({ name: "ServiceError", code: "NOT_FOUND" });
     });
 
     it("rejects a question_key that belongs to a different Module as NOT_FOUND", async () => {
-      const { actor, attemptId } = await createDraftAttempt("wrong-module-question");
+      const { actor, attemptId } = await createDraftAttempt(
+        "wrong-module-question",
+      );
 
       await expect(
         saveFounderResponse(actor, {
@@ -661,7 +737,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("saves a long_text answer and transitions the Attempt from draft to in_progress", async () => {
-      const { actor, attemptId } = await createDraftAttempt("first-response-transition");
+      const { actor, attemptId } = await createDraftAttempt(
+        "first-response-transition",
+      );
 
       const response = await saveFounderResponse(actor, {
         attemptId,
@@ -694,7 +772,91 @@ describe("attempt service — database integration", () => {
           questionKey: "current_stage",
           value: "not_a_real_option",
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("rejects a single_choice token that is valid elsewhere but not on this field", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "foreign-option-token",
+      );
+
+      // "validated" is a Module 3 validation_status option, not current_stage.
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: "validated",
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("idea_only"),
+      });
+    });
+
+    it("accepts single_choice via known wrapper fields", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-wrapper",
+      );
+
+      const response = await saveFounderResponse(actor, {
+        attemptId,
+        questionKey: "current_stage",
+        value: { value: "idea_only" },
+      });
+
+      expect(response.answerText).toBe("idea_only");
+    });
+
+    it("coerces a CONFIRMED ANSWER envelope that names exactly one allowed option", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-envelope",
+      );
+
+      const response = await saveFounderResponse(actor, {
+        attemptId,
+        questionKey: "current_stage",
+        value: "CONFIRMED ANSWER\nidea_only\n\nOBSERVATION BASIS\nNone.",
+      });
+
+      expect(response.answerText).toBe("idea_only");
+    });
+
+    it("rejects an object that only mentions an option under an unknown key", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-incidental",
+      );
+
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: { status: "idea_only" },
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("rejects ambiguous text that mentions more than one allowed option", async () => {
+      const { actor, attemptId } = await createDraftAttempt(
+        "single-choice-ambiguous",
+      );
+
+      await expect(
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "current_stage",
+          value: "Could be idea_only or pivot",
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("rejects skipped when the question does not allow_skip", async () => {
@@ -706,7 +868,10 @@ describe("attempt service — database integration", () => {
           questionKey: "current_stage",
           responseStatus: "skipped",
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("accepts skipped when the question allows it", async () => {
@@ -723,7 +888,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("rejects not_applicable on a question with no conditions", async () => {
-      const { actor, attemptId } = await createDraftAttempt("not-applicable-no-conditions");
+      const { actor, attemptId } = await createDraftAttempt(
+        "not-applicable-no-conditions",
+      );
 
       await expect(
         saveFounderResponse(actor, {
@@ -731,11 +898,16 @@ describe("attempt service — database integration", () => {
           questionKey: "idea_story",
           responseStatus: "not_applicable",
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("accepts not_applicable when the dependency hasn't been answered yet", async () => {
-      const { actor, attemptId } = await createDraftAttempt("not-applicable-unanswered-dep");
+      const { actor, attemptId } = await createDraftAttempt(
+        "not-applicable-unanswered-dep",
+      );
 
       const response = await saveFounderResponse(actor, {
         attemptId,
@@ -747,7 +919,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("accepts not_applicable when the dependency's condition does not currently hold", async () => {
-      const { actor, attemptId } = await createDraftAttempt("not-applicable-condition-false");
+      const { actor, attemptId } = await createDraftAttempt(
+        "not-applicable-condition-false",
+      );
 
       await saveFounderResponse(actor, {
         attemptId,
@@ -764,7 +938,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("rejects not_applicable when the dependency's condition currently holds", async () => {
-      const { actor, attemptId } = await createDraftAttempt("not-applicable-condition-true");
+      const { actor, attemptId } = await createDraftAttempt(
+        "not-applicable-condition-true",
+      );
 
       await saveFounderResponse(actor, {
         attemptId,
@@ -778,7 +954,10 @@ describe("attempt service — database integration", () => {
           questionKey: "pivot_detail",
           responseStatus: "not_applicable",
         }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "VALIDATION_ERROR" });
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "VALIDATION_ERROR",
+      });
     });
 
     it("accepts needs_follow_up without answered-type validation", async () => {
@@ -798,7 +977,11 @@ describe("attempt service — database integration", () => {
     it("upserts on a repeated save for the same question_key, keeping a single row", async () => {
       const { actor, attemptId } = await createDraftAttempt("upsert");
 
-      await saveFounderResponse(actor, { attemptId, questionKey: "idea_story", value: "First." });
+      await saveFounderResponse(actor, {
+        attemptId,
+        questionKey: "idea_story",
+        value: "First.",
+      });
       const second = await saveFounderResponse(actor, {
         attemptId,
         questionKey: "idea_story",
@@ -816,11 +999,20 @@ describe("attempt service — database integration", () => {
     });
 
     it("does not duplicate a row when two saves for the same question_key race", async () => {
-      const { actor, attemptId } = await createDraftAttempt("upsert-concurrent");
+      const { actor, attemptId } =
+        await createDraftAttempt("upsert-concurrent");
 
       await Promise.all([
-        saveFounderResponse(actor, { attemptId, questionKey: "idea_story", value: "Race A." }),
-        saveFounderResponse(actor, { attemptId, questionKey: "idea_story", value: "Race B." }),
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "idea_story",
+          value: "Race A.",
+        }),
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "idea_story",
+          value: "Race B.",
+        }),
       ]);
 
       const countResult = await pool.query<{ count: string }>(
@@ -836,8 +1028,15 @@ describe("attempt service — database integration", () => {
       await submitAttempt(actor, { attemptId });
 
       await expect(
-        saveFounderResponse(actor, { attemptId, questionKey: "idea_story", value: "Too late." }),
-      ).rejects.toMatchObject({ name: "ServiceError", code: "ATTEMPT_NOT_EDITABLE" });
+        saveFounderResponse(actor, {
+          attemptId,
+          questionKey: "idea_story",
+          value: "Too late.",
+        }),
+      ).rejects.toMatchObject({
+        name: "ServiceError",
+        code: "ATTEMPT_NOT_EDITABLE",
+      });
     });
   });
 
@@ -852,12 +1051,17 @@ describe("attempt service — database integration", () => {
 
     it("rejects a non-founder actor before touching the database", async () => {
       await expect(
-        submitAttempt({ userId: randomUUID(), role: "admin" }, { attemptId: randomUUID() }),
+        submitAttempt(
+          { userId: randomUUID(), role: "admin" },
+          { attemptId: randomUUID() },
+        ),
       ).rejects.toMatchObject({ name: "ServiceError", code: "FORBIDDEN" });
     });
 
     it("rejects an Attempt belonging to another Workspace as NOT_FOUND", async () => {
-      const { actor } = await createDraftAttempt("submit-cross-workspace-caller");
+      const { actor } = await createDraftAttempt(
+        "submit-cross-workspace-caller",
+      );
       const { attemptId: foreignAttemptId } = await createDraftAttempt(
         "submit-cross-workspace-target",
       );
@@ -868,7 +1072,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("submits with zero Responses, freezing an empty Review Context Snapshot", async () => {
-      const { actor, attemptId, moduleAId } = await createDraftAttempt("zero-response-submit");
+      const { actor, attemptId, moduleAId } = await createDraftAttempt(
+        "zero-response-submit",
+      );
 
       const submitted = await submitAttempt(actor, { attemptId });
 
@@ -897,7 +1103,9 @@ describe("attempt service — database integration", () => {
     });
 
     it("freezes the current Responses into the Review Context Snapshot", async () => {
-      const { actor, attemptId } = await createDraftAttempt("submit-with-responses");
+      const { actor, attemptId } = await createDraftAttempt(
+        "submit-with-responses",
+      );
       await saveFounderResponse(actor, {
         attemptId,
         questionKey: "idea_story",
@@ -912,7 +1120,10 @@ describe("attempt service — database integration", () => {
       await submitAttempt(actor, { attemptId });
 
       const snapshotResult = await pool.query<{
-        response_snapshot: Array<{ questionKey: string; answerText: string | null }>;
+        response_snapshot: Array<{
+          questionKey: string;
+          answerText: string | null;
+        }>;
       }>(
         `select response_snapshot from module_review_context_snapshots where module_attempt_id = $1`,
         [attemptId],
@@ -926,7 +1137,8 @@ describe("attempt service — database integration", () => {
     });
 
     it("is idempotent for an already-submitted Attempt (no snapshot/timestamp rewrite)", async () => {
-      const { actor, attemptId } = await createDraftAttempt("submit-idempotent");
+      const { actor, attemptId } =
+        await createDraftAttempt("submit-idempotent");
 
       const first = await submitAttempt(actor, { attemptId });
       const second = await submitAttempt(actor, { attemptId });
@@ -941,12 +1153,15 @@ describe("attempt service — database integration", () => {
     });
 
     it("rejects submitting an Attempt in a terminal, non-submittable status", async () => {
-      const { actor, attemptId } = await createDraftAttempt("submit-terminal-status");
+      const { actor, attemptId } = await createDraftAttempt(
+        "submit-terminal-status",
+      );
       // Simulates a post-2.6/4.2 terminal state directly, since those PRs
       // don't exist yet.
-      await pool.query(`update module_attempts set status = 'rejected' where id = $1`, [
-        attemptId,
-      ]);
+      await pool.query(
+        `update module_attempts set status = 'rejected' where id = $1`,
+        [attemptId],
+      );
 
       await expect(submitAttempt(actor, { attemptId })).rejects.toMatchObject({
         name: "ServiceError",

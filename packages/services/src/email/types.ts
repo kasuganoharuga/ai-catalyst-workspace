@@ -34,5 +34,4 @@ export interface EmailSender {
 }
 
 export type EmailConfig =
-  | { kind: "noop" }
-  | { kind: "ses"; from: string; region: string };
+  { kind: "noop" } | { kind: "ses"; from: string; region: string };

@@ -1,24 +1,32 @@
-import Link from "next/link";
+import { appPageTitle } from "@/lib/page-metadata";
+import { getCurrentFounderActor } from "@/lib/current-founder-actor";
+import {
+  getMyCompanyProfile,
+  resolveCompanyDisplayName,
+} from "@/lib/company-profile";
 
-export default function CompanyProfilePage() {
+import { PageShell } from "../components/page-shell";
+import { CompanyProfileForm } from "./components/company-profile-form";
+
+export const metadata = appPageTitle("Company profile");
+
+export default async function CompanyProfilePage() {
+  const actor = await getCurrentFounderActor();
+  const profile = await getMyCompanyProfile(actor);
+  const displayName = resolveCompanyDisplayName(profile);
+
   return (
-    <main className="mx-auto max-w-2xl px-6 py-24 text-center">
-      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+    <PageShell className="max-w-6xl">
+      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
         Company profile
       </p>
-      <h1 className="mt-5 text-3xl font-semibold tracking-tight">
-        Coming soon
+      {/* No subtitle, same as Your profile: the fields are labelled, and a
+          sentence listing them back is a line people learn to skip. */}
+      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+        {displayName}
       </h1>
-      <p className="mt-4 text-base leading-7 text-muted-foreground">
-        Once your Venture is further along, you&apos;ll be able to capture and
-        edit its company profile here.
-      </p>
-      <Link
-        href="/dashboard"
-        className="mt-8 inline-block rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95"
-      >
-        Back to dashboard
-      </Link>
-    </main>
+
+      <CompanyProfileForm profile={profile} />
+    </PageShell>
   );
 }

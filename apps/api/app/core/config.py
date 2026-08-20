@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_name: str = "AI Catalyst API"
     app_env: str = "local"
     log_level: str = "INFO"
+    release: str | None = None
+    sentry_dsn: str | None = None
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
     api_host: str = "0.0.0.0"
     api_port: int = 8000

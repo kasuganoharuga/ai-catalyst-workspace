@@ -3,24 +3,37 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { getActiveContext } from "@ai-catalyst/services/workspace/active-context";
-import { getRunModuleByKey, listRunModules, resolveAttemptRunContext } from "@ai-catalyst/services/workflow";
+import {
+  getRunModuleByKey,
+  listRunModules,
+  resolveAttemptRunContext,
+} from "@ai-catalyst/services/workflow";
 import { getModuleContext } from "@ai-catalyst/services/module/context";
 import { getArtifactSubmission } from "@ai-catalyst/services/artifact";
+import { readPrepDocument } from "@ai-catalyst/services/prep";
 
 import { jsonToolResponse, withMcpAudit } from "./audit-wrapper.js";
 
-// Registers the 5 read-only MCP capabilities from source doc §21:
-// get_active_context, list_modules, get_module_status, get_module_context,
-// get_artifact. Every handler here does nothing but validate its own MCP
-// input shape (zod) and call straight into packages/services — no
-// business logic, no direct table access (architecture.mdc rule 1 /
-// this PR's own acceptance criteria).
+// Read-only MCP tools: validate input and delegate to packages/services.
 
 const MODULE_KEY_SHAPE = { moduleKey: z.string().min(1) };
 const ARTIFACT_KEY_SHAPE = {
   attemptId: z.string().min(1),
   artifactKey: z.string().min(1),
 };
+const PREP_DOCUMENT_SHAPE = { prepDocumentId: z.string().min(1) };
+
+// Text-ish uploads are returned inline as UTF-8. Anything else (PDF,
+// Word, images) is returned as metadata plus an explicit
+// `readable: false`, because this server does not extract text and
+// guessing at a binary's contents would be worse than saying so.
+const INLINE_TEXT_CONTENT_TYPES = new Set([
+  "text/markdown",
+  "text/plain",
+  "text/csv",
+  "text/rtf",
+  "application/rtf",
+]);
 
 export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
   mcp.registerTool(
@@ -31,13 +44,16 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         "Resolves the Founder's current Workspace/Venture selection. Navigation context only — never a basis for authorization.",
     },
     async () => {
-      const response = await withMcpAudit({ toolName: "get_active_context", actor }, async () => {
-        const context = await getActiveContext(actor);
-        return {
-          response: jsonToolResponse(context),
-          audit: { workspaceId: context.workspaceId },
-        };
-      });
+      const response = await withMcpAudit(
+        { toolName: "get_active_context", actor },
+        async () => {
+          const context = await getActiveContext(actor);
+          return {
+            response: jsonToolResponse(context),
+            audit: { workspaceId: context.workspaceId },
+          };
+        },
+      );
       return response;
     },
   );
@@ -50,17 +66,20 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         "Lists every Module in the Founder's current Program Run/Branch, with each Module's canonical Run-scoped status.",
     },
     async () => {
-      const response = await withMcpAudit({ toolName: "list_modules", actor }, async () => {
-        const result = await listRunModules(actor);
-        return {
-          response: jsonToolResponse(result),
-          audit: {
-            workspaceId: result.workspaceId,
-            programRunId: result.runId,
-            resultMetadata: { moduleCount: result.modules.length },
-          },
-        };
-      });
+      const response = await withMcpAudit(
+        { toolName: "list_modules", actor },
+        async () => {
+          const result = await listRunModules(actor);
+          return {
+            response: jsonToolResponse(result),
+            audit: {
+              workspaceId: result.workspaceId,
+              programRunId: result.runId,
+              resultMetadata: { moduleCount: result.modules.length },
+            },
+          };
+        },
+      );
       return response;
     },
   );
@@ -75,7 +94,11 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     },
     async (args) => {
       const response = await withMcpAudit(
-        { toolName: "get_module_status", actor, requestMetadata: { moduleKey: args.moduleKey } },
+        {
+          toolName: "get_module_status",
+          actor,
+          requestMetadata: { moduleKey: args.moduleKey },
+        },
         async () => {
           const runModule = await getRunModuleByKey(actor, args);
           return {
@@ -86,7 +109,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
               programRunBranchId: runModule.programRunBranchId,
               programRunModuleId: runModule.id,
               moduleAttemptId: runModule.activeAttemptId,
-              resultMetadata: { moduleKey: runModule.moduleKey, status: runModule.status },
+              resultMetadata: {
+                moduleKey: runModule.moduleKey,
+                status: runModule.status,
+              },
             },
           };
         },
@@ -100,12 +126,17 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
     {
       title: "Get module context",
       description:
-        "Loads a Module's active Attempt, every active Question joined with the current Attempt's Response, the resume point, and Artifact metadata.",
+        "Loads a Module's active/display Attempt, every active Question joined with displayAttempt's Responses (for reading), bound facilitator/artifact_generator prompts (follow these for the module's interview script), the resume point on the write Attempt, and Artifact metadata — including each Artifact's locked output_config.templateMarkdown, so save_artifact's headings can be copied exactly rather than reconstructed from the prompt text. When activeAttemptId is null after validation_failed, displayAttempt still surfaces the failed Attempt's answers and artefacts. When activeAttempt is a fresh empty Retry, displayAttempt is the based_on Attempt so prior answers remain visible — call start_module_attempt without inventing basedOnAttemptId. " +
+        "For module-04-solution-statement, interviewGate reports {confirmedInterviewCount, minimumRequired, gateMet} — check gateMet before opening Block 1 or any later block. When gateMet is false, save_founder_input for this Module's questions will fail with INTERVIEW_GATE_NOT_MET; do not attempt those saves, and do not proceed with Solution work on the assumption that a lack of interviews just means treating features as assumptions — instead tell the Founder how many more confirmed interview transcripts are needed and help them share more. interviewGate is null for every other Module.",
       inputSchema: MODULE_KEY_SHAPE,
     },
     async (args) => {
       const response = await withMcpAudit(
-        { toolName: "get_module_context", actor, requestMetadata: { moduleKey: args.moduleKey } },
+        {
+          toolName: "get_module_context",
+          actor,
+          requestMetadata: { moduleKey: args.moduleKey },
+        },
         async () => {
           const context = await getModuleContext(actor, args);
           return {
@@ -141,7 +172,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
         {
           toolName: "get_artifact",
           actor,
-          requestMetadata: { attemptId: args.attemptId, artifactKey: args.artifactKey },
+          requestMetadata: {
+            attemptId: args.attemptId,
+            artifactKey: args.artifactKey,
+          },
         },
         async () => {
           const result = await getArtifactSubmission(actor, args);
@@ -150,9 +184,10 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
           // second lookup exists purely to enrich the audit row with the
           // full Run/Branch/Module hierarchy (see resolveAttemptRunContext's
           // own comment), never to gate the tool's actual result.
-          const hierarchy = await resolveAttemptRunContext(actor, args.attemptId).catch(
-            () => null,
-          );
+          const hierarchy = await resolveAttemptRunContext(
+            actor,
+            args.attemptId,
+          ).catch(() => null);
           return {
             response: jsonToolResponse(result),
             audit: {
@@ -165,6 +200,67 @@ export function registerReadTools(mcp: McpServer, actor: ActorContext): void {
                 artifactKey: args.artifactKey,
                 found: result !== null,
                 versionNumber: result?.submission.versionNumber ?? null,
+              },
+            },
+          };
+        },
+      );
+      return response;
+    },
+  );
+
+  mcp.registerTool(
+    "get_prep_document",
+    {
+      title: "Get prep document",
+      description:
+        "Reads one prep document listed in get_module_context's prepDocuments — either a Founder-uploaded file or an assistant-transcribed extract (from save_prep_extract), distinguished by `source`. For an uploaded file: text formats (Markdown, plain text, CSV, RTF) are returned inline as `content`; binary formats (PDF, Word, images) are NOT converted — they come back with `readable: false` and no content, because this server does not extract text. For an assistant-transcribed extract, `content` is always the saved text. When a document is not readable, say so plainly and ask the Founder to paste the relevant part; never infer what a file contains from its filename.",
+      inputSchema: PREP_DOCUMENT_SHAPE,
+    },
+    async (args) => {
+      const response = await withMcpAudit(
+        {
+          toolName: "get_prep_document",
+          actor,
+          requestMetadata: { prepDocumentId: args.prepDocumentId },
+        },
+        async () => {
+          const { document, content } = await readPrepDocument(
+            actor,
+            args.prepDocumentId,
+          );
+          const isExtract = document.storageObjectId === null;
+          const readable =
+            isExtract || INLINE_TEXT_CONTENT_TYPES.has(document.contentType);
+
+          return {
+            response: jsonToolResponse({
+              id: document.id,
+              filename: document.filename,
+              contentType: document.contentType,
+              sizeBytes: document.sizeBytes,
+              source: isExtract ? "assistant_extract" : "uploaded_file",
+              readable,
+              content: isExtract
+                ? document.extractedText
+                : readable && content
+                  ? content.toString("utf8")
+                  : null,
+              note: readable
+                ? document.note
+                : `This server does not extract text from ${document.contentType}. ` +
+                  "Tell the Founder you cannot read this file and ask them to paste the part that matters.",
+            }),
+            audit: {
+              workspaceId: null,
+              programRunId: null,
+              programRunBranchId: null,
+              programRunModuleId: document.programRunModuleId,
+              moduleAttemptId: null,
+              resultMetadata: {
+                filename: document.filename,
+                contentType: document.contentType,
+                readable,
               },
             },
           };

@@ -1,34 +1,86 @@
-import Link from "next/link";
+import { getAdminDashboardStats } from "@ai-catalyst/services/admin";
 
-import { SiteHeader } from "@/components/site-header";
+import { PageShell } from "@/app/(app)/components/page-shell";
+import { Stat, StatRow } from "@/app/(app)/components/stat";
+import { actorContextFromSession } from "@/lib/actor-context";
+import { appPageTitle } from "@/lib/page-metadata";
 import { requireAdminUser } from "@/lib/require-active-user";
+import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
 
-export default async function AdminPage() {
-  await requireAdminUser();
+import { AdminRecentUsers } from "./components/admin-recent-users";
+import { AdminRoleMix } from "./components/admin-role-mix";
+import { adminDashboardCopy } from "./lib/copy";
+
+export const metadata = appPageTitle("Dashboard");
+
+function mentorCoveragePct(
+  assigned: number,
+  unassigned: number,
+): number | null {
+  const total = assigned + unassigned;
+  if (total === 0) return null;
+  return Math.round((assigned / total) * 100);
+}
+
+export default async function AdminDashboardPage() {
+  const session = await requireAdminUser();
+  const actor = actorContextFromSession(session);
+
+  const [stats, profile] = await Promise.all([
+    getAdminDashboardStats(actor),
+    getMyProfile(actor),
+  ]);
+
+  const greetingName = resolveGreetingName(profile, session.user.name);
+  const coveragePct = mentorCoveragePct(
+    stats.assignedFounders,
+    stats.unassignedFounders,
+  );
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <SiteHeader />
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Future admin
+    <PageShell>
+      <div className="max-w-2xl">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          {adminDashboardCopy.kicker}
         </p>
-        <h1 className="mt-5 text-5xl font-semibold tracking-tight">
-          Internal review tools are reserved for a later platform phase.
+        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+          {adminDashboardCopy.greeting(greetingName)}
         </h1>
-        <p className="mt-6 text-lg leading-8 text-muted-foreground">
-          This route keeps space for module review, founder artefact review,
-          structured data checks, and future investor record workflows without
-          adding admin complexity to V1.
+        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+          {adminDashboardCopy.intro}
         </p>
+      </div>
 
-        <Link
-          href="/admin/invitations"
-          className="mt-8 inline-block rounded-full border border-border px-6 py-3 text-sm font-semibold text-foreground transition hover:border-foreground"
+      <StatRow>
+        <Stat value={`${stats.liveUsers}`}>
+          {adminDashboardCopy.statLiveAccounts}
+        </Stat>
+        <Stat
+          value={
+            coveragePct === null
+              ? adminDashboardCopy.statCoverageEmpty
+              : `${coveragePct}`
+          }
+          suffix={coveragePct === null ? undefined : "%"}
         >
-          Manage Founder invitations →
-        </Link>
-      </main>
-    </div>
+          {adminDashboardCopy.statCoverage}
+        </Stat>
+        <Stat value={`${stats.joinedThisWeek}`}>
+          {adminDashboardCopy.statJoinedWeek}
+        </Stat>
+      </StatRow>
+
+      <AdminRoleMix
+        roles={{
+          founder: stats.founders,
+          mentor: stats.mentors,
+          admin: stats.admins,
+          pending: stats.pendingUsers,
+        }}
+        total={stats.liveUsers}
+      />
+
+      <AdminRecentUsers items={stats.recentUsers} />
+    </PageShell>
   );
 }

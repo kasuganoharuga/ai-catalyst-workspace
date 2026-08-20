@@ -5,21 +5,24 @@ import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   Invitation,
+  InvitationListItem,
   InvitationStatus,
   Venture,
   WorkspaceStatus,
   WorkspaceSummary,
 } from "@ai-catalyst/shared";
 
+import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { setInitialActiveContext } from "@ai-catalyst/services/workspace/active-context";
 
-// Founder invitations only. Mentor invitations are workspace-bound and not
-// yet implemented — every query here is deliberately scoped with
-// `invite_role = 'founder'` so this module can never touch a mentor row.
-const FOUNDER_INVITATION_TTL_DAYS = 7;
+// Founder and mentor invitations share acceptance locking (email family).
+// Founder <- admin/mentor; mentor <- admin only (platform-level).
+const INVITATION_TTL_DAYS = 7;
+
+type InviteRole = "founder" | "mentor";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -81,8 +84,7 @@ function mapInvitation(row: InvitationRow): Invitation {
   };
 }
 
-// A thin structural guard over `unknown` catch values — avoids an unchecked
-// cast at every call site that needs to inspect a Postgres error code.
+// Structural guard for Postgres error codes in catch blocks.
 function isPostgresError(
   error: unknown,
 ): error is { code: string; constraint?: string } {
@@ -94,10 +96,7 @@ function isPostgresError(
   );
 }
 
-// Runtime validation of untrusted input crossing the API boundary — the
-// TypeScript parameter types below only describe the happy path; a caller
-// can still send `{ email: 123 }` over JSON, and TypeScript cannot stop
-// that at runtime.
+// Runtime validation of untrusted JSON input at the API boundary.
 function validateCreateInvitationInput(
   input: unknown,
 ): asserts input is { email: string; personalMessage?: string } {
@@ -117,7 +116,10 @@ function validateCreateInvitationInput(
 
   const trimmed = email.trim();
   if (trimmed.length === 0 || !trimmed.includes("@") || trimmed.length > 320) {
-    throw new ServiceError("VALIDATION_ERROR", "Email must be a valid address.");
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Email must be a valid address.",
+    );
   }
 
   if (
@@ -141,9 +143,7 @@ function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-// Founders paste this by hand from wherever the token was shared — trimming
-// before both the format check and the hash means accidental leading/
-// trailing whitespace never turns a valid token into a lookup miss.
+// Trim pasted tokens before format check and hash lookup.
 function normalizeAndValidateInvitationToken(rawToken: unknown): string {
   if (typeof rawToken !== "string") {
     throw new ServiceError(
@@ -160,10 +160,7 @@ function normalizeAndValidateInvitationToken(rawToken: unknown): string {
   return token;
 }
 
-// The only caller of this today is acceptFounderInvitation below — Workspace
-// renaming/creation UX doesn't exist yet (WorkspaceService only creates
-// Ventures within an existing Workspace), so this intentionally stays
-// private and minimal rather than anticipating that shape.
+// Private default workspace name/slug until rename UX exists.
 function defaultWorkspaceDetails(email: string): {
   name: string;
   base: string;
@@ -174,29 +171,24 @@ function defaultWorkspaceDetails(email: string): {
   return { name: `${localPart || "Founder"}'s Workspace`, base };
 }
 
-// `workspaces_slug_unique` is a plain (non-partial) unique constraint, so
-// `on conflict (slug) do nothing` never aborts the transaction the way a
-// raised 23505 would — a slug collision here just returns zero rows and this
-// loop tries again with a fresh suffix. A real 23505 on
-// `workspaces_founder_unique` is a different constraint entirely, is not
-// absorbed by this ON CONFLICT target, and propagates to the caller's catch
-// block for a full transaction rollback.
+// ON CONFLICT (slug) do nothing retries suffix; founder_unique 23505 still rolls back.
 async function insertWorkspaceWithRetry(
   client: PoolClient,
   founderUserId: string,
   email: string,
   createSuffix: () => string,
+  mentorUserId: string | null,
 ): Promise<WorkspaceRow> {
   const { name, base } = defaultWorkspaceDetails(email);
 
   for (let attempt = 0; attempt < MAX_WORKSPACE_SLUG_ATTEMPTS; attempt++) {
     const slug = `${base}-${createSuffix()}`;
     const result = await client.query<WorkspaceRow>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3)
+      `insert into workspaces (founder_user_id, name, slug, mentor_user_id)
+       values ($1, $2, $3, $4)
        on conflict (slug) do nothing
        returning id, name, slug, status`,
-      [founderUserId, name, slug],
+      [founderUserId, name, slug, mentorUserId],
     );
     if (result.rows[0]) {
       return result.rows[0];
@@ -209,45 +201,52 @@ async function insertWorkspaceWithRetry(
   );
 }
 
-// The partial unique index only filters on
-// `status = 'pending' AND invite_role = 'founder'` — it does not check
-// `expires_at`. Without this, a 7-day-stale invitation would stay
-// `status='pending'` forever, blocking a legitimate re-invite and showing up
-// as "pending" in the list indefinitely. Called inside every mutating/listing
-// transaction below; never exposed outside this module.
-async function expireStaleFounderInvitations(
+// Expire stale pending rows before every mutating/list op — indexes ignore expires_at.
+async function expireStaleInvitations(
   client: PoolClient,
+  inviteRole: InviteRole,
   email?: string,
 ): Promise<void> {
   await client.query(
     `update invitations
      set status = 'expired', updated_at = now()
-     where invite_role = 'founder'
+     where invite_role = $1
        and status = 'pending'
        and expires_at <= now()
-       and ($1::text is null or lower(trim(email)) = lower(trim($1)))`,
-    [email ?? null],
+       and ($2::text is null or lower(trim(email)) = lower(trim($2)))`,
+    [inviteRole, email ?? null],
   );
 }
 
-async function lockFounderInvitation(
+async function lockInvitation(
   client: PoolClient,
   invitationId: string,
+  inviteRole: InviteRole,
 ): Promise<InvitationRow | undefined> {
   const result = await client.query<InvitationRow>(
     `select * from invitations
-     where id = $1 and invite_role = 'founder'
+     where id = $1 and invite_role = $2
      for update`,
-    [invitationId],
+    [invitationId, inviteRole],
   );
   return result.rows[0];
 }
 
-export async function createFounderInvitation(
+// Mentor scoped to own invitations; admin unscoped. NOT_FOUND not FORBIDDEN — no enumeration oracle.
+function assertActorOwnsInvitation(
   actor: ActorContext,
+  row: InvitationRow,
+): void {
+  if (actor.role === "mentor" && row.invited_by_user_id !== actor.userId) {
+    throw new ServiceError("NOT_FOUND", "Invitation not found.");
+  }
+}
+
+async function createInvitation(
+  actor: ActorContext,
+  inviteRole: InviteRole,
   input: { email: string; personalMessage?: string },
 ): Promise<{ invitation: Invitation; rawToken: string }> {
-  assertRole(actor, ["admin"]);
   validateCreateInvitationInput(input);
 
   const rawToken = randomBytes(32).toString("base64url");
@@ -257,40 +256,56 @@ export async function createFounderInvitation(
   try {
     await client.query("begin");
 
-    await expireStaleFounderInvitations(client, input.email);
+    await expireStaleInvitations(client, inviteRole, input.email);
 
+    // workspace_id null: founder invite pre-workspace; mentor invite platform-level.
     const result = await client.query<InvitationRow>(
       `insert into invitations
          (email, invite_role, token_hash, invited_by_user_id, expires_at, personal_message)
        values
-         ($1, 'founder', $2, $3, now() + ($4 * interval '1 day'), $5)
+         ($1, $2, $3, $4, now() + ($5 * interval '1 day'), $6)
        returning *`,
       [
         input.email,
+        inviteRole,
         tokenHash,
         actor.userId,
-        FOUNDER_INVITATION_TTL_DAYS,
+        INVITATION_TTL_DAYS,
         input.personalMessage ?? null,
       ],
     );
 
     await client.query("commit");
 
-    return { invitation: mapInvitation(result.rows[0]), rawToken };
+    const invitation = mapInvitation(result.rows[0]);
+    // The invited email is deliberately absent — it is a denied log key. The
+    // invitation id resolves back to it in `invitations` when the trail is read.
+    recordAccountEvent("account_invitation_created", {
+      actor,
+      invitationId: invitation.id,
+      inviteRole,
+    });
+
+    return { invitation, rawToken };
   } catch (error) {
-    // The transaction is aborted the moment `23505` is raised — every
-    // statement on this connection would fail until `rollback`, so it must
-    // happen before the error is inspected/mapped, not after.
+    // 23505 aborts txn — rollback before mapping, not after.
     await client.query("rollback");
+
+    const pendingUniqueConstraint =
+      inviteRole === "founder"
+        ? "invitations_pending_founder_unique"
+        : "invitations_pending_mentor_unique";
 
     if (
       isPostgresError(error) &&
       error.code === "23505" &&
-      error.constraint === "invitations_pending_founder_unique"
+      error.constraint === pendingUniqueConstraint
     ) {
       throw new ServiceError(
         "INVITATION_ALREADY_PENDING",
-        "A pending Founder invitation already exists for this email.",
+        inviteRole === "founder"
+          ? "A pending Founder invitation already exists for this email."
+          : "A pending Mentor invitation already exists for this email.",
       );
     }
 
@@ -300,34 +315,52 @@ export async function createFounderInvitation(
   }
 }
 
-export async function revokeFounderInvitation(
+// Mentor-issued founder invite sets workspaces.mentor_user_id from invited_by at accept.
+export async function createFounderInvitation(
   actor: ActorContext,
+  input: { email: string; personalMessage?: string },
+): Promise<{ invitation: Invitation; rawToken: string }> {
+  assertRole(actor, ["admin", "mentor"]);
+  return createInvitation(actor, "founder", input);
+}
+
+// Admin-only — mentors must not recruit mentors without a gatekeeper.
+export async function createMentorInvitation(
+  actor: ActorContext,
+  input: { email: string; personalMessage?: string },
+): Promise<{ invitation: Invitation; rawToken: string }> {
+  assertRole(actor, ["admin"]);
+  return createInvitation(actor, "mentor", input);
+}
+
+async function revokeInvitation(
+  actor: ActorContext,
+  inviteRole: InviteRole,
   invitationId: string,
 ): Promise<Invitation> {
-  assertRole(actor, ["admin"]);
   assertValidInvitationId(invitationId);
 
   const client = await pool.connect();
-  // Committing and then throwing from inside the same try is unsafe — the
-  // catch block would call `rollback` on an already-committed transaction.
-  // The "stale pending -> expired" branch below defers its error until
-  // after the try/catch/finally has fully resolved.
+  // Deferred error after commit — catch must not rollback a committed expiry write.
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
 
   try {
     await client.query("begin");
 
-    const row = await lockFounderInvitation(client, invitationId);
+    const row = await lockInvitation(client, invitationId, inviteRole);
 
     if (!row) {
       throw new ServiceError("NOT_FOUND", "Invitation not found.");
-    } else if (row.status === "pending" && row.expires_at <= new Date()) {
+    }
+    assertActorOwnsInvitation(actor, row);
+
+    if (row.status === "pending" && row.expires_at <= new Date()) {
       await client.query(
         `update invitations
          set status = 'expired'
-         where id = $1 and invite_role = 'founder' and status = 'pending'`,
-        [invitationId],
+         where id = $1 and invite_role = $2 and status = 'pending'`,
+        [invitationId, inviteRole],
       );
       deferredError = new ServiceError(
         "INVITATION_NOT_PENDING",
@@ -345,9 +378,9 @@ export async function revokeFounderInvitation(
       const result = await client.query<InvitationRow>(
         `update invitations
          set status = 'revoked', revoked_by_user_id = $1, revoked_at = now()
-         where id = $2 and invite_role = 'founder' and status = 'pending'
+         where id = $2 and invite_role = $3 and status = 'pending'
          returning *`,
-        [actor.userId, invitationId],
+        [actor.userId, invitationId, inviteRole],
       );
       invitation = mapInvitation(result.rows[0]);
     }
@@ -363,7 +396,32 @@ export async function revokeFounderInvitation(
   if (deferredError) {
     throw deferredError;
   }
+
+  recordAccountEvent("account_invitation_revoked", {
+    actor,
+    invitationId: invitation!.id,
+    inviteRole,
+  });
+
   return invitation!;
+}
+
+// A Mentor may revoke only the Founder Invitations they sent themselves;
+// an Admin may revoke any (see assertActorOwnsInvitation).
+export async function revokeFounderInvitation(
+  actor: ActorContext,
+  invitationId: string,
+): Promise<Invitation> {
+  assertRole(actor, ["admin", "mentor"]);
+  return revokeInvitation(actor, "founder", invitationId);
+}
+
+export async function revokeMentorInvitation(
+  actor: ActorContext,
+  invitationId: string,
+): Promise<Invitation> {
+  assertRole(actor, ["admin"]);
+  return revokeInvitation(actor, "mentor", invitationId);
 }
 
 export interface AcceptInvitationDependencies {
@@ -374,15 +432,32 @@ export interface AcceptInvitationDependencies {
   createVentureSuffix?: () => string;
 }
 
-// Single-transaction contract: lock the Invitation → check
-// pending/not-expired → normalize and compare email → upgrade role →
-// create the Founder's Workspace → create the Founder's default Venture
-// (MVP: exactly one per Founder, see createDefaultVentureForNewWorkspace) →
-// make that Venture the active selection → write accepted fields → revoke
-// other pending Invitations for the same email. No intermediate state
-// (accepted-but-still-pending-role, role-upgraded-but-no-Workspace/Venture,
-// Venture-created-but-not-yet-active) is ever observable outside this
-// function.
+/**
+ * Resolve inviting mentor at accept time — demoted/deleted inviter yields unmentored workspace.
+ */
+async function resolveInvitingMentorUserId(
+  client: PoolClient,
+  invitedByUserId: string | null,
+): Promise<string | null> {
+  // Older invitations, and any created by a system path, may have no inviter.
+  if (!invitedByUserId) {
+    return null;
+  }
+
+  const result = await client.query<{ role: string; deleted_at: Date | null }>(
+    `select role, deleted_at from users where id = $1`,
+    [invitedByUserId],
+  );
+
+  const row = result.rows[0];
+  if (!row || row.deleted_at !== null || row.role !== "mentor") {
+    return null;
+  }
+
+  return invitedByUserId;
+}
+
+// Single txn: lock → validate → role upgrade → workspace/venture → revoke siblings.
 export async function acceptFounderInvitation(
   actor: ActorContext,
   rawToken: unknown,
@@ -392,9 +467,7 @@ export async function acceptFounderInvitation(
   workspace: WorkspaceSummary;
   venture: Venture;
 }> {
-  // Fast-fail on the (possibly stale) session role before opening a
-  // connection at all. This is not the authoritative check — the database
-  // row locked further down is re-validated against the real, current role.
+  // Session role fast-fail only — authoritative check is locked user row below.
   assertRole(actor, ["pending"]);
 
   const token = normalizeAndValidateInvitationToken(rawToken);
@@ -405,10 +478,7 @@ export async function acceptFounderInvitation(
     deps.createVentureSuffix ?? (() => randomBytes(3).toString("hex"));
 
   const client = await pool.connect();
-  // Same deferred-error pattern as revokeFounderInvitation: the "expired"
-  // branch must commit (the expiry write is real and should stick), so its
-  // error can only be thrown after the shared commit below, never from
-  // inside a branch that would otherwise trigger the catch block's rollback.
+  // Deferred expiry error — commit must succeed before throw (same as revoke).
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
   let workspace: WorkspaceSummary | undefined;
@@ -417,9 +487,7 @@ export async function acceptFounderInvitation(
   try {
     await client.query("begin");
 
-    // Unlocked peek: just enough to know which row and which email to lock.
-    // `invite_role = 'founder'` here is what stops a Mentor token from ever
-    // being usable on this endpoint — it simply won't be found.
+    // Unlocked peek for email; founder role filter blocks mentor tokens here.
     const peeked = await client.query<{ id: string; email: string }>(
       `select id, email from invitations
        where token_hash = $1 and invite_role = 'founder'`,
@@ -430,10 +498,7 @@ export async function acceptFounderInvitation(
       throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
     }
 
-    // Lock every Invitation for this email, in a stable order, in one shot
-    // (email family, ascending id, then the User row). Two acceptance
-    // transactions racing on the same email can never form a deadlock cycle
-    // if both always acquire locks in this same order.
+    // Lock full email family by id order — stable lock order prevents deadlocks.
     const familyResult = await client.query<InvitationRow>(
       `select * from invitations
        where lower(trim(email)) = lower(trim($1))
@@ -442,12 +507,7 @@ export async function acceptFounderInvitation(
       [peekedInvitation.email],
     );
 
-    // Re-locate the target inside the now-locked set rather than trusting
-    // the unlocked peek. Under today's mutation surface neither token_hash
-    // nor invite_role is ever written after insert, so this specific branch
-    // is not reachable by any test fixture without corrupting a row
-    // directly — it documents/guards the invariant rather than trusting
-    // the peek blindly.
+    // Re-find target in locked set — guards invariant if peek ever diverged.
     const target = familyResult.rows.find(
       (row) =>
         row.id === peekedInvitation.id &&
@@ -458,9 +518,7 @@ export async function acceptFounderInvitation(
       throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
     }
 
-    // `invitations_workspace_target_check` already guarantees this for every
-    // Founder Invitation, pending or accepted — this is a data-corruption
-    // trip wire, not a normal business error.
+    // Founder invitations must have null workspace_id — corruption trip wire.
     if (target.workspace_id !== null) {
       throw new Error(
         `Founder invitation ${target.id} unexpectedly has a non-null workspace_id.`,
@@ -506,12 +564,7 @@ export async function acceptFounderInvitation(
         );
       }
 
-      // Conditional update, not a bare UPDATE by id — this is the
-      // authoritative guard against a stale/replayed ActorContext: if the
-      // row's role has already moved on since the `for update` lock was
-      // taken (which cannot actually happen within this same transaction,
-      // but would if this logic is ever copied outside a single
-      // transaction), zero rows come back and the whole accept aborts.
+      // Conditional role update — zero rows means stale/replayed accept aborts.
       const roleUpdate = await client.query(
         `update users
          set role = 'founder'
@@ -531,6 +584,7 @@ export async function acceptFounderInvitation(
         actor.userId,
         target.email,
         createWorkspaceSuffix,
+        await resolveInvitingMentorUserId(client, target.invited_by_user_id),
       );
 
       const createdVenture = await createDefaultVentureForNewWorkspace(
@@ -548,9 +602,7 @@ export async function acceptFounderInvitation(
         createdVenture.id,
       );
 
-      // workspace_id stays null — see the badShape guard above; the
-      // relationship is Invitation.invited_user_id → Workspace.founder_user_id,
-      // not a column on invitations.
+      // workspace_id stays null — link is invited_user_id → founder_user_id.
       const acceptedResult = await client.query<InvitationRow>(
         `update invitations
          set status = 'accepted', invited_user_id = $1, accepted_by_user_id = $1, accepted_at = now()
@@ -559,9 +611,7 @@ export async function acceptFounderInvitation(
         [actor.userId, target.id],
       );
 
-      // Two statements, not one, so a same-email Invitation that merely
-      // expired naturally is never recorded as if an admin/Founder revoked
-      // it (revoked_by_user_id must stay null for a natural expiry).
+      // Expire naturally stale siblings separately — no revoked_by on natural expiry.
       await client.query(
         `update invitations
          set status = 'expired'
@@ -572,10 +622,7 @@ export async function acceptFounderInvitation(
         [target.id, target.email],
       );
 
-      // Whatever is still pending at this point is, by definition, not yet
-      // expired — deliberately not scoped to invite_role = 'founder' (per
-      // the schema comment: "revoke other pending Invitations for the same
-      // email"), so a same-email pending Mentor invitation is revoked too.
+      // Revoke remaining pending same-email invites (any role).
       await client.query(
         `update invitations
          set status = 'revoked', revoked_by_user_id = $1, revoked_at = now()
@@ -616,33 +663,281 @@ export async function acceptFounderInvitation(
   return { invitation: invitation!, workspace: workspace!, venture: venture! };
 }
 
-export async function listFounderInvitations(
+/**
+ * Mentor accept — same locking as founder; no workspace/venture creation.
+ */
+export async function acceptMentorInvitation(
   actor: ActorContext,
-): Promise<Invitation[]> {
-  assertRole(actor, ["admin"]);
+  rawToken: unknown,
+): Promise<{ invitation: Invitation }> {
+  assertRole(actor, ["pending"]);
+
+  const token = normalizeAndValidateInvitationToken(rawToken);
+  const tokenHash = createHash("sha256").update(token).digest("hex");
 
   const client = await pool.connect();
+  let deferredError: ServiceError | undefined;
+  let invitation: Invitation | undefined;
+
   try {
     await client.query("begin");
 
-    // A data-modifying CTE and a statement reading it share the same
-    // snapshot in Postgres — the outer query is not guaranteed to see the
-    // CTE's own update. Two statements in one transaction guarantee it.
-    await expireStaleFounderInvitations(client);
+    const peeked = await client.query<{ id: string; email: string }>(
+      `select id, email from invitations
+       where token_hash = $1 and invite_role = 'mentor'`,
+      [tokenHash],
+    );
+    const peekedInvitation = peeked.rows[0];
+    if (!peekedInvitation) {
+      throw new ServiceError("NOT_FOUND", "Mentor invitation not found.");
+    }
 
-    const result = await client.query<InvitationRow>(
+    const familyResult = await client.query<InvitationRow>(
       `select * from invitations
-       where invite_role = 'founder'
-       order by created_at desc, id desc`,
+       where lower(trim(email)) = lower(trim($1))
+       order by id
+       for update`,
+      [peekedInvitation.email],
     );
 
-    await client.query("commit");
+    const target = familyResult.rows.find(
+      (row) =>
+        row.id === peekedInvitation.id &&
+        row.token_hash === tokenHash &&
+        row.invite_role === "mentor",
+    );
+    if (!target) {
+      throw new ServiceError("NOT_FOUND", "Mentor invitation not found.");
+    }
 
-    return result.rows.map(mapInvitation);
+    // V1 only platform-level mentor invites — workspace-bound shape refused loudly.
+    if (target.workspace_id !== null) {
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "Workspace-bound mentor invitations cannot be accepted yet.",
+      );
+    }
+
+    if (target.status !== "pending") {
+      throw new ServiceError(
+        "INVITATION_NOT_PENDING",
+        "The invitation is no longer pending.",
+      );
+    }
+
+    if (target.expires_at <= new Date()) {
+      await client.query(
+        `update invitations
+         set status = 'expired'
+         where id = $1 and invite_role = 'mentor' and status = 'pending'`,
+        [target.id],
+      );
+      deferredError = new ServiceError(
+        "INVITATION_NOT_PENDING",
+        "The invitation has expired and can no longer be accepted.",
+      );
+    } else {
+      const userResult = await client.query<UserRow>(
+        `select id, email, role, deleted_at from users where id = $1 for update`,
+        [actor.userId],
+      );
+      const user = userResult.rows[0];
+
+      if (!user || user.deleted_at !== null || user.role !== "pending") {
+        throw new ServiceError(
+          "FORBIDDEN",
+          "Only an account awaiting invitation acceptance can accept this invitation.",
+        );
+      }
+
+      if (normalizeEmail(user.email) !== normalizeEmail(target.email)) {
+        throw new ServiceError(
+          "INVITATION_EMAIL_MISMATCH",
+          "This invitation was issued to a different email address.",
+        );
+      }
+
+      const roleUpdate = await client.query(
+        `update users
+         set role = 'mentor'
+         where id = $1 and role = 'pending' and deleted_at is null
+         returning id`,
+        [actor.userId],
+      );
+      if (roleUpdate.rowCount === 0) {
+        throw new ServiceError(
+          "FORBIDDEN",
+          "Only an account awaiting invitation acceptance can accept this invitation.",
+        );
+      }
+
+      const acceptedResult = await client.query<InvitationRow>(
+        `update invitations
+         set status = 'accepted', invited_user_id = $1, accepted_by_user_id = $1, accepted_at = now()
+         where id = $2 and invite_role = 'mentor' and status = 'pending'
+         returning *`,
+        [actor.userId, target.id],
+      );
+
+      // Same two-statement expiry/revoke split as founder path.
+      await client.query(
+        `update invitations
+         set status = 'expired'
+         where id <> $1
+           and lower(trim(email)) = lower(trim($2))
+           and status = 'pending'
+           and expires_at <= now()`,
+        [target.id, target.email],
+      );
+
+      await client.query(
+        `update invitations
+         set status = 'revoked', revoked_by_user_id = $1, revoked_at = now()
+         where id <> $2
+           and lower(trim(email)) = lower(trim($3))
+           and status = 'pending'`,
+        [actor.userId, target.id, target.email],
+      );
+
+      invitation = mapInvitation(acceptedResult.rows[0]);
+    }
+
+    await client.query("commit");
   } catch (error) {
     await client.query("rollback");
     throw error;
   } finally {
     client.release();
   }
+
+  if (deferredError) {
+    throw deferredError;
+  }
+  return { invitation: invitation! };
+}
+
+interface InvitationListRow extends InvitationRow {
+  invited_by_name: string | null;
+  invited_by_email: string | null;
+  invited_by_role: UserRow["role"] | null;
+}
+
+function mapInvitationListItem(row: InvitationListRow): InvitationListItem {
+  return {
+    ...mapInvitation(row),
+    invitedByName: row.invited_by_name,
+    invitedByEmail: row.invited_by_email,
+    invitedByRole: row.invited_by_role,
+  };
+}
+
+async function listInvitations(
+  actor: ActorContext,
+  inviteRole: InviteRole,
+): Promise<InvitationListItem[]> {
+  // Mentor list scoped in SQL — other mentors' rows never leave the database.
+  const scopeToInviter = actor.role === "mentor";
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    // Two statements so list sees expireStaleInvitations updates (CTE snapshot rule).
+    await expireStaleInvitations(client, inviteRole);
+
+    // Left join: closed inviter accounts still list (revocable, name optional).
+    const result = await client.query<InvitationListRow>(
+      `select
+         i.*,
+         inviter.name as invited_by_name,
+         inviter.email as invited_by_email,
+         inviter.role as invited_by_role
+       from invitations i
+       left join users inviter on inviter.id = i.invited_by_user_id
+       where i.invite_role = $1
+         and ($2::uuid is null or i.invited_by_user_id = $2)
+       order by i.created_at desc, i.id desc`,
+      [inviteRole, scopeToInviter ? actor.userId : null],
+    );
+
+    await client.query("commit");
+
+    return result.rows.map(mapInvitationListItem);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export type AcceptedInvitation =
+  | {
+      inviteRole: "founder";
+      invitation: Invitation;
+      workspace: WorkspaceSummary;
+      venture: Venture;
+    }
+  | { inviteRole: "mentor"; invitation: Invitation };
+
+/**
+ * Route opaque token to founder or mentor accept — role must not leak to caller.
+ * Unlocked lookup only picks path; accept functions re-lock authoritatively.
+ */
+export async function acceptInvitation(
+  actor: ActorContext,
+  rawToken: unknown,
+  deps: AcceptInvitationDependencies = {},
+): Promise<AcceptedInvitation> {
+  // Pending fast-fail before DB — not authoritative; blocks signed-in founder probing.
+  assertRole(actor, ["pending"]);
+
+  const token = normalizeAndValidateInvitationToken(rawToken);
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+
+  const result = await pool.query<{ invite_role: InviteRole }>(
+    `select invite_role from invitations where token_hash = $1`,
+    [tokenHash],
+  );
+
+  const inviteRole = result.rows[0]?.invite_role;
+  if (!inviteRole) {
+    throw new ServiceError("NOT_FOUND", "Invitation not found.");
+  }
+
+  if (inviteRole === "mentor") {
+    const { invitation } = await acceptMentorInvitation(actor, token);
+    recordAccountEvent("account_invitation_accepted", {
+      actor,
+      invitationId: invitation.id,
+      inviteRole,
+    });
+    return { inviteRole, invitation };
+  }
+
+  const accepted = await acceptFounderInvitation(actor, token, deps);
+  // The moment a `pending` account becomes a real one — the completion of a
+  // hand-delivered code, and the event this trail exists to pair with
+  // `account_invitation_created`.
+  recordAccountEvent("account_invitation_accepted", {
+    actor,
+    invitationId: accepted.invitation.id,
+    inviteRole,
+    workspaceId: accepted.workspace.id,
+  });
+  return { inviteRole, ...accepted };
+}
+
+export async function listFounderInvitations(
+  actor: ActorContext,
+): Promise<InvitationListItem[]> {
+  assertRole(actor, ["admin", "mentor"]);
+  return listInvitations(actor, "founder");
+}
+
+export async function listMentorInvitations(
+  actor: ActorContext,
+): Promise<InvitationListItem[]> {
+  assertRole(actor, ["admin"]);
+  return listInvitations(actor, "mentor");
 }

@@ -4,12 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging
+from app.core.sentry import init_sentry
 from app.middleware.request_id import request_id_middleware
 from app.routers import ai, health
 
 
 def create_app() -> FastAPI:
     configure_logging(settings)
+    init_sentry(settings)
 
     app = FastAPI(
         title=settings.app_name,

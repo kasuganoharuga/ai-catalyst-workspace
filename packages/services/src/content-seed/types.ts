@@ -2,6 +2,11 @@
 // what's already in the database. Lifecycle fields (status, published_at,
 // ...) are handled separately and are deliberately not part of these types.
 
+import type {
+  LegacyValidationConfig,
+  StructuredMarkdownValidationConfig,
+} from "../artifact/internal/validators/rule-schema.js";
+
 export interface QuestionOption {
   value: string;
   label: string;
@@ -39,7 +44,8 @@ export interface QuestionContent {
   conditions: QuestionCondition | Record<string, never>;
 }
 
-export type ArtifactType = "document" | "presentation" | "web" | "data" | "file";
+export type ArtifactType =
+  "document" | "presentation" | "web" | "data" | "file";
 
 export interface ArtifactContent {
   artifactKey: string;
@@ -56,9 +62,14 @@ export interface ArtifactContent {
   allowedMimeTypes: string[];
   maxFileSizeBytes: number | null;
   maxFiles: number;
-  // Structural draft-check / submission rules consumed by a future
-  // Validator — not parsed from any source spec at runtime.
-  validationConfig: Record<string, unknown>;
+  // Structural draft-check / submission rules consumed by the artifact's
+  // own `validatorKey`. `validateConfigForValidator` (in
+  // artifact/internal/validators/rule-schema.ts) parses this against the
+  // matching schema before every seed write — see content-seed/db/modules.ts.
+  validationConfig:
+    | StructuredMarkdownValidationConfig
+    | LegacyValidationConfig
+    | Record<string, never>;
   // Carries the artefact Markdown template (there is no dedicated `template`
   // column on artifact_definitions).
   outputConfig: Record<string, unknown>;
@@ -66,10 +77,7 @@ export interface ArtifactContent {
 
 export type ModuleType = "setup" | "standard" | "review" | "completion";
 export type CompletionMode =
-  | "artifact"
-  | "confirmation"
-  | "artifact_and_confirmation"
-  | "system";
+  "artifact" | "confirmation" | "artifact_and_confirmation" | "system";
 
 export interface ModuleContent {
   moduleKey: string;
@@ -127,6 +135,8 @@ export interface ModulePromptBindingContent {
   isRequired: boolean;
 }
 
+export type ContentLock = "mutable" | "frozen";
+
 export interface ProgramContent {
   programKey: string;
   programName: string;
@@ -136,6 +146,13 @@ export interface ProgramContent {
   versionName: string;
   versionDescription: string | null;
   releaseNotes: string | null;
+  // The initial content_lock this program_version is created with if it
+  // does not yet exist in the database. For an *existing* row, the
+  // database's own content_lock column is authoritative, not this field
+  // — see db/program.ts's isContentEditable. Only db:freeze may move an
+  // existing row from mutable to frozen; this seed script never writes
+  // content_lock on an existing row.
+  contentLock: ContentLock;
 }
 
 export interface ToolkitSeedContent {

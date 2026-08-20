@@ -15,6 +15,7 @@ import {
   resolveFounderWorkspaceId,
 } from "@ai-catalyst/services/workspace";
 import { slugifyBase } from "@ai-catalyst/services/internal/slug";
+import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 
@@ -23,12 +24,62 @@ const ONE_LINER_MAX_LENGTH = 300;
 const SUMMARY_MAX_LENGTH = 5000;
 const MAX_VENTURE_SLUG_ATTEMPTS = 3; // initial attempt + up to 2 retries
 
+// Claude Chat Project IDs are UUIDs, but Claude issues UUID v7 (time-
+// ordered) rather than the v4 values our own tables use. Accept any
+// hex UUID shape — version 1–8 with the RFC 4122/9562 variant nibble —
+// so a Founder can paste the address bar without a false reject.
+const CLAUDE_PROJECT_ID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function normalizeClaudeProjectId(value: unknown): string | null {
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Claude project ID must be a string.",
+    );
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  if (!CLAUDE_PROJECT_ID_PATTERN.test(trimmed)) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Claude project ID must be a valid UUID.",
+    );
+  }
+
+  return trimmed.toLowerCase();
+}
+
+function normalizeUpdateClaudeProjectInput(input: unknown): string | null {
+  if (
+    typeof input !== "object" ||
+    input === null ||
+    !("claudeProjectId" in input)
+  ) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "Claude project ID is required.",
+    );
+  }
+
+  return normalizeClaudeProjectId(
+    (input as { claudeProjectId: unknown }).claudeProjectId,
+  );
+}
+
 // Explicit column list (never `select *`) mapped through mapVentureRow —
 // a future internal-only column added to `ventures` is never accidentally
 // exposed through the DTO just because a query forgot to name its columns.
 const VENTURE_COLUMNS = `
   id, workspace_id, name, slug, one_liner, summary,
-  lifecycle_stage, status, created_at, updated_at, archived_at
+  lifecycle_stage, status, created_at, updated_at, archived_at,
+  claude_project_id
 `;
 
 interface VentureRow {
@@ -43,6 +94,7 @@ interface VentureRow {
   created_at: Date;
   updated_at: Date;
   archived_at: Date | null;
+  claude_project_id: string | null;
 }
 
 function mapVentureRow(row: VentureRow): Venture {
@@ -58,6 +110,7 @@ function mapVentureRow(row: VentureRow): Venture {
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
     archivedAt: row.archived_at?.toISOString() ?? null,
+    claudeProjectId: row.claude_project_id,
   };
 }
 
@@ -119,7 +172,11 @@ function normalizeCreateVentureInput(input: unknown): NormalizedVentureInput {
 
   return {
     name: trimmedName,
-    oneLiner: normalizeOptionalText(oneLiner, ONE_LINER_MAX_LENGTH, "One-liner"),
+    oneLiner: normalizeOptionalText(
+      oneLiner,
+      ONE_LINER_MAX_LENGTH,
+      "One-liner",
+    ),
     summary: normalizeOptionalText(summary, SUMMARY_MAX_LENGTH, "Summary"),
   };
 }
@@ -131,16 +188,8 @@ export interface CreateVentureDependencies {
   createSlugSuffix?: () => string;
 }
 
-// `ventures_workspace_slug_unique` is a plain (workspace-scoped) unique
-// constraint, so `on conflict (workspace_id, slug) do nothing` never aborts
-// the transaction the way a raised 23505 would — a slug collision here
-// just returns zero rows and this loop tries again with a fresh suffix,
-// all on the same client/transaction that already holds the Workspace
-// lookup above. (Unlike a try/catch on a raised 23505, which would leave
-// the transaction aborted and unable to retry without a full rollback —
-// incompatible with keeping the Workspace-active check and the insert in
-// one transaction.) Any *other* unique violation on `ventures` is not
-// targeted by this ON CONFLICT clause and would raise normally.
+// ON CONFLICT DO NOTHING on (workspace_id, slug) lets slug collisions retry in-transaction without aborting (23505 would poison the tx).
+// Other unique violations on ventures still raise normally.
 async function insertVentureWithRetry(
   client: PoolClient,
   workspaceId: string,
@@ -290,6 +339,53 @@ export async function getVenture(
   }
 
   return mapVentureRow(row);
+}
+
+export async function updateVentureClaudeProjectId(
+  actor: ActorContext,
+  ventureId: string,
+  input: unknown,
+): Promise<Venture> {
+  assertRole(actor, ["founder"]);
+  const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
+  const claudeProjectId = normalizeUpdateClaudeProjectInput(input);
+
+  const client = await pool.connect();
+  try {
+    await client.query("begin");
+
+    const workspace = await resolveFounderWorkspace(actor, client);
+    assertWorkspaceActive(workspace.status);
+
+    const lockResult = await client.query<VentureRow>(
+      `select ${VENTURE_COLUMNS} from ventures
+       where id = $1 and workspace_id = $2
+       for update`,
+      [id, workspace.id],
+    );
+    const row = lockResult.rows[0];
+    if (!row) {
+      throw new ServiceError("NOT_FOUND", "Venture not found.");
+    }
+
+    assertVentureWritable(row.status);
+
+    const updatedResult = await client.query<VentureRow>(
+      `update ventures
+       set claude_project_id = $3, updated_at = now()
+       where id = $1 and workspace_id = $2
+       returning ${VENTURE_COLUMNS}`,
+      [id, workspace.id, claudeProjectId],
+    );
+
+    await client.query("commit");
+    return mapVentureRow(updatedResult.rows[0]);
+  } catch (error) {
+    await client.query("rollback");
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export async function archiveVenture(

@@ -1,5 +1,3 @@
-import { createHash } from "node:crypto";
-
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
@@ -89,6 +87,11 @@ export class S3StorageProvider implements StorageProvider {
         Key: input.key,
         Body: input.body,
         ContentType: input.contentType,
+        // Persist the content SHA so HeadObject can satisfy
+        // writeGeneratedTextContent's post-upload verification without a
+        // full GetObject. Local provider hashes the on-disk bytes instead.
+        ChecksumAlgorithm: "SHA256",
+        ChecksumSHA256: Buffer.from(checksum, "hex").toString("base64"),
       }),
     );
     return { sizeBytes: input.body.byteLength, sha256: checksum };
@@ -102,7 +105,10 @@ export class S3StorageProvider implements StorageProvider {
       return bodyToBuffer(result.Body as never);
     } catch (error) {
       if (isNotFound(error)) {
-        throw new ServiceError("NOT_FOUND", `No storage object at key "${key}".`);
+        throw new ServiceError(
+          "NOT_FOUND",
+          `No storage object at key "${key}".`,
+        );
       }
       throw error;
     }
@@ -114,16 +120,28 @@ export class S3StorageProvider implements StorageProvider {
         new HeadObjectCommand({ Bucket: this.bucket, Key: key }),
       );
       const sizeBytes = result.ContentLength ?? 0;
-      // Prefer our own checksum header when present; otherwise re-fetch is
-      // avoided for exists-style checks by returning a placeholder hash only
-      // when ContentLength is known — StorageService always verifies against
-      // its own computed hash on write paths.
-      const shaFromMeta = result.ChecksumSHA256
-        ? Buffer.from(result.ChecksumSHA256, "base64").toString("hex")
-        : createHash("sha256").update(`s3:${key}:${sizeBytes}`).digest("hex");
-      return { sizeBytes, sha256: shaFromMeta };
+      if (result.ChecksumSHA256) {
+        return {
+          sizeBytes,
+          sha256: Buffer.from(result.ChecksumSHA256, "base64").toString("hex"),
+        };
+      }
+      // Objects written without a content checksum (or by older clients)
+      // have no ChecksumSHA256 on Head. Do not invent a placeholder hash —
+      // StorageService compares this to the real content sha256 and a
+      // synthetic value always fails verification on cloud.
     } catch (error) {
       if (isNotFound(error)) {
+        return null;
+      }
+      throw error;
+    }
+
+    try {
+      const body = await this.getObject(key);
+      return { sizeBytes: body.byteLength, sha256: sha256(body) };
+    } catch (error) {
+      if (error instanceof ServiceError && error.code === "NOT_FOUND") {
         return null;
       }
       throw error;

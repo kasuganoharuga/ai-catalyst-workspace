@@ -1,6 +1,6 @@
 import type { EmailMessage, EmailTransport } from "../types.js";
 
-/** Logs and discards — default for local/CI so no SES account is required. */
+/** Logs and discards — default when EMAIL_PROVIDER is unset (no SES required). */
 export class NoopEmailTransport implements EmailTransport {
   async send(message: EmailMessage): Promise<void> {
     console.info(

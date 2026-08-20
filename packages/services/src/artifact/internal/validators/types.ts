@@ -18,19 +18,9 @@ export interface ValidationRunResult {
 export interface ValidationContextResponse {
   questionKey: string;
   responseStatus: ModuleResponseStatus;
-  // The value every rule in this PR actually reads. 2.4's
-  // saveFounderResponse stores a single_choice answer's option value
-  // here too (it `return`s `value` directly for single_choice in
-  // resolveAnswerText) — decision-type questions (initial_decision,
-  // final_decision, current_stage) are read from this field, not
-  // answerData.
+  // Primary field validators read (includes single_choice and decision keys).
   answerText: string | null;
-  // Reserved for forward compatibility with the schema column's stated
-  // intent ("structured answer used by AI and the system") — 2.4's
-  // shipped saveFounderResponse always inserts this as a literal `null`
-  // (see its insert statement), so no rule in this PR reads it. If a
-  // future PR starts writing real structured data here, Validators can
-  // start reading it without another interface change.
+  // Structured answer column — unused by current validators (always null on insert).
   answerData: unknown;
 }
 

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fixtures";
 
 import { getActiveContext, setActiveVenture } from "./active-context.js";
 
@@ -18,28 +19,14 @@ describe("active-context service — database integration", () => {
   async function createFounderWithWorkspace(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string }> {
-    const email = `${emailPrefix}-${label}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = {
-      userId: userResult.rows[0].id,
-      role: "founder",
-    };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "active-context",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [
-        actor.userId,
-        `Fixture ${label}`,
-        `active-context-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId: workspaceResult.rows[0].id };
+    return { actor: { userId, role: "founder" }, workspaceId };
   }
 
   async function createVenture(
@@ -103,9 +90,8 @@ describe("active-context service — database integration", () => {
   it("self-heals a stale active_workspace_id and clears the incompatible Venture", async () => {
     const { actor, workspaceId } =
       await createFounderWithWorkspace("self-heal");
-    const { workspaceId: otherWorkspaceId } = await createFounderWithWorkspace(
-      "self-heal-other",
-    );
+    const { workspaceId: otherWorkspaceId } =
+      await createFounderWithWorkspace("self-heal-other");
     const staleVentureId = await createVenture(
       otherWorkspaceId,
       actor.userId,
@@ -195,8 +181,8 @@ describe("active-context service — database integration", () => {
 
   it("rejects a malformed Venture id before it reaches Postgres", async () => {
     const { actor } = await createFounderWithWorkspace("malformed-id");
-    await expect(
-      setActiveVenture(actor, "not-a-uuid"),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(setActiveVenture(actor, "not-a-uuid")).rejects.toMatchObject({
+      code: "NOT_FOUND",
+    });
   });
 });

@@ -35,7 +35,7 @@ DATABASE_URL=postgresql://ai_catalyst:ai_catalyst@127.0.0.1:5432/ai_catalyst
 
 Schema setup is owned by the versioned migration runner in `packages/db` (`infra/database/migrations/*.sql`), not by `docker-entrypoint-initdb.d` — the `db` container starts with an empty schema, and `pnpm docker:up` / `pnpm db:migrate` apply every migration in order, tracked in a `schema_migrations` table (version + SHA-256 checksum). Editing an already-applied migration file fails the checksum check instead of silently drifting; add a new migration file instead.
 
-`infra/database/migrations/0001_aidb_v5_baseline.sql` is the baseline schema (originally sourced from `local/AIDB_v5.sql`, a local-only planning copy) and is now the versioned source of truth going forward — edit future schema changes as new `NNNN_description.sql` migration files, not by hand-editing `0001`.
+`infra/database/migrations/0001_aidb_v5_baseline.sql` is the baseline schema and the versioned source of truth — edit future schema changes as new `NNNN_description.sql` migration files, not by hand-editing `0001`.
 
 To run migrations without the full `docker:up` orchestration (e.g. `db` is already running):
 

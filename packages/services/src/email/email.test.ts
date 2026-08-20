@@ -49,4 +49,88 @@ describe("email", () => {
       }),
     ).toBeInstanceOf(SesEmailTransport);
   });
+
+  // The `client` injection point existed from the start but was never
+  // exercised: every earlier assertion stopped at `toBeInstanceOf`, so the
+  // command SES actually receives — and what happens when it rejects — was
+  // untested. That is the path a sign-in code depends on.
+  describe("SesEmailTransport.send", () => {
+    function transportWithClient(send: ReturnType<typeof vi.fn>) {
+      return new SesEmailTransport({
+        from: "noreply@example.com",
+        region: "ap-southeast-2",
+        client: { send } as unknown as ConstructorParameters<
+          typeof SesEmailTransport
+        >[0]["client"],
+      });
+    }
+
+    it("sends text-only content when no html is supplied", async () => {
+      const send = vi.fn().mockResolvedValue({});
+      await transportWithClient(send).send({
+        to: "founder@example.com",
+        subject: "Your code",
+        text: "123456",
+      });
+
+      expect(send).toHaveBeenCalledTimes(1);
+      const { input } = send.mock.calls[0][0];
+      expect(input.FromEmailAddress).toBe("noreply@example.com");
+      expect(input.Destination.ToAddresses).toEqual(["founder@example.com"]);
+      expect(input.Content.Simple.Body.Text.Data).toBe("123456");
+      // Absent, not present-and-empty: SES rejects an empty Html part.
+      expect(input.Content.Simple.Body.Html).toBeUndefined();
+    });
+
+    it("includes an html part only when supplied", async () => {
+      const send = vi.fn().mockResolvedValue({});
+      await transportWithClient(send).send({
+        to: "founder@example.com",
+        subject: "Your code",
+        text: "123456",
+        html: "<p>123456</p>",
+      });
+
+      const { input } = send.mock.calls[0][0];
+      expect(input.Content.Simple.Body.Html.Data).toBe("<p>123456</p>");
+    });
+
+    // The sandbox failure mode: an unverified recipient rejects here. It must
+    // arrive as a typed EMAIL_SEND_FAILED rather than a raw AWS SDK throw
+    // escaping into a server action or an auth endpoint.
+    it("wraps a transport rejection as EMAIL_SEND_FAILED and keeps the cause diagnosable", async () => {
+      const rejection = Object.assign(
+        new Error("Email address is not verified."),
+        {
+          name: "MessageRejected",
+        },
+      );
+      const send = vi.fn().mockRejectedValue(rejection);
+
+      await expect(
+        transportWithClient(send).send({
+          to: "unverified@example.com",
+          subject: "Your code",
+          text: "123456",
+        }),
+      ).rejects.toMatchObject({
+        code: "EMAIL_SEND_FAILED",
+        message: expect.stringContaining("MessageRejected"),
+      });
+    });
+
+    it("does not leak the recipient address into the error message", async () => {
+      const send = vi
+        .fn()
+        .mockRejectedValue(new Error("Email address is not verified."));
+
+      await expect(
+        transportWithClient(send).send({
+          to: "private@example.com",
+          subject: "Your code",
+          text: "123456",
+        }),
+      ).rejects.not.toThrow(/private@example\.com/);
+    });
+  });
 });

@@ -3,12 +3,14 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fixtures";
 
 import {
   archiveVenture,
   createVenture,
   getVenture,
   listVentures,
+  updateVentureClaudeProjectId,
 } from "./index.js";
 
 /**
@@ -23,28 +25,14 @@ describe("venture service — database integration", () => {
   async function createFounderWithWorkspace(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string }> {
-    const email = `${emailPrefix}-${label}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = {
-      userId: userResult.rows[0].id,
-      role: "founder",
-    };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "venture-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [
-        actor.userId,
-        `Fixture ${label}`,
-        `venture-service-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId: workspaceResult.rows[0].id };
+    return { actor: { userId, role: "founder" }, workspaceId };
   }
 
   beforeAll(async () => {
@@ -86,6 +74,7 @@ describe("venture service — database integration", () => {
     expect(venture.lifecycleStage).toBe("idea");
     expect(venture.oneLiner).toBeNull();
     expect(venture.summary).toBeNull();
+    expect(venture.claudeProjectId).toBeNull();
     expect(venture.archivedAt).toBeNull();
   });
 
@@ -125,9 +114,9 @@ describe("venture service — database integration", () => {
   it("rejects a name that is only whitespace", async () => {
     const { actor } = await createFounderWithWorkspace("blank-name");
 
-    await expect(createVenture(actor, { name: "   " })).rejects.toMatchObject(
-      { code: "VALIDATION_ERROR" },
-    );
+    await expect(createVenture(actor, { name: "   " })).rejects.toMatchObject({
+      code: "VALIDATION_ERROR",
+    });
   });
 
   it("normalizes an empty-string oneLiner/summary to null", async () => {
@@ -152,9 +141,8 @@ describe("venture service — database integration", () => {
   });
 
   it("rejects create when the Workspace is not active", async () => {
-    const { actor, workspaceId } = await createFounderWithWorkspace(
-      "suspended-create",
-    );
+    const { actor, workspaceId } =
+      await createFounderWithWorkspace("suspended-create");
     await pool.query(
       "update workspaces set status = 'suspended' where id = $1",
       [workspaceId],
@@ -212,6 +200,62 @@ describe("venture service — database integration", () => {
     });
   });
 
+  it("stores and clears a Claude Chat Project UUID on a Venture", async () => {
+    const { actor } = await createFounderWithWorkspace("claude-project-id");
+    const venture = await createVenture(actor, { name: "Claude Link Target" });
+    const projectId = "a1b2c3d4-e5f6-4789-a012-3456789abcde";
+
+    const updated = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: projectId,
+    });
+    expect(updated.claudeProjectId).toBe(projectId.toLowerCase());
+
+    const fetched = await getVenture(actor, venture.id);
+    expect(fetched.claudeProjectId).toBe(projectId.toLowerCase());
+
+    const cleared = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: "",
+    });
+    expect(cleared.claudeProjectId).toBeNull();
+  });
+
+  it("accepts a Claude-issued UUID v7 project id", async () => {
+    const { actor } = await createFounderWithWorkspace("claude-project-v7");
+    const venture = await createVenture(actor, { name: "UUID v7 Target" });
+    // Real Claude project ids look like this (version nibble = 7).
+    const projectId = "019f7e34-1bed-7132-8a68-e6e0d2d27d2c";
+
+    const updated = await updateVentureClaudeProjectId(actor, venture.id, {
+      claudeProjectId: projectId,
+    });
+    expect(updated.claudeProjectId).toBe(projectId);
+  });
+
+  it("rejects an invalid Claude project UUID", async () => {
+    const { actor } = await createFounderWithWorkspace("invalid-claude-id");
+    const venture = await createVenture(actor, { name: "Invalid UUID Target" });
+
+    await expect(
+      updateVentureClaudeProjectId(actor, venture.id, {
+        claudeProjectId: "not-a-uuid",
+      }),
+    ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+  });
+
+  it("rejects Claude project updates on an archived Venture", async () => {
+    const { actor } = await createFounderWithWorkspace("archived-claude-id");
+    const venture = await createVenture(actor, {
+      name: "Archived Claude Target",
+    });
+    await archiveVenture(actor, venture.id);
+
+    await expect(
+      updateVentureClaudeProjectId(actor, venture.id, {
+        claudeProjectId: "a1b2c3d4-e5f6-4789-a012-3456789abcde",
+      }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+  });
+
   it("archives a Venture idempotently, only writing archived_at once", async () => {
     const { actor } = await createFounderWithWorkspace("archive-idempotent");
     const venture = await createVenture(actor, { name: "To Archive" });
@@ -226,9 +270,8 @@ describe("venture service — database integration", () => {
   });
 
   it("rejects archive when the Workspace is not active", async () => {
-    const { actor, workspaceId } = await createFounderWithWorkspace(
-      "suspended-archive",
-    );
+    const { actor, workspaceId } =
+      await createFounderWithWorkspace("suspended-archive");
     const venture = await createVenture(actor, { name: "Suspend Target" });
     await pool.query(
       "update workspaces set status = 'suspended' where id = $1",

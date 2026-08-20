@@ -4,9 +4,7 @@ import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   ModuleAttempt,
-  ModuleAttemptStartedVia,
   ModuleAttemptStatus,
-  ModuleAttemptType,
   ModuleCompletionMode,
   ModuleType,
 } from "@ai-catalyst/shared";
@@ -14,11 +12,14 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
-import {
-  startOrResumeAttempt,
-  submitAttempt,
-} from "@ai-catalyst/services/attempt";
+import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
+import { submitAttempt } from "@ai-catalyst/services/attempt";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
+import {
+  ATTEMPT_COLUMNS,
+  mapAttemptRow,
+  type AttemptRow,
+} from "@ai-catalyst/services/attempt/internal/rows";
 import {
   getArtifactSubmission,
   runOfficialValidation,
@@ -27,60 +28,9 @@ import {
 } from "@ai-catalyst/services/artifact";
 import { renderSetupSummaryMarkdown } from "@ai-catalyst/services/module/internal/setup-summary";
 
-// Orchestrates what happens once a Founder (via apps/mcp's `complete_module`
-// tool) declares a Module's Attempt done — the one piece of PR 2.7 that was
-// still missing: submitAttempt (2.4) and runOfficialValidation (2.6) both
-// already existed as correct, independently-tested primitives, but nothing
-// wired them together with the two source-doc (Module_0_and_Module_1_
-// Workflow_S3.md) behaviours neither of them owns on its own:
-//   1. `completion_mode = 'system'` Modules (Module 0) auto-accept once
-//      validation passes and unlock the next Module — no Mentor gate exists
-//      for these, so nothing else in the codebase will ever do this.
-//   2. A Founder's own "Pivot" decision (Module 1's `final_decision`
-//      answer) starts a Retry Attempt automatically instead of leaving the
-//      Founder stuck on a `ready_for_review` Attempt they can no longer
-//      edit.
-// Every other completion_mode/decision combination (Module 1's Proceed/Kill)
-// is a deliberate no-op here: real completion for those still requires a
-// Mentor decision (PR 4.2), not implemented yet.
-//
-// Deliberately its own row shapes/mappers rather than importing attempt/
-// index.ts's or artifact/index.ts's private ones — same "don't share
-// mappers/helpers across Service modules" convention already established
-// by artifact/internal/created-via.ts's own comment.
-
-const ATTEMPT_COLUMNS = `
-  id, program_run_module_id, attempt_number, attempt_type, status,
-  based_on_attempt_id, started_via, submitted_at, created_at, updated_at
-`;
-
-interface AttemptRow {
-  id: string;
-  program_run_module_id: string;
-  attempt_number: number;
-  attempt_type: ModuleAttemptType;
-  status: ModuleAttemptStatus;
-  based_on_attempt_id: string | null;
-  started_via: ModuleAttemptStartedVia;
-  submitted_at: Date | null;
-  created_at: Date;
-  updated_at: Date;
-}
-
-function mapAttemptRow(row: AttemptRow): ModuleAttempt {
-  return {
-    id: row.id,
-    programRunModuleId: row.program_run_module_id,
-    attemptNumber: row.attempt_number,
-    attemptType: row.attempt_type,
-    status: row.status,
-    basedOnAttemptId: row.based_on_attempt_id,
-    startedVia: row.started_via,
-    submittedAt: row.submitted_at?.toISOString() ?? null,
-    createdAt: row.created_at.toISOString(),
-    updatedAt: row.updated_at.toISOString(),
-  };
-}
+// Orchestrates module completion after complete_module: submitAttempt,
+// runOfficialValidation, then leave the Attempt at ready_for_review for
+// website confirmModuleCompletion — AI is advisor, not gatekeeper.
 
 async function loadAttemptRow(
   attemptId: string,
@@ -96,6 +46,7 @@ async function loadAttemptRow(
 interface CompletionContextRow {
   run_module_id: string;
   module_definition_id: string;
+  module_key: string;
   program_run_id: string;
   program_run_branch_id: string;
   sequence_index: number;
@@ -109,12 +60,7 @@ interface CompletionContextRow {
   next_module_title: string | null;
 }
 
-// One read-only, no-lock query covering everything both the "does this
-// Module auto-complete" branch and (for Module 0 only) the Setup Summary
-// renderer need. Re-checked for real under a row lock by
-// completeSystemModule/cancelAttemptForPivot before anything is written —
-// this is only ever used to decide which branch to take and what to put in
-// a system-generated document, never as the basis for a write itself.
+// One read-only query for auto-complete branch and Module 0 setup summary — re-checked under lock before writes.
 async function loadCompletionContext(
   runModuleId: string,
   workspaceId: string,
@@ -123,6 +69,7 @@ async function loadCompletionContext(
     `select
        m.id as run_module_id,
        m.module_definition_id,
+       d.module_key,
        m.program_run_id,
        m.program_run_branch_id,
        m.sequence_index,
@@ -134,10 +81,17 @@ async function loadCompletionContext(
        r.run_number,
        b.name as branch_name,
        (
-         select title_snapshot from program_run_modules
-         where program_run_branch_id = m.program_run_branch_id
-           and sequence_index > m.sequence_index
-         order by sequence_index
+         -- Filtered to module_definitions.status = 'active' so an
+         -- archived-but-not-yet-reconciled-out-of-this-Run Module is
+         -- never surfaced as "what's next" — see the living-V1 plan's
+         -- progression query audit (module_definitions archival must not
+         -- leak into this founder-facing string).
+         select pnm.title_snapshot
+         from program_run_modules pnm
+         join module_definitions nd on nd.id = pnm.module_definition_id and nd.status = 'active'
+         where pnm.program_run_branch_id = m.program_run_branch_id
+           and pnm.sequence_index > m.sequence_index
+         order by pnm.sequence_index
          limit 1
        ) as next_module_title
      from program_run_modules m
@@ -152,32 +106,22 @@ async function loadCompletionContext(
   return result.rows[0] ?? null;
 }
 
+// Founder-visible AI client label from actor.provider (redirect host), not self-declared name.
 function resolveAiClientLabel(actor: ActorContext): string {
   if (actor.source === "web") {
     return "Founder Toolkit (Web)";
   }
-  // V1 constraint: exactly one Claude Remote MCP client
-  // (architecture.mdc) — same hardcode as
-  // attempt/internal/interaction-provider.ts's resolveInteractionProvider.
-  return "Claude (Remote MCP)";
+  switch (actor.provider) {
+    case "claude":
+      return "Claude (Remote MCP)";
+    case "openai":
+      return "ChatGPT (Remote MCP)";
+    default:
+      return "AI assistant (Remote MCP)";
+  }
 }
 
-// Module 0's Setup Summary Artifact is system-generated, not
-// Founder-authored, but it is still saved via the founder-scoped
-// saveArtifactSubmission (not a synthetic system actor) — that function's
-// own resolveSubmissionCreatedVia only supports the two source values a
-// `assertRole(actor, ["founder"])` caller can ever have (web/mcp), and
-// there is no product need for `created_via = 'system'` here: the
-// Founder's own complete_module call (via web or Claude) is what caused
-// this Artifact to be written, which is exactly what created_via already
-// records for every other Artifact.
-//
-// Idempotent by construction: only renders and saves when this Attempt has
-// no submission for the Artifact yet, so a retried completeModuleAttempt
-// call (e.g. after submitAttempt or runOfficialValidation failed
-// transiently) never re-renders with a fresh checkedAtIso and creates a
-// second Version — see setup-summary.ts's own comment on why this
-// document can't describe its own hash.
+// Module 0 setup summary via founder-scoped save — idempotent if submission already exists.
 async function ensureSetupSummarySubmission(
   actor: ActorContext,
   attemptId: string,
@@ -186,7 +130,7 @@ async function ensureSetupSummarySubmission(
 ): Promise<void> {
   const requiredArtifactsResult = await pool.query<{ artifact_key: string }>(
     `select artifact_key from artifact_definitions
-     where module_definition_id = $1 and is_required = true
+     where module_definition_id = $1 and is_required = true and status <> 'archived'
      order by sequence_index`,
     [moduleDefinitionId],
   );
@@ -217,26 +161,13 @@ async function ensureSetupSummarySubmission(
   }
 }
 
-async function loadFinalDecision(attemptId: string): Promise<string | null> {
-  const result = await pool.query<{ answer_text: string | null }>(
-    `select answer_text from module_responses
-     where module_attempt_id = $1 and question_key = 'final_decision'`,
-    [attemptId],
-  );
-  return result.rows[0]?.answer_text ?? null;
-}
-
 type CompletionEventType =
   | "attempt_accepted"
   | "module_completed"
   | "module_unlocked"
   | "attempt_cancelled";
 
-// Deliberately its own event writer, not a reuse of attempt/index.ts's
-// private insertModuleEvent (which hardcodes actor_type = 'user') — the
-// system-completion branch below needs actor_type = 'system' for an
-// actor whose source has been forced to 'system', which that hardcode
-// cannot express.
+// System events need actor_type='system' — attempt/events hardcodes 'user'.
 async function insertCompletionEvent(
   client: PoolClient,
   input: {
@@ -247,27 +178,27 @@ async function insertCompletionEvent(
     moduleAttemptId: string | null;
     eventType: CompletionEventType;
     actor: ActorContext;
+    fromStatus?: string | null;
+    toStatus?: string | null;
+    metadata?: Record<string, unknown>;
   },
 ): Promise<void> {
   const actorType = input.actor.source === "system" ? "system" : "user";
-  await client.query(
-    `insert into module_events (
-       workspace_id, program_run_id, program_run_branch_id, program_run_module_id,
-       module_attempt_id, event_type, actor_type, actor_user_id, source_provider
-     )
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [
-      input.workspaceId,
-      input.programRunId,
-      input.programRunBranchId,
-      input.programRunModuleId,
-      input.moduleAttemptId,
-      input.eventType,
-      actorType,
-      input.actor.userId,
-      resolveInteractionProvider(input.actor),
-    ],
-  );
+  await insertModuleEventRow(client, {
+    workspaceId: input.workspaceId,
+    programRunId: input.programRunId,
+    programRunBranchId: input.programRunBranchId,
+    programRunModuleId: input.programRunModuleId,
+    moduleAttemptId: input.moduleAttemptId,
+    eventType: input.eventType,
+    actorType,
+    actorUserId: input.actor.userId,
+    sourceProvider: resolveInteractionProvider(input.actor),
+    fromStatus: input.fromStatus,
+    toStatus: input.toStatus,
+    metadata: input.metadata,
+    actor: input.actor,
+  });
 }
 
 interface RunModuleLockRow {
@@ -285,15 +216,7 @@ export interface NextModuleUnlocked {
   title: string;
 }
 
-// Locks program_run_modules FIRST, then module_attempts — same
-// lock-ordering convention as attempt/index.ts. The Attempt must already
-// be at 'ready_for_review' (put there by runOfficialValidation); this
-// re-verifies that under the lock rather than trusting the caller's
-// now-stale read.
-//
-// `actor` is the Founder confirming their own output, not a system
-// actor: this is a deliberate human action, and the events and
-// accepted_by/completed_by columns record who took it.
+// Lock run_module then attempt; re-verify ready_for_review under lock — founder confirms, not system.
 async function completeSystemModule(
   client: PoolClient,
   actor: ActorContext,
@@ -360,6 +283,8 @@ async function completeSystemModule(
     moduleAttemptId: attempt.id,
     eventType: "attempt_accepted",
     actor,
+    fromStatus: "ready_for_review",
+    toStatus: "accepted",
   });
   await insertCompletionEvent(client, {
     workspaceId,
@@ -369,24 +294,36 @@ async function completeSystemModule(
     moduleAttemptId: attempt.id,
     eventType: "module_completed",
     actor,
+    fromStatus: runModule.status,
+    toStatus: "completed",
   });
 
+  // Joined to module_definitions.status = 'active' so a Module whose
+  // definition has been archived (removed from the living content
+  // constants) is never treated as "next" here — it must neither be
+  // unlocked nor block the *following* still-active Module from being
+  // found. This is the same "archived definitions exit the active
+  // progression chain" invariant reconcileRunModules enforces when it
+  // moves an orphaned row's sequence_index past every active Module's;
+  // this query is the other half of that invariant, on the read side.
   const nextModuleResult = await client.query<{
     id: string;
     module_key: string;
     title_snapshot: string;
     status: string;
   }>(
-    `select id, module_key, title_snapshot, status
-     from program_run_modules
-     where program_run_branch_id = $1 and sequence_index > $2
-     order by sequence_index
+    `select pnm.id, pnm.module_key, pnm.title_snapshot, pnm.status
+     from program_run_modules pnm
+     join module_definitions nd on nd.id = pnm.module_definition_id and nd.status = 'active'
+     where pnm.program_run_branch_id = $1 and pnm.sequence_index > $2
+     order by pnm.sequence_index
      limit 1
-     for update`,
+     for update of pnm`,
     [runModule.program_run_branch_id, runModule.sequence_index],
   );
   const nextModule = nextModuleResult.rows[0];
-  // No next Module (this was the last one), or it's already
+  // No next (active-definition) Module (this was the last one, or every
+  // Module after it has been archived), or it's already
   // available/in_progress/completed/inherited from an earlier run of this
   // same completion (idempotent replay) — either way, nothing to unlock.
   if (!nextModule || nextModule.status !== "locked") {
@@ -408,6 +345,9 @@ async function completeSystemModule(
     moduleAttemptId: null,
     eventType: "module_unlocked",
     actor,
+    fromStatus: "locked",
+    toStatus: "available",
+    metadata: { unlocked_module_key: nextModule.module_key },
   });
 
   return {
@@ -415,76 +355,6 @@ async function completeSystemModule(
     moduleKey: nextModule.module_key,
     title: nextModule.title_snapshot,
   };
-}
-
-// Phase A of Pivot: cancels the Attempt the Founder just pivoted away
-// from and clears the Module's active_attempt_id, in its own short
-// transaction. Phase B (creating the Retry Attempt) is deliberately a
-// separate call to the public startOrResumeAttempt, made only after this
-// one has committed — see completion.ts's module-level comment history
-// (this two-phase split, not a direct call to attempt/index.ts's private
-// insertRetryAttempt, is what keeps a crash between the two phases
-// recoverable: the Founder/Claude can always retry by calling
-// start_module_attempt directly with the same basedOnAttemptId).
-async function cancelAttemptForPivot(
-  client: PoolClient,
-  actor: ActorContext,
-  workspaceId: string,
-  runModuleId: string,
-  attemptId: string,
-): Promise<void> {
-  const runModuleResult = await client.query<{
-    id: string;
-    program_run_id: string;
-    program_run_branch_id: string;
-  }>(
-    `select id, program_run_id, program_run_branch_id
-     from program_run_modules
-     where id = $1 and workspace_id = $2
-     for update`,
-    [runModuleId, workspaceId],
-  );
-  const runModule = runModuleResult.rows[0];
-  if (!runModule) {
-    throw new ServiceError("NOT_FOUND", "Module not found.");
-  }
-
-  const attemptResult = await client.query<{
-    id: string;
-    status: ModuleAttemptStatus;
-  }>(
-    `select id, status from module_attempts where id = $1 and program_run_module_id = $2 for update`,
-    [attemptId, runModule.id],
-  );
-  const attempt = attemptResult.rows[0];
-  if (!attempt) {
-    throw new ServiceError("NOT_FOUND", "Attempt not found.");
-  }
-  if (attempt.status !== "ready_for_review") {
-    throw new ServiceError(
-      "INTERNAL_INVARIANT_ERROR",
-      `Attempt ${attempt.id} is "${attempt.status}", expected "ready_for_review" after a passing official validation.`,
-    );
-  }
-
-  await client.query(
-    `update module_attempts set status = 'cancelled', cancelled_at = now(), updated_at = now() where id = $1`,
-    [attempt.id],
-  );
-  await client.query(
-    `update program_run_modules set active_attempt_id = null, updated_at = now() where id = $1`,
-    [runModule.id],
-  );
-
-  await insertCompletionEvent(client, {
-    workspaceId,
-    programRunId: runModule.program_run_id,
-    programRunBranchId: runModule.program_run_branch_id,
-    programRunModuleId: runModule.id,
-    moduleAttemptId: attempt.id,
-    eventType: "attempt_cancelled",
-    actor,
-  });
 }
 
 function normalizeCompleteModuleAttemptInput(input: unknown): {
@@ -503,12 +373,20 @@ function normalizeCompleteModuleAttemptInput(input: unknown): {
   return { attemptId };
 }
 
+export interface ModuleValidationError {
+  key: string;
+  message: string;
+}
+
 export interface CompleteModuleAttemptResult {
   attempt: ModuleAttempt;
   passed: boolean;
   // Mirrors RunOfficialValidationResult's own field — required Artifacts
   // with no submission at all. Always [] once passed is true.
   missingArtifactKeys: string[];
+  // Failed official-validation checks (and missing-artifact keys) so the
+  // AI client can repair named gaps. Always [] once passed is true.
+  validationErrors: ModuleValidationError[];
   // True only when the Module is already at
   // program_run_modules.status = 'completed' — which, since Founder
   // confirmation became a required step, only happens on the idempotent
@@ -525,29 +403,36 @@ export interface CompleteModuleAttemptResult {
   // the website. This is the normal terminal state of a successful
   // `complete_module` call from MCP.
   awaitingConfirmation: boolean;
-  // True only on the Pivot branch: the submitted Attempt has been
-  // cancelled and `retryAttempt` is the new one the Founder should
-  // continue with instead.
-  pivoted: boolean;
-  retryAttempt: ModuleAttempt | null;
+}
+
+function collectValidationErrors(
+  missingArtifactKeys: string[],
+  validations: Awaited<ReturnType<typeof runOfficialValidation>>["validations"],
+): ModuleValidationError[] {
+  const errors: ModuleValidationError[] = missingArtifactKeys.map((key) => ({
+    key: `missing_artifact:${key}`,
+    message: `Required artifact "${key}" was never saved.`,
+  }));
+  for (const validation of validations) {
+    for (const check of validation.checks) {
+      if (!check.passed) {
+        errors.push({
+          key: check.key,
+          message: check.message ?? `Check "${check.key}" failed.`,
+        });
+      }
+    }
+    for (const issue of validation.issues) {
+      if (!errors.some((error) => error.message === issue)) {
+        errors.push({ key: "validation_issue", message: issue });
+      }
+    }
+  }
+  return errors;
 }
 
 /**
- * Orchestrates the full "Founder is done with this Attempt" flow behind
- * the MCP `complete_module` tool. See this file's module-level comment
- * for what it adds on top of submitAttempt/runOfficialValidation, and
- * Module_0_and_Module_1_Workflow_S3.md for the source specification.
- *
- * Idempotency: an already-`accepted` Attempt short-circuits immediately
- * (no re-validation, no re-write). Every other repeat-call shape is
- * idempotent transitively, through the primitives it calls
- * (submitAttempt's own submitted/ready_for_review short-circuit,
- * runOfficialValidation's own ready_for_review/validation_failed
- * short-circuit) — this function adds no further short-circuiting of its
- * own for those, and does not attempt to make a repeat call against an
- * already-`cancelled` (post-Pivot) Attempt idempotent: that Attempt is
- * done, and the caller must resume the Retry Attempt via
- * `start_module_attempt` instead.
+ * MCP complete_module: submit + validate, stop at ready_for_review for website confirm.
  */
 export async function completeModuleAttempt(
   actor: ActorContext,
@@ -577,11 +462,10 @@ export async function completeModuleAttempt(
       attempt: mapAttemptRow(initialAttempt),
       passed: true,
       missingArtifactKeys: [],
+      validationErrors: [],
       moduleCompleted: true,
       nextModuleUnlocked: null,
       awaitingConfirmation: false,
-      pivoted: false,
-      retryAttempt: null,
     };
   }
 
@@ -608,12 +492,8 @@ export async function completeModuleAttempt(
   await submitAttempt(actor, { attemptId });
 
   // Only runOfficialValidation itself needs `source: 'system'` (its own
-  // assertOfficialValidationAuthority requires it). Nothing else in this
-  // function uses a synthetic actor any more: accepting and unlocking
-  // moved out to confirmModuleCompletion, where the Founder is the one
-  // taking the action, and the Pivot branch below has always used the
-  // Founder's own actor because cancelling the pivoted-from Attempt is a
-  // direct consequence of their `final_decision` answer.
+  // assertOfficialValidationAuthority requires it). Accepting and
+  // unlocking remain confirmModuleCompletion's job on the website.
   const systemActor: ActorContext = { ...actor, source: "system" };
   const validation = await runOfficialValidation(
     systemActor,
@@ -633,121 +513,42 @@ export async function completeModuleAttempt(
       attempt: mapAttemptRow(attemptRow),
       passed: false,
       missingArtifactKeys: validation.missingArtifactKeys,
+      validationErrors: collectValidationErrors(
+        validation.missingArtifactKeys,
+        validation.validations,
+      ),
       moduleCompleted: false,
       nextModuleUnlocked: null,
       awaitingConfirmation: false,
-      pivoted: false,
-      retryAttempt: null,
     };
   }
 
-  if (context.completion_mode === "system") {
-    // Deliberately stops here rather than completing the Module.
-    //
-    // A `completion_mode = 'system'` Module used to auto-accept and
-    // unlock the next one the moment validation passed, which meant the
-    // whole programme could advance without the Founder ever looking at
-    // the website — and without them ever confirming they were happy
-    // with what the AI produced. Unlocking is now an explicit Founder
-    // action on the website (confirmModuleCompletion); this call leaves
-    // the Attempt at 'ready_for_review' for them to confirm.
-    const attemptRow = await loadAttemptRow(attemptId, workspace.id);
-    if (!attemptRow) {
-      throw new ServiceError(
-        "INTERNAL_INVARIANT_ERROR",
-        `Attempt ${attemptId} disappeared mid-flight.`,
-      );
-    }
-    return {
-      attempt: mapAttemptRow(attemptRow),
-      passed: true,
-      missingArtifactKeys: [],
-      moduleCompleted: false,
-      nextModuleUnlocked: null,
-      awaitingConfirmation: true,
-      pivoted: false,
-      retryAttempt: null,
-    };
-  }
-
-  // Non-system Modules (Module 1: `artifact_and_confirmation`) never
-  // auto-complete — real completion requires a future Mentor decision
-  // (PR 4.2). Proceed/Kill are both a no-op past this point: the Attempt
-  // simply stays `ready_for_review`, awaiting that Mentor. Pivot is the
-  // one decision this PR does route further, per source doc §12.
-  const finalDecision = await loadFinalDecision(attemptId);
-  if (finalDecision !== "pivot") {
-    const attemptRow = await loadAttemptRow(attemptId, workspace.id);
-    if (!attemptRow) {
-      throw new ServiceError(
-        "INTERNAL_INVARIANT_ERROR",
-        `Attempt ${attemptId} disappeared mid-flight.`,
-      );
-    }
-    return {
-      attempt: mapAttemptRow(attemptRow),
-      passed: true,
-      missingArtifactKeys: [],
-      moduleCompleted: false,
-      nextModuleUnlocked: null,
-      awaitingConfirmation: true,
-      pivoted: false,
-      retryAttempt: null,
-    };
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    await cancelAttemptForPivot(
-      client,
-      actor,
-      workspace.id,
-      context.run_module_id,
-      attemptId,
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
-
-  const { attempt: retryAttempt } = await startOrResumeAttempt(actor, {
-    programRunModuleId: context.run_module_id,
-    basedOnAttemptId: attemptId,
-  });
-
-  const cancelledAttemptRow = await loadAttemptRow(attemptId, workspace.id);
-  if (!cancelledAttemptRow) {
+  // Deliberately stops here rather than completing the Module.
+  // Unlocking is an explicit Founder action on the website
+  // (confirmModuleCompletion); this call leaves the Attempt at
+  // 'ready_for_review' for them to confirm — for both system and
+  // non-system completion modes, and for any Founder decision.
+  const attemptRow = await loadAttemptRow(attemptId, workspace.id);
+  if (!attemptRow) {
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       `Attempt ${attemptId} disappeared mid-flight.`,
     );
   }
-
   return {
-    attempt: mapAttemptRow(cancelledAttemptRow),
+    attempt: mapAttemptRow(attemptRow),
     passed: true,
     missingArtifactKeys: [],
+    validationErrors: [],
     moduleCompleted: false,
     nextModuleUnlocked: null,
-    awaitingConfirmation: false,
-    pivoted: true,
-    retryAttempt,
+    awaitingConfirmation: true,
   };
 }
 
-// ---------------------------------------------------------------------
-// confirmModuleCompletion — the website's half of module completion.
-// ---------------------------------------------------------------------
+// --- confirmModuleCompletion ---
 
-// Takes a programRunModuleId rather than a moduleKey so that resolving
-// the target never goes through the Founder's active context — per the
-// iteration plan's "Active Context is not authorisation", every write
-// path locates its row by id within the caller's own Workspace, the same
-// way startOrResumeAttempt does.
+// programRunModuleId not moduleKey — auth by workspace id, not active context navigation.
 function normalizeConfirmInput(input: unknown): { programRunModuleId: string } {
   if (
     typeof input !== "object" ||
@@ -781,24 +582,8 @@ export interface ConfirmModuleCompletionResult {
 }
 
 /**
- * The Founder confirming, on the website, that they are happy with what a
- * Module produced — which is what actually completes it and unlocks the
- * next one.
- *
- * This exists because `complete_module` (MCP) deliberately stops at
- * `ready_for_review`. Letting the AI client both produce the output and
- * declare it good would take the Founder out of their own programme: they
- * could be three modules deep without ever having looked at what was
- * written in their name. So the AI does the work, and the person whose
- * business it is signs it off.
- *
- * Not a review in the PR 4.2 sense — that is a Mentor judging the content
- * and is still to come. This is the Founder acknowledging their own
- * output, so `accepted_by_user_id` is the Founder themselves.
- *
- * Idempotent: confirming an already-completed Module returns the current
- * state rather than erroring, so a double-click or a stale tab can't
- * produce a confusing failure.
+ * Founder confirms on website — completes module and unlocks next.
+ * MCP complete_module stops at ready_for_review so they sign off before advancing.
  */
 export async function confirmModuleCompletion(
   actor: ActorContext,
@@ -856,6 +641,47 @@ export async function confirmModuleCompletion(
     );
   }
 
+  // Defense in depth: ready_for_review should already imply every required
+  // Artifact exists, but never complete/unlock when a required output is
+  // still missing on this attempt (e.g. stale UI / raced state).
+  const missingRequired = await pool.query<{ artifact_key: string }>(
+    `select d.artifact_key
+     from artifact_definitions d
+     join program_run_modules m
+       on m.module_definition_id = d.module_definition_id
+      and m.workspace_id = $2
+     where m.id = $1
+       and d.is_required = true
+       and d.status <> 'archived'
+       and not exists (
+         select 1
+         from artifact_submissions s
+         where s.module_attempt_id = $3
+           and s.artifact_definition_id = d.id
+           and s.status not in ('superseded', 'deleted')
+       )
+     order by d.sequence_index`,
+    [programRunModuleId, workspace.id, attempt.id],
+  );
+  if (missingRequired.rows.length > 0) {
+    throw new ServiceError(
+      "MODULE_NOT_READY_FOR_CONFIRMATION",
+      "This module is missing a required document, so there's nothing to confirm yet.",
+    );
+  }
+
+  // Snapshot Module 3 interview questions before the txn so we can create
+  // interview_activities inside the same commit as module completion.
+  const moduleKeyResult = await pool.query<{
+    module_key: string;
+    program_run_id: string;
+  }>(
+    `select module_key, program_run_id
+     from program_run_modules
+     where id = $1 and workspace_id = $2`,
+    [programRunModuleId, workspace.id],
+  );
+  const completingModule = moduleKeyResult.rows[0];
   const client = await pool.connect();
   let nextModuleUnlocked: NextModuleUnlocked | null = null;
   try {

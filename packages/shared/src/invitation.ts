@@ -1,8 +1,5 @@
-// External, camelCase DTO returned by packages/services/src/invitation and
-// consumed by apps/web and apps/mcp. Deliberately excludes `token_hash` —
-// the raw token is only ever returned once, at creation time, alongside this
-// type (see CreateFounderInvitationResult in packages/services), never as a
-// field on Invitation itself.
+// Web-facing invitation DTO (not MCP — pending accounts have no token).
+// Excludes token_hash; raw token returned once at creation only.
 export type InvitationStatus = "pending" | "accepted" | "revoked" | "expired";
 
 export interface Invitation {
@@ -18,4 +15,13 @@ export interface Invitation {
   revokedAt: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * List-only Invitation with sender display — Admin needs readable sender to match Mentor support; null if sender account closed.
+ */
+export interface InvitationListItem extends Invitation {
+  invitedByName: string | null;
+  invitedByEmail: string | null;
+  invitedByRole: "pending" | "founder" | "mentor" | "admin" | null;
 }

@@ -1,22 +1,19 @@
 import { randomUUID } from "node:crypto";
 import type { PoolClient } from "pg";
 
+import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { pool } from "@ai-catalyst/db";
 
 import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 
-// Test-only fixture helpers, exported purely so apps/mcp's own
-// *.db.test.ts suites (integration tests exercising the real /mcp
-// endpoint against a real Postgres fixture) never need to import
-// `pool` from `@ai-catalyst/db` directly — `.dependency-cruiser.js`'s
-// only-web-may-import-db-pool rule forbids that edge for apps/mcp (only
-// apps/web and packages/services may touch the raw pool), the same way
-// architecture.mdc rule 1 forbids apps/mcp from duplicating business
-// logic that belongs in this package. Every packages/services own
-// *.db.test.ts suite still uses `pool` directly (that boundary doesn't
-// apply within this package); this module exists only for *other*
-// packages'/apps' test fixtures.
+// Shared DB fixtures for workspace tests. apps/mcp must use this path —
+// dependency-cruiser forbids it from importing @ai-catalyst/db directly.
+
+/** Random Founder actor for services that only read userId/role — not a real users row. */
+export function founderActor(): ActorContext {
+  return { userId: randomUUID(), role: "founder" };
+}
 
 export async function withTransaction<T>(
   fn: (client: PoolClient) => Promise<T>,
@@ -36,7 +33,9 @@ export async function withTransaction<T>(
 }
 
 /** Wraps seedToolkitContent in its own transaction — see withTransaction's own comment. */
-export async function seedFixtureProgram(content: ToolkitSeedContent): Promise<void> {
+export async function seedFixtureProgram(
+  content: ToolkitSeedContent,
+): Promise<void> {
   await withTransaction((client) => seedToolkitContent(client, content));
 }
 
@@ -46,14 +45,13 @@ export interface FixtureFounderAccount {
 }
 
 /**
- * Inserts a fixture Founder user + Workspace directly (bypassing
- * invitation acceptance, which is out of scope for a Tool-level
- * integration test) — mirrors the `createFounderWithWorkspaceAndVenture`
- * pattern duplicated across every packages/services *.db.test.ts suite.
+ * Fixture Founder + Workspace, bypassing invitation flow. No cleanup registry —
+ * suites own teardown. slugPrefix tags failed-run leftovers for debugging only.
  */
 export async function createFixtureFounderAccount(params: {
   label: string;
   emailPrefix: string;
+  slugPrefix?: string;
 }): Promise<FixtureFounderAccount> {
   const email = `${params.emailPrefix}-${params.label}-${randomUUID()}@example.com`;
   const userResult = await pool.query<{ id: string }>(
@@ -65,17 +63,26 @@ export async function createFixtureFounderAccount(params: {
   const workspaceResult = await pool.query<{ id: string }>(
     `insert into workspaces (founder_user_id, name, slug)
      values ($1, $2, $3) returning id`,
-    [userId, `Fixture ${params.label}`, `fixture-${params.label}-${randomUUID()}`],
+    [
+      userId,
+      `Fixture ${params.label}`,
+      `${params.slugPrefix ?? "fixture"}-${params.label}-${randomUUID()}`,
+    ],
   );
 
   return { userId, workspaceId: workspaceResult.rows[0].id };
 }
 
-/** Inserts a fixture Venture directly, owned by an already-created fixture Workspace. */
+/**
+ * Inserts a fixture Venture directly, owned by an already-created fixture
+ * Workspace. `slugPrefix` serves the same debugging purpose as it does on
+ * createFixtureFounderAccount.
+ */
 export async function createFixtureVenture(params: {
   workspaceId: string;
   createdByUserId: string;
   label: string;
+  slugPrefix?: string;
 }): Promise<string> {
   const ventureResult = await pool.query<{ id: string }>(
     `insert into ventures (workspace_id, created_by_user_id, name, slug)
@@ -84,14 +91,16 @@ export async function createFixtureVenture(params: {
       params.workspaceId,
       params.createdByUserId,
       `Fixture Venture ${params.label}`,
-      `fixture-venture-${params.label}-${randomUUID()}`,
+      `${params.slugPrefix ?? "fixture-venture"}-${params.label}-${randomUUID()}`,
     ],
   );
   return ventureResult.rows[0].id;
 }
 
 /** Reads back a Run/Branch's program_run_modules, in sequence order — for tests that need the raw id (e.g. to drive startOrResumeAttempt) without depending on listRunModules' own Active-Context resolution. */
-export async function getFixtureRunModuleIds(activeBranchId: string): Promise<string[]> {
+export async function getFixtureRunModuleIds(
+  activeBranchId: string,
+): Promise<string[]> {
   const result = await pool.query<{ id: string }>(
     `select id from program_run_modules where program_run_branch_id = $1 order by sequence_index`,
     [activeBranchId],
@@ -129,7 +138,9 @@ export async function getLatestFixtureMcpToolAuditLogRow(
 }
 
 /** Reads back a module_attempts row's current status — for tests asserting a write Tool's side effect landed. */
-export async function getFixtureModuleAttemptStatus(attemptId: string): Promise<string> {
+export async function getFixtureModuleAttemptStatus(
+  attemptId: string,
+): Promise<string> {
   const result = await pool.query<{ status: string }>(
     "select status from module_attempts where id = $1",
     [attemptId],
@@ -138,25 +149,22 @@ export async function getFixtureModuleAttemptStatus(attemptId: string): Promise<
 }
 
 /**
- * Deletes every row this module's fixture helpers may have created for
- * the given fixture `userIds`/`programKey`, in dependency order — mirrors
- * the `afterAll` cleanup duplicated across every packages/services
- * *.db.test.ts suite that builds a Founder/Workspace/Venture/Run/Attempt
- * fixture (see e.g. artifact/index.db.test.ts's own afterAll comment for
- * why artifact_submissions/user_active_contexts must be deleted
- * explicitly ahead of the ventures cascade).
+ * Dependency-ordered teardown for fixture userIds/programKey — artifact_submissions
+ * and user_active_contexts must precede the ventures cascade.
  */
 export async function cleanupFixtureAccounts(params: {
   userIds: string[];
   programKey: string;
 }): Promise<void> {
   const { userIds, programKey } = params;
-  await pool.query("delete from mcp_tool_audit_logs where user_id = any($1::uuid[])", [
-    userIds,
-  ]);
-  await pool.query("delete from user_active_contexts where user_id = any($1::uuid[])", [
-    userIds,
-  ]);
+  await pool.query(
+    "delete from mcp_tool_audit_logs where user_id = any($1::uuid[])",
+    [userIds],
+  );
+  await pool.query(
+    "delete from user_active_contexts where user_id = any($1::uuid[])",
+    [userIds],
+  );
   await pool.query(
     "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [userIds],
@@ -165,7 +173,10 @@ export async function cleanupFixtureAccounts(params: {
     "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [userIds],
   );
-  await pool.query("delete from workspaces where founder_user_id = any($1::uuid[])", [userIds]);
+  await pool.query(
+    "delete from workspaces where founder_user_id = any($1::uuid[])",
+    [userIds],
+  );
   await pool.query("delete from users where id = any($1::uuid[])", [userIds]);
   await pool.query("delete from programs where program_key = $1", [programKey]);
 }

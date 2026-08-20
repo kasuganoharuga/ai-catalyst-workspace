@@ -1,13 +1,13 @@
 import type { ArtifactSubmissionStatus } from "./artifact-submission.js";
-import type { ModuleAttempt, ModuleResponseStatus, ModuleResponseType } from "./module-attempt.js";
+import type { WorkbookFormat } from "./module-catalog.js";
+import type {
+  ModuleAttempt,
+  ModuleResponseStatus,
+  ModuleResponseType,
+} from "./module-attempt.js";
 import type { RunModuleSummary } from "./run-module.js";
 
-// One Question's definition, joined with the current Attempt's Response
-// to it (if any) — the shape `get_module_context` (MCP) and PR 2.9's
-// status UI both need to render "what's already confirmed" and "what's
-// next" without a second round trip. `responseStatus: null` means this
-// Question has no Response yet on the current Attempt at all (never
-// started, not merely skipped).
+// Question + current attempt response for module context UI.
 export interface ModuleContextQuestion {
   questionKey: string;
   sequenceIndex: number;
@@ -19,27 +19,82 @@ export interface ModuleContextQuestion {
   answerText: string | null;
 }
 
-// Metadata only — never the Artifact's stored content (that is
-// `get_artifact`'s job, and only on request).
+// Metadata and locked template only — submission content is get_artifact.
 export interface ModuleContextArtifactSummary {
   artifactKey: string;
   name: string;
   isRequired: boolean;
   requiredFilename: string | null;
+  /** Locked templateMarkdown for exact heading copy; null when none. */
+  templateMarkdown: string | null;
   latestSubmission: {
     versionNumber: number;
     status: ArtifactSubmissionStatus;
+    /** Set when the submission is officially submitted; null while still draft. */
     submittedAt: string | null;
+    /** Last write time (draft save or later update) — use for "Saved …" UI. */
+    updatedAt: string;
   } | null;
+  /** Renderer configured — catalog fact; workbookAvailable needs confirmed submission. */
+  workbookSupported: boolean;
+  /** workbookSupported plus confirmed version — separate flags for different UI copy. */
+  workbookAvailable: boolean;
+  workbookFormat: WorkbookFormat | null;
+}
+
+// Bound prompt content for the AI client (Facilitator / Artifact Generator).
+export interface ModuleContextPrompt {
+  purpose: string;
+  promptKey: string;
+  versionNumber: number;
+  content: string;
 }
 
 export interface ModuleContext {
   runModule: RunModuleSummary;
+  // Active attempt for writes; null after validation_failed clears it for retry.
   activeAttempt: ModuleAttempt | null;
-  // The first Question with no Response on the current Attempt yet —
-  // null once every Question has one, or when the Module has none at all
-  // (e.g. Module 0, which is `module_questions`-less by design).
+  // Responses/artifacts shown when active is null or a fresh empty retry.
+  displayAttempt: ModuleAttempt | null;
+  // First unanswered question on write attempt; null when all answered or no questions.
   resumeQuestionKey: string | null;
   questions: ModuleContextQuestion[];
   artifacts: ModuleContextArtifactSummary[];
+  prompts: ModuleContextPrompt[];
+  // Prep material for this Module, to be read at the start of the
+  // conversation: either a file the Founder uploaded on the Work step, or
+  // an extract the assistant itself saved via save_prep_extract for a
+  // Module with no upload step. Metadata only — fetch the content with
+  // get_prep_document.
+  prepDocuments: ModuleContextPrepDocument[];
+  // Null for every Module except module-04-solution-statement, which
+  // cannot start Block 1 (or any later block) until this many confirmed
+  // interview transcripts have been saved. See
+  // packages/services/src/prep/types.ts's MINIMUM_CONFIRMED_INTERVIEWS.
+  interviewGate: ModuleInterviewGateStatus | null;
+}
+
+/**
+ * One prep document — an uploaded file or an assistant-saved summary.
+ * Nothing server-side extracts an uploaded file's text, so the reader
+ * must fetch and parse it with get_prep_document — and say plainly when
+ * it cannot, rather than guessing at the contents from the filename.
+ */
+export interface ModuleContextPrepDocument {
+  id: string;
+  filename: string;
+  contentType: string;
+  sizeBytes: number | null;
+  /** "other" unless the assistant explicitly marked this as an interview transcript. */
+  documentKind: "interview_transcript" | "other";
+  /** Number of distinct interviews this document represents; null unless documentKind is "interview_transcript". */
+  interviewCount: number | null;
+  uploadedAt: string;
+}
+
+/** Live count of confirmed interview transcripts against Module 4's floor. */
+export interface ModuleInterviewGateStatus {
+  confirmedInterviewCount: number;
+  minimumRequired: number;
+  gateMet: boolean;
 }

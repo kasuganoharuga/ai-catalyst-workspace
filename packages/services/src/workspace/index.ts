@@ -59,8 +59,8 @@ export async function resolveFounderWorkspaceId(
   return (await resolveFounderWorkspace(actor, executor)).id;
 }
 
-// Read path for the Workspace page / GET /api/workspace — always uses the
-// default pool executor since nothing else needs it inside a transaction.
+// Read path for the Workspace page — always uses the default pool
+// executor since nothing else needs it inside a transaction.
 export async function getMyWorkspace(
   actor: ActorContext,
 ): Promise<WorkspaceSummary> {

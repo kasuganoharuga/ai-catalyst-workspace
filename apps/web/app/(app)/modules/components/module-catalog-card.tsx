@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
 import {
+  headlineArtifact,
   moduleAccentStyle,
   type ModuleDisplayStatus,
 } from "../../lib/module-display";
@@ -20,11 +21,11 @@ export function ModuleCatalogCard({
   runStatus?: ModuleDisplayStatus;
 }) {
   const isComingSoon = module.catalogStatus === "coming_soon";
-  const artifact = module.expectedArtifacts[0] ?? null;
+  const artifact = headlineArtifact(module.expectedArtifacts);
 
   return (
     <Link
-      href={`/modules/${module.moduleKey}`}
+      href={`/modules/${encodeURIComponent(module.moduleKey)}`}
       className={cn(
         "group flex flex-col rounded-xl border border-border bg-card p-5 transition hover:border-foreground/30",
         isComingSoon && "opacity-70 hover:opacity-100",

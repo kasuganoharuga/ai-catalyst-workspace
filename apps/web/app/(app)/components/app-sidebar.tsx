@@ -1,31 +1,16 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/logo";
-import { getActiveContext } from "@/lib/active-context";
-import {
-  getCurrentFounderActor,
-  getCurrentFounderSession,
-} from "@/lib/current-founder-actor";
-import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
-import { getVenture } from "@/lib/ventures";
+import type { AppShellUser } from "@/lib/app-shell";
 
 import { AppSidebarNavigation } from "./app-sidebar-navigation";
 import { UserMenu } from "./user-menu";
 
-export async function AppSidebar() {
-  const [actor, session] = await Promise.all([
-    getCurrentFounderActor(),
-    getCurrentFounderSession(),
-  ]);
+type AppSidebarProps = {
+  user: AppShellUser;
+};
 
-  const [activeContext, profile] = await Promise.all([
-    getActiveContext(actor),
-    getMyProfile(actor),
-  ]);
-  const venture = activeContext.ventureId
-    ? await getVenture(actor, activeContext.ventureId)
-    : null;
-
+export function AppSidebar({ user }: AppSidebarProps) {
   return (
     // Sticky full-height column: navigation and the account menu stay
     // reachable no matter how long the page below scrolls.
@@ -34,13 +19,13 @@ export async function AppSidebar() {
         <Logo />
       </Link>
 
-      <AppSidebarNavigation />
+      <AppSidebarNavigation role={user.role} />
 
       <div className="mt-auto border-t border-sidebar-border p-3">
         <UserMenu
-          name={resolveDisplayName(profile, session.user.name)}
-          email={session.user.email}
-          subtitle={venture ? venture.name : "No active venture"}
+          name={user.displayName}
+          email={user.email}
+          subtitle={user.subtitle}
           side="top"
           align="start"
         />

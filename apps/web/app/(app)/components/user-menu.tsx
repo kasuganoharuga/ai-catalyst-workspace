@@ -2,8 +2,6 @@
 
 import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -14,10 +12,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
+import { useSignOut } from "@/lib/use-sign-out";
 import { cn } from "@/lib/utils";
 
-import { ACCOUNT_NAV_ITEMS } from "./app-sidebar-navigation";
+import { accountNavItems, type NavItemConfig } from "./nav-items";
+import { NavMenuIcon } from "./nav-link";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -29,12 +28,9 @@ function initials(name: string): string {
 }
 
 /**
- * Account menu, and the only route out of the session.
- *
- * `includeAccountLinks` tracks which shell is rendering it: the top bar
- * has no room for the account pages so it carries them here, while the
- * sidebar already lists them a few pixels above and would just be
- * repeating itself — there, this is a sign-out menu and nothing else.
+ * Account menu and sign-out. includeAccountLinks: top bar carries account pages; sidebar omits duplicates.
+ * role selects Founder/Mentor account links; accountItems covers Admin (and any
+ * caller that wants an explicit list without going through role).
  */
 export function UserMenu({
   name,
@@ -42,6 +38,8 @@ export function UserMenu({
   subtitle,
   showDetails = true,
   includeAccountLinks = false,
+  role,
+  accountItems,
   align = "start",
   side = "top",
 }: {
@@ -50,21 +48,15 @@ export function UserMenu({
   subtitle?: string | null;
   showDetails?: boolean;
   includeAccountLinks?: boolean;
+  role?: "founder" | "mentor";
+  accountItems?: NavItemConfig[];
   align?: "start" | "end";
   side?: "top" | "bottom";
 }) {
-  const router = useRouter();
-  const [isSigningOut, setIsSigningOut] = useState(false);
-
-  function handleSignOut() {
-    setIsSigningOut(true);
-    authClient.signOut({
-      fetchOptions: {
-        onSuccess: () => router.push("/"),
-        onError: () => setIsSigningOut(false),
-      },
-    });
-  }
+  const { isSigningOut, signOut } = useSignOut();
+  const items = includeAccountLinks
+    ? (accountItems ?? (role ? accountNavItems(role) : []))
+    : [];
 
   return (
     <DropdownMenu>
@@ -98,7 +90,7 @@ export function UserMenu({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align={align} side={side} className="w-60">
-        <DropdownMenuLabel className="font-normal">
+        <DropdownMenuLabel className="px-2.5 py-2 font-normal">
           <span className="block truncate text-[13px] font-semibold text-foreground">
             {name}
           </span>
@@ -107,22 +99,20 @@ export function UserMenu({
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {includeAccountLinks
-          ? ACCOUNT_NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              return (
-                <DropdownMenuItem key={item.href} asChild>
-                  <Link href={item.href}>
-                    <Icon aria-hidden="true" />
-                    {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })
+        {items.length > 0
+          ? items.map((item) => (
+              <DropdownMenuItem key={item.href} asChild>
+                <Link href={item.href}>
+                  <NavMenuIcon href={item.href} />
+                  {item.label}
+                </Link>
+              </DropdownMenuItem>
+            ))
           : null}
-        {includeAccountLinks ? <DropdownMenuSeparator /> : null}
+        {items.length > 0 ? <DropdownMenuSeparator /> : null}
+        {/* Browser session only — MCP disconnect is a separate action. */}
         <DropdownMenuItem
-          onSelect={handleSignOut}
+          onSelect={() => void signOut()}
           disabled={isSigningOut}
           variant="destructive"
         >

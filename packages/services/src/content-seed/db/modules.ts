@@ -1,8 +1,19 @@
 import type { PoolClient } from "pg";
 
-import { diffFields, diffKeySets } from "../compare.js";
+import { validateConfigForValidator } from "../../artifact/internal/validators/rule-schema.js";
+import { diffFields } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
-import type { ArtifactContent, ModuleContent, QuestionContent } from "../types.js";
+import type {
+  ArtifactContent,
+  ModuleContent,
+  QuestionContent,
+} from "../types.js";
+import {
+  applyOrderedRowsPlan,
+  loadExistingOrderedRows,
+  planOrderedRows,
+  type OrderedRowsPlan,
+} from "./reconcile-ordered-rows.js";
 
 export interface ReconciledModule {
   moduleId: string;
@@ -10,8 +21,8 @@ export interface ReconciledModule {
   isPublishable: boolean;
 }
 
+// sequence_index omitted — ordering is owned by reconcile-ordered-rows.ts before these upsert loops; including it here could conflict.
 const MODULE_FIELDS = [
-  "sequence_index",
   "title",
   "subtitle",
   "description",
@@ -24,7 +35,6 @@ const MODULE_FIELDS = [
 ] as const;
 
 const QUESTION_FIELDS = [
-  "sequence_index",
   "question_group",
   "question_text",
   "help_text",
@@ -37,7 +47,6 @@ const QUESTION_FIELDS = [
 ] as const;
 
 const ARTIFACT_FIELDS = [
-  "sequence_index",
   "name",
   "description",
   "is_required",
@@ -69,7 +78,9 @@ function moduleContentRow(module: ModuleContent): Record<string, unknown> {
   };
 }
 
-function questionContentRow(question: QuestionContent): Record<string, unknown> {
+function questionContentRow(
+  question: QuestionContent,
+): Record<string, unknown> {
   return {
     sequence_index: question.sequenceIndex,
     question_group: question.questionGroup,
@@ -84,7 +95,9 @@ function questionContentRow(question: QuestionContent): Record<string, unknown> 
   };
 }
 
-function artifactContentRow(artifact: ArtifactContent): Record<string, unknown> {
+function artifactContentRow(
+  artifact: ArtifactContent,
+): Record<string, unknown> {
   return {
     sequence_index: artifact.sequenceIndex,
     name: artifact.name,
@@ -104,20 +117,69 @@ function artifactContentRow(artifact: ArtifactContent): Record<string, unknown> 
   };
 }
 
-// `isDraftEditable` reflects the parent program_version's status, fetched
-// once per run ? module_definitions/module_questions/artifact_definitions
-// have no lifecycle field of their own, so their immutability once
-// published is enforced here rather than by a DB trigger.
-async function reconcileModuleDefinition(
+// A plan's toArchive/toRevive/missingKeys describe a change to WHICH rows
+// exist (the content graph); resequenceStaying alone describes a pure
+// reorder of rows that all still exist. Both are content-lock-gated, but
+// the graph-shaped ones reuse the same error code the old graph-completeness
+// check used (CONTENT_GRAPH_MISMATCH); a pure reorder reuses the same code
+// a plain field diff would (PUBLISHED_CONTENT_MISMATCH) — sequence_index
+// used to be diffed as an ordinary field before it moved into this plan.
+function isGraphShapeChange(plan: OrderedRowsPlan): boolean {
+  return (
+    plan.toArchive.length > 0 ||
+    plan.toRevive.length > 0 ||
+    plan.missingKeys.length > 0
+  );
+}
+
+function assertPlanAllowed(
+  plan: OrderedRowsPlan,
+  isContentEditable: boolean,
+  allowArchive: boolean,
+  describeTarget: string,
+): void {
+  if (!plan.changed) {
+    return;
+  }
+  if (!isContentEditable) {
+    throw new ContentSeedError(
+      isGraphShapeChange(plan)
+        ? "CONTENT_GRAPH_MISMATCH"
+        : "PUBLISHED_CONTENT_MISMATCH",
+      `${describeTarget} no longer match the content constants, and this program_version is not ` +
+        "content-editable. Publish a new program_version, or move this one to a living " +
+        "(content_lock='mutable') state, instead of editing published content in place.",
+    );
+  }
+  if (plan.toArchive.length > 0 && !allowArchive) {
+    throw new ContentSeedError(
+      "DESTRUCTIVE_CONTENT_CHANGE_NOT_ALLOWED",
+      `This seed run would archive ${plan.toArchive.length} row(s) under ${describeTarget} ` +
+        `(${plan.toArchive.map((row) => row.key).join(", ")}). Pass --allow-archive ` +
+        "(or set ALLOW_DESTRUCTIVE_CONTENT_CHANGE=1) to confirm this is intentional.",
+    );
+  }
+}
+
+// `isContentEditable` reflects the program_version's own editability
+// (draft, or published+mutable — see db/program.ts's
+// isProgramVersionContentEditable) — module_definitions/module_questions/
+// artifact_definitions have no lifecycle field of their own beyond
+// active/archived(/draft for modules), so their immutability once
+// non-editable is enforced here rather than by a DB trigger.
+async function reconcileModuleDefinitionContent(
   client: PoolClient,
   programVersionId: string,
-  isDraftEditable: boolean,
+  isContentEditable: boolean,
   module: ModuleContent,
 ): Promise<string> {
   const existing = await client.query<
-    { id: string } & Record<(typeof MODULE_FIELDS)[number], unknown>
+    { id: string; status: string } & Record<
+      (typeof MODULE_FIELDS)[number],
+      unknown
+    >
   >(
-    `select id, ${MODULE_FIELDS.join(", ")}
+    `select id, status, ${MODULE_FIELDS.join(", ")}
      from module_definitions
      where program_version_id = $1 and module_key = $2`,
     [programVersionId, module.moduleKey],
@@ -152,28 +214,41 @@ async function reconcileModuleDefinition(
     return inserted.rows[0].id;
   }
 
+  // isPublishable isn't a stored column (it only steers publish.ts's
+  // activation pass), so this can't be derived from `differing` below —
+  // it must be checked independently, and before the early-return, on
+  // every reconcile, not just ones where some other field also changed.
+  if (row.status === "active" && !module.isPublishable) {
+    throw new ContentSeedError(
+      "MODULE_DEMOTION_UNSUPPORTED",
+      `module_definitions "${module.moduleKey}" is currently active but the content constants now mark ` +
+        "it isPublishable:false. Demoting an active module to a draft placeholder is not supported — " +
+        "remove it from the content constants instead, which archives it (and its Questions/Artifacts) " +
+        "without disturbing any Run's existing program_run_modules rows.",
+    );
+  }
+
   const differing = diffFields(expected, row, MODULE_FIELDS);
   if (differing.length === 0) {
     return row.id;
   }
 
-  if (!isDraftEditable) {
+  if (!isContentEditable) {
     throw new ContentSeedError(
       "PUBLISHED_CONTENT_MISMATCH",
       `module_definitions "${module.moduleKey}" no longer matches the content constants ` +
-        `(fields: ${differing.join(", ")}), and its program_version is no longer draft. ` +
+        `(fields: ${differing.join(", ")}), and its program_version is not content-editable. ` +
         "Publish a new program_version instead of editing published content.",
     );
   }
 
   await client.query(
     `update module_definitions
-     set sequence_index = $1, title = $2, subtitle = $3, description = $4, objective = $5,
-         module_type = $6, is_required = $7, allow_revisions = $8, completion_mode = $9,
-         estimated_minutes = $10
-     where id = $11`,
+     set title = $1, subtitle = $2, description = $3, objective = $4,
+         module_type = $5, is_required = $6, allow_revisions = $7, completion_mode = $8,
+         estimated_minutes = $9
+     where id = $10`,
     [
-      expected.sequence_index,
       expected.title,
       expected.subtitle,
       expected.description,
@@ -192,24 +267,31 @@ async function reconcileModuleDefinition(
 async function reconcileModuleQuestions(
   client: PoolClient,
   moduleDefinitionId: string,
-  isDraftEditable: boolean,
+  isContentEditable: boolean,
+  allowArchive: boolean,
   questions: QuestionContent[],
 ): Promise<void> {
-  const actual = await client.query<{ question_key: string }>(
-    `select question_key from module_questions where module_definition_id = $1`,
-    [moduleDefinitionId],
+  const current = await loadExistingOrderedRows(
+    client,
+    "module_questions",
+    "question_key",
+    "module_definition_id",
+    moduleDefinitionId,
   );
-
-  const { extra } = diffKeySets(
-    questions.map((question) => question.questionKey),
-    actual.rows.map((row) => row.question_key),
+  const plan = planOrderedRows(
+    current,
+    questions.map((question) => ({
+      key: question.questionKey,
+      sequenceIndex: question.sequenceIndex,
+    })),
   );
-  if (extra.length > 0) {
-    throw new ContentSeedError(
-      "CONTENT_GRAPH_MISMATCH",
-      `module_questions has unexpected rows not present in the content constants: ${extra.join(", ")}.`,
-    );
-  }
+  assertPlanAllowed(
+    plan,
+    isContentEditable,
+    allowArchive,
+    `module_questions for module_definition ${moduleDefinitionId}`,
+  );
+  await applyOrderedRowsPlan(client, "module_questions", plan, "active");
 
   for (const question of questions) {
     const existing = await client.query<
@@ -254,22 +336,21 @@ async function reconcileModuleQuestions(
       continue;
     }
 
-    if (!isDraftEditable) {
+    if (!isContentEditable) {
       throw new ContentSeedError(
         "PUBLISHED_CONTENT_MISMATCH",
         `module_questions "${question.questionKey}" no longer matches the content constants ` +
-          `(fields: ${differing.join(", ")}), and its program_version is no longer draft.`,
+          `(fields: ${differing.join(", ")}), and its program_version is not content-editable.`,
       );
     }
 
     await client.query(
       `update module_questions
-       set sequence_index = $1, question_group = $2, question_text = $3, help_text = $4,
-           placeholder_text = $5, response_type = $6, is_required = $7, allow_skip = $8,
-           options = $9, conditions = $10
-       where id = $11`,
+       set question_group = $1, question_text = $2, help_text = $3,
+           placeholder_text = $4, response_type = $5, is_required = $6, allow_skip = $7,
+           options = $8, conditions = $9
+       where id = $10`,
       [
-        expected.sequence_index,
         expected.question_group,
         expected.question_text,
         expected.help_text,
@@ -288,26 +369,47 @@ async function reconcileModuleQuestions(
 async function reconcileArtifactDefinitions(
   client: PoolClient,
   moduleDefinitionId: string,
-  isDraftEditable: boolean,
+  isContentEditable: boolean,
+  allowArchive: boolean,
   artifacts: ArtifactContent[],
 ): Promise<void> {
-  const actual = await client.query<{ artifact_key: string }>(
-    `select artifact_key from artifact_definitions where module_definition_id = $1`,
-    [moduleDefinitionId],
+  const current = await loadExistingOrderedRows(
+    client,
+    "artifact_definitions",
+    "artifact_key",
+    "module_definition_id",
+    moduleDefinitionId,
   );
-
-  const { extra } = diffKeySets(
-    artifacts.map((artifact) => artifact.artifactKey),
-    actual.rows.map((row) => row.artifact_key),
+  const plan = planOrderedRows(
+    current,
+    artifacts.map((artifact) => ({
+      key: artifact.artifactKey,
+      sequenceIndex: artifact.sequenceIndex,
+    })),
   );
-  if (extra.length > 0) {
-    throw new ContentSeedError(
-      "CONTENT_GRAPH_MISMATCH",
-      `artifact_definitions has unexpected rows not present in the content constants: ${extra.join(", ")}.`,
-    );
-  }
+  assertPlanAllowed(
+    plan,
+    isContentEditable,
+    allowArchive,
+    `artifact_definitions for module_definition ${moduleDefinitionId}`,
+  );
+  await applyOrderedRowsPlan(client, "artifact_definitions", plan, "active");
 
   for (const artifact of artifacts) {
+    try {
+      validateConfigForValidator(
+        artifact.validatorKey,
+        artifact.validationConfig,
+      );
+    } catch (error) {
+      throw new ContentSeedError(
+        "INVALID_VALIDATION_CONFIG",
+        `artifact_definitions "${artifact.artifactKey}" has a validationConfig that does not match ` +
+          `the schema for validator_key "${artifact.validatorKey ?? "null"}": ` +
+          `${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     const existing = await client.query<
       { id: string } & Record<(typeof ARTIFACT_FIELDS)[number], unknown>
     >(
@@ -320,7 +422,7 @@ async function reconcileArtifactDefinitions(
     const expected = artifactContentRow(artifact);
     const row = existing.rows[0];
     // `max_file_size_bytes` is a bigint column, so node-postgres returns it
-    // as a string rather than a number ? normalize before comparing.
+    // as a string rather than a number — normalize before comparing.
     if (row && typeof row.max_file_size_bytes === "string") {
       row.max_file_size_bytes = Number(row.max_file_size_bytes);
     }
@@ -331,8 +433,8 @@ async function reconcileArtifactDefinitions(
            (module_definition_id, artifact_key, sequence_index, name, description, is_required,
             artifact_type, source_format, output_format, required_filename, renderer_key,
             validator_key, allowed_mime_types, max_file_size_bytes, max_files, validation_config,
-            output_config)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+            output_config, status)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, 'active')`,
         [
           moduleDefinitionId,
           artifact.artifactKey,
@@ -361,23 +463,22 @@ async function reconcileArtifactDefinitions(
       continue;
     }
 
-    if (!isDraftEditable) {
+    if (!isContentEditable) {
       throw new ContentSeedError(
         "PUBLISHED_CONTENT_MISMATCH",
         `artifact_definitions "${artifact.artifactKey}" no longer matches the content constants ` +
-          `(fields: ${differing.join(", ")}), and its program_version is no longer draft.`,
+          `(fields: ${differing.join(", ")}), and its program_version is not content-editable.`,
       );
     }
 
     await client.query(
       `update artifact_definitions
-       set sequence_index = $1, name = $2, description = $3, is_required = $4, artifact_type = $5,
-           source_format = $6, output_format = $7, required_filename = $8, renderer_key = $9,
-           validator_key = $10, allowed_mime_types = $11, max_file_size_bytes = $12,
-           max_files = $13, validation_config = $14, output_config = $15
-       where id = $16`,
+       set name = $1, description = $2, is_required = $3, artifact_type = $4,
+           source_format = $5, output_format = $6, required_filename = $7, renderer_key = $8,
+           validator_key = $9, allowed_mime_types = $10, max_file_size_bytes = $11,
+           max_files = $12, validation_config = $13, output_config = $14
+       where id = $15`,
       [
-        expected.sequence_index,
         expected.name,
         expected.description,
         expected.is_required,
@@ -398,47 +499,97 @@ async function reconcileArtifactDefinitions(
   }
 }
 
+// --- Cascade archive ---
+// Archiving a Module must cascade — child rows stay reachable by direct lookup
+// (loadArtifactDefinitionByKey ignores parent status). Bindings hard-deleted;
+// Questions/Artifacts archived (artifact_submissions FK).
+async function cascadeArchiveModules(
+  client: PoolClient,
+  archivedModuleIds: string[],
+): Promise<void> {
+  if (archivedModuleIds.length === 0) {
+    return;
+  }
+  await client.query(
+    `update module_questions set status = 'archived'
+     where module_definition_id = any($1::uuid[]) and status <> 'archived'`,
+    [archivedModuleIds],
+  );
+  await client.query(
+    `update artifact_definitions set status = 'archived'
+     where module_definition_id = any($1::uuid[]) and status <> 'archived'`,
+    [archivedModuleIds],
+  );
+  await client.query(
+    `delete from module_prompt_bindings where module_definition_id = any($1::uuid[])`,
+    [archivedModuleIds],
+  );
+}
+
 /**
- * Reconciles every Module in `modules` (Module 0, Module 1, and the
- * Module 2-6 placeholders) plus their nested Questions and Artifact
- * Definitions against `programVersionId`. Performs a full graph
- * completeness check at the Module level (any module_definitions row under
- * this Program Version whose key is not in `modules` is rejected) in
- * addition to the per-Module Question/Artifact checks above.
+ * Reconcile Modules plus nested Questions/Artifacts. Removed keys archive (with cascade)
+ * when content-editable and allowArchive; otherwise graph/sequence changes are hard errors.
  */
 export async function reconcileModules(
   client: PoolClient,
   programVersionId: string,
-  isDraftEditable: boolean,
+  isContentEditable: boolean,
+  allowArchive: boolean,
   modules: ModuleContent[],
 ): Promise<ReconciledModule[]> {
-  const actual = await client.query<{ module_key: string }>(
-    `select module_key from module_definitions where program_version_id = $1`,
-    [programVersionId],
+  const current = await loadExistingOrderedRows(
+    client,
+    "module_definitions",
+    "module_key",
+    "program_version_id",
+    programVersionId,
   );
-
-  const { extra } = diffKeySets(
-    modules.map((module) => module.moduleKey),
-    actual.rows.map((row) => row.module_key),
+  const plan = planOrderedRows(
+    current,
+    modules.map((module) => ({
+      key: module.moduleKey,
+      sequenceIndex: module.sequenceIndex,
+    })),
   );
-  if (extra.length > 0) {
-    throw new ContentSeedError(
-      "CONTENT_GRAPH_MISMATCH",
-      `program_version has unexpected module_definitions rows not present in the content constants: ${extra.join(", ")}.`,
-    );
-  }
+  assertPlanAllowed(
+    plan,
+    isContentEditable,
+    allowArchive,
+    `module_definitions under program_version ${programVersionId}`,
+  );
+  await applyOrderedRowsPlan(client, "module_definitions", plan, "draft");
+  await cascadeArchiveModules(
+    client,
+    plan.toArchive.map((row) => row.id),
+  );
 
   const results: ReconciledModule[] = [];
   for (const module of modules) {
-    const moduleId = await reconcileModuleDefinition(
+    const moduleId = await reconcileModuleDefinitionContent(
       client,
       programVersionId,
-      isDraftEditable,
+      isContentEditable,
       module,
     );
-    await reconcileModuleQuestions(client, moduleId, isDraftEditable, module.questions);
-    await reconcileArtifactDefinitions(client, moduleId, isDraftEditable, module.artifacts);
-    results.push({ moduleId, moduleKey: module.moduleKey, isPublishable: module.isPublishable });
+    await reconcileModuleQuestions(
+      client,
+      moduleId,
+      isContentEditable,
+      allowArchive,
+      module.questions,
+    );
+    await reconcileArtifactDefinitions(
+      client,
+      moduleId,
+      isContentEditable,
+      allowArchive,
+      module.artifacts,
+    );
+    results.push({
+      moduleId,
+      moduleKey: module.moduleKey,
+      isPublishable: module.isPublishable,
+    });
   }
   return results;
 }

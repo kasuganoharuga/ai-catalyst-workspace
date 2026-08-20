@@ -30,7 +30,8 @@ export interface AuthorizationServerMetadataOptions {
  * advertise only what this compatibility profile's hardening hooks
  * (apps/web/lib/mcp-oauth-compat/hooks.ts, dcr-validation.ts) actually
  * allow through, not what the underlying plugin would accept before those
- * hooks run. `userinfo_endpoint`/`jwks_uri` are omitted entirely (both
+ * hooks run. Both grants listed here are real and reachable: `/mcp/token`'s
+ * before-hook validates each one and rejects everything else. `userinfo_endpoint`/`jwks_uri` are omitted entirely (both
  * optional per RFC 8414) — this profile never issues an OIDC ID token (no
  * `jwt()` plugin; see infra/database/better-auth-schema-compatibility.md),
  * so advertising either would describe a capability that doesn't exist.
@@ -49,10 +50,26 @@ export function buildAuthorizationServerMetadata(
     authorization_endpoint: `${base}/mcp/authorize`,
     token_endpoint: `${base}/mcp/token`,
     registration_endpoint: `${base}/mcp/register`,
-    scopes_supported: ["mcp:connect"],
+    // Not under `${base}` like the three above: Better Auth's `[...all]`
+    // catch-all owns `/api/auth`, and this endpoint is ours
+    // (apps/web/app/api/mcp/revoke/route.ts). RFC 8414 places no path
+    // constraint on it, and a client that reads this document does not
+    // care where it lives.
+    //
+    // Advertised so a disconnect in the AI client has somewhere to land.
+    // Without it, removing the connector was purely client-side: the
+    // token stayed live and this server went on treating the Founder as
+    // connected until it expired.
+    revocation_endpoint: `${issuer}/api/mcp/revoke`,
+    revocation_endpoint_auth_methods_supported: ["none"],
+    // `offline_access` is listed because it is genuinely granted on every
+    // authorization — a client reading this document should be able to see
+    // that it will receive a refresh token, even though the /mcp/authorize
+    // hook grants that scope whether or not the client asks for it.
+    scopes_supported: ["mcp:connect", "offline_access"],
     response_types_supported: ["code"],
     response_modes_supported: ["query"],
-    grant_types_supported: ["authorization_code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
     token_endpoint_auth_methods_supported: ["none"],
     code_challenge_methods_supported: ["S256"],
   };

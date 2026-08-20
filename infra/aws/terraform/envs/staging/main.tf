@@ -45,6 +45,69 @@ variable "db_password" {
   sensitive = true
 }
 
+variable "sentry_dsn" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Server-side Sentry DSN for web / api / mcp. Empty leaves Sentry
+    uninitialised — every entry point checks for a DSN before calling
+    Sentry.init (apps/web/sentry.server.config.ts, apps/mcp/src/sentry.ts), so
+    an unset value disables error reporting silently rather than failing.
+
+    Not a Secrets Manager entry: a DSN is an ingest endpoint, not a
+    credential, and the browser half of it ships inside the client bundle
+    regardless.
+
+    This covers server-side only. Browser errors need NEXT_PUBLIC_SENTRY_DSN,
+    which Next.js inlines at `next build` — a task-definition variable cannot
+    reach the client bundle, so that one is a Docker build arg in
+    .github/workflows/deploy-aws.yml instead.
+  EOT
+}
+
+variable "log_level" {
+  type        = string
+  default     = "info"
+  description = "packages/observability minimum level: debug | info | warn | error."
+}
+
+variable "public_base_url" {
+  type        = string
+  description = <<-EOT
+    The origin users reach, with scheme and no trailing slash, e.g.
+    https://staging.example.com.
+
+    Not cosmetic. It becomes AUTH_ISSUER_URL, which Better Auth uses as its
+    OAuth issuer and cookie/redirect base, and MCP_RESOURCE_URL is derived from
+    it. apps/web and apps/mcp both assert these at module load, so a task
+    without them exits immediately — which is the state the Terraform in this
+    tree would have produced before they were added here.
+
+    It must match the certificate and DNS record exactly (scheme, apex vs www,
+    no trailing slash) or OAuth redirects fail with redirect_uri_mismatch.
+  EOT
+}
+
+variable "certificate_arn" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    ACM certificate for the HTTPS listener. Empty leaves the ALB answering
+    every request with the port-80 "use HTTPS" refusal — see the alb module.
+  EOT
+}
+
+variable "alarm_email" {
+  type        = string
+  default     = ""
+  description = <<-EOT
+    Address subscribed to the SNS alarm topic. Empty creates the topic with no
+    subscribers, which means every alarm fires into nothing — the state this
+    environment was in before. AWS sends a confirmation mail that has to be
+    accepted before anything is delivered.
+  EOT
+}
+
 variable "web_image" {
   type    = string
   default = "public.ecr.aws/docker/library/nginx:alpine"
@@ -68,13 +131,11 @@ module "vpc" {
   source     = "../../modules/vpc"
   name       = var.name
   azs        = slice(data.aws_availability_zones.available.names, 0, 2)
-  cidr_block = "10.30.0.0/16"
+  cidr_block = local.vpc_cidr_block
 }
 
-module "observability" {
-  source = "../../modules/observability"
-  name   = var.name
-}
+# Observability is declared after ALB / ECS modules so it can reference
+# their outputs — see the module "observability" block near the bottom.
 
 module "ecr" {
   source           = "../../modules/ecr"
@@ -88,9 +149,19 @@ module "s3" {
 }
 
 module "secrets" {
-  source       = "../../modules/secrets"
-  name         = var.name
-  secret_names = ["database-url", "better-auth-secret"]
+  source = "../../modules/secrets"
+  name   = var.name
+  # Placeholders only — values are set manually after apply (see
+  # infra/aws/README.md "Secrets & rotation"). The google-* pair is needed
+  # only once AUTH_GOOGLE_ENABLED is flipped in
+  # apps/web/lib/feature-flags.ts; creating the placeholders ahead of that is
+  # free and means the flip is not blocked on a Terraform round trip.
+  secret_names = [
+    "database-url",
+    "better-auth-secret",
+    "google-client-id",
+    "google-client-secret",
+  ]
 }
 
 module "ses" {
@@ -99,10 +170,11 @@ module "ses" {
 }
 
 module "alb" {
-  source     = "../../modules/alb"
-  name       = var.name
-  vpc_id     = module.vpc.vpc_id
-  subnet_ids = module.vpc.public_subnet_ids
+  source          = "../../modules/alb"
+  name            = var.name
+  vpc_id          = module.vpc.vpc_id
+  subnet_ids      = module.vpc.public_subnet_ids
+  certificate_arn = var.certificate_arn
 }
 
 resource "aws_security_group" "ecs" {
@@ -114,6 +186,15 @@ resource "aws_security_group" "ecs" {
     to_port         = 3000
     protocol        = "tcp"
     security_groups = [module.alb.alb_security_group_id]
+  }
+
+  # Web → Gotenberg (Cloud Map DNS). Same ECS SG; ALB ingress above does
+  # not cover task-to-task traffic on :3000.
+  ingress {
+    from_port = 3000
+    to_port   = 3000
+    protocol  = "tcp"
+    self      = true
   }
 
   ingress {
@@ -163,6 +244,13 @@ module "rds" {
   subnet_ids             = module.vpc.private_subnet_ids
   vpc_security_group_ids = [aws_security_group.rds.id]
   password               = var.db_password
+
+  # Staging is deliberately disposable — reset-staging-db.yml exists to wipe it
+  # — so it opts out of the module's careful defaults. A production root must
+  # not copy these three lines; leaving them off is what makes that stack
+  # undestroyable-by-accident and snapshot-on-destroy.
+  deletion_protection = false
+  skip_final_snapshot = true
 }
 
 module "iam" {
@@ -179,14 +267,61 @@ module "ecs_cluster" {
 }
 
 locals {
-  common_env = {
-    AWS_REGION                    = var.aws_region
-    STORAGE_PROVIDER              = "s3"
-    STORAGE_CONTAINER             = module.s3.bucket_name
-    EMAIL_PROVIDER                = "ses"
-    EMAIL_FROM                    = var.ses_email_identity
-    MCP_OAUTH_TRUST_PROXY_HEADERS = "true"
+  # Used twice: to size the VPC, and as AUTH_TRUSTED_PROXIES below. The network
+  # whose X-Forwarded-For hops may be believed is the network the ALB forwards
+  # from, so the two must not be able to drift apart.
+  vpc_cidr_block = "10.30.0.0/16"
+
+  # Only set when supplied. An empty SENTRY_DSN would be indistinguishable from
+  # a real one to a reader of the task definition while reporting nothing.
+  sentry_env = var.sentry_dsn == "" ? {} : { SENTRY_DSN = var.sentry_dsn }
+
+  # Injected by ECS from Secrets Manager, never written into the task
+  # definition — see the `secrets` variable on the ecs_service module. The
+  # values themselves are set by hand after apply (infra/aws/README.md).
+  #
+  # Per service rather than one shared map: mcp verifies bearer tokens against
+  # the database but issues nothing, so it has no use for the signing secret,
+  # and api reads neither (its database_url is reserved and unused). Handing
+  # every service every secret would be easier and worse.
+  web_secrets = {
+    DATABASE_URL       = module.secrets.secret_arns_by_name["database-url"]
+    BETTER_AUTH_SECRET = module.secrets.secret_arns_by_name["better-auth-secret"]
   }
+
+  mcp_secrets = {
+    DATABASE_URL = module.secrets.secret_arns_by_name["database-url"]
+  }
+
+  common_env = merge({
+    AWS_REGION = var.aws_region
+    # Load-bearing, not cosmetic: `isModuleResetAllowed`
+    # (packages/services/src/module/reset-allowed.ts) allow-lists this value,
+    # and a task definition that loses it hides the Module reset tool. The
+    # production stack must set APP_ENV=production for the same reason in
+    # reverse — there the tool is irreversible data loss.
+    APP_ENV           = "staging"
+    LOG_LEVEL         = var.log_level
+    STORAGE_PROVIDER  = "s3"
+    STORAGE_CONTAINER = module.s3.bucket_name
+    EMAIL_PROVIDER    = "ses"
+    EMAIL_FROM        = var.ses_email_identity
+    # Required, not optional: apps/web asserts AUTH_ISSUER_URL and apps/mcp
+    # asserts both at module load. MCP_RESOURCE_URL is derived rather than
+    # configured separately because web and mcp must agree on it exactly — web
+    # publishes it in its Authorization Server metadata and mcp answers on it.
+    AUTH_ISSUER_URL  = var.public_base_url
+    MCP_RESOURCE_URL = "${var.public_base_url}/mcp"
+    # Both of these say "there is a load balancer in front, believe the hops it
+    # appended". ALB appends rather than replaces X-Forwarded-For, so the
+    # readers take the rightmost entry — see resolveClientIp in
+    # apps/web/lib/mcp-oauth-compat/dcr-validation.ts. AUTH_TRUSTED_PROXIES is
+    # the VPC CIDR because that is the network the forwarding hops sit in;
+    # leaving it unset would silently downgrade Better Auth's rate limiting to
+    # one shared bucket for every caller that sends the header itself.
+    MCP_OAUTH_TRUST_PROXY_HEADERS = "true"
+    AUTH_TRUSTED_PROXIES          = local.vpc_cidr_block
+  }, local.sentry_env)
 }
 
 module "web" {
@@ -201,7 +336,36 @@ module "web" {
   task_role_arn      = module.iam.task_role_arns["web"]
   target_group_arn   = module.alb.web_target_group_arn
   aws_region         = var.aws_region
-  environment        = local.common_env
+  secrets            = local.web_secrets
+  environment = merge(local.common_env, {
+    # Private Cloud Map name (see module.gotenberg). Live staging uses
+    # short container name "web" + this env; deploy-aws.yml preserves it
+    # when rewriting the image digest.
+    GOTENBERG_URL       = "http://gotenberg.${var.name}.local:3000"
+    SERVICE_NAME        = "aicatalyst-web"
+    NEXT_PUBLIC_APP_ENV = "staging"
+  })
+}
+
+# HTML→PDF for printable artefacts. Not on the ALB — web reaches it via
+# Cloud Map (`gotenberg.<name>.local`). Live staging already has the
+# private DNS namespace + service registry; this module records the ECS
+# shape (image/cpu/memory). Wire service_registries in a follow-up once
+# the ecs_service module supports Cloud Map.
+module "gotenberg" {
+  source             = "../../modules/ecs_service"
+  name               = "${var.name}-gotenberg"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  subnet_ids         = module.vpc.private_subnet_ids
+  security_group_ids = [aws_security_group.ecs.id]
+  container_port     = 3000
+  cpu                = 1024
+  memory             = 2048
+  image              = "gotenberg/gotenberg:8"
+  execution_role_arn = module.iam.execution_role_arn
+  task_role_arn      = module.iam.task_role_arns["api"]
+  aws_region         = var.aws_region
+  environment        = {}
 }
 
 module "api" {
@@ -216,7 +380,7 @@ module "api" {
   task_role_arn      = module.iam.task_role_arns["api"]
   aws_region         = var.aws_region
   environment = merge(local.common_env, {
-    APP_ENV = "staging"
+    SERVICE_NAME = "aicatalyst-api"
   })
 }
 
@@ -232,8 +396,32 @@ module "mcp" {
   task_role_arn      = module.iam.task_role_arns["mcp"]
   target_group_arn   = module.alb.mcp_target_group_arn
   aws_region         = var.aws_region
-  environment        = local.common_env
+  secrets            = local.mcp_secrets
+  environment = merge(local.common_env, {
+    SERVICE_NAME = "aicatalyst-mcp"
+  })
 }
+
+module "observability" {
+  source                      = "../../modules/observability"
+  name                        = var.name
+  alarm_email                 = var.alarm_email
+  db_instance_identifier      = module.rds.identifier
+  alb_arn_suffix              = module.alb.alb_arn_suffix
+  web_target_group_arn_suffix = module.alb.web_target_group_arn_suffix
+  mcp_target_group_arn_suffix = module.alb.mcp_target_group_arn_suffix
+  ecs_cluster_name            = module.ecs_cluster.cluster_name
+  web_service_name            = module.web.service_name
+  api_service_name            = module.api.service_name
+  mcp_service_name            = module.mcp.service_name
+}
+
+# Values deploy-aws.yml needs as GitHub Actions variables. Print them with
+# `terraform output` after apply and set them once; the workflow reads them
+# rather than hardcoding infrastructure ids in version control.
+output "ecs_cluster_name" { value = module.ecs_cluster.cluster_name }
+output "private_subnet_ids" { value = module.vpc.private_subnet_ids }
+output "ecs_security_group_id" { value = aws_security_group.ecs.id }
 
 output "alb_dns_name" { value = module.alb.alb_dns_name }
 output "ecr_urls" { value = module.ecr.repository_urls }
@@ -241,3 +429,4 @@ output "artifact_bucket" { value = module.s3.bucket_name }
 output "rds_endpoint" { value = module.rds.endpoint }
 output "secret_arns" { value = module.secrets.secret_arns_by_name }
 output "log_prefix" { value = module.observability.log_prefix }
+output "alarm_topic_arn" { value = module.observability.alarm_topic_arn }

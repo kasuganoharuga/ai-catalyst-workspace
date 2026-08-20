@@ -13,14 +13,8 @@ import type {
   Validator,
 } from "./types.js";
 
-// Implements the 8 draftRules + 4 submissionRules seeded onto the
-// "Pressure-Test Verdict" Artifact Definition by PR 1.4
-// (packages/services/src/content-seed/content/module-1.ts's
-// `validationConfig`). The section/label vocabulary below (headings,
-// `**Label:**` markers) mirrors that file's `PRESSURE_TEST_VERDICT_TEMPLATE`
-// exactly — this Validator is deliberately coupled to that one template,
-// not a generic Markdown-artifact checker (see markdown-sections.ts's own
-// file comment for the same reasoning).
+// Implements draftRules + submissionRules from module-1 content seed validationConfig.
+// Section/label vocabulary matches PRESSURE_TEST_VERDICT_TEMPLATE in content seed.
 
 type HeadingLookup = { kind: "heading"; level: number; heading: string };
 type LabelLookup = { kind: "label"; label: string };
@@ -32,16 +26,36 @@ type SectionLookup = HeadingLookup | LabelLookup;
 // distinguish between the two; this table does.
 const SECTION_LOOKUPS: Record<string, SectionLookup> = {
   confirmed_qa: { kind: "heading", level: 2, heading: "Confirmed Q&A" },
-  four_part_verdict: { kind: "heading", level: 2, heading: "Four-Part Verdict" },
-  founders_decision: { kind: "heading", level: 2, heading: "Founder's Decision" },
-  failure_reasons: { kind: "heading", level: 3, heading: "1. Five reasons this business may fail" },
+  four_part_verdict: {
+    kind: "heading",
+    level: 2,
+    heading: "Four-Part Verdict",
+  },
+  founders_decision: {
+    kind: "heading",
+    level: 2,
+    heading: "Founder's Decision",
+  },
+  failure_reasons: {
+    kind: "heading",
+    level: 3,
+    heading: "1. Five reasons this business may fail",
+  },
   competitors_alternatives: {
     kind: "heading",
     level: 3,
     heading: "2. Existing competitors and alternatives",
   },
-  success_conditions: { kind: "heading", level: 3, heading: "3. Conditions required for success" },
-  strongest_counter_case: { kind: "heading", level: 3, heading: "Strongest counter-case" },
+  success_conditions: {
+    kind: "heading",
+    level: 3,
+    heading: "3. Conditions required for success",
+  },
+  strongest_counter_case: {
+    kind: "heading",
+    level: 3,
+    heading: "Strongest counter-case",
+  },
   single_biggest_reason: { kind: "label", label: "Single biggest reason" },
   evidence_note: { kind: "label", label: "Evidence note" },
 };
@@ -77,7 +91,9 @@ function sectionIsNonEmpty(content: string, sectionKey: string): boolean {
 
 function sectionHeadingExists(sectionKey: string, content: string): boolean {
   const lookup = SECTION_LOOKUPS[sectionKey];
-  return lookup?.kind === "heading" ? sectionExists(content, lookup.level, lookup.heading) : false;
+  return lookup?.kind === "heading"
+    ? sectionExists(content, lookup.level, lookup.heading)
+    : false;
 }
 
 interface RuleCheck {
@@ -105,7 +121,9 @@ function asRuleArray(value: unknown): RawRule[] {
   }
   return value.filter(
     (item): item is RawRule =>
-      typeof item === "object" && item !== null && typeof (item as RawRule).key === "string",
+      typeof item === "object" &&
+      item !== null &&
+      typeof (item as RawRule).key === "string",
   );
 }
 
@@ -132,7 +150,9 @@ function isAnswered(response: ValidationContextResponse | undefined): boolean {
 // this rule just for being further along than the minimum.
 function checkResponseCount(rule: RawRule, ctx: ValidationContext): RuleCheck {
   const expected = rule.expected ?? 0;
-  const answeredCount = ctx.responses.filter((response) => isAnswered(response)).length;
+  const answeredCount = ctx.responses.filter((response) =>
+    isAnswered(response),
+  ).length;
   return {
     key: rule.key,
     passed: answeredCount >= expected,
@@ -154,11 +174,17 @@ function checkListLength(rule: RawRule, ctx: ValidationContext): RuleCheck {
   return {
     key: rule.key,
     passed: count === expected,
-    message: count === expected ? undefined : `Expected exactly ${expected} items in "${section}", found ${count}.`,
+    message:
+      count === expected
+        ? undefined
+        : `Expected exactly ${expected} items in "${section}", found ${count}.`,
   };
 }
 
-function checkMinimumNamedItems(rule: RawRule, ctx: ValidationContext): RuleCheck {
+function checkMinimumNamedItems(
+  rule: RawRule,
+  ctx: ValidationContext,
+): RuleCheck {
   const section = rule.section ?? "";
   const minimum = rule.minimum ?? 0;
   const body = sectionBody(ctx.content, section) ?? "";
@@ -166,11 +192,17 @@ function checkMinimumNamedItems(rule: RawRule, ctx: ValidationContext): RuleChec
   return {
     key: rule.key,
     passed: count >= minimum,
-    message: count >= minimum ? undefined : `Expected at least ${minimum} items in "${section}", found ${count}.`,
+    message:
+      count >= minimum
+        ? undefined
+        : `Expected at least ${minimum} items in "${section}", found ${count}.`,
   };
 }
 
-function checkSectionNonEmpty(rule: RawRule, ctx: ValidationContext): RuleCheck {
+function checkSectionNonEmpty(
+  rule: RawRule,
+  ctx: ValidationContext,
+): RuleCheck {
   const section = rule.section ?? "";
   const passed = sectionIsNonEmpty(ctx.content, section);
   return {
@@ -189,17 +221,24 @@ function checkEnum(rule: RawRule, ctx: ValidationContext): RuleCheck {
   return {
     key: rule.key,
     passed,
-    message: passed ? undefined : `Expected one of [${allowed.join(", ")}], found "${value ?? "(none)"}".`,
+    message: passed
+      ? undefined
+      : `Expected one of [${allowed.join(", ")}], found "${value ?? "(none)"}".`,
   };
 }
 
 function checkSectionsExist(rule: RawRule, ctx: ValidationContext): RuleCheck {
   const sections = rule.sections ?? [];
-  const missing = sections.filter((section) => !sectionHeadingExists(section, ctx.content));
+  const missing = sections.filter(
+    (section) => !sectionHeadingExists(section, ctx.content),
+  );
   return {
     key: rule.key,
     passed: missing.length === 0,
-    message: missing.length === 0 ? undefined : `Missing required sections: ${missing.join(", ")}.`,
+    message:
+      missing.length === 0
+        ? undefined
+        : `Missing required sections: ${missing.join(", ")}.`,
   };
 }
 
@@ -218,7 +257,11 @@ function runDraftRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
     case "sections_exist":
       return checkSectionsExist(rule, ctx);
     default:
-      return { key: rule.key, passed: false, message: `Unknown draft rule type "${String(rule.type)}".` };
+      return {
+        key: rule.key,
+        passed: false,
+        message: `Unknown draft rule type "${String(rule.type)}".`,
+      };
   }
 }
 
@@ -231,18 +274,28 @@ function runSubmissionRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
   switch (rule.key) {
     case "initial_decision_present": {
       const passed = isAnswered(getResponse(ctx, "initial_decision"));
-      return { key: rule.key, passed, message: passed ? undefined : "initial_decision has not been answered." };
+      return {
+        key: rule.key,
+        passed,
+        message: passed ? undefined : "initial_decision has not been answered.",
+      };
     }
     case "final_decision_present": {
       const passed = isAnswered(getResponse(ctx, "final_decision"));
-      return { key: rule.key, passed, message: passed ? undefined : "final_decision has not been answered." };
+      return {
+        key: rule.key,
+        passed,
+        message: passed ? undefined : "final_decision has not been answered.",
+      };
     }
     case "strongest_counter_case_present": {
       const passed = sectionIsNonEmpty(ctx.content, "strongest_counter_case");
       return {
         key: rule.key,
         passed,
-        message: passed ? undefined : `Section "strongest_counter_case" is missing or empty.`,
+        message: passed
+          ? undefined
+          : `Section "strongest_counter_case" is missing or empty.`,
       };
     }
     case "pivot_detail_when_pivot": {
@@ -254,18 +307,31 @@ function runSubmissionRule(rule: RawRule, ctx: ValidationContext): RuleCheck {
       return {
         key: rule.key,
         passed,
-        message: passed ? undefined : "final_decision is pivot, but pivot_detail has not been answered.",
+        message: passed
+          ? undefined
+          : "final_decision is pivot, but pivot_detail has not been answered.",
       };
     }
     default:
-      return { key: rule.key, passed: false, message: `Unknown submission rule "${rule.key}".` };
+      return {
+        key: rule.key,
+        passed: false,
+        message: `Unknown submission rule "${rule.key}".`,
+      };
   }
 }
 
 function combineResults(checks: RuleCheck[]): ValidationRunResult {
-  const issues = checks.filter((check) => !check.passed).map((check) => check.message ?? `Check "${check.key}" failed.`);
+  const issues = checks
+    .filter((check) => !check.passed)
+    .map((check) => check.message ?? `Check "${check.key}" failed.`);
   const passed = issues.length === 0;
-  const score = checks.length === 0 ? 100 : Math.round((checks.filter((check) => check.passed).length / checks.length) * 100);
+  const score =
+    checks.length === 0
+      ? 100
+      : Math.round(
+          (checks.filter((check) => check.passed).length / checks.length) * 100,
+        );
   return { checks, issues, warnings: [], passed, score };
 }
 
@@ -281,8 +347,13 @@ function runDraftCheck(ctx: ValidationContext): ValidationRunResult {
 // submissionRules that only make sense once the Founder's Decision
 // section is meant to be final.
 function runOfficialCheck(ctx: ValidationContext): ValidationRunResult {
-  const config = ctx.validationConfig as { draftRules?: unknown; submissionRules?: unknown };
-  const draftChecks = asRuleArray(config.draftRules).map((rule) => runDraftRule(rule, ctx));
+  const config = ctx.validationConfig as {
+    draftRules?: unknown;
+    submissionRules?: unknown;
+  };
+  const draftChecks = asRuleArray(config.draftRules).map((rule) =>
+    runDraftRule(rule, ctx),
+  );
   const submissionChecks = asRuleArray(config.submissionRules).map((rule) =>
     runSubmissionRule(rule, ctx),
   );

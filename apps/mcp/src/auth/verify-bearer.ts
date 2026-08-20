@@ -1,13 +1,14 @@
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { verifyMcpBearerToken } from "@ai-catalyst/services/mcp-auth";
 
-// The standard way to extend Express's Request type without a direct
-// dependency on the transitive `@types/express-serve-static-core` package
-// (module augmentation must target a module specifier this app can resolve
-// on its own).
+const log = loggerForService(SERVICE_NAMES.mcp);
+
+// Express Request augmentation without a direct @types/express-serve-static-core dependency.
 declare global {
   namespace Express {
     interface Request {
@@ -18,18 +19,9 @@ declare global {
 }
 
 export interface VerifyBearerOptions {
-  /**
-   * Absolute URL of this Resource Server's own
-   * `/.well-known/oauth-protected-resource` document (RFC 9728) — sent back
-   * in every 401/403's `WWW-Authenticate` header so a compliant client can
-   * discover which Authorization Server to use without being told out of
-   * band.
-   */
+  /** RFC 9728 protected-resource URL — sent in 401/403 WWW-Authenticate for AS discovery. */
   protectedResourceMetadataUrl: string;
-  /**
-   * Swappable for tests — defaults to the real
-   * `@ai-catalyst/services/mcp-auth` verification (a real database lookup).
-   */
+  /** Swappable for tests; defaults to verifyMcpBearerToken (DB lookup). */
   verify?: (rawToken: unknown) => Promise<ActorContext>;
 }
 
@@ -43,29 +35,30 @@ function parseBearerToken(header: string | undefined): string | null {
 }
 
 function jsonRpcAuthError(message: string) {
-  return { jsonrpc: "2.0" as const, error: { code: -32001, message }, id: null };
+  return {
+    jsonrpc: "2.0" as const,
+    error: { code: -32001, message },
+    id: null,
+  };
 }
 
-// RFC 9728 discovery challenge, present on every 401/403 this middleware
-// returns — this is what lets an MCP client that only knows this server's
-// URL find the Authorization Server (apps/web) on its own.
-function resourceMetadataChallenge(protectedResourceMetadataUrl: string, extra?: string): string {
+// RFC 9728 challenge on every 401/403 — lets MCP clients discover the Authorization Server.
+function resourceMetadataChallenge(
+  protectedResourceMetadataUrl: string,
+  extra?: string,
+): string {
   const parts = [`resource_metadata="${protectedResourceMetadataUrl}"`];
   if (extra) parts.unshift(extra);
   return `Bearer ${parts.join(", ")}`;
 }
 
 /**
- * Express middleware guarding the MCP Resource Server's `/mcp` endpoint:
- * verifies the platform Bearer token (issued by apps/web's Authorization
- * Server) via `@ai-catalyst/services/mcp-auth`'s `verifyMcpBearerToken`, and
- * populates `req.actorContext` for downstream tool handlers on success.
- *
- * Per architecture.mdc rule 4, this is the *only* auth check apps/mcp ever
- * performs on an incoming request — it never itself talks to Google or any
- * other downstream provider.
+ * Verifies the platform Bearer token and sets req.actorContext for tool handlers.
+ * The only auth check on incoming MCP requests.
  */
-export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler {
+export function verifyBearerToken(
+  options: VerifyBearerOptions,
+): RequestHandler {
   const verify = options.verify ?? verifyMcpBearerToken;
 
   return (req: Request, res: Response, next: NextFunction) => {
@@ -74,7 +67,10 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
       if (!token) {
         res
           .status(401)
-          .set("WWW-Authenticate", resourceMetadataChallenge(options.protectedResourceMetadataUrl))
+          .set(
+            "WWW-Authenticate",
+            resourceMetadataChallenge(options.protectedResourceMetadataUrl),
+          )
           .json(jsonRpcAuthError("Missing bearer token."));
         return;
       }
@@ -86,20 +82,16 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
         if (error instanceof ServiceError && error.code === "UNAUTHENTICATED") {
           res
             .status(401)
-            .set("WWW-Authenticate", resourceMetadataChallenge(options.protectedResourceMetadataUrl))
+            .set(
+              "WWW-Authenticate",
+              resourceMetadataChallenge(options.protectedResourceMetadataUrl),
+            )
             .json(jsonRpcAuthError(error.message));
           return;
         }
 
         if (error instanceof ServiceError && error.code === "FORBIDDEN") {
-          // V1's /mcp/authorize before-hook (apps/web/lib/mcp-oauth-compat)
-          // always force-normalizes the granted scope to exactly
-          // "mcp:connect", so the missing-scope branch of
-          // verifyMcpBearerToken is only reachable via direct database
-          // tampering — but its error message is still distinct and
-          // checked here so a real client would still get an accurate
-          // RFC 6750 `insufficient_scope` challenge, not a generic 403, in
-          // that case.
+          // Scope errors get RFC 6750 insufficient_scope; otherwise generic 403 (see mcp-oauth-compat authorize hook).
           const isScopeError = error.message.includes("mcp:connect scope");
           res
             .status(403)
@@ -114,12 +106,17 @@ export function verifyBearerToken(options: VerifyBearerOptions): RequestHandler 
           return;
         }
 
-        console.error("Unexpected error verifying MCP bearer token:", error);
+        log.error({
+          event: "mcp_bearer_verify_failed",
+          message: "Unexpected error verifying MCP bearer token",
+          error_name: error instanceof Error ? error.name : "unknown",
+        });
         res.status(500).json({
           jsonrpc: "2.0",
           error: { code: -32603, message: "Internal server error." },
           id: null,
         });
+        return;
       }
     })();
   };

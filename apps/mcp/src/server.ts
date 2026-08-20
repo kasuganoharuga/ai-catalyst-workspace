@@ -6,11 +6,15 @@ import { hostHeaderValidation } from "@modelcontextprotocol/sdk/server/middlewar
 import express, { type Express, type Request, type Response } from "express";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { loggerForService } from "@ai-catalyst/observability/logger";
+import { SERVICE_NAMES } from "@ai-catalyst/observability/service-names";
 
 import { verifyBearerToken } from "./auth/verify-bearer.js";
 import { createMcpServerInstance } from "./mcp-server.js";
 import { originAllowlist } from "./middleware/origin-allowlist.js";
 import { buildProtectedResourceMetadata } from "./well-known/protected-resource.js";
+
+const log = loggerForService(SERVICE_NAMES.mcp);
 
 export interface CreateMcpAppOptions {
   /** Allowed `Host` header hostnames (port-agnostic), for DNS rebinding protection. */
@@ -32,25 +36,16 @@ const METHOD_NOT_ALLOWED_BODY = {
 } as const;
 
 /**
- * Handles a single stateless MCP POST request: a fresh `McpServer` and
- * `StreamableHTTPServerTransport` are created per request (no session id,
- * no shared state across requests) and both are torn down once the
- * response closes, matching the SDK's stateless reference implementation.
- *
- * `req.actorContext` is always set by this point (`verifyBearerToken`
- * runs before this handler on the `/mcp` route and never calls `next()`
- * on failure). A fresh `traceId` is stamped onto it here — one per
- * request, correlating every packages/services call and
- * `mcp_tool_audit_logs` row this single MCP call produces, per
- * architecture.mdc's ActorContext.traceId contract.
+ * One stateless MCP POST: fresh server + transport per request, torn down on response close.
+ * `req.actorContext` comes from verifyBearerToken; traceId correlates service calls and audit rows.
  */
-async function handleStatelessMcpRequest(req: Request, res: Response): Promise<void> {
+async function handleStatelessMcpRequest(
+  req: Request,
+  res: Response,
+): Promise<void> {
   const baseActor = req.actorContext;
   if (!baseActor) {
-    // Unreachable via the real `/mcp` route (verifyBearerToken never
-    // calls next() without setting this) — an explicit invariant check
-    // rather than a silent non-null assertion, in case a future route
-    // ever reuses this handler without that middleware.
+    // Invariant: real /mcp route always sets actorContext via verifyBearerToken.
     res.status(500).json({
       jsonrpc: "2.0",
       error: { code: -32603, message: "Internal server error." },
@@ -58,25 +53,43 @@ async function handleStatelessMcpRequest(req: Request, res: Response): Promise<v
     });
     return;
   }
-  const actor: ActorContext = { ...baseActor, traceId: baseActor.traceId ?? randomUUID() };
+  const correlationId = baseActor.traceId ?? randomUUID();
+  const actor: ActorContext = {
+    ...baseActor,
+    traceId: correlationId,
+    requestId: baseActor.requestId ?? correlationId,
+  };
   const mcp = createMcpServerInstance(actor);
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
-    // V1 has no long-running/streaming tools, so plain JSON responses are
-    // simpler for both us and MCP clients than SSE. Revisit once a tool
-    // needs to stream progress notifications.
+    // V1 has no streaming tools — plain JSON is simpler for clients than SSE.
     enableJsonResponse: true,
   });
+
+  // Attach before handleRequest — with enableJsonResponse the response may finish during await.
+  let cleanedUp = false;
+  const cleanup = () => {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    void transport.close();
+    void mcp.close();
+  };
+  res.on("close", cleanup);
 
   try {
     await mcp.connect(transport);
     await transport.handleRequest(req, res, req.body);
-    res.on("close", () => {
-      void transport.close();
-      void mcp.close();
-    });
+    if (res.writableEnded) {
+      cleanup();
+    }
   } catch (error) {
-    console.error("Error handling MCP request:", error);
+    log.error({
+      event: "mcp_request_failed",
+      message: "Error handling MCP request",
+      trace_id: actor.traceId,
+      request_id: actor.requestId,
+      error_name: error instanceof Error ? error.name : "unknown",
+    });
     if (!res.headersSent) {
       res.status(500).json({
         jsonrpc: "2.0",
@@ -84,8 +97,7 @@ async function handleStatelessMcpRequest(req: Request, res: Response): Promise<v
         id: null,
       });
     }
-    void transport.close();
-    void mcp.close();
+    cleanup();
   }
 }
 
@@ -94,10 +106,8 @@ function methodNotAllowed(_req: Request, res: Response): void {
 }
 
 /**
- * Builds the Express app for the MCP Resource Server: a single stateless
- * `/mcp` endpoint plus a `/health` check. Kept separate from `startMcpServer`
- * so tests can exercise the app in-process (via supertest) without binding a
- * port.
+ * Express app for the MCP Resource Server: stateless `/mcp` plus `/health`.
+ * Separate from startMcpServer so tests can run in-process without binding a port.
  */
 export function createMcpApp(options: CreateMcpAppOptions): Express {
   const app = express();
@@ -107,14 +117,9 @@ export function createMcpApp(options: CreateMcpAppOptions): Express {
     options.resourceUrl,
   ).toString();
 
-  // Registered before the host/origin allowlists: health checks and OAuth
-  // discovery metadata are both probed by infrastructure/clients that may
-  // not send the same Host/Origin headers a real MCP client would, and
-  // expose no sensitive data, so neither should depend on those checks
-  // passing. RFC 9728 requires this document be servable with no
-  // authentication of its own.
+  // Before host/origin checks — health and RFC 9728 metadata are unauthenticated probes.
   app.get("/health", (_req, res) => {
-    res.json({ status: "ok" });
+    res.json({ status: "ok", service: SERVICE_NAMES.mcp });
   });
   app.get("/.well-known/oauth-protected-resource", (_req, res) => {
     res.json(
@@ -131,7 +136,10 @@ export function createMcpApp(options: CreateMcpAppOptions): Express {
 
   app.post(
     "/mcp",
-    verifyBearerToken({ protectedResourceMetadataUrl, verify: options.verifyBearer }),
+    verifyBearerToken({
+      protectedResourceMetadataUrl,
+      verify: options.verifyBearer,
+    }),
     (req, res) => {
       void handleStatelessMcpRequest(req, res);
     },
@@ -153,6 +161,10 @@ export interface StartMcpServerOptions extends CreateMcpAppOptions {
 export function startMcpServer(options: StartMcpServerOptions): HttpServer {
   const app = createMcpApp(options);
   return app.listen(options.port, () => {
-    console.log(`AI Catalyst MCP server listening on port ${options.port}`);
+    log.info({
+      event: "mcp_server_listening",
+      message: "AI Catalyst MCP server listening",
+      port: options.port,
+    });
   });
 }

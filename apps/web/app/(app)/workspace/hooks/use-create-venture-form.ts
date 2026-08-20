@@ -1,7 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import { toastCopy } from "@/app/(app)/lib/copy";
+import { createVentureAction } from "@/lib/actions/founder-actions";
+import { firstZodMessage } from "@/lib/validation/common";
+import { createVentureInputSchema } from "@/lib/validation/venture";
 
 export function useCreateVentureForm() {
   const router = useRouter();
@@ -9,46 +15,66 @@ export function useCreateVentureForm() {
   const [oneLiner, setOneLiner] = useState("");
   const [summary, setSummary] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
-    setIsSubmitting(true);
 
-    const response = await fetch("/api/ventures", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        oneLiner: oneLiner.trim() === "" ? undefined : oneLiner,
-        summary: summary.trim() === "" ? undefined : summary,
-      }),
+    const parsed = createVentureInputSchema.safeParse({
+      name,
+      oneLiner: oneLiner.trim() === "" ? undefined : oneLiner,
+      summary: summary.trim() === "" ? undefined : summary,
     });
 
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to create Venture.");
-      setIsSubmitting(false);
+    if (!parsed.success) {
+      const message = firstZodMessage(parsed.error);
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
       return;
     }
 
-    setName("");
-    setOneLiner("");
-    setSummary("");
-    setIsSubmitting(false);
-    router.refresh();
+    startTransition(async () => {
+      const result = await createVentureAction({
+        name: parsed.data.name,
+        oneLiner: parsed.data.oneLiner ?? undefined,
+        summary: parsed.data.summary ?? undefined,
+      });
+
+      if (!result.ok) {
+        setError(result.message);
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
+        return;
+      }
+
+      setName("");
+      setOneLiner("");
+      setSummary("");
+      toast.success(toastCopy.ventureCreated);
+      router.refresh();
+    });
   }
 
   return {
     name,
-    setName,
+    setName: (value: string) => {
+      setName(value);
+      if (error) setError(null);
+    },
     oneLiner,
-    setOneLiner,
+    setOneLiner: (value: string) => {
+      setOneLiner(value);
+      if (error) setError(null);
+    },
     summary,
-    setSummary,
+    setSummary: (value: string) => {
+      setSummary(value);
+      if (error) setError(null);
+    },
     error,
-    isSubmitting,
+    isSubmitting: isPending,
     handleSubmit,
   };
 }

@@ -1,8 +1,9 @@
 ## Summary
 
-- 
+-
 
 ## Test Plan
+
 - [ ] `pnpm lint`
 - [ ] `pnpm build`
 - [ ] FastAPI smoke check, if API code changed

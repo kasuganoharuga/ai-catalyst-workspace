@@ -3,7 +3,11 @@ import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import type { StorageObject, StorageObjectUploadStatus } from "@ai-catalyst/shared";
+import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
+import type {
+  StorageObject,
+  StorageObjectUploadStatus,
+} from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
@@ -16,6 +20,10 @@ import {
   GENERATED_TEXT_CONTENT_TYPE,
   assertGeneratedTextSizeWithinLimit,
 } from "@ai-catalyst/services/storage/internal/validation";
+import {
+  assertPrepUploadSizeWithinLimit,
+  resolvePrepUploadContentType,
+} from "@ai-catalyst/services/storage/internal/upload-validation";
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import {
   loadStorageConfigFromEnv,
@@ -26,30 +34,13 @@ import { resolveProvider as resolveProviderFromConfig } from "@ai-catalyst/servi
 
 import type { StorageProvider } from "./types.js";
 
-// ACCEPTANCE NOTE:
-//
-// The Local Provider guarantees single-process/test-suite usability.
-// Cross-container sharing under `docker:up` is still best-effort; Staging
-// / Production use STORAGE_PROVIDER=s3 via StorageConfig injection
-// (storage/config.ts + resolve-provider.ts). Artifact downloads default
-// to stream-through-backend (getObject), not createDownloadUrl.
-//
-// This module owns Storage Object business state (storage_objects rows,
-// authorization, the pending → uploaded → verified transaction
-// choreography) — apps/web and apps/mcp are both thin shells that call
-// into this same Service, never re-implement any of this (architecture.mdc
-// rule 1). The status column on storage_objects is `upload_status`
-// (never `status`) everywhere in this file, on purpose — see the
-// 0001_aidb_v5_baseline.sql check constraint.
+// Owns storage_objects business state (auth + pending→uploaded→verified).
+// Local provider for dev/test; staging/prod use STORAGE_PROVIDER=s3.
 
 export type QueryExecutor = Pool | PoolClient;
 
 export interface StorageServiceDependencies {
-  // Test-only seam: production builds a provider from StorageConfig
-  // (created lazily so nothing touches the filesystem / network at
-  // import time). Lets tests substitute a fake StorageProvider to
-  // deterministically exercise failure paths — same DI pattern as
-  // module/catalog.ts's ModuleCatalogDependencies.
+  // Test-only DI seam for a fake StorageProvider (same pattern as ModuleCatalogDependencies).
   provider?: StorageProvider;
   /** Override config used when `provider` is omitted (tests / custom roots). */
   storageConfig?: StorageConfig;
@@ -96,21 +87,9 @@ function activeStorageIdentity(deps: StorageServiceDependencies): {
   return { provider: "local", container: "local-development" };
 }
 
-// DEVIATION from the plan's literal pseudocode, documented here because
-// it's load-bearing for every public function below: the plan writes
-// `assertRole(actor, ["founder", "system"])`, but `ActorRole` (in the
-// unmodified packages/contracts/src/actor-context.ts — both this PR and
-// PR 2.4 are explicitly barred from touching that file) is only
-// `"pending" | "founder" | "mentor" | "admin"`. `"system"` is an
-// `ActorSource` value, not a role — `assertRole`'s `allowed: ActorRole[]`
-// parameter cannot express it, and `["founder", "system"]` does not
-// type-check as an `ActorRole[]` literal. The intended authorization
-// ("Founder actors, and trusted system-sourced callers, may call this")
-// is instead expressed directly against both fields: a Founder actor
-// passes on `role`; a system-sourced caller (any role, since a
-// server-side generation flow has no Founder session to carry) passes on
-// `source`. Every other actor is FORBIDDEN, matching assertRole's own
-// error shape.
+// Founders pass on `role`; trusted system callers pass on `source`.
+// `"system"` is an ActorSource, not an ActorRole, so this cannot be
+// expressed as assertRole(["founder", "system"]).
 function assertFounderOrSystemActor(actor: ActorContext): void {
   if (actor.role === "founder" || actor.source === "system") {
     return;
@@ -167,29 +146,20 @@ function mapStorageObjectRow(row: StorageObjectRow): StorageObject {
   };
 }
 
-// V1 has exactly one AI client (the Claude Remote MCP server, per
-// architecture.mdc) — this mapper is deliberately local to this file
-// (only createPendingGeneratedObject/writeGeneratedTextContent need it),
-// not a shared cross-PR module: PR 2.4's own
-// attempt/internal/interaction-provider.ts solves the analogous problem
-// for module_responses.source_provider, but the two PRs must not import
-// from each other (2.4's `attempt` module may not exist yet when this
-// file's tests run on this branch in isolation).
+// Maps ActorContext onto storage_objects.created_via. An mcp-sourced actor
+// records which AI client it actually was (resolveMcpProviderTag) — 0011
+// added "other" to this column's domain for a client that is neither
+// Claude nor ChatGPT.
 function resolveStorageCreatedVia(
   actor: ActorContext,
-): "website" | "claude" | "system" {
+): "website" | "claude" | "openai" | "other" | "system" {
   if (actor.source === "system") {
     return "system";
   }
   if (actor.source === "mcp") {
-    // Hardcoded until a second AI client exists — see the equivalent
-    // comment in PR 2.4's resolveInteractionProvider for the full
-    // reasoning; the same constraint applies here.
-    return "claude";
+    return resolveMcpProviderTag(actor);
   }
-  // "web", or unset — every pre-2.2 ActorContext test fixture across this
-  // package omits `source` entirely and is always a web-originated
-  // Founder actor in practice.
+  // "web", or unset (common in tests) → website-originated founder.
   return "website";
 }
 
@@ -301,20 +271,18 @@ async function fetchStorageObjectRow(
   return result.rows[0] ?? null;
 }
 
-// system actors are trusted to state their target Workspace directly (no
-// further check is possible — there is no "system's own Workspace" to
-// compare against); a founder actor's own reachable Workspace is always
-// resolved and compared, so a cross-Workspace storageObjectId (or a
-// cross-Workspace target workspaceId on create) reads as NOT_FOUND, never
-// a distinguishable FORBIDDEN — same enumeration-safety convention as
-// venture/index.ts.
+// system actors state target Workspace directly; founders resolved and compared —
+// cross-workspace reads as NOT_FOUND, not FORBIDDEN (enumeration safety).
 async function loadAuthorizedStorageObject(
   actor: ActorContext,
   storageObjectId: string,
   executor: QueryExecutor,
   options: { forUpdate: boolean },
 ): Promise<StorageObjectRow> {
-  const id = parseEntityIdOrNotFound(storageObjectId, "Storage object not found.");
+  const id = parseEntityIdOrNotFound(
+    storageObjectId,
+    "Storage object not found.",
+  );
   const row = await fetchStorageObjectRow(executor, id, options);
   if (!row) {
     throw new ServiceError("NOT_FOUND", "Storage object not found.");
@@ -331,9 +299,7 @@ async function loadAuthorizedStorageObject(
 }
 
 /**
- * Internal read helper (also usable by tests/future callers) — fetches a
- * StorageObject by id with the same Workspace-scoped authorization every
- * write path uses.
+ * Workspace-scoped read by id — same authorization as write paths.
  */
 export async function getStorageObject(
   actor: ActorContext,
@@ -346,19 +312,14 @@ export async function getStorageObject(
   return mapStorageObjectRow(row);
 }
 
-// Deliberately its OWN assertion, not a reuse of assertFounderOrSystemActor
-// — that shared gate (and loadAuthorizedStorageObject's workspace check,
-// which unconditionally calls resolveFounderWorkspace for every
-// non-system actor) has no admin case at all: resolveFounderWorkspace
-// itself starts with assertRole(actor, ["founder"]), so an admin-role
-// actor throws FORBIDDEN there today. Widening the shared helpers would
-// also open every WRITE path (createPendingGeneratedObject,
-// writeGeneratedTextContent, deleteUnverifiedUpload) to admin, which is
-// not what's needed — only a read path, for PR 2.6's runOfficialValidation
-// (which runs as a system or admin actor and must be able to read any
-// Workspace's Artifact content) needs this.
+// Read gate: founder/mentor/admin/system; writes stay founder/system-only.
 function assertGeneratedContentReader(actor: ActorContext): void {
-  if (actor.role === "founder" || actor.role === "admin" || actor.source === "system") {
+  if (
+    actor.role === "founder" ||
+    actor.role === "mentor" ||
+    actor.role === "admin" ||
+    actor.source === "system"
+  ) {
     return;
   }
   throw new ServiceError(
@@ -368,14 +329,9 @@ function assertGeneratedContentReader(actor: ActorContext): void {
 }
 
 /**
- * Reads back the verified content of a generated-text Storage Object as
- * a UTF-8 string — the only entry point PR 2.6's Validators use to read
- * a saved Artifact's Markdown. founder actors are Workspace-scoped (same
- * check every other path uses); system/admin actors are trusted across
- * any Workspace, matching runOfficialValidation's own permission matrix
- * (there is no "system's own Workspace" or "admin's own Workspace" to
- * compare against, same reasoning as loadAuthorizedStorageObject's system
- * branch).
+ * Reads verified generated-text content as UTF-8. Founders are scoped to
+ * their own Workspace and Mentors to the Workspaces they cover; system/admin
+ * actors may read any workspace (used by official validation).
  */
 export async function getGeneratedTextContent(
   actor: ActorContext,
@@ -383,7 +339,10 @@ export async function getGeneratedTextContent(
   deps: StorageServiceDependencies = {},
 ): Promise<string> {
   assertGeneratedContentReader(actor);
-  const id = parseEntityIdOrNotFound(storageObjectId, "Storage object not found.");
+  const id = parseEntityIdOrNotFound(
+    storageObjectId,
+    "Storage object not found.",
+  );
   const row = await fetchStorageObjectRow(pool, id, { forUpdate: false });
   if (!row) {
     throw new ServiceError("NOT_FOUND", "Storage object not found.");
@@ -396,13 +355,19 @@ export async function getGeneratedTextContent(
     }
   }
 
+  // Single choke point for artefact bytes — mentor scope enforced here as NOT_FOUND.
+  if (actor.role === "mentor") {
+    const mentored = await pool.query(
+      `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+      [row.workspace_id, actor.userId],
+    );
+    if (mentored.rowCount === 0) {
+      throw new ServiceError("NOT_FOUND", "Storage object not found.");
+    }
+  }
+
   if (row.upload_status !== "verified") {
-    // Only reachable if a caller passes a storageObjectId that was never
-    // taken through writeGeneratedTextContent's verified transition —
-    // every artifact_files row this Service links to a submission is
-    // created only after 'verified' (see artifact/index.ts's
-    // saveArtifactSubmission), so this is a deployment/caller bug, not a
-    // normal business state.
+    // Caller bug if not verified — artifact_files only link post-verified submissions.
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       `Storage object ${row.id} is "${row.upload_status}", not "verified" — only a verified object's content can be read.`,
@@ -415,12 +380,8 @@ export async function getGeneratedTextContent(
 }
 
 /**
- * Transaction A: inserts a `storage_objects` row in `upload_status =
- * 'pending'` and returns its stable id — this id is what
- * writeGeneratedTextContent's retry/idempotency semantics key off of.
- * `contentType` is not a caller parameter: V1 hardcodes generated text to
- * `GENERATED_TEXT_CONTENT_TYPE` server-side (a caller-declared MIME type
- * is not trusted any more than a caller-declared byte length is).
+ * Transaction A: insert pending row; id keys writeGeneratedTextContent retries.
+ * contentType is server-fixed — caller MIME is not trusted.
  */
 export async function createPendingGeneratedObject(
   actor: ActorContext,
@@ -479,6 +440,171 @@ export async function createPendingGeneratedObject(
   });
 }
 
+export interface UploadFileInput {
+  workspaceId: string;
+  filename: string;
+  /** Untrusted browser-supplied MIME type; checked against the allowlist. */
+  contentType: string;
+  content: Buffer;
+}
+
+/**
+ * Store a Founder-supplied file in one call: create the row, write the
+ * bytes, verify them.
+ *
+ * Deliberately not split into create-then-write the way generated text is.
+ * That pair exists because Claude asks for an id, then streams content it
+ * is still composing. A browser upload arrives whole, so a two-call shape
+ * would only add a way to leave pending rows behind when the second call
+ * never comes.
+ *
+ * The provider write still happens outside any Postgres transaction, and
+ * the row still walks pending → uploaded → verified, so a crash midway
+ * leaves the same recoverable states as the generated path rather than a
+ * row claiming content that was never stored.
+ */
+export async function uploadFile(
+  actor: ActorContext,
+  input: UploadFileInput,
+  deps: StorageServiceDependencies = {},
+): Promise<StorageObject> {
+  assertFounderOrSystemActor(actor);
+
+  // Both validated before anything is inserted, so a rejected file never
+  // leaves a pending row behind.
+  assertPrepUploadSizeWithinLimit(input.content);
+  const contentType = resolvePrepUploadContentType(
+    input.contentType,
+    input.filename,
+  );
+  const contentHash = sha256(input.content);
+
+  await resolveProvider(deps);
+  const identity = activeStorageIdentity(deps);
+
+  const pendingRow = await withTransaction(async (client) => {
+    let resolvedWorkspaceId: string;
+    if (actor.source === "system") {
+      resolvedWorkspaceId = input.workspaceId;
+    } else {
+      const workspace = await resolveFounderWorkspace(actor, client);
+      if (workspace.id !== input.workspaceId) {
+        throw new ServiceError("NOT_FOUND", "Workspace not found.");
+      }
+      resolvedWorkspaceId = workspace.id;
+    }
+
+    const storageObjectId = randomUUID();
+    const objectKey = generateObjectKey({
+      workspaceId: resolvedWorkspaceId,
+      storageObjectId,
+      filename: input.filename,
+    });
+
+    const result = await client.query<StorageObjectRow>(
+      `insert into storage_objects (
+         id, workspace_id, storage_provider, storage_container, object_key,
+         original_filename, content_type, upload_status, created_via,
+         uploaded_by_user_id
+       )
+       values ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9)
+       returning ${STORAGE_OBJECT_COLUMNS}`,
+      [
+        storageObjectId,
+        resolvedWorkspaceId,
+        identity.provider,
+        identity.container,
+        objectKey,
+        sanitizeFilename(input.filename),
+        contentType,
+        resolveStorageCreatedVia(actor),
+        actor.userId,
+      ],
+    );
+    return result.rows[0];
+  });
+
+  try {
+    await provider(deps).then((p) =>
+      p.putObject({
+        key: pendingRow.object_key,
+        body: input.content,
+        contentType,
+      }),
+    );
+  } catch (error) {
+    await markFailed(pendingRow.id);
+    throw new ServiceError(
+      "STORAGE_OBJECT_NOT_WRITABLE",
+      `Failed to write uploaded file: ${(error as Error).message}`,
+    );
+  }
+
+  await withTransaction(async (client) => {
+    await client.query(
+      `update storage_objects
+       set upload_status = 'uploaded', size_bytes = $2, checksum_sha256 = $3,
+           uploaded_at = now(), updated_at = now()
+       where id = $1`,
+      [pendingRow.id, input.content.byteLength, contentHash],
+    );
+  });
+
+  // Read back from the provider rather than trusting the write returned
+  // cleanly — the same guard the generated path uses, and the reason an
+  // object never reaches 'verified' on a silently truncated write.
+  const stored = await provider(deps).then((p) =>
+    p.headObject(pendingRow.object_key),
+  );
+  if (stored === null || stored.sha256 !== contentHash) {
+    await markFailed(pendingRow.id);
+    throw new ServiceError(
+      "STORAGE_OBJECT_NOT_WRITABLE",
+      "Uploaded file could not be verified after writing; it was not stored.",
+    );
+  }
+
+  const verifiedRow = await withTransaction(async (client) => {
+    const result = await client.query<StorageObjectRow>(
+      `update storage_objects
+       set upload_status = 'verified', verified_at = now(), updated_at = now()
+       where id = $1
+       returning ${STORAGE_OBJECT_COLUMNS}`,
+      [pendingRow.id],
+    );
+    return result.rows[0];
+  });
+
+  return mapStorageObjectRow(verifiedRow);
+}
+
+/** Small alias so the upload path reads without repeating resolveProvider. */
+function provider(deps: StorageServiceDependencies): Promise<StorageProvider> {
+  return resolveProvider(deps);
+}
+
+/** Raw bytes for a verified object the actor is allowed to read. */
+export async function readStorageObjectContent(
+  actor: ActorContext,
+  storageObjectId: string,
+  deps: StorageServiceDependencies = {},
+): Promise<{ object: StorageObject; content: Buffer }> {
+  assertFounderOrSystemActor(actor);
+  const row = await withTransaction((client) =>
+    loadAuthorizedStorageObject(actor, storageObjectId, client, {
+      forUpdate: false,
+    }),
+  );
+  if (row.upload_status !== "verified") {
+    throw new ServiceError(
+      "NOT_FOUND",
+      "This file is not available for reading.",
+    );
+  }
+  const content = await provider(deps).then((p) => p.getObject(row.object_key));
+  return { object: mapStorageObjectRow(row), content };
+}
+
 async function markFailed(id: string): Promise<void> {
   await withTransaction(async (client) => {
     await client.query(
@@ -491,22 +617,8 @@ async function markFailed(id: string): Promise<void> {
 }
 
 /**
- * Writes the actual bytes for a pending/retried Storage Object, driving
- * it through the pending → uploaded → verified choreography.
- *
- * Deliberately three independent Postgres transactions (A already ran in
- * createPendingGeneratedObject; B and C below) with uncommitted Provider
- * I/O in between each — a Postgres transaction is never held open across
- * a disk/network call:
- *
- *   B: lock the row, write real size/hash, upload_status = 'uploaded'.
- *   (Provider I/O, no transaction): re-fetch what was actually written.
- *   C: lock the row again, upload_status = 'verified'.
- *
- * Idempotency/retry is keyed on (storageObjectId, content hash) — see
- * the branches below, matching the plan's rules exactly: same id + same
- * hash resumes/no-ops forward; same id + different hash conflicts; a
- * dead (`failed`/`deleted`) row is never resurrected.
+ * Write bytes through pending→uploaded→verified in separate transactions
+ * (no Postgres txn across provider I/O). Idempotent on (storageObjectId, hash).
  */
 export async function writeGeneratedTextContent(
   actor: ActorContext,
@@ -573,11 +685,7 @@ export async function writeGeneratedTextContent(
 
   const provider = await resolveProvider(deps);
 
-  // Orphan-recovery check: a prior call may have completed the Provider
-  // write but failed before transaction B recorded it (see the module
-  // comment above) — headObject tells us whether the bytes are already
-  // there with the right hash, so a retry never re-does I/O it doesn't
-  // need to.
+  // Orphan recovery: prior call may have written provider bytes before txn B recorded them.
   const existingProviderObject = await provider.headObject(
     initialRow.object_key,
   );
@@ -646,12 +754,8 @@ export async function writeGeneratedTextContent(
 }
 
 /**
- * Soft-deletes an unfinished (never `verified`) upload. Never a physical
- * `delete from storage_objects` — the schema already carries
- * `upload_status = 'deleted'` + `deleted_at` for exactly this, and the
- * app's DB role is expected to lose DELETE grants on core tables in a
- * later iteration (4.5), so this code path must not depend on having
- * that privilege at all.
+ * Soft-delete unfinished uploads (upload_status='deleted') — never physical DELETE;
+ * verified objects are immutable via this API.
  */
 export async function deleteUnverifiedUpload(
   actor: ActorContext,

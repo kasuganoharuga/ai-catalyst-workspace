@@ -1,21 +1,22 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { auth } from "./auth";
+import { safeReturnTo } from "./safe-return-to";
 
 /**
- * Registration is temporarily public (see auth.ts) with no invitation
- * gating yet, so every new user starts and stays at role 'pending' until
- * invitation acceptance (packages/services/src/invitation) ships. These
- * helpers are the interim guard that keeps `/workspace` and `/admin`
- * unreachable in the meantime, without hard-coding that logic into every
- * page. Remove/relax once invitation acceptance is implemented.
+ * Route-level role guards — UX routing only, not the security boundary.
+ * `assertRole` in packages/services re-checks on every call regardless of which guard ran.
  */
 
-export async function requireAuthenticatedUser() {
+/** @param options.returnTo Same-origin path after sign-in (e.g. consent_code URL). */
+export async function requireAuthenticatedUser(options?: {
+  returnTo?: string;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
-    redirect("/");
+    const safeTo = safeReturnTo(options?.returnTo);
+    redirect(safeTo ? `/?returnTo=${encodeURIComponent(safeTo)}` : "/");
   }
 
   return session;
@@ -41,16 +42,34 @@ export async function requireAdminUser() {
   return session;
 }
 
-// Mentor/Admin have no Venture-management UI yet (Mentor Workspace binding
-// is PR 4.1; Admin has its own /admin surface) — the Workspace page is
-// Founder-only for now.
+// Mentor-only routes inside (app); Founders use the shell but not these pages.
+export async function requireMentorUser() {
+  const session = await requireActiveUser();
+
+  if (session.user.role !== "mentor") {
+    redirect("/dashboard");
+  }
+
+  return session;
+}
+
+// Founder-only routes; redirects to /dashboard which already branches by role.
 export async function requireFounderUser() {
   const session = await requireActiveUser();
 
-  // Redirects to /toolkit, not /workspace — /workspace itself calls this
-  // guard, so redirecting back to it would loop.
   if (session.user.role !== "founder") {
-    redirect("/toolkit");
+    redirect("/dashboard");
+  }
+
+  return session;
+}
+
+// Shared (app) layout — Founder and Mentor share the shell; each page still calls its own role guard.
+export async function requireFounderOrMentorUser() {
+  const session = await requireActiveUser();
+
+  if (session.user.role !== "founder" && session.user.role !== "mentor") {
+    redirect("/");
   }
 
   return session;

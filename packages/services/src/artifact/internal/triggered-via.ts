@@ -1,4 +1,5 @@
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
 import type { ArtifactValidationTriggeredVia } from "@ai-catalyst/shared";
 
 // Role takes priority over source: an admin actor calling over the web
@@ -9,7 +10,9 @@ import type { ArtifactValidationTriggeredVia } from "@ai-catalyst/shared";
 // validation_kind on its own — the same priority order is correct for
 // draft_check too (an admin manually running a draft check should still
 // be recorded as 'admin', not 'website').
-export function resolveValidationTriggeredVia(actor: ActorContext): ArtifactValidationTriggeredVia {
+export function resolveValidationTriggeredVia(
+  actor: ActorContext,
+): ArtifactValidationTriggeredVia {
   if (actor.role === "admin") {
     return "admin";
   }
@@ -22,16 +25,12 @@ export function resolveValidationTriggeredVia(actor: ActorContext): ArtifactVali
   return "website";
 }
 
-// module_events.actor_type's check constraint (website/claude/openai has
-// no equivalent here — this is a different column domain:
-// 'user' | 'mcp' | 'system' | 'validator' | 'admin'). 'validator' is
-// reserved for a future autonomous/asynchronous Validator (4.4's FastAPI
-// LLM check) that acts without a human/system actor driving it — every
-// event this PR writes is still driven by an actor, so 'validator' is
-// never produced here.
+// module_events.actor_type domain: user | mcp | system | admin (validator reserved for future use).
 export type ArtifactEventActorType = "user" | "mcp" | "system" | "admin";
 
-export function resolveArtifactEventActorType(actor: ActorContext): ArtifactEventActorType {
+export function resolveArtifactEventActorType(
+  actor: ActorContext,
+): ArtifactEventActorType {
   if (actor.role === "admin") {
     return "admin";
   }
@@ -45,12 +44,12 @@ export function resolveArtifactEventActorType(actor: ActorContext): ArtifactEven
 }
 
 // module_events.source_provider's check constraint
-// (website/claude/openai/system, nullable) has no 'admin' or 'mcp' value
-// at all — a narrower domain than actor_type above — so an admin actor
-// still falls back to 'website' here specifically, and an mcp-sourced
-// actor maps to 'claude' (V1's single AI client, same hardcode as every
-// other mapper in this package).
-export type ArtifactEventSourceProvider = "website" | "claude" | "openai" | "system";
+// (website/claude/openai/other/system, nullable) has no 'admin' or 'mcp'
+// value at all — a narrower domain than actor_type above — so an admin
+// actor still falls back to 'website' here specifically, while an
+// mcp-sourced actor records which AI client it actually was.
+export type ArtifactEventSourceProvider =
+  "website" | "claude" | "openai" | "other" | "system";
 
 export function resolveArtifactEventSourceProvider(
   actor: ActorContext,
@@ -59,7 +58,7 @@ export function resolveArtifactEventSourceProvider(
     return "system";
   }
   if (actor.source === "mcp") {
-    return "claude";
+    return resolveMcpProviderTag(actor);
   }
   return "website";
 }

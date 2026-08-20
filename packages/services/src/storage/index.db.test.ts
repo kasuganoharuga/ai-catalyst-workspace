@@ -15,6 +15,7 @@ import {
 import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import { MAX_GENERATED_TEXT_BYTES } from "@ai-catalyst/services/storage/internal/validation";
 import { LocalStorageProvider } from "@ai-catalyst/services/storage/providers/local";
+import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fixtures";
 
 import {
   createPendingGeneratedObject,
@@ -40,28 +41,14 @@ describe("storage service — database integration", () => {
   async function createFounderWithWorkspace(
     label: string,
   ): Promise<{ actor: ActorContext; workspaceId: string }> {
-    const email = `${emailPrefix}-${label}@example.com`;
-    const userResult = await pool.query<{ id: string }>(
-      "insert into users (name, email, role) values ($1, $2, 'founder') returning id",
-      [`${emailPrefix}-${label}`, email],
-    );
-    createdUserIds.push(userResult.rows[0].id);
-    const actor: ActorContext = {
-      userId: userResult.rows[0].id,
-      role: "founder",
-    };
+    const { userId, workspaceId } = await createFixtureFounderAccount({
+      label,
+      emailPrefix,
+      slugPrefix: "storage-service",
+    });
+    createdUserIds.push(userId);
 
-    const workspaceResult = await pool.query<{ id: string }>(
-      `insert into workspaces (founder_user_id, name, slug)
-       values ($1, $2, $3) returning id`,
-      [
-        actor.userId,
-        `Fixture ${label}`,
-        `storage-service-${label}-${randomUUID()}`,
-      ],
-    );
-
-    return { actor, workspaceId: workspaceResult.rows[0].id };
+    return { actor: { userId, role: "founder" }, workspaceId };
   }
 
   async function getRawRow(id: string): Promise<{
@@ -131,9 +118,7 @@ describe("storage service — database integration", () => {
     });
 
     it("allowlists characters, replacing everything else with a dash", () => {
-      const result = sanitizeFilename(
-        "file name with spaces & (parens).md",
-      );
+      const result = sanitizeFilename("file name with spaces & (parens).md");
       expect(result).toMatch(/^[a-zA-Z0-9._-]+$/);
     });
 
@@ -198,8 +183,7 @@ describe("storage service — database integration", () => {
 
   describe("createPendingGeneratedObject / writeGeneratedTextContent", () => {
     it("computes correct size/hash for multi-byte UTF-8 content and reaches verified", async () => {
-      const { actor, workspaceId } =
-        await createFounderWithWorkspace("utf8");
+      const { actor, workspaceId } = await createFounderWithWorkspace("utf8");
       const pending = await createPendingGeneratedObject(actor, {
         workspaceId,
         filename: "unicode.md",
@@ -353,11 +337,8 @@ describe("storage service — database integration", () => {
       expect(verified.uploadStatus).toBe("verified");
       expect(putCalls).toBe(1);
 
-      // Simulates "the Provider write succeeded but the transaction that
-      // was supposed to record it never committed" (the plan's Reconcile
-      // scope note): the row is reset back to pending with no recorded
-      // checksum, while the real object written above is left untouched
-      // on disk.
+      // Simulate provider write succeeding while the DB update never
+      // committed: row reset to pending, bytes still on disk.
       await pool.query(
         `update storage_objects
          set upload_status = 'pending', checksum_sha256 = null,
@@ -448,9 +429,8 @@ describe("storage service — database integration", () => {
 
     it("rejects createPendingGeneratedObject for a workspaceId the Founder cannot reach", async () => {
       const { actor } = await createFounderWithWorkspace("cross-create");
-      const { workspaceId: otherWorkspaceId } = await createFounderWithWorkspace(
-        "cross-create-other",
-      );
+      const { workspaceId: otherWorkspaceId } =
+        await createFounderWithWorkspace("cross-create-other");
 
       await expect(
         createPendingGeneratedObject(actor, {

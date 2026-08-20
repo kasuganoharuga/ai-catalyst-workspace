@@ -7,9 +7,14 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError } from "../errors.js";
 import {
   acceptFounderInvitation,
+  acceptInvitation,
+  acceptMentorInvitation,
   createFounderInvitation,
+  createMentorInvitation,
   listFounderInvitations,
+  listMentorInvitations,
   revokeFounderInvitation,
+  revokeMentorInvitation,
 } from "./index.js";
 
 /**
@@ -388,7 +393,10 @@ describe("invitation service — database integration", () => {
       const actor: ActorContext = { userId: user.id, role: "pending" };
 
       await expect(
-        acceptFounderInvitation(actor, randomUUID().replace(/-/g, "").padEnd(43, "a")),
+        acceptFounderInvitation(
+          actor,
+          randomUUID().replace(/-/g, "").padEnd(43, "a"),
+        ),
       ).rejects.toMatchObject({ code: "NOT_FOUND" });
     });
 
@@ -399,9 +407,9 @@ describe("invitation service — database integration", () => {
       await expect(
         acceptFounderInvitation(actor, "too-short"),
       ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
-      await expect(
-        acceptFounderInvitation(actor, 12345),
-      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+      await expect(acceptFounderInvitation(actor, 12345)).rejects.toMatchObject(
+        { code: "VALIDATION_ERROR" },
+      );
     });
 
     it("trims incidental whitespace from a pasted token before hashing", async () => {
@@ -411,10 +419,7 @@ describe("invitation service — database integration", () => {
       });
       const actor: ActorContext = { userId: user.id, role: "pending" };
 
-      const result = await acceptFounderInvitation(
-        actor,
-        `  ${rawToken}\n`,
-      );
+      const result = await acceptFounderInvitation(actor, `  ${rawToken}\n`);
       expect(result.invitation.status).toBe("accepted");
     });
 
@@ -575,9 +580,9 @@ describe("invitation service — database integration", () => {
       const rejected = results.filter((r) => r.status === "rejected");
       expect(fulfilled).toHaveLength(1);
       expect(rejected).toHaveLength(1);
-      expect(
-        (rejected[0] as PromiseRejectedResult).reason,
-      ).toMatchObject({ code: "INVITATION_NOT_PENDING" });
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        code: "INVITATION_NOT_PENDING",
+      });
 
       const { rows: wsRows } = await pool.query<{ count: string }>(
         "select count(*)::text as count from workspaces where founder_user_id = $1",
@@ -718,6 +723,293 @@ describe("invitation service — database integration", () => {
       // The Venture's slug base comes from its own name ("...'s Idea"), not
       // the Workspace's base — only the deterministic suffix is asserted.
       expect(result.venture.slug).toMatch(/^[a-z0-9-]+-venture-fixed$/);
+    });
+  });
+
+  describe("mentor invitations and Workspace attribution", () => {
+    async function createMentorUser(
+      label: string,
+    ): Promise<{ id: string; actor: ActorContext }> {
+      const email = testEmail(label);
+      const result = await pool.query<{ id: string }>(
+        "insert into users (name, email, role) values ($1, $2, 'mentor') returning id",
+        [email, email],
+      );
+      const id = result.rows[0].id;
+      createdUserIds.push(id);
+      return { id, actor: { userId: id, role: "mentor" } };
+    }
+
+    async function mentorOfWorkspace(
+      workspaceId: string,
+    ): Promise<string | null> {
+      const { rows } = await pool.query<{ mentor_user_id: string | null }>(
+        "select mentor_user_id from workspaces where id = $1",
+        [workspaceId],
+      );
+      return rows[0].mentor_user_id;
+    }
+
+    // The whole point of the feature: who sent the invitation decides who
+    // supervises the Workspace it creates.
+    it("attributes the new Workspace to the inviting mentor", async () => {
+      const mentor = await createMentorUser("attr-mentor");
+      const user = await createPendingUser("attr-founder");
+      const { rawToken } = await createFounderInvitation(mentor.actor, {
+        email: user.email,
+      });
+
+      const { workspace } = await acceptFounderInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(await mentorOfWorkspace(workspace.id)).toBe(mentor.id);
+    });
+
+    it("leaves the Workspace unmentored for an admin-issued invitation", async () => {
+      const user = await createPendingUser("attr-admin-issued");
+      const { rawToken } = await createFounderInvitation(admin, {
+        email: user.email,
+      });
+
+      const { workspace } = await acceptFounderInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(await mentorOfWorkspace(workspace.id)).toBeNull();
+    });
+
+    // An invitation lives for seven days; the inviter's standing is read when
+    // it is redeemed, not when it was sent.
+    it("does not attribute to an inviter who is no longer a mentor", async () => {
+      const mentor = await createMentorUser("attr-demoted");
+      const user = await createPendingUser("attr-demoted-founder");
+      const { rawToken } = await createFounderInvitation(mentor.actor, {
+        email: user.email,
+      });
+
+      await pool.query("update users set role = 'admin' where id = $1", [
+        mentor.id,
+      ]);
+
+      const { workspace } = await acceptFounderInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(await mentorOfWorkspace(workspace.id)).toBeNull();
+    });
+
+    it("does not attribute to an inviter whose account was closed", async () => {
+      const mentor = await createMentorUser("attr-deleted");
+      const user = await createPendingUser("attr-deleted-founder");
+      const { rawToken } = await createFounderInvitation(mentor.actor, {
+        email: user.email,
+      });
+
+      await pool.query("update users set deleted_at = now() where id = $1", [
+        mentor.id,
+      ]);
+
+      const { workspace } = await acceptFounderInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(await mentorOfWorkspace(workspace.id)).toBeNull();
+    });
+
+    it("creates a platform-level mentor invitation with no workspace", async () => {
+      const email = testEmail("mentor-invite-create");
+      const { invitation } = await createMentorInvitation(admin, { email });
+
+      expect(invitation.inviteRole).toBe("mentor");
+      expect(invitation.status).toBe("pending");
+      // Migration 0010 is what makes this shape legal at all.
+      expect(invitation.workspaceId).toBeNull();
+    });
+
+    it("refuses to let a mentor invite another mentor", async () => {
+      const mentor = await createMentorUser("mentor-invites-mentor");
+      await expect(
+        createMentorInvitation(mentor.actor, {
+          email: testEmail("mentor-recruit"),
+        }),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    // Guards the NULLS NOT DISTINCT index from migration 0010 — with the
+    // default null handling this second insert would have been accepted.
+    it("rejects a duplicate pending platform-level mentor invitation", async () => {
+      const email = testEmail("mentor-dupe");
+      await createMentorInvitation(admin, { email });
+
+      await expect(
+        createMentorInvitation(admin, { email }),
+      ).rejects.toMatchObject({ code: "INVITATION_ALREADY_PENDING" });
+    });
+
+    it("promotes the user to mentor without creating a workspace", async () => {
+      const user = await createPendingUser("mentor-accept");
+      const { rawToken } = await createMentorInvitation(admin, {
+        email: user.email,
+      });
+
+      const { invitation } = await acceptMentorInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(invitation.status).toBe("accepted");
+
+      const { rows: userRows } = await pool.query<{ role: string }>(
+        "select role from users where id = $1",
+        [user.id],
+      );
+      expect(userRows[0].role).toBe("mentor");
+
+      // A new Mentor owns nothing yet — Workspaces arrive as their Founders
+      // accept. Asserting the absence is the point of the test.
+      const { rows: workspaceRows } = await pool.query(
+        "select 1 from workspaces where founder_user_id = $1 or mentor_user_id = $1",
+        [user.id],
+      );
+      expect(workspaceRows).toHaveLength(0);
+
+      const { rows: contextRows } = await pool.query(
+        "select 1 from user_active_contexts where user_id = $1",
+        [user.id],
+      );
+      expect(contextRows).toHaveLength(0);
+    });
+
+    // The two accept paths are scoped by invite_role, so a token for one is
+    // simply not found by the other.
+    it("does not accept a founder token as a mentor invitation", async () => {
+      const user = await createPendingUser("cross-token-founder");
+      const { rawToken } = await createFounderInvitation(admin, {
+        email: user.email,
+      });
+
+      await expect(
+        acceptMentorInvitation({ userId: user.id, role: "pending" }, rawToken),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("does not accept a mentor token as a founder invitation", async () => {
+      const user = await createPendingUser("cross-token-mentor");
+      const { rawToken } = await createMentorInvitation(admin, {
+        email: user.email,
+      });
+
+      await expect(
+        acceptFounderInvitation({ userId: user.id, role: "pending" }, rawToken),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    it("hides another mentor's invitations from list and revoke", async () => {
+      const mentorA = await createMentorUser("scope-a");
+      const mentorB = await createMentorUser("scope-b");
+
+      const { invitation: ownedByA } = await createFounderInvitation(
+        mentorA.actor,
+        { email: testEmail("scope-a-invitee") },
+      );
+
+      const listedForB = await listFounderInvitations(mentorB.actor);
+      expect(listedForB.map((row) => row.id)).not.toContain(ownedByA.id);
+
+      const listedForA = await listFounderInvitations(mentorA.actor);
+      expect(listedForA.map((row) => row.id)).toContain(ownedByA.id);
+
+      // NOT_FOUND, not FORBIDDEN: mentor B must not learn the invitation
+      // exists at all.
+      await expect(
+        revokeFounderInvitation(mentorB.actor, ownedByA.id),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+      // The admin remains unscoped.
+      const listedForAdmin = await listFounderInvitations(admin);
+      expect(listedForAdmin.map((row) => row.id)).toContain(ownedByA.id);
+    });
+
+    // The redeemer cannot tell the two token kinds apart, so /pending sends
+    // both here and the token decides which path runs.
+    it("routes a founder token to the founder accept path", async () => {
+      const mentor = await createMentorUser("dispatch-mentor");
+      const user = await createPendingUser("dispatch-founder");
+      const { rawToken } = await createFounderInvitation(mentor.actor, {
+        email: user.email,
+      });
+
+      const result = await acceptInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(result.inviteRole).toBe("founder");
+      if (result.inviteRole !== "founder") throw new Error("unreachable");
+      expect(await mentorOfWorkspace(result.workspace.id)).toBe(mentor.id);
+    });
+
+    it("routes a mentor token to the mentor accept path", async () => {
+      const user = await createPendingUser("dispatch-mentor-token");
+      const { rawToken } = await createMentorInvitation(admin, {
+        email: user.email,
+      });
+
+      const result = await acceptInvitation(
+        { userId: user.id, role: "pending" },
+        rawToken,
+      );
+
+      expect(result.inviteRole).toBe("mentor");
+      const { rows } = await pool.query<{ role: string }>(
+        "select role from users where id = $1",
+        [user.id],
+      );
+      expect(rows[0].role).toBe("mentor");
+    });
+
+    it("reports an unknown token as not found", async () => {
+      const user = await createPendingUser("dispatch-unknown");
+      await expect(
+        acceptInvitation(
+          { userId: user.id, role: "pending" },
+          randomBytes(32).toString("base64url"),
+        ),
+      ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    });
+
+    // An Admin's screen needs to read "invited by <name> (mentor)" — the raw
+    // invited_by_user_id is a UUID nobody can act on.
+    it("resolves the inviter on listed invitations", async () => {
+      const mentor = await createMentorUser("inviter-column");
+      const { invitation } = await createFounderInvitation(mentor.actor, {
+        email: testEmail("inviter-column-target"),
+      });
+
+      const listed = await listFounderInvitations(admin);
+      const row = listed.find((item) => item.id === invitation.id);
+
+      expect(row?.invitedByRole).toBe("mentor");
+      expect(row?.invitedByEmail).toBe(testEmail("inviter-column"));
+    });
+
+    it("refuses to let a mentor list or revoke mentor invitations", async () => {
+      const mentor = await createMentorUser("mentor-list-guard");
+      const { invitation } = await createMentorInvitation(admin, {
+        email: testEmail("mentor-list-guard-target"),
+      });
+
+      await expect(listMentorInvitations(mentor.actor)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+      await expect(
+        revokeMentorInvitation(mentor.actor, invitation.id),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
     });
   });
 });

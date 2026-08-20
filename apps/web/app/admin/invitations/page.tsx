@@ -1,62 +1,51 @@
-import { SiteHeader } from "@/components/site-header";
-import { requireAdminUser } from "@/lib/require-active-user";
-import { actorContextFromSession } from "@/lib/actor-context";
-import { listFounderInvitations } from "@/lib/invitations";
+import Link from "next/link";
 
-import { CreateInvitationForm } from "./create-invitation-form";
-import { RevokeInvitationButton } from "./revoke-invitation-button";
+import { PageShell } from "@/app/(app)/components/page-shell";
+import { requireAdminUser } from "@/lib/require-active-user";
+import { appPageTitle } from "@/lib/page-metadata";
+import { actorContextFromSession } from "@/lib/actor-context";
+import {
+  listFounderInvitations,
+  listMentorInvitations,
+} from "@/lib/invitations";
+
+import { AdminInvitationsPanel } from "./admin-invitations-panel";
+
+export const metadata = appPageTitle("Invitations");
 
 export default async function AdminInvitationsPage() {
   const session = await requireAdminUser();
   const actor = actorContextFromSession(session);
-  const invitations = await listFounderInvitations(actor);
+  const [founderInvitations, mentorInvitations] = await Promise.all([
+    listFounderInvitations(actor),
+    listMentorInvitations(actor),
+  ]);
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <SiteHeader />
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <p className="text-sm font-semibold uppercase tracking-[0.3em] text-muted-foreground">
-          Admin
+    <PageShell>
+      <div className="max-w-2xl">
+        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+          <Link
+            href="/admin/users"
+            className="underline-offset-2 hover:underline"
+          >
+            Users
+          </Link>
         </p>
-        <h1 className="mt-5 text-4xl font-semibold tracking-tight">
-          Founder invitations
+        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
+          Invitations
         </h1>
-        <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          Create a Founder invitation and share the one-time token manually —
-          there is no email delivery yet.
+        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
+          Share the one-time code manually — there is no email delivery yet.
+          Admin-issued founder invites create a workspace with no mentor; bind
+          one later from Users.
         </p>
+      </div>
 
-        <CreateInvitationForm />
-
-        <ul className="mt-10 space-y-3">
-          {invitations.length === 0 ? (
-            <li className="text-sm text-muted-foreground">
-              No Founder invitations yet.
-            </li>
-          ) : (
-            invitations.map((invitation) => (
-              <li
-                key={invitation.id}
-                className="flex flex-col gap-2 rounded-2xl border border-border bg-card px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div>
-                  <p className="text-sm font-semibold">{invitation.email}</p>
-                  <p className="mt-1 text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    {invitation.status}
-                  </p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    Expires {new Date(invitation.expiresAt).toLocaleString()} ·
-                    Created {new Date(invitation.createdAt).toLocaleString()}
-                  </p>
-                </div>
-                {invitation.status === "pending" ? (
-                  <RevokeInvitationButton invitationId={invitation.id} />
-                ) : null}
-              </li>
-            ))
-          )}
-        </ul>
-      </main>
-    </div>
+      <AdminInvitationsPanel
+        mentorInvitations={mentorInvitations}
+        founderInvitations={founderInvitations}
+      />
+    </PageShell>
   );
 }

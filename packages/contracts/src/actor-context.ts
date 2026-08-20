@@ -1,43 +1,46 @@
-// The single identity shape passed into every packages/services call,
-// regardless of caller: apps/web derives it from the Better Auth session,
-// apps/mcp derives it from the verified platform Bearer token (PR 2.2's
-// `verifyMcpBearerToken`, packages/services/src/mcp-auth). Per
-// architecture.mdc rule 5, MCP tools are stateless — this context travels
-// with every request rather than being cached in a session.
+// Identity passed into every packages/services call — web from Better Auth,
+// MCP from the verified Bearer token. Stateless: travels with each request.
 
 export type ActorRole = "pending" | "founder" | "mentor" | "admin";
 
-// Which transport authenticated this request. Not itself an authorization
-// check (role/scopes are) — services that need to distinguish MCP-originated
-// calls from web ones (e.g. to require a scope) branch on this field.
+// Transport that authenticated the request — not an auth check; role/scopes are.
 export type ActorSource = "web" | "mcp" | "system";
+
+// MCP client brand for audit logs — from OAuth redirect host, not client_name.
+// "other" is honest recording for non-Claude/ChatGPT clients, not a failure.
+export type McpProvider = "claude" | "openai" | "other";
 
 export interface ActorContext {
   userId: string;
   role: ActorRole;
 
-  // `source`/`scopes`/`clientId`/`traceId` are all optional so that the many
-  // pre-existing ActorContext literals across packages/services's test
-  // suites (constructed before PR 2.2, with no OAuth concept at all) keep
-  // compiling unchanged. New code should always go through
-  // `createWebActorContext`/`createMcpActorContext` below rather than a
-  // bare object literal, which always populate them.
+  // Optional for legacy fixtures; prefer createWebActorContext / createMcpActorContext.
   source?: ActorSource;
-  // OAuth scopes granted to the underlying Bearer token (e.g.
-  // `["mcp:connect"]`). Empty/undefined for a web session actor, which is
-  // not scope-restricted — role is the only gate for those.
+  // MCP Bearer scopes; web actors are role-gated only.
   scopes?: string[];
-  // The OAuth client_id that requested the token, when source is "mcp".
+  // OAuth client_id when source is "mcp".
   clientId?: string;
-  // Correlates a single request across service-layer log lines; not an
-  // authorization input.
+  // MCP client brand — audit metadata only, never authorization input.
+  provider?: McpProvider;
+  // One value per inbound HTTP/MCP request for log correlation.
   traceId?: string;
+  // Per-operation correlation (tool call, server action); also on module_events.
+  requestId?: string;
+}
+
+/**
+ * MCP provider tag for provenance columns — shared half of per-module mappers.
+ * Missing provider resolves to "other", not a guessed brand.
+ */
+export function resolveMcpProviderTag(actor: ActorContext): McpProvider {
+  return actor.provider ?? "other";
 }
 
 export function createWebActorContext(params: {
   userId: string;
   role: ActorRole;
   traceId?: string;
+  requestId?: string;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -45,6 +48,7 @@ export function createWebActorContext(params: {
     source: "web",
     scopes: [],
     traceId: params.traceId,
+    requestId: params.requestId,
   };
 }
 
@@ -53,7 +57,9 @@ export function createMcpActorContext(params: {
   role: ActorRole;
   scopes: string[];
   clientId: string;
+  provider: McpProvider;
   traceId?: string;
+  requestId?: string;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -61,6 +67,8 @@ export function createMcpActorContext(params: {
     source: "mcp",
     scopes: params.scopes,
     clientId: params.clientId,
+    provider: params.provider,
     traceId: params.traceId,
+    requestId: params.requestId,
   };
 }

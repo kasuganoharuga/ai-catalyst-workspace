@@ -12,9 +12,9 @@ Describe the problem and the expected behavior.
 
 ### Steps to Reproduce
 
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ### Affected Area
 

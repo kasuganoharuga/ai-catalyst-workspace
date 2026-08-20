@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { StatusBadge } from "../../components/status-badge";
 import {
   deriveModuleDisplayStatus,
+  headlineArtifact,
   moduleAccentStyle,
 } from "../../lib/module-display";
 
@@ -19,51 +20,61 @@ function formatDate(iso: string): string {
 
 /**
  * One Module's live status card (design frames H2/H7's "modcard"): status
- * badge, what it produces, whether that output is saved, and where review
- * stands. `context` is null before the Founder's Run exists — the card
- * then renders from catalog data alone, in its pre-setup state.
+ * badge, what it produces, whether that output is saved, and when the
+ * module was completed. `context` is null before the Founder's Run
+ * exists — the card then renders from catalog data alone.
  */
 export function ModuleStatusCard({
   catalog,
   context,
+  isFocus = false,
 }: {
   catalog: ModuleCatalogEntry;
   context: ModuleContext | null;
+  // The founder's current / next module — highlighted so it stays findable
+  // among every Module's card rendering at once.
+  isFocus?: boolean;
 }) {
   const runModule = context?.runModule ?? null;
   const attemptStatus = context?.activeAttempt?.status ?? null;
+  const displayAttemptStatus = context?.displayAttempt?.status ?? null;
   const display = runModule
-    ? deriveModuleDisplayStatus(runModule.status, attemptStatus)
+    ? deriveModuleDisplayStatus(
+        runModule.status,
+        attemptStatus,
+        displayAttemptStatus,
+      )
     : { label: "Waiting for setup", tone: "muted" as const };
 
   const isLocked = runModule?.status === "locked";
   const isCompleted = runModule?.status === "completed";
-  const primaryArtifact = context?.artifacts[0] ?? null;
-  const catalogArtifact = catalog.expectedArtifacts[0] ?? null;
+  const primaryArtifact = headlineArtifact(context?.artifacts ?? []);
+  const catalogArtifact = headlineArtifact(catalog.expectedArtifacts);
   const savedSubmission = primaryArtifact?.latestSubmission ?? null;
+  const effectiveAttemptStatus = attemptStatus ?? displayAttemptStatus;
 
   const isSetupModule = catalog.moduleType === "setup";
-  const reviewText = isSetupModule
-    ? "Automatic"
-    : attemptStatus === "ready_for_review" || isCompleted
-      ? null // rendered as a badge below instead
-      : "After the verdict";
+  const completedAt = runModule?.completedAt ?? null;
 
   const footHint = (() => {
-    if (!runModule) return "Opens once your programme is set up";
+    if (!runModule) return "Opens once your program is set up";
     switch (runModule.status) {
       case "locked":
         return "Opens when the module before it is done";
       case "available":
         return isSetupModule
-          ? "About five minutes, all in Claude"
-          : "Open — start it in Claude whenever you're ready";
+          ? "About five minutes, all in your AI assistant"
+          : "Open — start it whenever you're ready";
       case "in_progress":
-        if (attemptStatus === "ready_for_review")
+        if (effectiveAttemptStatus === "ready_for_review")
           return "Verdict saved — mentor review comes next";
-        if (attemptStatus === "validation_failed")
-          return "Close. Claude can help you close the gaps";
-        return "In progress — pick it up in Claude anytime";
+        if (
+          effectiveAttemptStatus === "validation_failed" ||
+          effectiveAttemptStatus === "rejected" ||
+          effectiveAttemptStatus === "cancelled"
+        )
+          return "Needs another go — open the module to run it again";
+        return "In progress — pick it up anytime";
       case "completed":
         return runModule.completedAt
           ? `Completed ${formatDate(runModule.completedAt)}`
@@ -75,14 +86,20 @@ export function ModuleStatusCard({
 
   return (
     <Link
-      href={`/modules/${catalog.moduleKey}`}
+      href={`/modules/${encodeURIComponent(catalog.moduleKey)}`}
       className={cn(
-        "group flex flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
+        "group flex h-full flex-col overflow-hidden rounded-xl border border-border bg-card transition hover:border-foreground/30",
+        isFocus && "ring-1 ring-foreground/25",
         isLocked && "opacity-60",
       )}
     >
       <div className="p-5">
-        <div className="flex items-start justify-between gap-4">
+        {/* Stacked below sm, row from sm: up — at narrow widths a long
+            title plus a wide status pill ("Ready for review") don't both
+            fit beside each other regardless of how much the title wraps;
+            the badge is shrink-0 on purpose, so it was the one spilling
+            past the card's edge instead. */}
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div className="flex items-center gap-3">
             {/* Identity, not status: the badge always wears the module's
                 own colour so it stays recognisable in every state, and
@@ -122,14 +139,14 @@ export function ModuleStatusCard({
             </dd>
           </div>
           <div className="flex items-center justify-between gap-4 border-t border-border/70 py-2.5">
-            <dt className="text-muted-foreground">Review</dt>
+            <dt className="text-muted-foreground">Completed</dt>
             <dd className="text-right">
-              {reviewText ? (
-                <span className="text-muted-foreground">{reviewText}</span>
+              {completedAt ? (
+                <span className="font-mono text-xs tabular-nums text-foreground">
+                  {formatDate(completedAt)}
+                </span>
               ) : (
-                <StatusBadge
-                  status={{ label: "Ready for review", tone: "ink" }}
-                />
+                <span className="text-muted-foreground">Not yet</span>
               )}
             </dd>
           </div>

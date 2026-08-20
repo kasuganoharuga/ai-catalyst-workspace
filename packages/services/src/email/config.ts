@@ -1,7 +1,7 @@
 import type { EmailConfig } from "./types.js";
 
 /**
- * Build EmailConfig from environment. Call only from composition roots —
+ * Build EmailConfig from environment. Call from app wiring or tests —
  * transports never read process.env themselves.
  *
  * - `EMAIL_PROVIDER` = `noop` (default) | `ses`

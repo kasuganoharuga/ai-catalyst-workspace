@@ -1,113 +1,181 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
 
-export function CreateInvitationForm() {
+import {
+  createInvitationAction,
+  createMentorInvitationAction,
+} from "@/lib/actions/admin-actions";
+import {
+  firstZodMessage,
+  invitationEmailSchema,
+} from "@/lib/validation/invitation";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toastCopy } from "@/app/(app)/lib/copy";
+
+import { adminActionCopy } from "../lib/copy";
+
+export function CreateInvitationForm({
+  inviteRole,
+}: {
+  inviteRole: "founder" | "mentor";
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [personalMessage, setPersonalMessage] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  const label = inviteRole === "mentor" ? "Mentor" : "Founder";
+
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const response = await fetch("/api/admin/invitations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email,
-        personalMessage:
-          personalMessage.trim() === "" ? undefined : personalMessage,
-      }),
-    });
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to create invitation.");
-      setIsSubmitting(false);
+    const parsed = invitationEmailSchema.safeParse(email);
+    if (!parsed.success) {
+      const message = firstZodMessage(parsed.error);
+      setError(message);
+      toast.error(toastCopy.actionFailedTitle, { description: message });
       return;
     }
+    setError(null);
+    setIssuedToken(null);
+    setConfirmEmail(parsed.data);
+  }
 
-    const { rawToken } = await response.json();
-    setIssuedToken(rawToken);
-    setEmail("");
-    setPersonalMessage("");
-    setIsSubmitting(false);
-    router.refresh();
+  function handleCancel() {
+    if (isPending) return;
+    setConfirmEmail(null);
+    setError(null);
+  }
+
+  function handleConfirm() {
+    if (!confirmEmail) return;
+    setError(null);
+    startTransition(async () => {
+      const create =
+        inviteRole === "mentor"
+          ? createMentorInvitationAction
+          : createInvitationAction;
+
+      const result = await create({ email: confirmEmail });
+
+      if (!result.ok) {
+        setError(result.message);
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
+        return;
+      }
+
+      setIssuedToken(result.rawToken);
+      setEmail("");
+      setConfirmEmail(null);
+      toast.success(adminActionCopy.inviteCreated(label), {
+        description: adminActionCopy.inviteCreatedDescription,
+      });
+      router.refresh();
+    });
   }
 
   return (
-    <div className="mt-8 rounded-2xl border border-border bg-card p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <Field label="Email">
+    <div className="mt-6">
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center"
+        noValidate
+      >
+        <label className="block w-full sm:max-w-sm">
+          <span className="sr-only">{label} email</span>
           <input
             type="email"
-            required
+            autoComplete="email"
             value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+            onChange={(event) => {
+              setEmail(event.target.value);
+              if (error) setError(null);
+            }}
+            placeholder={`${label} email`}
+            aria-invalid={error !== null && confirmEmail === null}
+            className="w-full rounded-lg border border-border bg-card px-4 py-2.5 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
           />
-        </Field>
-        <Field label="Personal message (optional)">
-          <textarea
-            value={personalMessage}
-            onChange={(event) => setPersonalMessage(event.target.value)}
-            rows={2}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
-          />
-        </Field>
-
-        {error ? (
-          <p role="alert" className="text-sm text-destructive">
-            {error}
-          </p>
-        ) : null}
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
-        >
-          {isSubmitting ? "Creating invitation..." : "Create invitation"}
-        </button>
+        </label>
+        <Button type="submit" disabled={isPending} className="shrink-0">
+          Invite {label.toLowerCase()}
+        </Button>
       </form>
 
+      {error && confirmEmail === null ? (
+        <p role="alert" className="mt-3 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
       {issuedToken ? (
-        <div className="mt-6 rounded-xl border border-accent bg-accent p-4">
+        <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            One-time token — copy it now
+            One-time code — copy it now
           </p>
           <p className="mt-2 break-all font-mono text-sm text-foreground">
             {issuedToken}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            This token is shown once and cannot be retrieved again. Share it
-            with the invited Founder manually.
+            This code is shown once and cannot be retrieved again. Share it with
+            the invited {inviteRole} manually.
           </p>
         </div>
       ) : null}
-    </div>
-  );
-}
 
-function Field({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {label}
-      </span>
-      {children}
-    </label>
+      <Dialog
+        open={confirmEmail !== null}
+        onOpenChange={(open) => {
+          if (!open) handleCancel();
+        }}
+      >
+        <DialogContent showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>Send {label.toLowerCase()} invitation?</DialogTitle>
+            <DialogDescription>
+              Create a one-time invite for{" "}
+              <span className="font-medium text-foreground">
+                {confirmEmail}
+              </span>
+              . You will need to share the code yourself — there is no email
+              delivery yet.
+            </DialogDescription>
+          </DialogHeader>
+
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button type="button" onClick={handleConfirm} disabled={isPending}>
+              {isPending ? "Creating…" : "Send invitation"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import type { PoolClient } from "pg";
 
 import { diffFields } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
-import type { ProgramContent } from "../types.js";
+import type { ContentLock, ProgramContent } from "../types.js";
 
 export type ProgramVersionStatus = "draft" | "published" | "retired";
 
@@ -13,19 +13,51 @@ interface ProgramVersionRow {
   description: string | null;
   release_notes: string | null;
   status: ProgramVersionStatus;
+  content_lock: ContentLock;
 }
 
 export interface ReconciledProgram {
   programId: string;
   programVersionId: string;
   programVersionStatus: ProgramVersionStatus;
+  contentLock: ContentLock;
 }
 
-async function upsertProgram(client: PoolClient, content: ProgramContent): Promise<string> {
-  const existing = await client.query<{ id: string; name: string; description: string | null }>(
-    `select id, name, description from programs where program_key = $1`,
-    [content.programKey],
+// DB content_lock is authoritative for existing rows; constant only sets initial insert value.
+export function isProgramVersionContentEditable(
+  row: Pick<ProgramVersionRow, "status" | "content_lock">,
+): boolean {
+  return (
+    row.status === "draft" ||
+    (row.status === "published" && row.content_lock === "mutable")
   );
+}
+
+// Reject mutable→frozen via seed (use db:freeze). DB frozen + constant mutable is normal post-freeze.
+function assertContentLockDirectionValid(
+  row: Pick<ProgramVersionRow, "content_lock">,
+  content: ProgramContent,
+): void {
+  if (row.content_lock === "mutable" && content.contentLock === "frozen") {
+    throw new ContentSeedError(
+      "CONTENT_LOCK_FREEZE_VIA_SEED_FORBIDDEN",
+      `program_version's content_lock is "mutable" in the database but the content constants say ` +
+        `"frozen". Seed can never freeze content — run "pnpm db:freeze" instead.`,
+    );
+  }
+}
+
+async function upsertProgram(
+  client: PoolClient,
+  content: ProgramContent,
+): Promise<string> {
+  const existing = await client.query<{
+    id: string;
+    name: string;
+    description: string | null;
+  }>(`select id, name, description from programs where program_key = $1`, [
+    content.programKey,
+  ]);
 
   const row = existing.rows[0];
   if (row) {
@@ -53,15 +85,16 @@ async function upsertProgram(client: PoolClient, content: ProgramContent): Promi
   return inserted.rows[0].id;
 }
 
-// Draft content may be corrected in place; published/retired content must
-// match exactly, or the run is rejected rather than silently rewritten.
+// Draft content, and published+mutable ("living V1") content, may be
+// corrected in place; published+frozen/retired content must match
+// exactly, or the run is rejected rather than silently rewritten.
 async function upsertProgramVersion(
   client: PoolClient,
   programId: string,
   content: ProgramContent,
 ): Promise<ProgramVersionRow> {
   const existing = await client.query<ProgramVersionRow>(
-    `select id, version_number, name, description, release_notes, status
+    `select id, version_number, name, description, release_notes, status, content_lock
      from program_versions
      where program_id = $1 and version_label = $2`,
     [programId, content.versionLabel],
@@ -69,10 +102,14 @@ async function upsertProgramVersion(
 
   const row = existing.rows[0];
   if (!row) {
+    // content_lock is written only here, on first creation of this row —
+    // reconcileProgram never writes it again afterwards. Moving an
+    // existing row from mutable to frozen is exclusively db:freeze's job.
     const inserted = await client.query<ProgramVersionRow>(
-      `insert into program_versions (program_id, version_number, version_label, name, description, release_notes)
-       values ($1, $2, $3, $4, $5, $6)
-       returning id, version_number, name, description, release_notes, status`,
+      `insert into program_versions
+         (program_id, version_number, version_label, name, description, release_notes, content_lock)
+       values ($1, $2, $3, $4, $5, $6, $7)
+       returning id, version_number, name, description, release_notes, status, content_lock`,
       [
         programId,
         content.versionNumber,
@@ -80,6 +117,7 @@ async function upsertProgramVersion(
         content.versionName,
         content.versionDescription,
         content.releaseNotes,
+        content.contentLock,
       ],
     );
     return inserted.rows[0];
@@ -100,13 +138,19 @@ async function upsertProgramVersion(
     );
   }
 
+  assertContentLockDirectionValid(row, content);
+
   const differing = diffFields(
     {
       name: content.versionName,
       description: content.versionDescription,
       release_notes: content.releaseNotes,
     },
-    { name: row.name, description: row.description, release_notes: row.release_notes },
+    {
+      name: row.name,
+      description: row.description,
+      release_notes: row.release_notes,
+    },
     ["name", "description", "release_notes"],
   );
 
@@ -114,7 +158,7 @@ async function upsertProgramVersion(
     return row;
   }
 
-  if (row.status === "published") {
+  if (!isProgramVersionContentEditable(row)) {
     throw new ContentSeedError(
       "PUBLISHED_CONTENT_MISMATCH",
       `program_version "${content.versionLabel}" is already published and its ${differing.join("/")} ` +
@@ -126,8 +170,13 @@ async function upsertProgramVersion(
     `update program_versions
      set name = $1, description = $2, release_notes = $3
      where id = $4
-     returning id, version_number, name, description, release_notes, status`,
-    [content.versionName, content.versionDescription, content.releaseNotes, row.id],
+     returning id, version_number, name, description, release_notes, status, content_lock`,
+    [
+      content.versionName,
+      content.versionDescription,
+      content.releaseNotes,
+      row.id,
+    ],
   );
   return updated.rows[0];
 }
@@ -142,5 +191,6 @@ export async function reconcileProgram(
     programId,
     programVersionId: versionRow.id,
     programVersionStatus: versionRow.status,
+    contentLock: versionRow.content_lock,
   };
 }

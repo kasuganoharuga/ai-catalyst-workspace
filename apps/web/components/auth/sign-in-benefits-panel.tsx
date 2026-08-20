@@ -14,7 +14,12 @@ const OUTCOMES = [
 // comes from numbering and hairlines rather than more colour.
 export function SignInBenefitsPanel() {
   return (
-    <div className="flex flex-col justify-center bg-surface-inverse px-8 py-16 text-surface-inverse-foreground sm:px-12 lg:w-[46%] lg:shrink-0 lg:px-16">
+    // Hidden below lg, not just stacked: the parent flips flex-col to
+    // flex-row at that same breakpoint (page.tsx), and below it this
+    // panel isn't a side-by-side second column — it's the whole sign-in
+    // page's length again, marketing copy a returning founder has to
+    // scroll past to reach a form they've already used before.
+    <div className="hidden bg-surface-inverse px-8 py-16 text-surface-inverse-foreground lg:flex lg:w-[46%] lg:shrink-0 lg:flex-col lg:justify-center lg:px-16">
       <div className="mx-auto w-full max-w-sm">
         <p className="font-mono text-[11px] font-medium uppercase tracking-[0.22em] text-brand-lime">
           AI Catalyst · Founder Toolkit
@@ -25,7 +30,7 @@ export function SignInBenefitsPanel() {
         </h2>
 
         <p className="mt-5 text-[13.5px] leading-6 text-surface-inverse-foreground/60">
-          A guided programme that takes a raw idea apart and rebuilds it into a
+          A guided program that takes a raw idea apart and rebuilds it into a
           business case — one hard question at a time.
         </p>
 

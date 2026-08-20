@@ -4,11 +4,7 @@
 // later PRs (pause/complete/archive flows) but are represented here now so
 // the DTO never needs to widen later just because a new write path appears.
 export type ProgramRunStatus =
-  | "draft"
-  | "active"
-  | "paused"
-  | "completed"
-  | "archived";
+  "draft" | "active" | "paused" | "completed" | "archived";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `Venture`. Mapped once at the Service boundary.

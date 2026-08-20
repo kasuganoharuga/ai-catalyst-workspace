@@ -14,6 +14,7 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 // not for a read path consumed by apps/web.
 import { PROGRAM_CONTENT } from "@ai-catalyst/services/content-seed/content/program";
 import { resolvePublishedProgramVersionId } from "@ai-catalyst/services/internal/program-version";
+import { parseTemplateOutline } from "@ai-catalyst/services/module/internal/template-outline";
 
 // The catalog always resolves against this Program's current published
 // version — this is deliberately not the same concept as the fixed
@@ -30,6 +31,20 @@ export interface ModuleCatalogDependencies {
   programKey?: string;
 }
 
+interface RawCatalogArtifact {
+  artifactKey: string;
+  name: string;
+  requiredFilename: string | null;
+  isRequired: boolean;
+  // Internal-only — stripped in mapArtifact so the Founder DTO never
+  // ships the full template Markdown, only the derived outline.
+  templateMarkdown: string | null;
+  // Internal-only — never shipped as-is; mapArtifact reduces this to the
+  // workbookSupported/workbookFormat booleans/enum the DTO actually
+  // carries, so no client code ever has to recognise a specific renderer key.
+  rendererKey: string | null;
+}
+
 interface ModuleCatalogRow {
   module_key: string;
   sequence_index: number;
@@ -41,7 +56,19 @@ interface ModuleCatalogRow {
   completion_mode: ModuleCompletionMode;
   estimated_minutes: number | null;
   module_status: "draft" | "active" | "archived";
-  expected_artifacts: ModuleCatalogArtifact[];
+  expected_artifacts: RawCatalogArtifact[];
+}
+
+function mapArtifact(raw: RawCatalogArtifact): ModuleCatalogArtifact {
+  return {
+    artifactKey: raw.artifactKey,
+    name: raw.name,
+    requiredFilename: raw.requiredFilename,
+    isRequired: raw.isRequired,
+    outline: parseTemplateOutline(raw.templateMarkdown),
+    workbookSupported: raw.rendererKey !== null,
+    workbookFormat: raw.rendererKey !== null ? "pdf" : null,
+  };
 }
 
 function mapRow(row: ModuleCatalogRow): ModuleCatalogEntry {
@@ -56,7 +83,7 @@ function mapRow(row: ModuleCatalogRow): ModuleCatalogEntry {
     completionMode: row.completion_mode,
     estimatedMinutes: row.estimated_minutes,
     catalogStatus: row.module_status === "active" ? "live" : "coming_soon",
-    expectedArtifacts: row.expected_artifacts,
+    expectedArtifacts: row.expected_artifacts.map(mapArtifact),
   };
 }
 
@@ -82,14 +109,17 @@ const CATALOG_QUERY = `
         jsonb_build_object(
           'artifactKey', ad.artifact_key,
           'name', ad.name,
-          'requiredFilename', ad.required_filename
+          'requiredFilename', ad.required_filename,
+          'isRequired', ad.is_required,
+          'templateMarkdown', ad.output_config->>'templateMarkdown',
+          'rendererKey', ad.renderer_key
         )
         order by ad.sequence_index
       ) filter (where ad.id is not null),
       '[]'::jsonb
     ) as expected_artifacts
   from module_definitions md
-  left join artifact_definitions ad on ad.module_definition_id = md.id
+  left join artifact_definitions ad on ad.module_definition_id = md.id and ad.status <> 'archived'
   where md.program_version_id = $1
     and md.status <> 'archived'
 `;

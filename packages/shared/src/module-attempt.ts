@@ -16,7 +16,8 @@ export type ModuleAttemptType = "initial" | "retry";
 // Mirrors the `module_attempts.started_via` check constraint. Distinct
 // from `module_responses.source_provider`, which has no "system" value —
 // see packages/services/src/attempt/internal/interaction-provider.ts.
-export type ModuleAttemptStartedVia = "website" | "claude" | "openai" | "system";
+export type ModuleAttemptStartedVia =
+  "website" | "claude" | "openai" | "other" | "system";
 
 // External DTO — always JSON-safe (ISO string timestamps, never `Date`),
 // same convention as `ProgramRun`/`Venture`. Mapped once at the Service
@@ -34,10 +35,7 @@ export interface ModuleAttempt {
   updatedAt: string;
 }
 
-// Mirrors the `module_responses.response_type` check constraint. Only
-// `short_text` / `long_text` / `single_choice` are validated by
-// saveFounderResponse in this PR — the remaining values exist in the
-// schema for later content, same reasoning as ProgramRunStatus.
+// Response types validated by saveFounderResponse today; others exist in schema for future content.
 export type ModuleResponseType =
   | "short_text"
   | "long_text"
@@ -51,17 +49,11 @@ export type ModuleResponseType =
 
 // Mirrors the `module_responses.response_status` check constraint.
 export type ModuleResponseStatus =
-  | "answered"
-  | "skipped"
-  | "not_applicable"
-  | "needs_follow_up";
+  "answered" | "skipped" | "not_applicable" | "needs_follow_up";
 
 // Mirrors the `module_responses.captured_via` check constraint.
 export type ModuleResponseCapturedVia =
-  | "direct_response"
-  | "ai_extraction"
-  | "website_edit"
-  | "import";
+  "direct_response" | "ai_extraction" | "website_edit" | "import";
 
 export interface ModuleResponse {
   id: string;

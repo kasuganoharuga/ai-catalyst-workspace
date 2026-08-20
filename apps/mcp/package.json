@@ -7,23 +7,20 @@
   "scripts": {
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --exclude \"**/*.db.test.ts\"",
-    "test:db": "vitest run src/tools/tools.db.test.ts"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ai-catalyst/contracts": "workspace:*",
-    "@ai-catalyst/db": "workspace:*",
+    "@ai-catalyst/observability": "workspace:*",
     "@ai-catalyst/services": "workspace:*",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "@sentry/node": "^10.69.0",
     "express": "^5.2.1",
-    "pg": "^8.16.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",
     "@types/node": "^20",
-    "@types/pg": "^8.15.6",
     "@types/supertest": "^7.2.1",
     "supertest": "^7.2.2",
     "tsx": "^4.20.6",

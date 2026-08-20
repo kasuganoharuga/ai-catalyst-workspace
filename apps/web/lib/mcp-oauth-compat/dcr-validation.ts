@@ -7,12 +7,9 @@ interface RequestLikeContext {
 }
 
 // ---------------------------------------------------------------------------
-// Rate limiting — development-only, in-memory, per-process. A real
-// deployment (PR 2.10) MUST replace this with a shared limiter (Redis or a
-// database-backed one, matching whatever the rest of the platform's rate
-// limiting uses by then) once /mcp/register is reachable from more than one
-// server process — an in-memory Map means every process/replica gets its own
-// independent budget, and a restart resets it entirely.
+// Rate limiting — in-memory, per-process. Replace with a shared limiter
+// (Redis or DB-backed) before /mcp/register runs on more than one server
+// process: each replica has its own budget, and a restart clears it.
 // ---------------------------------------------------------------------------
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -30,28 +27,56 @@ function isRateLimited(ip: string): boolean {
   return withinWindow.length > RATE_LIMIT_MAX_REQUESTS;
 }
 
+/** Shared bucket for every request whose client cannot be identified. */
+export const UNKNOWN_CLIENT_IP = "unknown";
+
 /**
- * Resolves the caller's IP for rate-limiting purposes only. Deliberately
- * does *not* trust `X-Forwarded-For` unless `MCP_OAUTH_TRUST_PROXY_HEADERS`
- * is explicitly set to `"true"` — an attacker can set that header on a
- * direct connection to any value they like, so trusting it by default
- * would let them reset their own rate-limit bucket on every request. Only
- * set that env var once this app is deployed behind a proxy/load balancer
- * that itself overwrites (not appends to) that header before forwarding.
+ * Resolves the caller's IP for rate-limiting purposes only.
  *
- * Without a trusted proxy in front (the local/CI case this PR covers),
- * every request falls into the same `"unknown"` bucket — a coarser,
- * global-per-process limit, not per-client, but still enough to blunt a
- * naive registration-flooding script in dev.
+ * Deliberately does *not* trust `X-Forwarded-For` unless
+ * `MCP_OAUTH_TRUST_PROXY_HEADERS` is explicitly set to `"true"` — on a direct
+ * connection a caller can set that header to anything, so trusting it by
+ * default would let them reset their own bucket on every request.
+ *
+ * Reads the **rightmost** entry, not the leftmost, and that distinction is the
+ * whole point. `X-Forwarded-For` is append-only and the left of the list is
+ * whatever the caller chose to send; only entries a trusted hop appended can be
+ * believed, and those are on the right. AWS ALB — the proxy this actually runs
+ * behind — appends the address of the connection it received rather than
+ * replacing the header, so with one ALB in front the last entry is the real
+ * client and everything to its left is untrusted input. Taking the first entry,
+ * as this did originally, meant a caller sending
+ * `X-Forwarded-For: <anything>` got a fresh bucket per request and the limiter
+ * did nothing. The header note above said the env var required a proxy that
+ * *overwrites* the header; ALB does not, and the deployment set the var anyway.
+ *
+ * Put a second layer in front (CloudFront, a terminating WAF) and the rightmost
+ * entry becomes that layer's address instead of the client's, collapsing
+ * everyone into one bucket: coarser, still not spoofable. Revisit this function
+ * if that happens.
+ *
+ * Without a trusted proxy every request falls into the same
+ * `UNKNOWN_CLIENT_IP` bucket — a global-per-process limit rather than a
+ * per-client one, but enough to blunt naive registration flooding locally.
+ *
+ * Exported for the test that pins the leftmost/rightmost choice.
  */
-function resolveClientIp(ctx: RequestLikeContext): string {
-  if (process.env.MCP_OAUTH_TRUST_PROXY_HEADERS === "true") {
-    const forwardedFor = ctx.request?.headers.get("x-forwarded-for");
-    if (forwardedFor) {
-      return forwardedFor.split(",")[0]?.trim() || "unknown";
-    }
+export function resolveClientIp(ctx: RequestLikeContext): string {
+  if (process.env.MCP_OAUTH_TRUST_PROXY_HEADERS !== "true") {
+    return UNKNOWN_CLIENT_IP;
   }
-  return "unknown";
+
+  const forwardedFor = ctx.request?.headers.get("x-forwarded-for");
+  if (!forwardedFor) {
+    return UNKNOWN_CLIENT_IP;
+  }
+
+  const hops = forwardedFor
+    .split(",")
+    .map((hop) => hop.trim())
+    .filter((hop) => hop.length > 0);
+
+  return hops[hops.length - 1] ?? UNKNOWN_CLIENT_IP;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,6 +145,36 @@ function isStringArrayEqualTo(
 }
 
 /**
+ * Claude (and other MCP hosts) register with
+ * `grant_types: ["authorization_code", "refresh_token"]`, and both are grants
+ * this server really implements — `authorization_code` to establish the
+ * connection, `refresh_token` to keep it alive without the Founder
+ * reconnecting. Every other grant type the underlying handler would accept
+ * (implicit, password, client_credentials, JWT/SAML bearer) is refused.
+ */
+function isAllowedGrantTypes(value: unknown): boolean {
+  if (!Array.isArray(value) || value.length === 0) {
+    return false;
+  }
+  if (!value.every((item) => typeof item === "string")) {
+    return false;
+  }
+  const unique = new Set(value);
+  if (unique.size !== value.length) {
+    return false;
+  }
+  if (!unique.has("authorization_code")) {
+    return false;
+  }
+  for (const item of unique) {
+    if (item !== "authorization_code" && item !== "refresh_token") {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * Hardens `POST /mcp/register` (Dynamic Client Registration, RFC 7591)
  * down to the single "public client, authorization_code + PKCE only"
  * profile this compatibility layer supports — better-auth@1.6.23's own DCR
@@ -135,10 +190,13 @@ function isStringArrayEqualTo(
  *   must be `"none"` (public) — anything else is rejected outright rather
  *   than silently accepted and then unusable.
  * - `grant_types`/`response_types` accept far more than
- *   `authorization_code`/`code` (implicit, password, client_credentials,
- *   JWT/SAML bearer, `token`) — none of those are implemented by the
- *   token endpoint this profile relies on, so a client registered with
- *   them would simply fail confusingly later. Rejected here instead.
+ *   `authorization_code`/`refresh_token`/`code` (implicit, password,
+ *   client_credentials, JWT/SAML bearer, `token`) — none of those are
+ *   implemented by the token endpoint this profile relies on, so a client
+ *   registered with them would simply fail confusingly later. Rejected here
+ *   instead. `refresh_token` is allowed only *alongside*
+ *   `authorization_code`, never on its own: there is no way to hold a
+ *   refresh token without first completing an authorization.
  * - `client_name` is optional in the handler's own zod schema but
  *   `name: body.client_name` is written straight into a `not null` column
  *   — required here explicitly instead of surfacing as a database error.
@@ -167,11 +225,11 @@ export const registerEndpointBeforeHook = {
 
     if (
       body.grant_types !== undefined &&
-      !isStringArrayEqualTo(body.grant_types, ["authorization_code"])
+      !isAllowedGrantTypes(body.grant_types)
     ) {
       throw oauthError(
         "invalid_client_metadata",
-        'grant_types must be exactly ["authorization_code"].',
+        'grant_types must be ["authorization_code"] or ["authorization_code","refresh_token"].',
       );
     }
 

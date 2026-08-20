@@ -1,0 +1,186 @@
+import { describe, expect, it } from "vitest";
+
+import {
+  artefactsCopy,
+  dashboardCopy,
+  errorCopy,
+  lifecycleStageLabel,
+  MODULE_BRIEF_COPY,
+  module0Copy,
+  moduleCompletedBody,
+  moduleCompletedTitle,
+  moduleConfirmCta,
+  moduleGateCopy,
+  moduleRunCopy,
+  modulesCopy,
+  profilePromptCopy,
+  resolveModuleCopy,
+  retryCopy,
+  ventureStatusLabel,
+  workspaceCopy,
+} from "@/app/(app)/lib/copy";
+
+// Every standard Module in the seeded 1-7 sequence. resolveModuleCopy
+// falls back to Module 1's table for an unknown key, so a Module missing
+// its own entry does not throw — it quietly shows Pressure-Test's copy.
+// Listing all seven here is what catches that.
+const STANDARD_MODULE_KEYS = [
+  "module-01-pressure-test",
+  "module-02-customer-avatar",
+  "module-03-problem-statement",
+  "module-04-solution-statement",
+  "module-05-epics-user-stories",
+  "module-06-competitive-analysis",
+  "module-07-business-model",
+];
+
+describe("resolveModuleCopy", () => {
+  it("gives every standard Module its own briefTitle/briefBody/questionsLabel, not just Module 1's", () => {
+    const questionsLabels = STANDARD_MODULE_KEYS.map(
+      (key) => resolveModuleCopy(key).questionsLabel,
+    );
+    expect(new Set(questionsLabels).size).toBe(STANDARD_MODULE_KEYS.length);
+
+    const briefBodies = STANDARD_MODULE_KEYS.map(
+      (key) => resolveModuleCopy(key).briefBody,
+    );
+    expect(new Set(briefBodies).size).toBe(STANDARD_MODULE_KEYS.length);
+  });
+
+  it("merges in the shared wizard skeleton for every Module", () => {
+    for (const key of STANDARD_MODULE_KEYS) {
+      expect(resolveModuleCopy(key).stepBrief).toBe(moduleRunCopy.stepBrief);
+      expect(resolveModuleCopy(key).workTitle).toBe(moduleRunCopy.workTitle);
+    }
+  });
+
+  it("falls back to Module 1's table for an unrecognised key rather than throwing", () => {
+    expect(() => resolveModuleCopy("module-99-does-not-exist")).not.toThrow();
+    expect(resolveModuleCopy("module-99-does-not-exist")).toEqual(
+      resolveModuleCopy("module-01-pressure-test"),
+    );
+  });
+
+  it('names what each Module 3/4 confirm step actually produces, not a generic "verdict"', () => {
+    expect(
+      resolveModuleCopy("module-03-problem-statement").confirmTitle,
+    ).toMatch(/problem and interview/i);
+    expect(
+      resolveModuleCopy("module-04-solution-statement").confirmTitle,
+    ).toMatch(/solution documents/i);
+  });
+});
+
+describe("module completion copy", () => {
+  it("never dangles a next-module reference when there isn't one", () => {
+    expect(moduleCompletedTitle(null)).not.toMatch(/next module/i);
+    expect(moduleCompletedBody(null)).not.toContain("undefined");
+    expect(moduleCompletedBody(null)).not.toContain("null");
+    expect(moduleConfirmCta(null)).not.toMatch(/next module/i);
+  });
+
+  it("names the next module when there is one", () => {
+    expect(moduleCompletedTitle("Proof")).toMatch(/next module/i);
+    expect(moduleCompletedBody("Proof")).toContain("Proof");
+    expect(moduleConfirmCta("Proof")).toMatch(/next module/i);
+  });
+});
+
+// These exist because the raw column values were being rendered straight
+// to the screen — a founder could be shown "company_formed", underscore
+// and all.
+describe("venture labels", () => {
+  it("labels every lifecycle stage without underscores", () => {
+    const stages = ["idea", "validating", "validated", "company_formed"];
+    for (const stage of stages) {
+      expect(lifecycleStageLabel(stage), stage).not.toContain("_");
+    }
+    expect(lifecycleStageLabel("company_formed")).toBe("Company formed");
+  });
+
+  it("labels every venture status", () => {
+    for (const status of ["active", "paused", "abandoned", "archived"]) {
+      expect(ventureStatusLabel(status), status).toMatch(/^[A-Z]/);
+    }
+  });
+
+  // Better a raw value on screen than a blank where a state should be.
+  it("passes an unknown value through rather than blanking it", () => {
+    expect(ventureStatusLabel("some_future_status")).toBe("some_future_status");
+    expect(lifecycleStageLabel("some_future_stage")).toBe("some_future_stage");
+  });
+});
+
+// A founder picks one assistant and every screen outside the connection
+// page and the hand-off is supposed to stop naming vendors entirely. There
+// are no component tests in this app, so this is the only thing standing
+// between that rule and the next person who writes "ask Claude to…" into a
+// shared string.
+describe("neutral copy", () => {
+  const VENDOR = /Claude|ChatGPT|OpenAI|Anthropic/i;
+
+  const NEUTRAL_COPY: Record<string, object> = {
+    dashboardCopy,
+    moduleGateCopy,
+    module0Copy,
+    moduleRunCopy,
+    modulesCopy,
+    artefactsCopy,
+    workspaceCopy,
+    retryCopy,
+    errorCopy,
+    profilePromptCopy,
+    ...Object.fromEntries(
+      Object.entries(MODULE_BRIEF_COPY).map(([moduleKey, copy]) => [
+        `MODULE_BRIEF_COPY[${moduleKey}]`,
+        copy,
+      ]),
+    ),
+  };
+
+  // Walks nested objects and arrays, because manualStep-shaped entries and
+  // the `before` list hold their strings a level or two down.
+  function* strings(value: unknown): Generator<string> {
+    if (typeof value === "string") {
+      yield value;
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) yield* strings(item);
+      return;
+    }
+    if (value && typeof value === "object") {
+      for (const item of Object.values(value)) yield* strings(item);
+    }
+  }
+
+  for (const [name, copy] of Object.entries(NEUTRAL_COPY)) {
+    it(`${name} names no vendor`, () => {
+      for (const value of strings(copy)) {
+        expect(value, `${name}: ${value}`).not.toMatch(VENDOR);
+      }
+    });
+  }
+
+  // Functions are skipped by the walk above, so the two that interpolate an
+  // assistant's name are checked directly: they must carry it in, not
+  // hard-code it.
+  it("module 0 takes the assistant name as an argument", () => {
+    expect(module0Copy.checkTitle("ChatGPT")).toContain("ChatGPT");
+    expect(module0Copy.checkBody("ChatGPT")).toContain("ChatGPT");
+    expect(module0Copy.checkTitle("ChatGPT")).not.toMatch(/Claude/);
+    expect(module0Copy.checkBody("ChatGPT")).not.toMatch(/Claude/);
+  });
+});
+
+describe("dashboard greeting", () => {
+  it("only says 'back' to someone who has been here before", () => {
+    expect(dashboardCopy.greetingFirstVisit("Ada")).not.toContain("back");
+    expect(dashboardCopy.greetingReturning("Ada")).toContain("back");
+  });
+
+  it("uses the founder's name in both", () => {
+    expect(dashboardCopy.greetingFirstVisit("Ada")).toContain("Ada");
+    expect(dashboardCopy.greetingReturning("Ada")).toContain("Ada");
+  });
+});

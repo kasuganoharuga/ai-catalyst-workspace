@@ -45,9 +45,11 @@ describe("S3StorageProvider", () => {
       bucket: "b",
       region: "ap-southeast-2",
       client: {
-        send: vi.fn().mockRejectedValue(
-          Object.assign(new Error("missing"), { name: "NoSuchKey" }),
-        ),
+        send: vi
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error("missing"), { name: "NoSuchKey" }),
+          ),
       } as never,
     });
     await expect(
@@ -55,11 +57,13 @@ describe("S3StorageProvider", () => {
     ).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 
-  it("copyObject issues CopyObject then headObject", async () => {
+  it("copyObject issues CopyObject then headObject (GetObject when no checksum)", async () => {
+    const body = Buffer.from("abc", "utf8");
     const send = vi
       .fn()
-      .mockResolvedValueOnce({})
-      .mockResolvedValueOnce({ ContentLength: 3 });
+      .mockResolvedValueOnce({}) // CopyObject
+      .mockResolvedValueOnce({ ContentLength: body.byteLength }) // HeadObject
+      .mockResolvedValueOnce({ Body: body }); // GetObject fallback
     const provider = new S3StorageProvider({
       bucket: "bucket",
       region: "ap-southeast-2",
@@ -69,8 +73,28 @@ describe("S3StorageProvider", () => {
       sourceKey: "a.md",
       destinationKey: "b.md",
     });
-    expect(meta.sizeBytes).toBe(3);
-    expect(send).toHaveBeenCalledTimes(2);
+    expect(meta).toEqual({
+      sizeBytes: body.byteLength,
+      sha256: sha256(body),
+    });
+    expect(send).toHaveBeenCalledTimes(3);
+  });
+
+  it("headObject uses ChecksumSHA256 from Head when present", async () => {
+    const body = Buffer.from("checksummed", "utf8");
+    const digest = sha256(body);
+    const send = vi.fn().mockResolvedValue({
+      ContentLength: body.byteLength,
+      ChecksumSHA256: Buffer.from(digest, "hex").toString("base64"),
+    });
+    const provider = new S3StorageProvider({
+      bucket: "b",
+      region: "ap-southeast-2",
+      client: { send } as never,
+    });
+    const meta = await provider.headObject("k.md");
+    expect(meta).toEqual({ sizeBytes: body.byteLength, sha256: digest });
+    expect(send).toHaveBeenCalledOnce();
   });
 
   it("deleteObject is idempotent at the API layer (send always called)", async () => {

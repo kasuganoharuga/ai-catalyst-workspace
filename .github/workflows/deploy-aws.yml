@@ -3,22 +3,32 @@ name: Deploy to AWS
 on:
   push:
     branches:
-      - main
       - develop
+      - main
   workflow_dispatch:
 
 permissions:
   contents: read
   id-token: write
 
+# Rapid merges on develop used to queue many deploys; with cancel-in-progress
+# false, only the in-flight run finished and every other pending run was
+# cancelled — noisy red/cancelled noise in Actions. Prefer deploying the
+# latest tip only.
 concurrency:
   group: deploy-${{ github.ref_name }}
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   deploy:
     name: Deploy ${{ github.ref_name }}
     runs-on: ubuntu-latest
+
+    # A real GitHub Environment per branch. For production this is the approval
+    # gate: configure required reviewers on it and a merge to main waits for a
+    # human before touching live infrastructure. Without it, "merge to main"
+    # and "deploy to production" are the same irreversible click.
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
 
     env:
       AWS_ACCOUNT_ID: "765332581489"
@@ -27,31 +37,37 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Select deployment environment
         shell: bash
+        env:
+          # Infrastructure ids come from GitHub Actions variables rather than
+          # this file: they are created by `terraform apply` and differ per
+          # environment, so hardcoding them means the workflow silently targets
+          # last month's stack after any rebuild. Print them with
+          # `terraform output` and set them once per environment — the names
+          # below are scoped by the GitHub Environment above, so `main` reads
+          # production's values and `develop` reads staging's.
+          ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+          PRIVATE_SUBNET_IDS: ${{ vars.PRIVATE_SUBNET_IDS }}
+          ECS_SECURITY_GROUP_ID: ${{ vars.ECS_SECURITY_GROUP_ID }}
+          # ENABLED or DISABLED, for the one-off migrate/seed task below.
+          # Required rather than defaulted because both answers are wrong
+          # somewhere: a task in a private subnet needs DISABLED and reaches ECR
+          # through the NAT gateway, while a task in a public subnet needs
+          # ENABLED or it cannot pull its image at all. Guessing produces a
+          # deploy that hangs on CannotPullContainerError.
+          ASSIGN_PUBLIC_IP: ${{ vars.ASSIGN_PUBLIC_IP }}
         run: |
           set -euo pipefail
 
           case "${GITHUB_REF_NAME}" in
             main)
-              {
-                echo "ENV_NAME=production"
-                echo "ENV_PREFIX=ai-catalyst-production"
-                echo "CLUSTER=ai-catalyst-production"
-                echo "SUBNETS=subnet-0ddbc7e753b4e8210,subnet-03355a2c923b59a25"
-                echo "SECURITY_GROUP=sg-01996f8e18c24c4aa"
-              } >> "$GITHUB_ENV"
+              ENV_NAME=production
               ;;
             develop)
-              {
-                echo "ENV_NAME=staging"
-                echo "ENV_PREFIX=ai-catalyst-staging"
-                echo "CLUSTER=ai-catalyst-staging"
-                echo "SUBNETS=subnet-07b302fc84ea32325,subnet-0463eda6ac077e977"
-                echo "SECURITY_GROUP=sg-0e0aad4d80002be63"
-              } >> "$GITHUB_ENV"
+              ENV_NAME=staging
               ;;
             *)
               echo "Unsupported branch: ${GITHUB_REF_NAME}" >&2
@@ -59,8 +75,31 @@ jobs:
               ;;
           esac
 
+          # Fail before any AWS call rather than half-deploying against blanks.
+          # An empty SUBNETS or SECURITY_GROUP makes `aws ecs run-task` fail
+          # with a message that says nothing about the missing variable.
+          missing=""
+          [ -n "${ECS_CLUSTER}" ] || missing="${missing} ECS_CLUSTER"
+          [ -n "${PRIVATE_SUBNET_IDS}" ] || missing="${missing} PRIVATE_SUBNET_IDS"
+          [ -n "${ECS_SECURITY_GROUP_ID}" ] || missing="${missing} ECS_SECURITY_GROUP_ID"
+          [ -n "${ASSIGN_PUBLIC_IP}" ] || missing="${missing} ASSIGN_PUBLIC_IP"
+          if [ -n "${missing}" ]; then
+            echo "Missing Actions variables for the ${ENV_NAME} environment:${missing}" >&2
+            echo "Set them from \`terraform output\` in infra/aws/terraform/envs/${ENV_NAME}." >&2
+            exit 1
+          fi
+
+          {
+            echo "ENV_NAME=${ENV_NAME}"
+            echo "ENV_PREFIX=ai-catalyst-${ENV_NAME}"
+            echo "CLUSTER=${ECS_CLUSTER}"
+            echo "SUBNETS=${PRIVATE_SUBNET_IDS}"
+            echo "SECURITY_GROUP=${ECS_SECURITY_GROUP_ID}"
+            echo "ASSIGN_PUBLIC_IP=${ASSIGN_PUBLIC_IP}"
+          } >> "$GITHUB_ENV"
+
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -70,6 +109,20 @@ jobs:
 
       - name: Build and push images
         shell: bash
+        env:
+          # Browser-side Sentry has to be decided at build time — Next.js inlines
+          # NEXT_PUBLIC_* into the client bundle, so unlike SENTRY_DSN (which the
+          # task definition supplies to the server) this one cannot be added
+          # later. Unset leaves it empty and instrumentation-client.ts skips
+          # Sentry.init, so the build works with no repository variable
+          # configured.
+          NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+          # Same rule for PostHog — see apps/web/lib/analytics/posthog.ts.
+          # Staging and production should point at separate PostHog projects
+          # (separate repository variables per GitHub Environment) so test
+          # traffic never lands in the production project's funnels.
+          NEXT_PUBLIC_POSTHOG_KEY: ${{ vars.NEXT_PUBLIC_POSTHOG_KEY }}
+          NEXT_PUBLIC_POSTHOG_HOST: ${{ vars.NEXT_PUBLIC_POSTHOG_HOST }}
         run: |
           set -euo pipefail
 
@@ -80,9 +133,18 @@ jobs:
           API_REPO="${REGISTRY}/${ENV_PREFIX}/api"
           MCP_REPO="${REGISTRY}/${ENV_PREFIX}/mcp"
 
-          docker build -f apps/web/Dockerfile -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
+          docker build -f apps/web/Dockerfile \
+            --build-arg "RELEASE=${GITHUB_SHA}" \
+            --build-arg "NEXT_PUBLIC_RELEASE=${GITHUB_SHA}" \
+            --build-arg "NEXT_PUBLIC_APP_ENV=${ENV_NAME}" \
+            --build-arg "NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}" \
+            --build-arg "NEXT_PUBLIC_POSTHOG_KEY=${NEXT_PUBLIC_POSTHOG_KEY:-}" \
+            --build-arg "NEXT_PUBLIC_POSTHOG_HOST=${NEXT_PUBLIC_POSTHOG_HOST:-}" \
+            -t "${WEB_REPO}:${IMAGE_TAG}" -t "${WEB_REPO}:latest" .
           docker build -f apps/api/Dockerfile -t "${API_REPO}:${IMAGE_TAG}" -t "${API_REPO}:latest" .
-          docker build -f apps/mcp/Dockerfile -t "${MCP_REPO}:${IMAGE_TAG}" -t "${MCP_REPO}:latest" .
+          docker build -f apps/mcp/Dockerfile \
+            --build-arg "RELEASE=${GITHUB_SHA}" \
+            -t "${MCP_REPO}:${IMAGE_TAG}" -t "${MCP_REPO}:latest" .
 
           docker push "${WEB_REPO}:${IMAGE_TAG}"
           docker push "${WEB_REPO}:latest"
@@ -180,7 +242,7 @@ jobs:
               --cluster "${CLUSTER}" \
               --task-definition "${MCP_TASK_DEF_ARN}" \
               --launch-type FARGATE \
-              --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=ENABLED}" \
+              --network-configuration "awsvpcConfiguration={subnets=[${SUBNETS}],securityGroups=[${SECURITY_GROUP}],assignPublicIp=${ASSIGN_PUBLIC_IP}}" \
               --overrides "${overrides}" \
               --output json)"
 
@@ -207,18 +269,48 @@ jobs:
               --tasks "${task_arn}" \
               --output json)"
 
+            # Prefer an explicit success check. An empty/null exitCode (no
+            # "mcp" container, or ECS never recorded one) must not be treated
+            # the same as a non-zero failure — both fail the deploy, but with
+            # different diagnostics so CloudWatch/task dumps are actionable.
             local exit_code
-            exit_code="$(echo "${task_desc}" | jq -r '.tasks[0].containers[] | select(.name == "mcp") | .exitCode // empty')"
+            exit_code="$(echo "${task_desc}" | jq -r '
+              .tasks[0].containers[]
+              | select(.name == "mcp")
+              | .exitCode
+              | if . == null then empty else tostring end
+            ')"
+
+            if [ -z "${exit_code}" ]; then
+              echo "${label} task: could not read mcp container exit code." >&2
+              echo "${task_desc}" | jq '.tasks[0].containers // .tasks[0]' >&2
+              exit 1
+            fi
 
             if [ "${exit_code}" != "0" ]; then
-              echo "${label} task failed with exit code ${exit_code:-missing}." >&2
+              echo "${label} task failed with exit code ${exit_code}." >&2
               echo "${task_desc}" | jq '.tasks[0].containers[] | select(.name == "mcp")' >&2
+              # Best-effort: print the container's own stdout so seed/migrate
+              # ContentSeedError messages show up in the Actions log.
+              local task_id
+              task_id="$(echo "${task_arn}" | awk -F/ '{print $NF}')"
+              aws logs get-log-events \
+                --log-group-name "/ecs/${ENV_PREFIX}-mcp" \
+                --log-stream-name "mcp/mcp/${task_id}" \
+                --limit 100 \
+                --query 'events[].message' \
+                --output text >&2 || true
               exit 1
             fi
           }
 
           run_mcp_task "database migration" pnpm --filter @ai-catalyst/db run migrate
-          run_mcp_task "database seed" pnpm --filter @ai-catalyst/services run seed
+          # Content constants are the desired catalog. Curriculum edits that
+          # retire a Module key (e.g. Proof → Solution) archive the old row;
+          # --allow-archive is the seed CLI's confirmation for that write.
+          # Local `pnpm db:seed` still requires the flag so accidental archives
+          # stay hard to do by default.
+          run_mcp_task "database seed" pnpm --filter @ai-catalyst/services run seed -- --allow-archive
 
       - name: Update ECS services
         shell: bash

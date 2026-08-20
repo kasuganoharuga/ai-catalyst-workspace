@@ -24,16 +24,8 @@ export interface LocalStorageProviderOptions {
 }
 
 /**
- * Local-filesystem StorageProvider.
- *
- * `putObject` writes to a unique temp file under the resolved root, then
- * `fsync`s + closes it, then `rename()`s it onto the final key — the
- * entire two-step sequence happens inside this one call; callers never
- * know a temp file was involved.
- *
- * Acceptance note: this Provider currently only guarantees
- * single-process/test-suite usability for concurrent web/mcp access.
- * Cross-container sharing is the job of the S3 provider in cloud envs.
+ * Local-filesystem StorageProvider — atomic put via temp file + fsync + rename.
+ * Single-process/test use only; cross-container sharing belongs on S3.
  */
 export class LocalStorageProvider implements StorageProvider {
   private readonly rootDir: string;
@@ -41,7 +33,7 @@ export class LocalStorageProvider implements StorageProvider {
   constructor(options: LocalStorageProviderOptions) {
     if (!options.rootDir || !path.isAbsolute(options.rootDir)) {
       throw new Error(
-        "LocalStorageProvider requires an absolute rootDir (build StorageConfig at the composition root).",
+        "LocalStorageProvider requires an absolute rootDir (pass it via StorageConfig).",
       );
     }
     this.rootDir = options.rootDir;

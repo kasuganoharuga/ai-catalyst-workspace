@@ -1,17 +1,7 @@
-// Bytes-only contract — a Provider never learns about Workspace, Actor,
-// `storage_objects`, or the pending/uploaded/verified/failed/deleted
-// state machine. All of that business state lives in index.ts
-// (StorageService); a Provider only ever answers "is this exact key
-// present, and what does it look like at rest".
-//
-// Artifact download product default is stream-through-backend
-// (ArtifactService → getObject), not browser → signed URL → S3.
-// `createDownloadUrl` is an optional escape hatch on the provider;
-// business code must not depend on it.
-//
-// Type-only file: nothing here is imported by value, so it's a plain
-// relative import from every other file in this directory without needing
-// its own package.json exports entry.
+// Bytes-only provider contract: no Workspace/Actor/`storage_objects`
+// awareness. Business state lives in StorageService (index.ts).
+// Downloads default to getObject (stream through backend);
+// createDownloadUrl is optional and must not be required by callers.
 
 export interface PutObjectInput {
   key: string;
@@ -45,16 +35,7 @@ export interface ProviderObjectMetadata {
 }
 
 export interface StorageProvider {
-  /**
-   * Atomically makes the complete object available at `key`. A partial
-   * object must never be observable at the final key — implementations
-   * (e.g. LocalStorageProvider's temp-file-then-rename) enforce this
-   * entirely internally, within this single call; callers never see or
-   * manage a separate "promote"/"commit" step. Overwriting an existing
-   * key is allowed at this layer (the Service's hash-comparison /
-   * immutability rules for `verified` objects live above this
-   * interface, not here).
-   */
+  /** Atomic put at final key — partial objects never visible; verified immutability is above this layer. */
   putObject(input: PutObjectInput): Promise<ProviderObjectMetadata>;
 
   /** Throws if no object exists at `key`. */
@@ -73,11 +54,7 @@ export interface StorageProvider {
   /** A missing object at `key` is not an error — deletion is idempotent. */
   deleteObject(key: string): Promise<void>;
 
-  /**
-   * Optional time-limited URL for direct download. Product default remains
-   * permissioned streaming via getObject; do not call this from Artifact
-   * business flows unless a use case explicitly needs a signed/direct URL.
-   */
+  /** Optional signed URL — product default is permissioned getObject streaming. */
   createDownloadUrl(input: DownloadUrlInput): Promise<DownloadUrl>;
 
   /** Copy within the same container; destination overwrite is allowed. */

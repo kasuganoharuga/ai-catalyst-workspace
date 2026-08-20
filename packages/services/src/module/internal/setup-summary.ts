@@ -1,21 +1,6 @@
-// Renders Module 0's `Founder-Toolkit-Setup-Summary.md` — a pure,
-// DB/Storage-free function (same "pure function" convention as the
-// Validators in artifact/internal/validators) so it can be unit-tested
-// without a database. Mirrors the structure of
-// content-seed/content/module-0.ts's own SETUP_SUMMARY_TEMPLATE (kept as
-// a plain literal here rather than parsed from that stored template
-// string — there is exactly one caller, and hand-written Markdown is far
-// less fragile than templating a "- Label:" bullet list at runtime).
-//
-// Deliberately does NOT try to embed this document's own content SHA-256
-// or version number in its own body — StorageService only knows a
-// version's checksum/version_number after saveArtifactSubmission has
-// already stored the exact bytes being described, so any value written
-// here would necessarily describe a *different* set of bytes than what
-// actually gets saved. The "Platform Storage" section instead states the
-// verification outcome in words: source doc §0.5's Setup Summary is
-// informational (validator_key is null; nothing gates on its content),
-// not a business artefact whose own hash needs to be self-referenced.
+// --- Module 0 setup summary ---
+// Pure Markdown renderer for unit tests — mirrors module-0.ts template shape
+// as a literal (one caller). No self SHA-256; bytes unknown until after save.
 
 export interface SetupSummaryRenderInput {
   workspaceName: string;
@@ -28,12 +13,17 @@ export interface SetupSummaryRenderInput {
   nextModuleTitle: string | null;
 }
 
-export function renderSetupSummaryMarkdown(input: SetupSummaryRenderInput): string {
+export function renderSetupSummaryMarkdown(
+  input: SetupSummaryRenderInput,
+): string {
   const storageStatusLine = input.storageVerified
     ? "Verified — write, read-back, and hash checks all passed"
     : "Repair required — see the Founder Toolkit setup page";
-  const moduleZeroStatusLine = input.storageVerified ? "Completed" : "Repair required";
-  const nextModuleLine = input.nextModuleTitle ?? "None — this is the last Module in the Program";
+  const moduleZeroStatusLine = input.storageVerified
+    ? "Completed"
+    : "Repair required";
+  const nextModuleLine =
+    input.nextModuleTitle ?? "None — this is the last Module in the Program";
 
   return `# Founder Toolkit Setup Summary
 

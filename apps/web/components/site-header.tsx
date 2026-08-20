@@ -2,15 +2,14 @@ import Link from "next/link";
 
 import { Logo } from "@/components/logo";
 
-// "Toolkit Preview" (public, manifest-backed) and "My Modules" (Founder-only,
-// database-backed catalog under the (app) route group) are deliberately two
-// separate entry points with two separate labels — the destination route's
-// own guard (requireFounderUser et al.) handles the unauthenticated/pending/
-// wrong-role redirects, the same way it already does for "Dashboard" and
-// "Admin" below.
+// Each destination route's own guard (requireFounderUser et al.) handles the
+// unauthenticated/pending/wrong-role redirects. "Dashboard" covers both
+// Founder and Mentor accounts — that route renders different content per
+// role (see app/(app)/dashboard/page.tsx) rather than needing its own link
+// here. Mentors also use Dashboard; their founder directory is /founders.
+// The public "Downloads" gallery of Skill files was retired; module
+// content now reaches the Founder through the AI assistant and artefacts.
 const navigation = [
-  { href: "/toolkit", label: "Toolkit Preview" },
-  { href: "/downloads", label: "Downloads" },
   { href: "/modules", label: "My Modules" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/admin", label: "Admin" },

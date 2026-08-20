@@ -23,7 +23,7 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: "AI Catalyst Founder Toolkit",
   description:
-    "A guided programme that takes a founder's raw idea apart and rebuilds it into a business case worth backing.",
+    "A guided program that takes a founder's raw idea apart and rebuilds it into a business case worth backing.",
   // `app/icon.png` (Catalyst logo) is the App Router tab icon; public path
   // kept for apple-touch and explicit link tags.
   icons: {

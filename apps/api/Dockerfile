@@ -9,6 +9,8 @@ COPY apps/api/requirements.txt requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY apps/api .
+# Shared deny-list with packages/observability (single source of truth).
+COPY packages/observability/denied-keys.json app/core/denied-keys.json
 
 EXPOSE 8000
 

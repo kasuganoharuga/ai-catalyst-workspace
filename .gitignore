@@ -165,6 +165,7 @@ Thumbs.db
 
 # Cursor / agent local files
 .cursor/
+.claude/
 
 # Private generated files
 local/
@@ -175,6 +176,10 @@ private/
 # (packages/services/src/storage/providers/local.ts) — never committed,
 # same as any other runtime data directory.
 .data/
+
+# Review screenshots from apps/web/scripts/capture-onboarding.ts. Large,
+# regenerated on demand, and they'd churn on every copy or layout change.
+apps/web/screenshots/
 
 # Terraform local state / secrets (remote state is S3 + DynamoDB lock)
 **/.terraform/

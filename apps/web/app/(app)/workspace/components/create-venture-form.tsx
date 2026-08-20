@@ -1,5 +1,8 @@
 "use client";
 
+import { Button } from "@/components/ui/button";
+
+import { workspaceCopy } from "../../lib/copy";
 import { useCreateVentureForm } from "../hooks/use-create-venture-form";
 
 export function CreateVentureForm() {
@@ -15,16 +18,23 @@ export function CreateVentureForm() {
     handleSubmit,
   } = useCreateVentureForm();
 
+  // Field styling matches profile/components/profile-form.tsx. This form
+  // was still on an older set — pill button, 0.2em uppercase labels,
+  // rounded-xl inputs — which made the same action look like two products
+  // depending on which page you reached it from.
+  const inputClass =
+    "w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-foreground focus:ring-1 focus:ring-foreground";
+
   return (
-    <div className="mt-8 rounded-2xl border border-border bg-card p-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <div className="mt-8 rounded-xl border border-border bg-card p-6">
+      <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Field label="Name">
           <input
             type="text"
-            required
             value={name}
             onChange={(event) => setName(event.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+            placeholder="Investor pipeline for founders"
+            className={inputClass}
           />
         </Field>
         <Field label="One-liner (optional)">
@@ -32,7 +42,7 @@ export function CreateVentureForm() {
             type="text"
             value={oneLiner}
             onChange={(event) => setOneLiner(event.target.value)}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+            className={inputClass}
           />
         </Field>
         <Field label="Summary (optional)">
@@ -40,7 +50,7 @@ export function CreateVentureForm() {
             value={summary}
             onChange={(event) => setSummary(event.target.value)}
             rows={3}
-            className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm outline-none focus:border-foreground focus:ring-2 focus:ring-ring/50"
+            className={inputClass}
           />
         </Field>
 
@@ -50,13 +60,9 @@ export function CreateVentureForm() {
           </p>
         ) : null}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition hover:brightness-95 disabled:opacity-50"
-        >
-          {isSubmitting ? "Creating Venture..." : "Create Venture"}
-        </button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? workspaceCopy.creatingIdea : workspaceCopy.createIdea}
+        </Button>
       </form>
     </div>
   );
@@ -70,10 +76,8 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <label className="block">
-      <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {label}
-      </span>
+    <label className="block space-y-2">
+      <span className="block text-sm text-muted-foreground">{label}</span>
       {children}
     </label>
   );

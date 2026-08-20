@@ -2,30 +2,57 @@ import type { PoolClient } from "pg";
 
 import { diffFields, diffKeySets } from "../compare.js";
 import { ContentSeedError } from "../errors.js";
-import type { ModulePromptBindingContent, PromptContent } from "../types.js";
+import type {
+  ContentLock,
+  ModulePromptBindingContent,
+  PromptContent,
+} from "../types.js";
 import type { ReconciledModule } from "./modules.js";
 
 export interface ReconciledPromptVersion {
   promptKey: string;
   promptVersionId: string;
   status: "draft" | "published" | "retired";
+  contentLock: ContentLock;
 }
 
-const DEFINITION_FIELDS = ["name", "description", "prompt_type"] as const;
-const VERSION_FIELDS = ["content", "content_format", "variable_config"] as const;
+// Same formula as db/program.ts's isProgramVersionContentEditable — a
+// prompt_version's own status/content_lock decide whether ITS content may
+// be edited in place, independent of which program_version is currently
+// seeding it (a prompt is global and may be bound to several).
+function isPromptVersionContentEditable(row: {
+  status: string;
+  content_lock: ContentLock;
+}): boolean {
+  return (
+    row.status === "draft" ||
+    (row.status === "published" && row.content_lock === "mutable")
+  );
+}
+
+const DEFINITION_METADATA_FIELDS = ["name", "description"] as const;
+const VERSION_FIELDS = [
+  "content",
+  "content_format",
+  "variable_config",
+] as const;
 
 // prompt_definitions has no draft/published lifecycle of its own — its
-// status is only active/archived, meaning "currently offered", not a
-// content-editability gate. Unlike the module_* tables, there is no
-// escape hatch here: any identity mismatch is always rejected.
+// status is only active/archived. Catalog metadata (name/description) may
+// be corrected in place so deploys can republish prompt copy without a
+// manual staging UPDATE. prompt_type is structural identity and still
+// rejected on mismatch; published prompt_versions.content stays immutable.
 async function reconcilePromptDefinition(
   client: PoolClient,
   prompt: PromptContent,
 ): Promise<string> {
-  const existing = await client.query<
-    { id: string } & Record<(typeof DEFINITION_FIELDS)[number], unknown>
-  >(
-    `select id, ${DEFINITION_FIELDS.join(", ")}
+  const existing = await client.query<{
+    id: string;
+    name: string;
+    description: string | null;
+    prompt_type: string;
+  }>(
+    `select id, name, description, prompt_type
      from prompt_definitions
      where prompt_key = $1`,
     [prompt.promptKey],
@@ -43,37 +70,55 @@ async function reconcilePromptDefinition(
       `insert into prompt_definitions (prompt_key, name, description, prompt_type)
        values ($1, $2, $3, $4)
        returning id`,
-      [prompt.promptKey, expected.name, expected.description, expected.prompt_type],
+      [
+        prompt.promptKey,
+        expected.name,
+        expected.description,
+        expected.prompt_type,
+      ],
     );
     return inserted.rows[0].id;
   }
 
-  const differing = diffFields(expected, row, DEFINITION_FIELDS);
-  if (differing.length > 0) {
+  if (row.prompt_type !== expected.prompt_type) {
     throw new ContentSeedError(
       "PUBLISHED_CONTENT_MISMATCH",
-      `prompt_definitions "${prompt.promptKey}" already exists with a different ${differing.join("/")} ` +
-        "than the content constants. prompt_definitions identity is not editable by this script.",
+      `prompt_definitions "${prompt.promptKey}" already exists with a different prompt_type ` +
+        "than the content constants. prompt_type is not editable by this script.",
     );
   }
+
+  const differing = diffFields(expected, row, DEFINITION_METADATA_FIELDS);
+  if (differing.length === 0) {
+    return row.id;
+  }
+
+  await client.query(
+    `update prompt_definitions
+     set name = $1, description = $2
+     where id = $3`,
+    [expected.name, expected.description, row.id],
+  );
   return row.id;
 }
 
-// prompt_versions has its own draft -> published -> retired lifecycle
-// (enforced additionally by a `prompt_versions_freeze` DB trigger),
-// independent of the parent program_version's status.
+// prompt_versions lifecycle is independent (global, multi-program) — editability
+// follows isPromptVersionContentEditable. programContentLock only seeds new rows
+// and cross-checks CONTENT_LOCK_INCONSISTENT when a frozen program still has a mutable prompt.
 async function reconcilePromptVersion(
   client: PoolClient,
   promptDefinitionId: string,
   prompt: PromptContent,
+  programContentLock: ContentLock,
 ): Promise<ReconciledPromptVersion> {
   const existing = await client.query<
-    { id: string; status: "draft" | "published" | "retired" } & Record<
-      (typeof VERSION_FIELDS)[number],
-      unknown
-    >
+    {
+      id: string;
+      status: "draft" | "published" | "retired";
+      content_lock: ContentLock;
+    } & Record<(typeof VERSION_FIELDS)[number], unknown>
   >(
-    `select id, status, ${VERSION_FIELDS.join(", ")}
+    `select id, status, content_lock, ${VERSION_FIELDS.join(", ")}
      from prompt_versions
      where prompt_definition_id = $1 and version_number = $2`,
     [promptDefinitionId, prompt.versionNumber],
@@ -87,22 +132,29 @@ async function reconcilePromptVersion(
 
   const row = existing.rows[0];
   if (!row) {
-    const inserted = await client.query<{ id: string; status: "draft" | "published" | "retired" }>(
-      `insert into prompt_versions (prompt_definition_id, version_number, content, content_format, variable_config)
-       values ($1, $2, $3, $4, $5)
-       returning id, status`,
+    const inserted = await client.query<{
+      id: string;
+      status: "draft" | "published" | "retired";
+      content_lock: ContentLock;
+    }>(
+      `insert into prompt_versions
+         (prompt_definition_id, version_number, content, content_format, variable_config, content_lock)
+       values ($1, $2, $3, $4, $5, $6)
+       returning id, status, content_lock`,
       [
         promptDefinitionId,
         prompt.versionNumber,
         expected.content,
         expected.content_format,
         JSON.stringify(expected.variable_config),
+        programContentLock,
       ],
     );
     return {
       promptKey: prompt.promptKey,
       promptVersionId: inserted.rows[0].id,
       status: inserted.rows[0].status,
+      contentLock: inserted.rows[0].content_lock,
     };
   }
 
@@ -113,12 +165,30 @@ async function reconcilePromptVersion(
     );
   }
 
-  const differing = diffFields(expected, row, VERSION_FIELDS);
-  if (differing.length === 0) {
-    return { promptKey: prompt.promptKey, promptVersionId: row.id, status: row.status };
+  // Program frozen but this prompt_version still mutable: db:freeze's
+  // cascade should have frozen every reachable prompt_version, so this
+  // means it missed one — a bug to surface loudly, not silently ignore,
+  // regardless of whether content also differs.
+  if (programContentLock === "frozen" && row.content_lock === "mutable") {
+    throw new ContentSeedError(
+      "CONTENT_LOCK_INCONSISTENT",
+      `prompt_versions for "${prompt.promptKey}" v${prompt.versionNumber} is content_lock='mutable' but ` +
+        "the program_version seeding it is content_lock='frozen'. This program_version's db:freeze run " +
+        "should have frozen this prompt_version too — check its shared-prompt preflight.",
+    );
   }
 
-  if (row.status === "published") {
+  const differing = diffFields(expected, row, VERSION_FIELDS);
+  if (differing.length === 0) {
+    return {
+      promptKey: prompt.promptKey,
+      promptVersionId: row.id,
+      status: row.status,
+      contentLock: row.content_lock,
+    };
+  }
+
+  if (!isPromptVersionContentEditable(row)) {
     throw new ContentSeedError(
       "PUBLISHED_CONTENT_MISMATCH",
       `prompt_versions for "${prompt.promptKey}" v${prompt.versionNumber} is already published and its ` +
@@ -126,17 +196,27 @@ async function reconcilePromptVersion(
     );
   }
 
-  const updated = await client.query<{ id: string; status: "draft" | "published" | "retired" }>(
+  const updated = await client.query<{
+    id: string;
+    status: "draft" | "published" | "retired";
+    content_lock: ContentLock;
+  }>(
     `update prompt_versions
      set content = $1, content_format = $2, variable_config = $3
      where id = $4
-     returning id, status`,
-    [expected.content, expected.content_format, JSON.stringify(expected.variable_config), row.id],
+     returning id, status, content_lock`,
+    [
+      expected.content,
+      expected.content_format,
+      JSON.stringify(expected.variable_config),
+      row.id,
+    ],
   );
   return {
     promptKey: prompt.promptKey,
     promptVersionId: updated.rows[0].id,
     status: updated.rows[0].status,
+    contentLock: updated.rows[0].content_lock,
   };
 }
 
@@ -148,31 +228,44 @@ async function reconcilePromptVersion(
 export async function reconcilePrompts(
   client: PoolClient,
   prompts: PromptContent[],
+  programContentLock: ContentLock,
 ): Promise<ReconciledPromptVersion[]> {
   const results: ReconciledPromptVersion[] = [];
   for (const prompt of prompts) {
     const promptDefinitionId = await reconcilePromptDefinition(client, prompt);
-    results.push(await reconcilePromptVersion(client, promptDefinitionId, prompt));
+    results.push(
+      await reconcilePromptVersion(
+        client,
+        promptDefinitionId,
+        prompt,
+        programContentLock,
+      ),
+    );
   }
   return results;
 }
 
 /**
- * Reconciles module_prompt_bindings for every Module that has expected
- * bindings. Performs its own graph completeness check per Module (extra
- * bindings not present in the content constants are rejected), mirroring
- * reconcileModules' question/artifact checks.
+ * Reconciles module_prompt_bindings per Module. Stale bindings are hard-deleted
+ * (not archived — module/context.ts would still serve them) when content-editable
+ * and allowArchive; otherwise rejected like reconcileModules graph changes.
  */
 export async function reconcileModulePromptBindings(
   client: PoolClient,
-  isDraftEditable: boolean,
+  isContentEditable: boolean,
+  allowArchive: boolean,
   modules: ReconciledModule[],
   promptVersions: ReconciledPromptVersion[],
   bindings: ModulePromptBindingContent[],
 ): Promise<void> {
-  const moduleIdByKey = new Map(modules.map((module) => [module.moduleKey, module.moduleId]));
+  const moduleIdByKey = new Map(
+    modules.map((module) => [module.moduleKey, module.moduleId]),
+  );
   const promptVersionIdByKey = new Map(
-    promptVersions.map((version) => [version.promptKey, version.promptVersionId]),
+    promptVersions.map((version) => [
+      version.promptKey,
+      version.promptVersionId,
+    ]),
   );
 
   const bindingsByModuleKey = new Map<string, ModulePromptBindingContent[]>();
@@ -186,12 +279,17 @@ export async function reconcileModulePromptBindings(
     const moduleId = moduleIdByKey.get(module.moduleKey);
     if (!moduleId) {
       // Cannot happen: `modules` is the reconciler's own return value.
-      throw new Error(`Internal error: module "${module.moduleKey}" was not reconciled.`);
+      throw new Error(
+        `Internal error: module "${module.moduleKey}" was not reconciled.`,
+      );
     }
 
     const expectedBindings = bindingsByModuleKey.get(module.moduleKey) ?? [];
 
-    const actual = await client.query<{ purpose: string; sequence_index: number }>(
+    const actual = await client.query<{
+      purpose: string;
+      sequence_index: number;
+    }>(
       `select purpose, sequence_index from module_prompt_bindings where module_definition_id = $1`,
       [moduleId],
     );
@@ -199,13 +297,31 @@ export async function reconcileModulePromptBindings(
     const expectedKeys = expectedBindings.map(
       (binding) => `${binding.purpose}:${binding.sequenceIndex}`,
     );
-    const actualKeys = actual.rows.map((row) => `${row.purpose}:${row.sequence_index}`);
+    const actualKeys = actual.rows.map(
+      (row) => `${row.purpose}:${row.sequence_index}`,
+    );
     const { extra } = diffKeySets(expectedKeys, actualKeys);
     if (extra.length > 0) {
-      throw new ContentSeedError(
-        "CONTENT_GRAPH_MISMATCH",
-        `module_prompt_bindings for "${module.moduleKey}" has unexpected rows not present in the content constants: ${extra.join(", ")}.`,
-      );
+      if (!isContentEditable) {
+        throw new ContentSeedError(
+          "CONTENT_GRAPH_MISMATCH",
+          `module_prompt_bindings for "${module.moduleKey}" has unexpected rows not present in the content constants: ${extra.join(", ")}, and its program_version is not content-editable.`,
+        );
+      }
+      if (!allowArchive) {
+        throw new ContentSeedError(
+          "DESTRUCTIVE_CONTENT_CHANGE_NOT_ALLOWED",
+          `This seed run would delete ${extra.length} module_prompt_bindings row(s) for "${module.moduleKey}" ` +
+            `(${extra.join(", ")}). Pass --allow-archive (or set ALLOW_DESTRUCTIVE_CONTENT_CHANGE=1) to confirm this is intentional.`,
+        );
+      }
+      for (const key of extra) {
+        const [purpose, sequenceIndexText] = key.split(":");
+        await client.query(
+          `delete from module_prompt_bindings where module_definition_id = $1 and purpose = $2 and sequence_index = $3`,
+          [moduleId, purpose, Number(sequenceIndexText)],
+        );
+      }
     }
 
     for (const binding of expectedBindings) {
@@ -216,7 +332,11 @@ export async function reconcileModulePromptBindings(
         );
       }
 
-      const existing = await client.query<{ id: string; prompt_version_id: string; is_required: boolean }>(
+      const existing = await client.query<{
+        id: string;
+        prompt_version_id: string;
+        is_required: boolean;
+      }>(
         `select id, prompt_version_id, is_required
          from module_prompt_bindings
          where module_definition_id = $1 and purpose = $2 and sequence_index = $3`,
@@ -228,14 +348,23 @@ export async function reconcileModulePromptBindings(
         await client.query(
           `insert into module_prompt_bindings (module_definition_id, prompt_version_id, purpose, sequence_index, is_required)
            values ($1, $2, $3, $4, $5)`,
-          [moduleId, promptVersionId, binding.purpose, binding.sequenceIndex, binding.isRequired],
+          [
+            moduleId,
+            promptVersionId,
+            binding.purpose,
+            binding.sequenceIndex,
+            binding.isRequired,
+          ],
         );
         continue;
       }
 
       const differing = diffFields(
         { prompt_version_id: promptVersionId, is_required: binding.isRequired },
-        { prompt_version_id: row.prompt_version_id, is_required: row.is_required },
+        {
+          prompt_version_id: row.prompt_version_id,
+          is_required: row.is_required,
+        },
         ["prompt_version_id", "is_required"],
       );
 
@@ -246,12 +375,12 @@ export async function reconcileModulePromptBindings(
       // module_prompt_bindings has no lifecycle field of its own — like
       // module_definitions/module_questions/artifact_definitions, its
       // immutability once published is enforced here, not by a DB trigger.
-      if (!isDraftEditable) {
+      if (!isContentEditable) {
         throw new ContentSeedError(
           "PUBLISHED_CONTENT_MISMATCH",
           `module_prompt_bindings for "${module.moduleKey}" purpose="${binding.purpose}" ` +
             `sequence_index=${binding.sequenceIndex} no longer matches the content constants ` +
-            `(fields: ${differing.join(", ")}), and its program_version is no longer draft.`,
+            `(fields: ${differing.join(", ")}), and its program_version is not content-editable.`,
         );
       }
 

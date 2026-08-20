@@ -18,11 +18,14 @@ async def request_id_middleware(
     response.headers["X-Request-ID"] = request_id
 
     logger.info(
-        "request_completed method=%s path=%s status_code=%s request_id=%s",
-        request.method,
-        request.url.path,
-        response.status_code,
-        request_id,
+        "request completed",
+        extra={
+            "event": "http_request_completed",
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+        },
     )
 
     return response

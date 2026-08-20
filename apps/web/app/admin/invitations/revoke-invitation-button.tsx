@@ -1,52 +1,123 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { toast } from "sonner";
+
+import {
+  revokeInvitationAction,
+  revokeMentorInvitationAction,
+} from "@/lib/actions/admin-actions";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toastCopy } from "@/app/(app)/lib/copy";
+
+import { adminActionCopy } from "../lib/copy";
 
 export function RevokeInvitationButton({
   invitationId,
+  inviteRole,
 }: {
   invitationId: string;
+  inviteRole: "founder" | "mentor";
 }) {
   const router = useRouter();
-  const [isRevoking, setIsRevoking] = useState(false);
+  const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
-  async function handleRevoke() {
+  function handleCancel() {
+    if (isPending) return;
+    setOpen(false);
     setError(null);
-    setIsRevoking(true);
+  }
 
-    const response = await fetch(
-      `/api/admin/invitations/${invitationId}/revoke`,
-      { method: "POST" },
-    );
+  function handleConfirm() {
+    setError(null);
+    startTransition(async () => {
+      const revoke =
+        inviteRole === "mentor"
+          ? revokeMentorInvitationAction
+          : revokeInvitationAction;
 
-    setIsRevoking(false);
-
-    if (!response.ok) {
-      const body = await response.json().catch(() => null);
-      setError(body?.error?.message ?? "Failed to revoke invitation.");
-      return;
-    }
-
-    router.refresh();
+      const result = await revoke(invitationId);
+      if (!result.ok) {
+        setError(result.message);
+        toast.error(toastCopy.actionFailedTitle, {
+          description: result.message,
+        });
+        return;
+      }
+      setOpen(false);
+      toast.success(adminActionCopy.inviteRevoked);
+      router.refresh();
+    });
   }
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <button
+      <Button
         type="button"
-        onClick={handleRevoke}
-        disabled={isRevoking}
-        className="rounded-full border border-border px-4 py-2 text-xs font-semibold text-foreground transition hover:border-foreground disabled:opacity-50"
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          setError(null);
+          setOpen(true);
+        }}
+        disabled={isPending}
       >
-        {isRevoking ? "Revoking..." : "Revoke"}
-      </button>
-      {error ? (
-        <p role="alert" className="text-xs text-destructive">
-          {error}
-        </p>
-      ) : null}
+        Revoke
+      </Button>
+
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) handleCancel();
+          else setOpen(true);
+        }}
+      >
+        <DialogContent showCloseButton={!isPending}>
+          <DialogHeader>
+            <DialogTitle>Revoke invitation?</DialogTitle>
+            <DialogDescription>
+              The one-time code will stop working. You can send a new invite
+              later if needed.
+            </DialogDescription>
+          </DialogHeader>
+
+          {error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          ) : null}
+
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancel}
+              disabled={isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirm}
+              disabled={isPending}
+            >
+              {isPending ? "Revoking…" : "Revoke"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

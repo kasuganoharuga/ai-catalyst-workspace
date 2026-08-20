@@ -1,4 +1,22 @@
-aws_region            = "ap-southeast-2"
-artifact_bucket_name  = "ai-catalyst-artifacts-staging"
-ses_email_identity    = "noreply@example.com"
-db_password           = "replace-me-with-a-strong-password"
+aws_region           = "ap-southeast-2"
+artifact_bucket_name = "ai-catalyst-artifacts-staging"
+ses_email_identity   = "noreply@example.com"
+db_password          = "replace-me-with-a-strong-password"
+
+# Required. Becomes AUTH_ISSUER_URL and the root of MCP_RESOURCE_URL; apps/web
+# and apps/mcp both assert these at startup. Must match the certificate and DNS
+# record exactly — scheme, apex vs www, no trailing slash.
+public_base_url = "https://staging.example.com"
+
+# Optional here. Empty leaves the ALB refusing every request with the port-80
+# "use HTTPS" response, which is survivable for staging and is not for
+# production.
+certificate_arn = ""
+
+# Optional here. Empty means alarms fire into an SNS topic nobody is
+# subscribed to.
+alarm_email = ""
+
+# Optional. Server-side only; the browser DSN is a Docker build arg set in
+# .github/workflows/deploy-aws.yml.
+sentry_dsn = ""
