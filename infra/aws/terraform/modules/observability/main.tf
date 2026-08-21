@@ -182,6 +182,14 @@ locals {
     api = var.api_service_name
     mcp = var.mcp_service_name
   }
+
+  # API is the reserved FastAPI AI service and may sit at desired_count = 0.
+  # Alarming on RunningTaskCount < 1 would page continuously while it is
+  # parked. CPU/memory alarms still cover it if it is ever started.
+  ecs_services_that_must_run = {
+    web = var.web_service_name
+    mcp = var.mcp_service_name
+  }
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_cpu_high" {
@@ -229,7 +237,7 @@ resource "aws_cloudwatch_metric_alarm" "ecs_memory_high" {
 }
 
 resource "aws_cloudwatch_metric_alarm" "ecs_running_count_low" {
-  for_each = local.ecs_services
+  for_each = local.ecs_services_that_must_run
 
   alarm_name          = "${var.name}-${each.key}-running-count-low"
   alarm_description   = "ECS ${each.key} running task count below 1"
