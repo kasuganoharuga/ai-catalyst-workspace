@@ -66,7 +66,11 @@ export function ArtefactDocumentRow({
   const readHref = saved
     ? `${artefactsBasePath ?? ""}${artefactPath}`
     : `/modules/${encodeURIComponent(artefact.moduleKey)}`;
-  const downloadHref = `${artefactPath}/download`;
+  // Mentor rows prefix reads with artefactsBasePath (/founders/{workspaceId});
+  // download must match, or a Mentor's download link 404s into the
+  // Founder-only route instead of the Mentor one at
+  // founders/[workspaceId]/artefacts/.../download/route.ts.
+  const downloadHref = `${artefactsBasePath ?? ""}${artefactPath}/download`;
 
   return (
     <div

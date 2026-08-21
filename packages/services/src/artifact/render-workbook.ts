@@ -8,36 +8,15 @@ import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 
 import type { ArtifactServiceDependencies } from "@ai-catalyst/services/artifact/internal/dependencies";
 import { resolveAttemptContextForFounder } from "@ai-catalyst/services/artifact/internal/attempt-context";
+import { loadProgramVersionNumber } from "@ai-catalyst/services/artifact/internal/program-version";
 import {
   loadArtifactDefinitionByKey,
   loadLatestSubmission,
 } from "@ai-catalyst/services/artifact/internal/submission-load";
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
 import type {
   Provenance,
   WorkbookRenderOptions,
 } from "@ai-catalyst/services/artifact/internal/renderers/types";
-
-async function loadProgramVersionNumber(
-  executor: QueryExecutor,
-  programRunId: string,
-): Promise<number> {
-  const result = await executor.query<{ version_number: number }>(
-    `select pv.version_number
-     from program_runs pr
-     join program_versions pv on pv.id = pr.program_version_id
-     where pr.id = $1`,
-    [programRunId],
-  );
-  const row = result.rows[0];
-  if (!row) {
-    throw new ServiceError(
-      "INTERNAL_INVARIANT_ERROR",
-      `program_run ${programRunId} has no resolvable program_version.`,
-    );
-  }
-  return row.version_number;
-}
 
 export interface RenderArtifactWorkbookInput {
   attemptId: string;

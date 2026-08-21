@@ -9,6 +9,7 @@ export type { ArtifactServiceDependencies } from "@ai-catalyst/services/artifact
 
 export * from "@ai-catalyst/services/artifact/submission";
 export * from "@ai-catalyst/services/artifact/render-workbook";
+export * from "@ai-catalyst/services/artifact/export-document";
 export * from "@ai-catalyst/services/artifact/draft-check";
 export * from "@ai-catalyst/services/artifact/official-validation";
 export * from "@ai-catalyst/services/artifact/latest-validation";

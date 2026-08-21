@@ -138,7 +138,7 @@ export default async function MentorFounderDetailPage({
                   key={`${group.moduleKey}:${group.sortIndex}`}
                   group={group}
                   artefactsBasePath={artefactsBasePath}
-                  showDownload={false}
+                  showDownload
                 />
               ))}
             </div>

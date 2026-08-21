@@ -8,6 +8,7 @@ import type {
   WorkspaceStatus,
 } from "@ai-catalyst/shared";
 
+import { artifactMarkdownHasTables } from "@ai-catalyst/services/artifact/internal/markdown-sections";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
@@ -28,7 +29,7 @@ import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
  * Workspace exists (enumeration oracle). The existence check stays even in
  * the "sees all" mode, so a bogus id still resolves to NOT_FOUND.
  */
-async function assertMentorOwnsWorkspace(
+export async function assertMentorOwnsWorkspace(
   actor: ActorContext,
   workspaceId: string,
 ): Promise<void> {
@@ -144,6 +145,7 @@ interface ArtefactSummaryRow {
   required_filename: string | null;
   version_number: number;
   saved_at: Date;
+  renderer_key: string | null;
 }
 
 function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
@@ -154,6 +156,7 @@ function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
     requiredFilename: row.required_filename,
     versionNumber: row.version_number,
     savedAt: row.saved_at.toISOString(),
+    workbookAvailable: row.renderer_key !== null,
   };
 }
 
@@ -166,7 +169,8 @@ const MENTOR_ARTEFACT_QUERY = `
     d.name,
     d.required_filename,
     s.version_number,
-    coalesce(s.submitted_at, s.updated_at) as saved_at
+    coalesce(s.submitted_at, s.updated_at) as saved_at,
+    d.renderer_key
   from program_run_modules m
   join module_definitions md on md.id = m.module_definition_id
   join module_attempts a on a.program_run_module_id = m.id
@@ -284,7 +288,8 @@ export async function getMentorArtefactDocument(
        d.required_filename,
        s.version_number,
        coalesce(s.submitted_at, s.updated_at) as saved_at,
-       f.storage_object_id as primary_storage_object_id
+       f.storage_object_id as primary_storage_object_id,
+       d.renderer_key
      from program_run_modules m
      join module_attempts a on a.program_run_module_id = m.id
      join artifact_submissions s on s.module_attempt_id = a.id
@@ -314,5 +319,6 @@ export async function getMentorArtefactDocument(
     ...mapArtefactSummaryRow(row),
     moduleTitle: row.module_title,
     content,
+    tablesAvailable: artifactMarkdownHasTables(content),
   };
 }

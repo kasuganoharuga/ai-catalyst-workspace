@@ -49,6 +49,7 @@ function statusForCode(code: ServiceErrorCode): number {
     case "ATTEMPT_NOT_AWAITING_VALIDATION":
     case "WORKBOOK_RENDERER_NOT_CONFIGURED":
     case "WORKBOOK_SOURCE_NOT_CONFIRMED":
+    case "ARTIFACT_HAS_NO_TABLES":
       return 409;
     case "WORKBOOK_SOURCE_INTEGRITY_FAILED":
     case "WORKBOOK_RENDER_FAILED":

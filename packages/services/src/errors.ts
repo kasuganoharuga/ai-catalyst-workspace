@@ -29,6 +29,7 @@ export type ServiceErrorCode =
   | "WORKBOOK_SOURCE_NOT_CONFIRMED" // No confirmed submission to build workbook from.
   | "WORKBOOK_SOURCE_INTEGRITY_FAILED" // Stored bytes ≠ checksum (500).
   | "WORKBOOK_RENDER_FAILED" // Renderer/content bug (500).
+  | "ARTIFACT_HAS_NO_TABLES" // xlsx export requested but the Markdown has no GFM table.
   | "EVIDENCE_NOT_CONFIRMED" // Module 4 evidence not confirmed on website.
   | "EVIDENCE_FROZEN_FOR_ATTEMPT" // Module 4 attempt already pinned evidence snapshot.
   | "MODULE_4_INTERVIEW_EVIDENCE_MISSING" // complete_module without pinned evidence.

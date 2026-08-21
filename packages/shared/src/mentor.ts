@@ -38,6 +38,8 @@ export interface MentorArtefactSummary {
   versionNumber: number;
   /** Official submit time when there is one, else the last write. */
   savedAt: string;
+  /** A confirmed submission exists and a renderer is configured — the fillable PDF download can render. */
+  workbookAvailable: boolean;
 }
 
 /** A single Founder's progress, as shown on the Mentor's detail page. */
@@ -51,4 +53,6 @@ export interface MentorFounderDetail {
 export interface MentorArtefactDocument extends MentorArtefactSummary {
   moduleTitle: string;
   content: string;
+  /** At least one GFM table exists in `content` — gates the Excel download option. */
+  tablesAvailable: boolean;
 }

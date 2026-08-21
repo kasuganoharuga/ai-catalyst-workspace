@@ -2,7 +2,10 @@ import { cache } from "react";
 
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { WorkbookFormat } from "@ai-catalyst/shared";
-import { getArtifactSubmission } from "@ai-catalyst/services/artifact";
+import {
+  artifactMarkdownHasTables,
+  getArtifactSubmission,
+} from "@ai-catalyst/services/artifact";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
 import { getModuleContextByKey } from "./run-modules";
@@ -19,6 +22,8 @@ export type FounderArtifactDocument = {
   content: string;
   workbookAvailable: boolean;
   workbookFormat: WorkbookFormat | null;
+  /** At least one GFM table exists in `content` — gates the Excel download option. */
+  tablesAvailable: boolean;
 };
 
 /**
@@ -75,6 +80,7 @@ export const getFounderArtifactDocument = cache(
       content: result.content,
       workbookAvailable: summary.workbookAvailable,
       workbookFormat: summary.workbookFormat,
+      tablesAvailable: artifactMarkdownHasTables(result.content),
     };
   },
 );

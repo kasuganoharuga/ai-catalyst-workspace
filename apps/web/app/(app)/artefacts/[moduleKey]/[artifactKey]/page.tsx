@@ -86,6 +86,7 @@ export default async function ArtefactDetailPage({
           <ArtefactDownloadMenu
             downloadHref={downloadHref}
             workbookAvailable={document.workbookAvailable}
+            tablesAvailable={document.tablesAvailable}
             size="lg"
             triggerVariant="default"
             singleVariant="default"

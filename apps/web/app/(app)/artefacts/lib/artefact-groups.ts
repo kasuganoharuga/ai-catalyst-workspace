@@ -307,8 +307,8 @@ export function buildMentorArtefactGroups(
           versionNumber: artefact.versionNumber,
           submissionStatus: null,
           savedAt: artefact.savedAt,
-          workbookAvailable: false,
-          workbookFormat: null,
+          workbookAvailable: artefact.workbookAvailable,
+          workbookFormat: artefact.workbookAvailable ? ("pdf" as const) : null,
         })),
       };
     })

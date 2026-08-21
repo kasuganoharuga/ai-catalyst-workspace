@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { getFounderArtifactExport } from "@/lib/artifact-export";
 import { getFounderArtifactWorkbook } from "@/lib/artifact-workbook";
 import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
@@ -9,11 +10,28 @@ type DownloadRouteContext = {
   params: Promise<{ moduleKey: string; artifactKey: string }>;
 };
 
+const EXPORT_FORMATS = ["docx", "xlsx"] as const;
+type ExportFormat = (typeof EXPORT_FORMATS)[number];
+
+function isExportFormat(value: string): value is ExportFormat {
+  return (EXPORT_FORMATS as readonly string[]).includes(value);
+}
+
 function safeFilename(name: string, fallback: string): string {
   // Australian spelling: this lands in the founder's downloads folder.
   // The `artifact*` identifiers around it are DTO field names, not copy.
   const cleaned = name.replace(/[\\/:*?"<>|]+/g, "_").trim();
   return cleaned.length > 0 ? cleaned : fallback;
+}
+
+// "Ideal-Customer-Avatar.md" -> "Ideal-Customer-Avatar.docx" — export has no
+// per-artefact fixed filename (renderer.downloadFilename) the way the PDF
+// workbook does, since it is generic format conversion, not a renderer
+// (see packages/services/.../exporters/types.ts); the source filename is
+// the closest thing to a stable display name, so we swap its extension.
+function withExtension(name: string, extension: string): string {
+  const withoutExtension = name.replace(/\.[^./\\]+$/, "");
+  return `${withoutExtension}.${extension}`;
 }
 
 function validationErrorResponse(message: string): NextResponse {
@@ -32,11 +50,47 @@ export async function GET(request: Request, context: DownloadRouteContext) {
     const { moduleKey, artifactKey } = await context.params;
     const searchParams = new URL(request.url).searchParams;
     const format = searchParams.get("format") ?? "source";
-    if (format !== "source" && format !== "workbook") {
-      return validationErrorResponse('format must be "source" or "workbook".');
+    if (
+      format !== "source" &&
+      format !== "workbook" &&
+      !isExportFormat(format)
+    ) {
+      return validationErrorResponse(
+        'format must be "source", "workbook", "docx", or "xlsx".',
+      );
     }
 
     const actor = await getCurrentFounderActor();
+
+    if (isExportFormat(format)) {
+      const exported = await getFounderArtifactExport(
+        actor,
+        moduleKey,
+        artifactKey,
+        format,
+      );
+      if (!exported) {
+        return NextResponse.json(
+          { error: { code: "NOT_FOUND", message: "Artefact not found." } },
+          { status: 404 },
+        );
+      }
+
+      const filename = safeFilename(
+        withExtension(
+          exported.requiredFilename ?? `${artifactKey}.md`,
+          exported.extension,
+        ),
+        `artefact.${exported.extension}`,
+      );
+      return new NextResponse(new Uint8Array(exported.buffer), {
+        headers: {
+          "Content-Type": exported.mimeType,
+          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Cache-Control": "private, no-store",
+        },
+      });
+    }
 
     if (format === "workbook") {
       const sectionsParam = searchParams.get("sections");
