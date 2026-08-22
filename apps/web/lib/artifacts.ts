@@ -5,6 +5,8 @@ import type { WorkbookFormat } from "@ai-catalyst/shared";
 import {
   artifactMarkdownHasTables,
   getArtifactSubmission,
+  listHeadings,
+  type HeadingLine,
 } from "@ai-catalyst/services/artifact";
 import { ServiceError } from "@ai-catalyst/services/errors";
 
@@ -24,6 +26,10 @@ export type FounderArtifactDocument = {
   workbookFormat: WorkbookFormat | null;
   /** At least one GFM table exists in `content` — gates the Excel download option. */
   tablesAvailable: boolean;
+  /** The Attempt this saved version belongs to — Artifact comment threads anchor against it. */
+  attemptId: string;
+  /** Every heading in `content`, offered as anchor choices when opening a new comment thread. */
+  headings: HeadingLine[];
 };
 
 /**
@@ -81,6 +87,8 @@ export const getFounderArtifactDocument = cache(
       workbookAvailable: summary.workbookAvailable,
       workbookFormat: summary.workbookFormat,
       tablesAvailable: artifactMarkdownHasTables(result.content),
+      attemptId,
+      headings: listHeadings(result.content),
     };
   },
 );

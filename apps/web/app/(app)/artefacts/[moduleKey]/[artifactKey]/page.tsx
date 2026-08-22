@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { listArtifactCommentThreads } from "@/lib/artifact-comments";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { formatDateTime } from "@/lib/format";
@@ -10,7 +11,7 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 import { AnalyticsTrack } from "../../../components/analytics-track";
 import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
-import { MarkdownDocument } from "../../../components/markdown-document";
+import { ArtifactDocumentWithComments } from "../../../components/artefact-comments/artifact-document-with-comments";
 import { PageShell } from "../../../components/page-shell";
 
 type ArtefactDetailPageProps = {
@@ -44,6 +45,11 @@ export default async function ArtefactDetailPage({
   }
 
   const downloadHref = `/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`;
+  const pathname = `/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}`;
+  const threads = await listArtifactCommentThreads(actor, {
+    attemptId: document.attemptId,
+    artifactKey,
+  });
 
   return (
     <PageShell>
@@ -94,14 +100,16 @@ export default async function ArtefactDetailPage({
         </div>
       </div>
 
-      <article className="mt-10 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="border-b border-border bg-muted/40 px-5 py-3">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Document
-          </p>
-        </div>
-        <MarkdownDocument content={document.content} />
-      </article>
+      <ArtifactDocumentWithComments
+        content={document.content}
+        threads={threads}
+        viewerUserId={actor.userId}
+        viewerRole="founder"
+        pathname={pathname}
+        attemptId={document.attemptId}
+        artifactKey={artifactKey}
+        headings={document.headings}
+      />
     </PageShell>
   );
 }

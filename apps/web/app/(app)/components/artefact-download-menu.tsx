@@ -49,7 +49,7 @@ export function ArtefactDownloadMenu({
   size = "default",
   triggerVariant = "outline",
   singleVariant = "outline",
-  downloadLabel = "Download Markdown",
+  downloadLabel = "Download",
   pdfLabel = "Download PDF",
   docxLabel = "Download Word",
   xlsxLabel = "Download Excel",

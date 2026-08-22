@@ -621,8 +621,9 @@ export const moduleRunCopy = {
   documentHeading: "The document",
   documentCovers: "It should cover",
   documentRead: "Read document",
-  /** Markdown-only download (no PDF renderer). */
-  documentDownload: "Download Markdown",
+  // Trigger label for a menu that always offers more than one format
+  // (Word is unconditional) — kept generic rather than naming one format.
+  documentDownload: "Download",
   // Shown instead of documentDownload once a workbook exists for this
   // Artifact — same primary/secondary split as artefactsCopy's pair. Not
   // all PDF renderers are fillable (Module 2's Ideal Customer Avatar is a
@@ -1142,7 +1143,9 @@ export const artefactsCopy = {
   savedCount: (saved: number, total: number) => `${saved} of ${total} saved`,
 
   readCta: "Read document",
-  downloadCta: "Download Markdown",
+  // Trigger label for a menu that always offers more than one format
+  // (Word is unconditional) — kept generic rather than naming one format.
+  downloadCta: "Download",
   // Shown instead of downloadCta once a PDF renderer exists — the PDF
   // becomes the primary download, and the Markdown record moves to a
   // smaller secondary link beside it (operational-workbooks plan §11). Not
@@ -1331,7 +1334,7 @@ export const mentorArtefactDocumentCopy = {
   savedLine: (version: number, savedAt: string) =>
     `Version ${version} · saved ${savedAt}`,
   readOnlyNote:
-    "Read-only: the founder still signs their own module off. Review and comment tools arrive in a later phase.",
+    "The document itself is read-only — the founder still signs their own module off. Use comments to leave feedback on a section.",
 } as const;
 
 export const mentorInvitationsCopy = {

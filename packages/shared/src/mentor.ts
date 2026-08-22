@@ -1,6 +1,13 @@
 import type { RunModuleSummary } from "./run-module.js";
 import type { WorkspaceStatus } from "./workspace.js";
 
+/** One `#`-`######` heading, in document order — mirrors services' internal HeadingLine shape. */
+export interface MentorArtefactHeading {
+  level: number;
+  heading: string;
+  lineIndex: number;
+}
+
 // Mentor supervision DTOs — JSON-safe ISO timestamps. Mentors see progress and deliverables, not raw module_responses or failed Attempt history.
 
 /** One supervised Founder, as shown on the Mentor's overview. */
@@ -49,10 +56,19 @@ export interface MentorFounderDetail {
   artefacts: MentorArtefactSummary[];
 }
 
-/** A saved deliverable together with its body, for the read-only view. */
+/**
+ * A saved deliverable together with its body. The document itself is still
+ * Founder-authored and read-only from the Mentor's side — a Mentor cannot
+ * edit or advance it — but Artifact comment threads are a real, mutual
+ * write surface on top of it; see packages/services/src/artifact-comment.
+ */
 export interface MentorArtefactDocument extends MentorArtefactSummary {
   moduleTitle: string;
   content: string;
   /** At least one GFM table exists in `content` — gates the Excel download option. */
   tablesAvailable: boolean;
+  /** The Attempt this saved version belongs to — Artifact comment threads anchor against it. */
+  attemptId: string;
+  /** Every heading in `content`, offered as anchor choices when opening a new comment thread. */
+  headings: MentorArtefactHeading[];
 }

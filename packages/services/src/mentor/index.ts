@@ -8,7 +8,10 @@ import type {
   WorkspaceStatus,
 } from "@ai-catalyst/shared";
 
-import { artifactMarkdownHasTables } from "@ai-catalyst/services/artifact/internal/markdown-sections";
+import {
+  artifactMarkdownHasTables,
+  listHeadings,
+} from "@ai-catalyst/services/artifact/internal/markdown-sections";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
@@ -18,7 +21,11 @@ import {
 } from "@ai-catalyst/services/internal/run-module";
 import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 
-// Mentor supervision surface — read-only; cannot advance or roll back Founder progress.
+// Mentor supervision surface. The Founder's own progress and Artifacts stay
+// read-only from here — a Mentor cannot advance, roll back, or edit them.
+// Artifact comments (packages/services/src/artifact-comment) are the one
+// real write surface layered on top: any Mentor may open threads and reply
+// on any Founder's Artifact, matching MENTOR_SEES_ALL_FOUNDERS' read scope.
 
 /**
  * Mentor read authority. When MENTOR_SEES_ALL_FOUNDERS is true, every
@@ -254,11 +261,13 @@ export async function getMentorFounderDetail(
 
 interface ArtefactDocumentRow extends ArtefactSummaryRow {
   module_title: string;
+  module_attempt_id: string;
   primary_storage_object_id: string | null;
 }
 
 /**
- * One saved deliverable with body for read-only Mentor view.
+ * One saved deliverable with body, plus the Attempt id and heading list an
+ * Artifact comment thread anchors against — see packages/services/src/artifact-comment.
  * Returns null when not saved yet; NOT_FOUND when Workspace is not covered.
  */
 export async function getMentorArtefactDocument(
@@ -283,6 +292,7 @@ export async function getMentorArtefactDocument(
     `select distinct on (d.artifact_key)
        m.module_key,
        m.title_snapshot as module_title,
+       a.id as module_attempt_id,
        d.artifact_key,
        d.name,
        d.required_filename,
@@ -320,5 +330,7 @@ export async function getMentorArtefactDocument(
     moduleTitle: row.module_title,
     content,
     tablesAvailable: artifactMarkdownHasTables(content),
+    attemptId: row.module_attempt_id,
+    headings: listHeadings(content),
   };
 }
