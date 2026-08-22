@@ -150,7 +150,7 @@ function normalizeAndValidateInvitationToken(rawToken: unknown): string {
   return token;
 }
 
-// Expire stale pending rows before every mutating/list op — indexes ignore expires_at.
+// Expire stale pending rows before every mutating/list op.
 async function expireStaleInvitations(
   client: PoolClient,
   inviteRole: InviteRole,
