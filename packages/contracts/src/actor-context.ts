@@ -26,6 +26,48 @@ export interface ActorContext {
   traceId?: string;
   // Per-operation correlation (tool call, server action); also on module_events.
   requestId?: string;
+
+  /**
+   * Founder-preview mode. Only ever "founder", and only ever set when
+   * role === "mentor" — a Mentor previewing the Founder flow inside their
+   * own sandbox Workspace (see packages/services/src/mentor/founder-preview.ts).
+   * MUST be derived server-side from resolveFounderPreviewState (role='mentor'
+   * AND a *current* sandbox Workspace exists for them) — never read from a
+   * client-supplied value. It grants no access beyond that one sandbox:
+   * every Founder-scoped service call still resolves scope via
+   * resolveFounderWorkspace(actor), which for a Mentor resolves to
+   * `founder_user_id = actor.userId and is_current_sandbox` — a Mentor may
+   * have several sandbox Workspaces left over from starting over, but
+   * workspaces_one_current_sandbox_per_mentor guarantees at most one is
+   * ever current, so there is nothing else for that resolution to reach.
+   * See effectiveRole().
+   */
+  actingAs?: Extract<ActorRole, "founder">;
+}
+
+/**
+ * True only for a Mentor actively previewing the Founder flow — the one
+ * case where `role` and `effectiveRole` disagree. Prefer this over
+ * spelling out `actor.role === "mentor" && effectiveRole(actor) ===
+ * "founder"` at call sites that need to know specifically "is this
+ * preview," as opposed to `effectiveRole(actor) === "founder"`, which is
+ * also true for a real Founder and is usually what a Founder-scoped
+ * authorization check should test instead.
+ */
+export function isFounderPreview(actor: ActorContext): boolean {
+  return actor.role === "mentor" && actor.actingAs === "founder";
+}
+
+/**
+ * The role every packages/services authorization check should test against
+ * — assertRole uses this, not actor.role directly. Equal to actor.role for
+ * everyone except a Mentor in Founder-preview mode, where it reads
+ * "founder". Deliberately does NOT let a Founder assertRole(["mentor"])
+ * check pass while previewing: you cannot act as your own reviewer while
+ * pretending to be reviewed.
+ */
+export function effectiveRole(actor: ActorContext): ActorRole {
+  return actor.actingAs ?? actor.role;
 }
 
 /**
@@ -41,6 +83,7 @@ export function createWebActorContext(params: {
   role: ActorRole;
   traceId?: string;
   requestId?: string;
+  actingAs?: Extract<ActorRole, "founder">;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -49,6 +92,7 @@ export function createWebActorContext(params: {
     scopes: [],
     traceId: params.traceId,
     requestId: params.requestId,
+    actingAs: params.actingAs,
   };
 }
 
@@ -60,6 +104,7 @@ export function createMcpActorContext(params: {
   provider: McpProvider;
   traceId?: string;
   requestId?: string;
+  actingAs?: Extract<ActorRole, "founder">;
 }): ActorContext {
   return {
     userId: params.userId,
@@ -70,5 +115,6 @@ export function createMcpActorContext(params: {
     provider: params.provider,
     traceId: params.traceId,
     requestId: params.requestId,
+    actingAs: params.actingAs,
   };
 }

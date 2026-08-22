@@ -1,11 +1,17 @@
+import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
+
 import { appPageTitle } from "@/lib/page-metadata";
+import { getCurrentAppActor } from "@/lib/current-app-actor";
 
 import { PageShell } from "../components/page-shell";
+import { PreviewLockedNotice } from "../components/preview-locked-notice";
 import { PasswordSection } from "./components/password-section";
 
 export const metadata = appPageTitle("Account security");
 
-export default function AccountSecurityPage() {
+export default async function AccountSecurityPage() {
+  const actor = await getCurrentAppActor();
+
   return (
     <PageShell className="max-w-6xl">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
@@ -17,7 +23,15 @@ export default function AccountSecurityPage() {
         Account security
       </h1>
 
-      <PasswordSection />
+      {isFounderPreview(actor) ? (
+        // Changing the password signs out other devices and disconnects
+        // the AI assistant (see PasswordSection's own success copy) — the
+        // last thing previewing should silently do to the Mentor's real
+        // session.
+        <PreviewLockedNotice feature="Password" />
+      ) : (
+        <PasswordSection />
+      )}
     </PageShell>
   );
 }

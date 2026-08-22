@@ -1,6 +1,7 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorRole } from "@ai-catalyst/contracts/actor-context";
 
+import { resolveFounderPreviewState } from "@ai-catalyst/services/mentor/founder-preview";
 import {
   canUseMcp,
   isKnownActorRole,
@@ -68,8 +69,13 @@ interface UserAuthorizationRow {
 }
 
 /**
- * Issuing gate — null for missing, deleted, or non-Founder. verifyMcpBearerToken
- * is the presenting gate; both must consult canUseMcp.
+ * Issuing gate — null for missing, deleted, or non-Founder (a Mentor with a
+ * founder-preview sandbox counts, same as verifyMcpBearerToken's presenting
+ * gate — see that file's comment on why this is re-derived, not read from
+ * the web session's toggle). Returned `role` is the user's *real* role,
+ * never "founder" — this only decides whether a token may be issued;
+ * `actingAs` is computed fresh every time a token is *used*
+ * (verifyMcpBearerToken), not baked in at issuance.
  */
 export async function getAuthorizableUserById(
   userId: string,
@@ -79,13 +85,20 @@ export async function getAuthorizableUserById(
     [userId],
   );
   const row = result.rows[0];
-  if (
-    !row ||
-    row.deleted_at !== null ||
-    !isKnownActorRole(row.role) ||
-    !canUseMcp(row.role)
-  ) {
+  if (!row || row.deleted_at !== null || !isKnownActorRole(row.role)) {
     return null;
   }
+
+  let mcpEffectiveRole: ActorRole = row.role;
+  if (row.role === "mentor") {
+    const preview = await resolveFounderPreviewState(row.id);
+    if (preview.hasSandbox) {
+      mcpEffectiveRole = "founder";
+    }
+  }
+  if (!canUseMcp(mcpEffectiveRole)) {
+    return null;
+  }
+
   return { userId: row.id, role: row.role };
 }

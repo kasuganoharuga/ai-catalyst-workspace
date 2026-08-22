@@ -3,7 +3,10 @@ import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
+import {
+  effectiveRole,
+  resolveMcpProviderTag,
+} from "@ai-catalyst/contracts/actor-context";
 import type {
   StorageObject,
   StorageObjectUploadStatus,
@@ -349,23 +352,31 @@ export async function getGeneratedTextContent(
     throw new ServiceError("NOT_FOUND", "Storage object not found.");
   }
 
-  if (actor.role === "founder") {
+  // effectiveRole, not actor.role: a Mentor previewing the Founder flow in
+  // their own sandbox must read its content through this same branch (via
+  // resolveFounderWorkspace, scoped to their real userId) — the mentor
+  // branch below excludes sandboxes by kind = 'live' and would otherwise
+  // wrongly NOT_FOUND them out of their own sandbox's content. Written as
+  // if/else because actor.role === "mentor" alone is not "not currently
+  // previewing" — see effectiveRole()'s docstring.
+  if (effectiveRole(actor) === "founder") {
     const workspace = await resolveFounderWorkspace(actor, pool);
     if (row.workspace_id !== workspace.id) {
       throw new ServiceError("NOT_FOUND", "Storage object not found.");
     }
-  }
-
-  // Single choke point for artefact bytes — mentor scope enforced here as
-  // NOT_FOUND, independently of the mentor/index.ts checks (this path is
-  // also reachable directly, e.g. from official validation call sites).
-  if (actor.role === "mentor") {
+  } else if (actor.role === "mentor") {
+    // Single choke point for artefact bytes — mentor scope enforced here as
+    // NOT_FOUND, independently of the mentor/index.ts checks (this path is
+    // also reachable directly, e.g. from official validation call sites).
+    // kind = 'live' excludes a Mentor's own founder-preview sandbox — see
+    // mentor/index.ts's assertMentorOwnsWorkspace for the same filter.
     const mentored = MENTOR_SEES_ALL_FOUNDERS
-      ? await pool.query(`select 1 from workspaces where id = $1`, [
-          row.workspace_id,
-        ])
+      ? await pool.query(
+          `select 1 from workspaces where id = $1 and kind = 'live'`,
+          [row.workspace_id],
+        )
       : await pool.query(
-          `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+          `select 1 from workspaces where id = $1 and mentor_user_id = $2 and kind = 'live'`,
           [row.workspace_id, actor.userId],
         );
     if (mentored.rowCount === 0) {

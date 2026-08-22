@@ -354,7 +354,7 @@ describe("invitation service — database integration", () => {
       const user = await createPendingUser("accept-mentor-token");
       // Throwaway owner for the Mentor invitation's target Workspace — a
       // dedicated fixture user (not the shared `admin`/`nonAdmin`) so this
-      // test can never collide with `workspaces_founder_unique` against
+      // test can never collide with `workspaces_founder_live_unique` against
       // another test running in the same file, and cleanup is covered by
       // the shared afterAll (which deletes Workspaces by founder_user_id
       // for every id in createdUserIds).
@@ -598,7 +598,7 @@ describe("invitation service — database integration", () => {
       });
 
       // Dedicated throwaway owners (not the shared admin/nonAdmin) so this
-      // test can never collide with `workspaces_founder_unique` against
+      // test can never collide with `workspaces_founder_live_unique` against
       // another test in this file; cleaned up by the shared afterAll.
       const workspaceOwnerA = await createPendingUser(
         "accept-cleanup-mentor-workspace-owner-a",
@@ -698,7 +698,7 @@ describe("invitation service — database integration", () => {
         .replace(/-+$/g, "");
       const collidingSlug = `${base}-abcdef`;
       // Dedicated throwaway owner (not the shared admin/nonAdmin) so this
-      // fixture Workspace can never collide with `workspaces_founder_unique`
+      // fixture Workspace can never collide with `workspaces_founder_live_unique`
       // against another test; cleaned up by the shared afterAll.
       const collidingWorkspaceOwner = await createPendingUser(
         "accept-slug-retry-workspace-owner",

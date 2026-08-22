@@ -96,6 +96,7 @@ const BASE_INPUT = {
   profilePromptSkipped: true,
   passwordChanged: true,
   showSetupModule: false,
+  isPreview: false,
 };
 
 describe("buildDashboardViewModel — current-module resolution", () => {
@@ -190,5 +191,37 @@ describe("buildDashboardViewModel — current-module resolution", () => {
     expect(view.welcomeSub).toBe(
       "Everything open right now is done. More opens as it's ready.",
     );
+  });
+});
+
+describe("buildDashboardViewModel — Mentor previewing the Founder flow", () => {
+  it("never shows the password prompt, regardless of the real passwordChanged value", () => {
+    const view = buildDashboardViewModel({
+      ...BASE_INPUT,
+      catalog: [],
+      runModules: [],
+      hasRun: false,
+      contexts: [],
+      passwordChanged: false,
+      isPreview: true,
+    });
+
+    expect(view.showPasswordPrompt).toBe(false);
+  });
+
+  it("never points the next-action nudge at the locked profile page, regardless of the real profile's name fields", () => {
+    const view = buildDashboardViewModel({
+      ...BASE_INPUT,
+      catalog: [],
+      runModules: [],
+      hasRun: false,
+      contexts: [],
+      profile: { firstName: null, lastName: null },
+      profilePromptSkipped: false,
+      connection: { authorised: false, lastActivityAt: null } as never,
+      isPreview: true,
+    });
+
+    expect(view.nextAction).not.toMatchObject({ href: "/profile" });
   });
 });

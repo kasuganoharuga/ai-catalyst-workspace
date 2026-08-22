@@ -1,8 +1,12 @@
 import { pool } from "@ai-catalyst/db";
-import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import type {
+  ActorContext,
+  ActorRole,
+} from "@ai-catalyst/contracts/actor-context";
 import { createMcpActorContext } from "@ai-catalyst/contracts/actor-context";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
+import { resolveFounderPreviewState } from "@ai-catalyst/services/mentor/founder-preview";
 import {
   MCP_BEARER_TOKEN_PATTERN,
   MCP_CONNECT_SCOPE,
@@ -106,7 +110,24 @@ export async function verifyMcpBearerToken(
     );
   }
 
-  if (!canUseMcp(row.user_role)) {
+  // A Mentor with a founder-preview sandbox connects as if they were a
+  // Founder — re-derived fresh on every request, independent of whatever
+  // the web session's preview toggle currently says. Tokens are long-lived;
+  // if this instead followed the web toggle, exiting preview in the
+  // browser would silently break an already-connected Claude/ChatGPT
+  // session. A Mentor with no sandbox gets no such treatment and
+  // canUseMcp below rejects them exactly as before.
+  let actingAs: Extract<ActorRole, "founder"> | undefined;
+  let mcpEffectiveRole: ActorRole = row.user_role;
+  if (row.user_role === "mentor") {
+    const preview = await resolveFounderPreviewState(row.user_id);
+    if (preview.hasSandbox) {
+      actingAs = "founder";
+      mcpEffectiveRole = "founder";
+    }
+  }
+
+  if (!canUseMcp(mcpEffectiveRole)) {
     throw new ServiceError(
       "FORBIDDEN",
       "Connecting an AI assistant is available to Founder accounts only.",
@@ -129,5 +150,6 @@ export async function verifyMcpBearerToken(
     provider: mcpProviderForRedirectUris(
       parseRedirectUrls(row.client_redirect_urls),
     ),
+    actingAs,
   });
 }

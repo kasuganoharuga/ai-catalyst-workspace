@@ -3,6 +3,7 @@
 import {
   Building2,
   FileText,
+  FlaskConical,
   KeyRound,
   LayoutDashboard,
   Layers,
@@ -26,6 +27,7 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   // Mentor-only nav items — see nav-items.ts's MENTOR_PRIMARY_NAV_ITEMS.
   "/founders": Users,
   "/invitations": Mail,
+  "/sandbox": FlaskConical,
   "/profile": UserRound,
   // Same icon the dashboard's invitation-password nudge already uses
   // (password-prompt.tsx) — one glyph for "password" everywhere it shows up.

@@ -30,7 +30,11 @@ import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 /**
  * Mentor read authority. When MENTOR_SEES_ALL_FOUNDERS is true, every
  * Mentor may read every Workspace; otherwise a Mentor is scoped to
- * Workspaces where workspaces.mentor_user_id points at them.
+ * Workspaces where workspaces.mentor_user_id points at them. Either way,
+ * `kind = 'live'` excludes every Mentor's own founder-preview sandbox
+ * (packages/services/src/mentor/founder-preview.ts) — a sandbox must never
+ * appear in mentor supervision surfaces as if it were a real Founder to
+ * review, including a Mentor's own sandbox showing up in their own list.
  *
  * NOT_FOUND on mismatch (scoped mode) — FORBIDDEN would confirm the
  * Workspace exists (enumeration oracle). The existence check stays even in
@@ -41,9 +45,12 @@ export async function assertMentorOwnsWorkspace(
   workspaceId: string,
 ): Promise<void> {
   const result = MENTOR_SEES_ALL_FOUNDERS
-    ? await pool.query(`select 1 from workspaces where id = $1`, [workspaceId])
+    ? await pool.query(
+        `select 1 from workspaces where id = $1 and kind = 'live'`,
+        [workspaceId],
+      )
     : await pool.query(
-        `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+        `select 1 from workspaces where id = $1 and mentor_user_id = $2 and kind = 'live'`,
         [workspaceId, actor.userId],
       );
 
@@ -137,7 +144,7 @@ export async function listMentorFounders(
          and d.module_type <> 'setup'
          and d.status = 'active'
      ) progress on run.active_branch_id is not null
-     where ${MENTOR_SEES_ALL_FOUNDERS ? "" : "w.mentor_user_id = $1 and "}u.deleted_at is null
+     where ${MENTOR_SEES_ALL_FOUNDERS ? "" : "w.mentor_user_id = $1 and "}u.deleted_at is null and w.kind = 'live'
      order by is_assigned_to_me desc, w.name, w.id`,
     [actor.userId],
   );
