@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { actorContextFromSession } from "./actor-context";
+import { actorContextFromSessionWithPreview } from "./actor-context";
 import { requireFounderUser } from "./require-active-user";
 
 // Shared by the (app) layout, the sidebar, and every page under it — React's
@@ -12,5 +12,5 @@ export const getCurrentFounderSession = cache(requireFounderUser);
 
 export const getCurrentFounderActor = cache(async () => {
   const session = await getCurrentFounderSession();
-  return actorContextFromSession(session);
+  return actorContextFromSessionWithPreview(session);
 });

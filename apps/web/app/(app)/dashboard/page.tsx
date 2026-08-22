@@ -1,3 +1,5 @@
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
+
 import { getCurrentAppActor } from "@/lib/current-app-actor";
 import { appPageTitle } from "@/lib/page-metadata";
 
@@ -14,7 +16,9 @@ export const metadata = appPageTitle("Dashboard");
 export default async function DashboardPage() {
   const actor = await getCurrentAppActor();
 
-  if (actor.role === "mentor") {
+  // effectiveRole, not actor.role: a Mentor previewing the Founder flow
+  // sees the Founder dashboard, not their own.
+  if (effectiveRole(actor) === "mentor") {
     return <MentorDashboard />;
   }
 

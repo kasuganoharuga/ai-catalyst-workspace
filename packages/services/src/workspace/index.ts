@@ -29,10 +29,14 @@ function mapWorkspace(row: WorkspaceRow): WorkspaceSummary {
   };
 }
 
-// Every Workspace has exactly one Founder (workspaces_founder_unique), so
-// this is always a single-row lookup. Defensive NOT_FOUND: every Founder
-// gets a Workspace as part of accepting their invitation, so a missing row
-// here means something upstream is broken, not a normal business state.
+// A real Founder has exactly one live Workspace (workspaces_founder_live_unique).
+// A Mentor previewing the Founder flow may have several sandbox Workspaces
+// (see mentor/founder-preview.ts), but at most one is ever
+// `is_current_sandbox` (workspaces_one_current_sandbox_per_mentor) — that's
+// the one this resolves to, so this is still always a single-row lookup
+// either way. Defensive NOT_FOUND: every Founder gets a Workspace as part
+// of accepting their invitation, so a missing row here means something
+// upstream is broken, not a normal business state.
 export async function resolveFounderWorkspace(
   actor: ActorContext,
   executor: QueryExecutor = pool,
@@ -40,7 +44,8 @@ export async function resolveFounderWorkspace(
   assertRole(actor, ["founder"]);
 
   const result = await executor.query<{ id: string; status: WorkspaceStatus }>(
-    `select id, status from workspaces where founder_user_id = $1`,
+    `select id, status from workspaces
+     where founder_user_id = $1 and (kind = 'live' or is_current_sandbox)`,
     [actor.userId],
   );
 
@@ -67,7 +72,8 @@ export async function getMyWorkspace(
   assertRole(actor, ["founder"]);
 
   const result = await pool.query<WorkspaceRow>(
-    `select id, name, slug, status from workspaces where founder_user_id = $1`,
+    `select id, name, slug, status from workspaces
+     where founder_user_id = $1 and (kind = 'live' or is_current_sandbox)`,
     [actor.userId],
   );
 

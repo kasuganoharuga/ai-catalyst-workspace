@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
 import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ export async function FounderDashboard() {
     profilePromptSkipped,
     passwordChanged,
     showSetupModule: SHOW_SETUP_MODULE,
+    isPreview: isFounderPreview(actor),
   });
 
   return (

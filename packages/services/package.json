@@ -106,6 +106,7 @@
     "./errors": "./src/errors.ts",
     "./workspace": "./src/workspace/index.ts",
     "./workspace/active-context": "./src/workspace/active-context.ts",
+    "./workspace/internal/insert-workspace": "./src/workspace/internal/insert-workspace.ts",
     "./venture": "./src/venture/index.ts",
     "./profile": "./src/profile/index.ts",
     "./profile/internal/preferred-ai-provider": "./src/profile/internal/preferred-ai-provider.ts",
@@ -135,6 +136,7 @@
     "./internal/mentor-scope": "./src/internal/mentor-scope.ts",
     "./mentor": "./src/mentor/index.ts",
     "./mentor/export-document": "./src/mentor/export-document.ts",
+    "./mentor/founder-preview": "./src/mentor/founder-preview.ts",
     "./mentor/render-workbook": "./src/mentor/render-workbook.ts",
     "./mentor/internal/resolve-submission": "./src/mentor/internal/resolve-submission.ts",
     "./admin": "./src/admin/index.ts"

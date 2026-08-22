@@ -1288,6 +1288,41 @@ export const mentorDashboardCopy = {
     `${progress} modules · last activity ${date}`,
 } as const;
 
+// Mentor's own founder-preview sandbox — see
+// packages/services/src/mentor/founder-preview.ts. intro* is the entry
+// point on its own /sandbox page (deliberately not the dashboard — this is
+// a minor, optional feature); the rest is the exit banner shown across the
+// (app) shell while previewing.
+export const founderPreviewCopy = {
+  introHeading: "See what Founders see",
+  introBody:
+    "Walk the Founder flow yourself in your own sandbox — nothing here touches a real Founder's data.",
+  introExistingNote:
+    "You already have a sandbox — this picks up right where you left off.",
+  enterCta: "Try the Founder flow",
+  // Shown instead of enterCta once a sandbox already exists — same action
+  // (enterFounderPreviewAction), worded for a return visit rather than a
+  // first one.
+  continueCta: "Continue in sandbox",
+  bannerMessage:
+    "You're previewing the Founder experience in your own sandbox — nothing here is a real Founder's data.",
+  exitCta: "Exit preview",
+  restartCta: "Restart sandbox",
+  restartConfirm:
+    "Start the sandbox over? This archives its current progress — nothing is deleted, but you'll begin a fresh run. This cannot be undone from here.",
+
+  // A Mentor only ever has one sandbox to work in. Starting a new one is
+  // more destructive than restarting (it replaces the sandbox itself, not
+  // just its current run), so this goes through a proper dialog rather
+  // than restartCta's window.confirm.
+  newSandboxCta: "Start a new sandbox",
+  newSandboxConfirmTitle: "Start a new sandbox?",
+  newSandboxConfirmBody:
+    "This replaces your current sandbox with a fresh one. You won't be able to get back to the one you have now from here — nothing is deleted, but there's no way back to it in the product.",
+  newSandboxConfirmCta: "Start new sandbox",
+  newSandboxConfirmCancel: "Cancel",
+} as const;
+
 export const mentorOverviewCopy = {
   kicker: "Mentor",
   title: "Founders",

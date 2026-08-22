@@ -1,6 +1,6 @@
 import { cache } from "react";
 
-import { actorContextFromSession } from "./actor-context";
+import { actorContextFromSessionWithPreview } from "./actor-context";
 import { requireFounderOrMentorUser } from "./require-active-user";
 
 // Whichever of Founder/Mentor is signed in — the shared (app) shell's own
@@ -15,5 +15,5 @@ export const getCurrentAppSession = cache(requireFounderOrMentorUser);
 
 export const getCurrentAppActor = cache(async () => {
   const session = await getCurrentAppSession();
-  return actorContextFromSession(session);
+  return actorContextFromSessionWithPreview(session);
 });

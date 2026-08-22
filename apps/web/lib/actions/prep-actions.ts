@@ -3,13 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
   uploadPrepDocument,
   withdrawPrepDocument,
 } from "@ai-catalyst/services/prep";
 
-import { actorContextFromSession } from "@/lib/actor-context";
+import { actorContextFromSessionWithPreview } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { errorCopy } from "@/app/(app)/lib/copy";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
@@ -29,8 +30,10 @@ async function requireFounderActor() {
   if (!session) {
     throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
   }
-  const actor = actorContextFromSession(session);
-  if (actor.role !== "founder") {
+  const actor = await actorContextFromSessionWithPreview(session);
+  // effectiveRole, not actor.role — see founder-actions.ts's own copy of
+  // this helper for the full reasoning.
+  if (effectiveRole(actor) !== "founder") {
     throw new ServiceError("FORBIDDEN", "Founder access required.");
   }
   return actor;

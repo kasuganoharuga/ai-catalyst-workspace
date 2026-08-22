@@ -57,6 +57,15 @@ export function buildDashboardViewModel(input: {
   profilePromptSkipped: boolean;
   passwordChanged: boolean;
   showSetupModule: boolean;
+  /**
+   * A Mentor previewing the Founder flow: profile identity fields and
+   * password are locked (see profile/page.tsx and account-security/page.tsx's
+   * PreviewLockedNotice) because both belong to the Mentor's real account,
+   * not the sandbox. Nudging them toward pages that only show a lock notice
+   * would be a dead end, so both nudges are suppressed outright rather than
+   * computed from the Mentor's real name/password state.
+   */
+  isPreview: boolean;
 }): DashboardViewModel {
   const {
     catalog,
@@ -69,6 +78,7 @@ export function buildDashboardViewModel(input: {
     profilePromptSkipped,
     passwordChanged,
     showSetupModule,
+    isPreview,
   } = input;
 
   // Setup modules complete server-side and stay out of the grid/unlocked counts.
@@ -104,9 +114,10 @@ export function buildDashboardViewModel(input: {
   );
 
   // Both name parts required; gates nothing — only whether the nudge shows.
-  const profileComplete = Boolean(
-    profile.firstName?.trim() && profile.lastName?.trim(),
-  );
+  // Previewing counts as complete regardless of the Mentor's real name, so
+  // the nudge never points a previewing Mentor at the locked profile page.
+  const profileComplete =
+    isPreview || Boolean(profile.firstName?.trim() && profile.lastName?.trim());
   const isFirstVisit = !hasRun;
   const setupPending = hasPendingSetupModule(runModules);
 
@@ -135,7 +146,7 @@ export function buildDashboardViewModel(input: {
       : dashboardCopy.greetingReturning(greetingName),
     welcomeSub,
     nextAction,
-    showPasswordPrompt: !passwordChanged,
+    showPasswordPrompt: !passwordChanged && !isPreview,
     unlockedCount,
     visibleCatalogCount,
     artefactsSaved,

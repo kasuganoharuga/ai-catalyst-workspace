@@ -65,7 +65,7 @@ export async function listAdminUsers(
        m.email as mentor_email,
        m.name as mentor_name
      from users u
-     left join workspaces w on w.founder_user_id = u.id
+     left join workspaces w on w.founder_user_id = u.id and w.kind = 'live'
      left join users m on m.id = w.mentor_user_id and m.deleted_at is null
      where u.deleted_at is null
      order by u.created_at desc, u.email`,
@@ -217,11 +217,22 @@ export async function assignWorkspaceMentor(
     const workspaceResult = await client.query<{
       id: string;
       founder_user_id: string;
-    }>(`select id, founder_user_id from workspaces where id = $1 for update`, [
-      workspaceId,
-    ]);
+      kind: "live" | "sandbox";
+    }>(
+      `select id, founder_user_id, kind from workspaces where id = $1 for update`,
+      [workspaceId],
+    );
     if (workspaceResult.rowCount === 0) {
       throw new ServiceError("NOT_FOUND", "Workspace not found.");
+    }
+    if (workspaceResult.rows[0].kind === "sandbox") {
+      // workspaces_sandbox_has_no_mentor backs this up at the DB level —
+      // this is just the readable error instead of a raw constraint
+      // violation.
+      throw new ServiceError(
+        "VALIDATION_ERROR",
+        "A Mentor's own founder-preview sandbox cannot be assigned a Mentor.",
+      );
     }
 
     if (mentorUserId !== null) {

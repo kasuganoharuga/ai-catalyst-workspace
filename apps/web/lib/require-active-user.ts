@@ -1,5 +1,8 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+
+import { resolveFounderPreviewState } from "@ai-catalyst/services/mentor/founder-preview";
+
 import { auth } from "./auth";
 import { safeReturnTo } from "./safe-return-to";
 
@@ -42,7 +45,10 @@ export async function requireAdminUser() {
   return session;
 }
 
-// Mentor-only routes inside (app); Founders use the shell but not these pages.
+// Mentor-only routes inside (app); Founders use the shell but not these
+// pages. A Mentor currently previewing the Founder flow is redirected away
+// too — they're immersed in the Founder experience while previewing, and
+// exiting is the only way back to these tools (see the exit banner).
 export async function requireMentorUser() {
   const session = await requireActiveUser();
 
@@ -50,18 +56,33 @@ export async function requireMentorUser() {
     redirect("/dashboard");
   }
 
-  return session;
-}
-
-// Founder-only routes; redirects to /dashboard which already branches by role.
-export async function requireFounderUser() {
-  const session = await requireActiveUser();
-
-  if (session.user.role !== "founder") {
+  const preview = await resolveFounderPreviewState(session.user.id);
+  if (preview.previewEnabled) {
     redirect("/dashboard");
   }
 
   return session;
+}
+
+// Founder-only routes; redirects to /dashboard which already branches by
+// role. Also lets through a Mentor currently previewing the Founder flow —
+// resolveFounderPreviewState is the only source of truth for that, never a
+// client-supplied flag.
+export async function requireFounderUser() {
+  const session = await requireActiveUser();
+
+  if (session.user.role === "founder") {
+    return session;
+  }
+
+  if (session.user.role === "mentor") {
+    const preview = await resolveFounderPreviewState(session.user.id);
+    if (preview.previewEnabled) {
+      return session;
+    }
+  }
+
+  redirect("/dashboard");
 }
 
 // Shared (app) layout — Founder and Mentor share the shell; each page still calls its own role guard.

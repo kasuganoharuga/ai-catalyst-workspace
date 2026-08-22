@@ -16,6 +16,11 @@ const MENTOR_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/founders", label: "Founders" },
   { href: "/invitations", label: "Invitations" },
+  // Last, deliberately: a Mentor's own founder-preview sandbox
+  // (packages/services/src/mentor/founder-preview.ts) is a minor,
+  // optional feature next to covering real Founders — not worth the
+  // dashboard real estate it used to occupy.
+  { href: "/sandbox", label: "Sandbox" },
 ];
 
 export function primaryNavItems(role: "founder" | "mentor"): NavItemConfig[] {

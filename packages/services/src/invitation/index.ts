@@ -8,15 +8,14 @@ import type {
   InvitationListItem,
   InvitationStatus,
   Venture,
-  WorkspaceStatus,
   WorkspaceSummary,
 } from "@ai-catalyst/shared";
 
 import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
-import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { setInitialActiveContext } from "@ai-catalyst/services/workspace/active-context";
+import { insertWorkspaceWithRetry } from "@ai-catalyst/services/workspace/internal/insert-workspace";
 
 // Founder and mentor invitations share acceptance locking (email family).
 // Founder <- admin/mentor; mentor <- admin only (platform-level).
@@ -31,8 +30,6 @@ const UUID_PATTERN =
 // characters (256 bits, no padding) — anchoring the length catches
 // corrupted/truncated tokens before they ever reach a database query.
 const INVITATION_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
-
-const MAX_WORKSPACE_SLUG_ATTEMPTS = 3; // initial attempt + up to 2 retries
 
 interface InvitationRow {
   id: string;
@@ -58,13 +55,6 @@ interface UserRow {
   email: string;
   role: "pending" | "founder" | "mentor" | "admin";
   deleted_at: Date | null;
-}
-
-interface WorkspaceRow {
-  id: string;
-  name: string;
-  slug: string;
-  status: WorkspaceStatus;
 }
 
 function mapInvitation(row: InvitationRow): Invitation {
@@ -158,47 +148,6 @@ function normalizeAndValidateInvitationToken(rawToken: unknown): string {
   }
 
   return token;
-}
-
-// Private default workspace name/slug until rename UX exists.
-function defaultWorkspaceDetails(email: string): {
-  name: string;
-  base: string;
-} {
-  const localPart = email.split("@")[0]?.trim() ?? "";
-  const base = slugifyBase(localPart, "founder");
-
-  return { name: `${localPart || "Founder"}'s Workspace`, base };
-}
-
-// ON CONFLICT (slug) do nothing retries suffix; founder_unique 23505 still rolls back.
-async function insertWorkspaceWithRetry(
-  client: PoolClient,
-  founderUserId: string,
-  email: string,
-  createSuffix: () => string,
-  mentorUserId: string | null,
-): Promise<WorkspaceRow> {
-  const { name, base } = defaultWorkspaceDetails(email);
-
-  for (let attempt = 0; attempt < MAX_WORKSPACE_SLUG_ATTEMPTS; attempt++) {
-    const slug = `${base}-${createSuffix()}`;
-    const result = await client.query<WorkspaceRow>(
-      `insert into workspaces (founder_user_id, name, slug, mentor_user_id)
-       values ($1, $2, $3, $4)
-       on conflict (slug) do nothing
-       returning id, name, slug, status`,
-      [founderUserId, name, slug, mentorUserId],
-    );
-    if (result.rows[0]) {
-      return result.rows[0];
-    }
-  }
-
-  throw new Error(
-    "Exhausted workspace slug retry attempts — this indicates a broken " +
-      "suffix generator, not normal random-collision odds.",
-  );
 }
 
 // Expire stale pending rows before every mutating/list op — indexes ignore expires_at.
@@ -644,7 +593,7 @@ export async function acceptFounderInvitation(
     if (
       isPostgresError(error) &&
       error.code === "23505" &&
-      error.constraint === "workspaces_founder_unique"
+      error.constraint === "workspaces_founder_live_unique"
     ) {
       throw new ServiceError(
         "FOUNDER_WORKSPACE_ALREADY_EXISTS",

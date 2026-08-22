@@ -2,6 +2,7 @@ import type {
   ActorContext,
   ActorRole,
 } from "@ai-catalyst/contracts/actor-context";
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
 
 // Typed business errors — apps/web and apps/mcp map code to HTTP/MCP responses.
 export type ServiceErrorCode =
@@ -46,8 +47,16 @@ export class ServiceError extends Error {
   }
 }
 
+/**
+ * Tests effectiveRole(actor), not actor.role — a Mentor in Founder-preview
+ * mode passes assertRole(actor, ["founder"]) and fails
+ * assertRole(actor, ["mentor"]). See effectiveRole()'s docstring for why
+ * that's the correct direction: every Founder-scoped call this then lets
+ * through still resolves scope via resolveFounderWorkspace(actor), which
+ * for a previewing Mentor only ever resolves to their own sandbox.
+ */
 export function assertRole(actor: ActorContext, allowed: ActorRole[]): void {
-  if (!allowed.includes(actor.role)) {
+  if (!allowed.includes(effectiveRole(actor))) {
     throw new ServiceError(
       "FORBIDDEN",
       "You do not have permission to perform this action.",

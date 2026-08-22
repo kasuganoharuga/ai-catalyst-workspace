@@ -2,6 +2,7 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
 import type {
   ProgramRun,
   ProgramRunStatus,
@@ -225,8 +226,13 @@ export async function getOrCreateProgramRun(
     );
     const runRow = runInsertResult.rows[0];
 
-    // Rejects unknown roles via mapBranchCreatedVia rather than defaulting to 'website'.
-    const createdVia = mapBranchCreatedVia(actor.role);
+    // effectiveRole, not actor.role: a Mentor previewing the Founder flow
+    // creates the Branch as "website", same as any real Founder — they
+    // already passed assertRole(["founder"]) above via resolveFounderWorkspace,
+    // so treating this raw-role check as a second, stricter gate would be
+    // inconsistent. Rejects unknown roles via mapBranchCreatedVia rather
+    // than defaulting to 'website'.
+    const createdVia = mapBranchCreatedVia(effectiveRole(actor));
     const branchInsertResult = await client.query<{ id: string }>(
       `insert into program_run_branches (
          workspace_id, program_run_id, branch_number, name, status,
