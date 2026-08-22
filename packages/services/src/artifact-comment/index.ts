@@ -21,8 +21,8 @@ import {
   loadArtifactDefinitionByKey,
   loadLatestSubmission,
 } from "@ai-catalyst/services/artifact/internal/submission-load";
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
-import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { assertMentorOwnsWorkspace } from "@ai-catalyst/services/mentor";

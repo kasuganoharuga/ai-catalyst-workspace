@@ -4,7 +4,7 @@
 // Package-path re-exports only (Turbopack cannot resolve relative ./x.js
 // from this entry).
 
-export type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
+export type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 export type { ArtifactServiceDependencies } from "@ai-catalyst/services/artifact/internal/dependencies";
 // Public re-export of a pure, dependency-free markdown-sections helper —
 // apps/web needs the heading list both to order the Artifact comment

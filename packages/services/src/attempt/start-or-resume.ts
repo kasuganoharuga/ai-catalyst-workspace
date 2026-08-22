@@ -1,12 +1,12 @@
 import type { PoolClient } from "pg";
 
-import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ModuleAttempt, ModuleAttemptStatus } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { insertModuleEvent } from "@ai-catalyst/services/attempt/internal/events";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
@@ -271,9 +271,7 @@ export async function startOrResumeAttempt(
           "Attempt not found.",
         );
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
 
     // Locks the program_run_modules row for the rest of this transaction
@@ -328,7 +326,6 @@ export async function startOrResumeAttempt(
             "basedOnAttemptId does not match the currently active Attempt's based_on_attempt_id.",
           );
         }
-        await client.query("commit");
         return { attempt: mapAttemptRow(active), created: false };
       }
 
@@ -416,12 +413,6 @@ export async function startOrResumeAttempt(
       toStatus: newAttempt.status,
     });
 
-    await client.query("commit");
     return { attempt: mapAttemptRow(newAttempt), created: true };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

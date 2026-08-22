@@ -25,7 +25,7 @@ import {
   insertArtifactValidation,
   mapArtifactValidationRow,
 } from "@ai-catalyst/services/artifact/internal/validation-writes";
-import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import type { ValidationRunResult } from "@ai-catalyst/services/artifact/internal/validators/types";
 
 function normalizeAttemptIdInput(input: unknown): { attemptId: string } {

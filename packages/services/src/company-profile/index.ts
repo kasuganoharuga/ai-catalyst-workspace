@@ -11,6 +11,7 @@ import {
   resolveFounderWorkspaceId,
 } from "@ai-catalyst/services/workspace";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { getActiveContext } from "@ai-catalyst/services/workspace/active-context";
 
 const COMPANY_PROFILE_COLUMNS = `
@@ -304,10 +305,7 @@ export async function updateMyCompanyProfile(
   assertRole(actor, ["founder"]);
   const updates = normalizeUpdateInput(input);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
@@ -343,7 +341,6 @@ export async function updateMyCompanyProfile(
         [workspace.id, ...values],
       );
 
-      await client.query("commit");
       const row = result.rows[0];
       if (!row) {
         throw new ServiceError(
@@ -384,7 +381,6 @@ export async function updateMyCompanyProfile(
       [workspace.id, activeContext.ventureId, ...values],
     );
 
-    await client.query("commit");
     const row = result.rows[0];
     if (!row) {
       throw new ServiceError(
@@ -393,10 +389,5 @@ export async function updateMyCompanyProfile(
       );
     }
     return mapCompanyProfileRow(row);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

@@ -14,6 +14,7 @@ import type {
 import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { revokeAllMcpConnectionsForUserId } from "@ai-catalyst/services/mcp-auth/connections";
 
 const log = loggerForService(SERVICE_NAMES.services);
@@ -210,10 +211,7 @@ export async function assignWorkspaceMentor(
     );
   }
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  await withTransaction(async (client) => {
     const workspaceResult = await client.query<{
       id: string;
       founder_user_id: string;
@@ -262,14 +260,7 @@ export async function assignWorkspaceMentor(
        where id = $2`,
       [mentorUserId, workspaceId],
     );
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 
   // Outside the transaction: a committed change that failed to log is better
   // than a logged change that rolled back.
@@ -293,10 +284,7 @@ export async function softDeleteUser(
 
   const targetId = parseEntityIdOrNotFound(userId, "User not found.");
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  await withTransaction(async (client) => {
     const targetResult = await client.query<{
       id: string;
       role: string;
@@ -364,14 +352,7 @@ export async function softDeleteUser(
     if (deleted.rowCount === 0) {
       throw new ServiceError("NOT_FOUND", "User not found.");
     }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 
   recordAccountEvent("account_soft_deleted", { actor, targetUserId: targetId });
 }

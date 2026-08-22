@@ -1,17 +1,16 @@
-import type { Pool, PoolClient } from "pg";
-
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { WorkspaceStatus, WorkspaceSummary } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 // pg's Pool and PoolClient share the same .query() call signature — accepting
 // either lets a write path (Venture create/archive) run this same lookup
 // inside its own already-open transaction instead of opening a second,
 // unsynchronized connection. Whichever is passed in is never closed here;
 // the caller owns its lifecycle.
-export type QueryExecutor = Pool | PoolClient;
+export type { QueryExecutor };
 
 interface WorkspaceRow {
   id: string;

@@ -13,6 +13,7 @@ import type {
 
 import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { setInitialActiveContext } from "@ai-catalyst/services/workspace/active-context";
 import { insertWorkspaceWithRetry } from "@ai-catalyst/services/workspace/internal/insert-workspace";
@@ -201,32 +202,30 @@ async function createInvitation(
   const rawToken = randomBytes(32).toString("base64url");
   const tokenHash = createHash("sha256").update(rawToken).digest("hex");
 
-  const client = await pool.connect();
   try {
-    await client.query("begin");
+    const row = await withTransaction(async (client) => {
+      await expireStaleInvitations(client, inviteRole, input.email);
 
-    await expireStaleInvitations(client, inviteRole, input.email);
+      // workspace_id null: founder invite pre-workspace; mentor invite platform-level.
+      const result = await client.query<InvitationRow>(
+        `insert into invitations
+           (email, invite_role, token_hash, invited_by_user_id, expires_at, personal_message)
+         values
+           ($1, $2, $3, $4, now() + ($5 * interval '1 day'), $6)
+         returning *`,
+        [
+          input.email,
+          inviteRole,
+          tokenHash,
+          actor.userId,
+          INVITATION_TTL_DAYS,
+          input.personalMessage ?? null,
+        ],
+      );
+      return result.rows[0];
+    });
 
-    // workspace_id null: founder invite pre-workspace; mentor invite platform-level.
-    const result = await client.query<InvitationRow>(
-      `insert into invitations
-         (email, invite_role, token_hash, invited_by_user_id, expires_at, personal_message)
-       values
-         ($1, $2, $3, $4, now() + ($5 * interval '1 day'), $6)
-       returning *`,
-      [
-        input.email,
-        inviteRole,
-        tokenHash,
-        actor.userId,
-        INVITATION_TTL_DAYS,
-        input.personalMessage ?? null,
-      ],
-    );
-
-    await client.query("commit");
-
-    const invitation = mapInvitation(result.rows[0]);
+    const invitation = mapInvitation(row);
     // The invited email is deliberately absent — it is a denied log key. The
     // invitation id resolves back to it in `invitations` when the trail is read.
     recordAccountEvent("account_invitation_created", {
@@ -237,9 +236,8 @@ async function createInvitation(
 
     return { invitation, rawToken };
   } catch (error) {
-    // 23505 aborts txn — rollback before mapping, not after.
-    await client.query("rollback");
-
+    // withTransaction already rolled back — this only maps the resulting
+    // error, it does not need to roll back anything itself.
     const pendingUniqueConstraint =
       inviteRole === "founder"
         ? "invitations_pending_founder_unique"
@@ -259,8 +257,6 @@ async function createInvitation(
     }
 
     throw error;
-  } finally {
-    client.release();
   }
 }
 
@@ -289,14 +285,11 @@ async function revokeInvitation(
 ): Promise<Invitation> {
   assertValidInvitationId(invitationId);
 
-  const client = await pool.connect();
-  // Deferred error after commit — catch must not rollback a committed expiry write.
+  // Deferred error after commit — must not roll back a committed expiry write.
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
 
-  try {
-    await client.query("begin");
-
+  await withTransaction(async (client) => {
     const row = await lockInvitation(client, invitationId, inviteRole);
 
     if (!row) {
@@ -333,14 +326,7 @@ async function revokeInvitation(
       );
       invitation = mapInvitation(result.rows[0]);
     }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 
   if (deferredError) {
     throw deferredError;
@@ -426,7 +412,6 @@ export async function acceptFounderInvitation(
   const createVentureSuffix =
     deps.createVentureSuffix ?? (() => randomBytes(3).toString("hex"));
 
-  const client = await pool.connect();
   // Deferred expiry error — commit must succeed before throw (same as revoke).
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
@@ -434,162 +419,158 @@ export async function acceptFounderInvitation(
   let venture: Venture | undefined;
 
   try {
-    await client.query("begin");
-
-    // Unlocked peek for email; founder role filter blocks mentor tokens here.
-    const peeked = await client.query<{ id: string; email: string }>(
-      `select id, email from invitations
+    await withTransaction(async (client) => {
+      // Unlocked peek for email; founder role filter blocks mentor tokens here.
+      const peeked = await client.query<{ id: string; email: string }>(
+        `select id, email from invitations
        where token_hash = $1 and invite_role = 'founder'`,
-      [tokenHash],
-    );
-    const peekedInvitation = peeked.rows[0];
-    if (!peekedInvitation) {
-      throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
-    }
+        [tokenHash],
+      );
+      const peekedInvitation = peeked.rows[0];
+      if (!peekedInvitation) {
+        throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
+      }
 
-    // Lock full email family by id order — stable lock order prevents deadlocks.
-    const familyResult = await client.query<InvitationRow>(
-      `select * from invitations
+      // Lock full email family by id order — stable lock order prevents deadlocks.
+      const familyResult = await client.query<InvitationRow>(
+        `select * from invitations
        where lower(trim(email)) = lower(trim($1))
        order by id
        for update`,
-      [peekedInvitation.email],
-    );
-
-    // Re-find target in locked set — guards invariant if peek ever diverged.
-    const target = familyResult.rows.find(
-      (row) =>
-        row.id === peekedInvitation.id &&
-        row.token_hash === tokenHash &&
-        row.invite_role === "founder",
-    );
-    if (!target) {
-      throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
-    }
-
-    // Founder invitations must have null workspace_id — corruption trip wire.
-    if (target.workspace_id !== null) {
-      throw new Error(
-        `Founder invitation ${target.id} unexpectedly has a non-null workspace_id.`,
+        [peekedInvitation.email],
       );
-    }
 
-    if (target.status !== "pending") {
-      throw new ServiceError(
-        "INVITATION_NOT_PENDING",
-        "The invitation is no longer pending.",
+      // Re-find target in locked set — guards invariant if peek ever diverged.
+      const target = familyResult.rows.find(
+        (row) =>
+          row.id === peekedInvitation.id &&
+          row.token_hash === tokenHash &&
+          row.invite_role === "founder",
       );
-    }
+      if (!target) {
+        throw new ServiceError("NOT_FOUND", "Founder invitation not found.");
+      }
 
-    if (target.expires_at <= new Date()) {
-      await client.query(
-        `update invitations
+      // Founder invitations must have null workspace_id — corruption trip wire.
+      if (target.workspace_id !== null) {
+        throw new Error(
+          `Founder invitation ${target.id} unexpectedly has a non-null workspace_id.`,
+        );
+      }
+
+      if (target.status !== "pending") {
+        throw new ServiceError(
+          "INVITATION_NOT_PENDING",
+          "The invitation is no longer pending.",
+        );
+      }
+
+      if (target.expires_at <= new Date()) {
+        await client.query(
+          `update invitations
          set status = 'expired'
          where id = $1 and invite_role = 'founder' and status = 'pending'`,
-        [target.id],
-      );
-      deferredError = new ServiceError(
-        "INVITATION_NOT_PENDING",
-        "The invitation has expired and can no longer be accepted.",
-      );
-    } else {
-      const userResult = await client.query<UserRow>(
-        `select id, email, role, deleted_at from users where id = $1 for update`,
-        [actor.userId],
-      );
-      const user = userResult.rows[0];
-
-      if (!user || user.deleted_at !== null || user.role !== "pending") {
-        throw new ServiceError(
-          "FORBIDDEN",
-          "Only an account awaiting invitation acceptance can accept this invitation.",
+          [target.id],
         );
-      }
-
-      if (normalizeEmail(user.email) !== normalizeEmail(target.email)) {
-        throw new ServiceError(
-          "INVITATION_EMAIL_MISMATCH",
-          "This invitation was issued to a different email address.",
+        deferredError = new ServiceError(
+          "INVITATION_NOT_PENDING",
+          "The invitation has expired and can no longer be accepted.",
         );
-      }
+      } else {
+        const userResult = await client.query<UserRow>(
+          `select id, email, role, deleted_at from users where id = $1 for update`,
+          [actor.userId],
+        );
+        const user = userResult.rows[0];
 
-      // Conditional role update — zero rows means stale/replayed accept aborts.
-      const roleUpdate = await client.query(
-        `update users
+        if (!user || user.deleted_at !== null || user.role !== "pending") {
+          throw new ServiceError(
+            "FORBIDDEN",
+            "Only an account awaiting invitation acceptance can accept this invitation.",
+          );
+        }
+
+        if (normalizeEmail(user.email) !== normalizeEmail(target.email)) {
+          throw new ServiceError(
+            "INVITATION_EMAIL_MISMATCH",
+            "This invitation was issued to a different email address.",
+          );
+        }
+
+        // Conditional role update — zero rows means stale/replayed accept aborts.
+        const roleUpdate = await client.query(
+          `update users
          set role = 'founder'
          where id = $1 and role = 'pending' and deleted_at is null
          returning id`,
-        [actor.userId],
-      );
-      if (roleUpdate.rowCount === 0) {
-        throw new ServiceError(
-          "FORBIDDEN",
-          "Only an account awaiting invitation acceptance can accept this invitation.",
+          [actor.userId],
         );
-      }
+        if (roleUpdate.rowCount === 0) {
+          throw new ServiceError(
+            "FORBIDDEN",
+            "Only an account awaiting invitation acceptance can accept this invitation.",
+          );
+        }
 
-      const createdWorkspace = await insertWorkspaceWithRetry(
-        client,
-        actor.userId,
-        target.email,
-        createWorkspaceSuffix,
-        await resolveInvitingMentorUserId(client, target.invited_by_user_id),
-      );
+        const createdWorkspace = await insertWorkspaceWithRetry(
+          client,
+          actor.userId,
+          target.email,
+          createWorkspaceSuffix,
+          await resolveInvitingMentorUserId(client, target.invited_by_user_id),
+        );
 
-      const createdVenture = await createDefaultVentureForNewWorkspace(
-        client,
-        createdWorkspace.id,
-        actor.userId,
-        target.email,
-        { createSlugSuffix: createVentureSuffix },
-      );
+        const createdVenture = await createDefaultVentureForNewWorkspace(
+          client,
+          createdWorkspace.id,
+          actor.userId,
+          target.email,
+          { createSlugSuffix: createVentureSuffix },
+        );
 
-      await setInitialActiveContext(
-        client,
-        actor.userId,
-        createdWorkspace.id,
-        createdVenture.id,
-      );
+        await setInitialActiveContext(
+          client,
+          actor.userId,
+          createdWorkspace.id,
+          createdVenture.id,
+        );
 
-      // workspace_id stays null — link is invited_user_id → founder_user_id.
-      const acceptedResult = await client.query<InvitationRow>(
-        `update invitations
+        // workspace_id stays null — link is invited_user_id → founder_user_id.
+        const acceptedResult = await client.query<InvitationRow>(
+          `update invitations
          set status = 'accepted', invited_user_id = $1, accepted_by_user_id = $1, accepted_at = now()
          where id = $2 and invite_role = 'founder' and status = 'pending'
          returning *`,
-        [actor.userId, target.id],
-      );
+          [actor.userId, target.id],
+        );
 
-      // Expire naturally stale siblings separately — no revoked_by on natural expiry.
-      await client.query(
-        `update invitations
+        // Expire naturally stale siblings separately — no revoked_by on natural expiry.
+        await client.query(
+          `update invitations
          set status = 'expired'
          where id <> $1
            and lower(trim(email)) = lower(trim($2))
            and status = 'pending'
            and expires_at <= now()`,
-        [target.id, target.email],
-      );
+          [target.id, target.email],
+        );
 
-      // Revoke remaining pending same-email invites (any role).
-      await client.query(
-        `update invitations
+        // Revoke remaining pending same-email invites (any role).
+        await client.query(
+          `update invitations
          set status = 'revoked', revoked_by_user_id = $1, revoked_at = now()
          where id <> $2
            and lower(trim(email)) = lower(trim($3))
            and status = 'pending'`,
-        [actor.userId, target.id, target.email],
-      );
+          [actor.userId, target.id, target.email],
+        );
 
-      invitation = mapInvitation(acceptedResult.rows[0]);
-      workspace = createdWorkspace;
-      venture = createdVenture;
-    }
-
-    await client.query("commit");
+        invitation = mapInvitation(acceptedResult.rows[0]);
+        workspace = createdWorkspace;
+        venture = createdVenture;
+      }
+    });
   } catch (error) {
-    await client.query("rollback");
-
     if (
       isPostgresError(error) &&
       error.code === "23505" &&
@@ -602,8 +583,6 @@ export async function acceptFounderInvitation(
     }
 
     throw error;
-  } finally {
-    client.release();
   }
 
   if (deferredError) {
@@ -624,13 +603,10 @@ export async function acceptMentorInvitation(
   const token = normalizeAndValidateInvitationToken(rawToken);
   const tokenHash = createHash("sha256").update(token).digest("hex");
 
-  const client = await pool.connect();
   let deferredError: ServiceError | undefined;
   let invitation: Invitation | undefined;
 
-  try {
-    await client.query("begin");
-
+  await withTransaction(async (client) => {
     const peeked = await client.query<{ id: string; email: string }>(
       `select id, email from invitations
        where token_hash = $1 and invite_role = 'mentor'`,
@@ -750,14 +726,7 @@ export async function acceptMentorInvitation(
 
       invitation = mapInvitation(acceptedResult.rows[0]);
     }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 
   if (deferredError) {
     throw deferredError;
@@ -787,10 +756,7 @@ async function listInvitations(
   // Mentor list scoped in SQL — other mentors' rows never leave the database.
   const scopeToInviter = actor.role === "mentor";
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     // Two statements so list sees expireStaleInvitations updates (CTE snapshot rule).
     await expireStaleInvitations(client, inviteRole);
 
@@ -809,15 +775,8 @@ async function listInvitations(
       [inviteRole, scopeToInviter ? actor.userId : null],
     );
 
-    await client.query("commit");
-
     return result.rows.map(mapInvitationListItem);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 export type AcceptedInvitation =

@@ -125,6 +125,14 @@ module.exports = {
       from: { path: "^packages/(toolkit-content|shared)/" },
       to: { path: "^apps/" },
     },
+    {
+      name: "apps-cannot-import-services-internal",
+      severity: "error",
+      comment:
+        "packages/services/*/internal/* is not public API (see each internal/ barrel's header comment) — apps/web and apps/mcp must go through the service's index.ts.",
+      from: { path: "^apps/" },
+      to: { path: "^packages/services/src/[^/]+/internal/" },
+    },
   ],
   options: {
     tsPreCompilationDeps: true,

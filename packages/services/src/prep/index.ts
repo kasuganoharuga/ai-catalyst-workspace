@@ -383,22 +383,6 @@ export async function savePrepExtract(
  * transcription and gotten their confirmation (see savePrepExtract's own
  * docstring), the same trust boundary as every other save in this codebase.
  */
-export async function getConfirmedInterviewCount(
-  actor: ActorContext,
-  programRunModuleIdRaw: string,
-): Promise<number> {
-  const { programRunModuleId } = await authorizeRunModule(
-    actor,
-    programRunModuleIdRaw,
-  );
-  return countConfirmedInterviews(programRunModuleId);
-}
-
-/**
- * Same sum as {@link getConfirmedInterviewCount}, callable from inside an
- * already-open transaction/actor-authorized context (e.g. saveFounderResponse's
- * gate check) that has no reason to re-authorize the run module.
- */
 export async function countConfirmedInterviews(
   programRunModuleId: string,
 ): Promise<number> {
@@ -412,12 +396,3 @@ export async function countConfirmedInterviews(
   );
   return Number(result.rows[0]?.total ?? "0");
 }
-
-export {
-  MAX_PREP_DOCUMENTS_PER_MODULE,
-  MINIMUM_CONFIRMED_INTERVIEWS,
-  type PrepDocument,
-  type PrepDocumentKind,
-  type SavePrepExtractInput,
-  type UploadPrepDocumentInput,
-};

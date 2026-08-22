@@ -24,7 +24,7 @@ import {
   mapArtifactValidationRow,
 } from "@ai-catalyst/services/artifact/internal/validation-writes";
 import { normalizeArtifactKeyInput } from "@ai-catalyst/services/artifact/internal/normalize-input";
-import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 function draftRuleSnapshot(
   validationConfig: Record<string, unknown>,

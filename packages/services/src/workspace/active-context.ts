@@ -1,12 +1,12 @@
 import type { PoolClient } from "pg";
 
-import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ActiveContext } from "@ai-catalyst/shared";
 
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspaceId } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 interface ActiveContextRow {
   active_workspace_id: string | null;
@@ -22,10 +22,7 @@ export async function getActiveContext(
   assertRole(actor, ["founder"]);
   const workspaceId = await resolveFounderWorkspaceId(actor);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     await client.query(
       `insert into user_active_contexts (user_id, active_workspace_id, active_venture_id)
        values ($1, $2, null)
@@ -49,19 +46,12 @@ export async function getActiveContext(
       [actor.userId],
     );
 
-    await client.query("commit");
-
     const row = result.rows[0];
     return {
       workspaceId: row?.active_workspace_id ?? null,
       ventureId: row?.active_venture_id ?? null,
     };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 // Invitation-accept path only — no assertRole (caller is still 'pending'). Not for ordinary switches.
@@ -89,10 +79,7 @@ export async function setActiveVenture(
 ): Promise<ActiveContext> {
   assertRole(actor, ["founder"]);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const workspaceId = await resolveFounderWorkspaceId(actor, client);
 
     let targetVentureId: string | null = null;
@@ -121,13 +108,6 @@ export async function setActiveVenture(
       [actor.userId, workspaceId, targetVentureId],
     );
 
-    await client.query("commit");
-
     return { workspaceId, ventureId: targetVentureId };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

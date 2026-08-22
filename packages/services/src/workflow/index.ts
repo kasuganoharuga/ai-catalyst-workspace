@@ -17,6 +17,7 @@ import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace"
 import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { mapBranchCreatedVia } from "@ai-catalyst/services/internal/branch";
 import { resolvePublishedProgramVersionId } from "@ai-catalyst/services/internal/program-version";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import {
   RUN_MODULE_SUMMARY_COLUMNS,
   listRunModulesForBranch,
@@ -145,10 +146,7 @@ export async function getOrCreateProgramRun(
   const { ventureId } = normalizeGetOrCreateProgramRunInput(input);
   const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
@@ -195,7 +193,6 @@ export async function getOrCreateProgramRun(
         programVersionId: existingRow.program_version_id,
       });
 
-      await client.query("commit");
       return { run: mapProgramRunRow(existingRow), created: false };
     }
 
@@ -287,17 +284,11 @@ export async function getOrCreateProgramRun(
       [branchId, runRow.id],
     );
 
-    await client.query("commit");
     return {
       run: mapProgramRunRow(activatedRunResult.rows[0]),
       created: true,
     };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 // --- Read-only Run/Module resolution ---

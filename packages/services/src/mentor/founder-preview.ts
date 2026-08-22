@@ -5,6 +5,7 @@ import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { insertWorkspaceWithRetry } from "@ai-catalyst/services/workspace/internal/insert-workspace";
 
@@ -187,10 +188,7 @@ export async function createFounderSandbox(
   const email = await resolveMentorEmail(actor.userId);
   const localPart = email.split("@")[0]?.trim() || "Mentor";
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const countResult = await client.query<{ count: string }>(
       `select count(*) from workspaces where founder_user_id = $1 and kind = 'sandbox'`,
       [actor.userId],
@@ -222,14 +220,8 @@ export async function createFounderSandbox(
       enablePreview,
     );
 
-    await client.query("commit");
     return { workspaceId: workspace.id, ventureId: venture.id };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 /**

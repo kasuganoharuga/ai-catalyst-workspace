@@ -1,8 +1,7 @@
 import type { PoolClient } from "pg";
 
-import { pool } from "@ai-catalyst/db";
-
 import { ServiceError } from "@ai-catalyst/services/errors";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 // Must match content-seed/index.ts SEED_LOCK_KEY so seed and reconcile serialize together.
 const SEED_LOCK_KEY = 727_310_101;
@@ -420,10 +419,7 @@ export async function reconcileProgramRunInTransaction(
 export async function reconcileProgramRun(
   programRunId: string,
 ): Promise<RunReconciliationSummary> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const runResult = await client.query<{
       id: string;
       venture_id: string;
@@ -447,17 +443,9 @@ export async function reconcileProgramRun(
       SEED_LOCK_KEY,
     ]);
 
-    const summary = await reconcileProgramRunInTransaction(client, {
+    return reconcileProgramRunInTransaction(client, {
       programRunId: run.id,
       programVersionId: run.program_version_id,
     });
-
-    await client.query("commit");
-    return summary;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

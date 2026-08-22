@@ -13,6 +13,7 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { insertModuleEventRow } from "@ai-catalyst/services/internal/module-events";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { submitAttempt } from "@ai-catalyst/services/attempt";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
@@ -670,36 +671,9 @@ export async function confirmModuleCompletion(
     );
   }
 
-  // Snapshot Module 3 interview questions before the txn so we can create
-  // interview_activities inside the same commit as module completion.
-  const moduleKeyResult = await pool.query<{
-    module_key: string;
-    program_run_id: string;
-  }>(
-    `select module_key, program_run_id
-     from program_run_modules
-     where id = $1 and workspace_id = $2`,
-    [programRunModuleId, workspace.id],
+  const nextModuleUnlocked = await withTransaction((client) =>
+    completeSystemModule(client, actor, workspace.id, runModule.id, attempt.id),
   );
-  const completingModule = moduleKeyResult.rows[0];
-  const client = await pool.connect();
-  let nextModuleUnlocked: NextModuleUnlocked | null = null;
-  try {
-    await client.query("begin");
-    nextModuleUnlocked = await completeSystemModule(
-      client,
-      actor,
-      workspace.id,
-      runModule.id,
-      attempt.id,
-    );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
 
   return { programRunModuleId, justConfirmed: true, nextModuleUnlocked };
 }

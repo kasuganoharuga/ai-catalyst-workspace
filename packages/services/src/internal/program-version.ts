@@ -1,7 +1,7 @@
 import { pool } from "@ai-catalyst/db";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
-import type { QueryExecutor } from "@ai-catalyst/services/workspace";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 // package.json export for Turbopack only — not public API.
 // Resolve published version by stable program_key (highest version_number), not "latest anywhere".

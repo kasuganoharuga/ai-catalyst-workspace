@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import type { Pool, PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
@@ -16,6 +15,8 @@ import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import {
   generateObjectKey,
   sanitizeFilename,
@@ -41,7 +42,7 @@ import type { StorageProvider } from "./types.js";
 // Owns storage_objects business state (auth + pending→uploaded→verified).
 // Local provider for dev/test; staging/prod use STORAGE_PROVIDER=s3.
 
-export type QueryExecutor = Pool | PoolClient;
+export type { QueryExecutor };
 
 export interface StorageServiceDependencies {
   // Test-only DI seam for a fake StorageProvider (same pattern as ModuleCatalogDependencies).
@@ -242,23 +243,6 @@ function normalizeDeleteUnverifiedUploadInput(input: unknown): {
     );
   }
   return { storageObjectId };
-}
-
-async function withTransaction<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-    const result = await fn(client);
-    await client.query("commit");
-    return result;
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
 }
 
 async function fetchStorageObjectRow(
@@ -543,7 +527,7 @@ export async function uploadFile(
   });
 
   try {
-    await provider(deps).then((p) =>
+    await resolveProvider(deps).then((p) =>
       p.putObject({
         key: pendingRow.object_key,
         body: input.content,
@@ -571,7 +555,7 @@ export async function uploadFile(
   // Read back from the provider rather than trusting the write returned
   // cleanly — the same guard the generated path uses, and the reason an
   // object never reaches 'verified' on a silently truncated write.
-  const stored = await provider(deps).then((p) =>
+  const stored = await resolveProvider(deps).then((p) =>
     p.headObject(pendingRow.object_key),
   );
   if (stored === null || stored.sha256 !== contentHash) {
@@ -596,11 +580,6 @@ export async function uploadFile(
   return mapStorageObjectRow(verifiedRow);
 }
 
-/** Small alias so the upload path reads without repeating resolveProvider. */
-function provider(deps: StorageServiceDependencies): Promise<StorageProvider> {
-  return resolveProvider(deps);
-}
-
 /** Raw bytes for a verified object the actor is allowed to read. */
 export async function readStorageObjectContent(
   actor: ActorContext,
@@ -619,7 +598,9 @@ export async function readStorageObjectContent(
       "This file is not available for reading.",
     );
   }
-  const content = await provider(deps).then((p) => p.getObject(row.object_key));
+  const content = await resolveProvider(deps).then((p) =>
+    p.getObject(row.object_key),
+  );
   return { object: mapStorageObjectRow(row), content };
 }
 

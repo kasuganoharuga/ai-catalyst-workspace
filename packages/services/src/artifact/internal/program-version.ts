@@ -1,6 +1,6 @@
 import { ServiceError } from "@ai-catalyst/services/errors";
 
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 /** Shared by render-workbook.ts and export-document.ts — both stamp this into their Provenance. */
 export async function loadProgramVersionNumber(

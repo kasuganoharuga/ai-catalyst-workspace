@@ -3,7 +3,7 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
-import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 
 export { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";

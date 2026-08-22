@@ -5,6 +5,7 @@ import type {
 } from "@ai-catalyst/contracts/actor-context";
 
 import { assertRole } from "@ai-catalyst/services/errors";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import {
   GRANTED_MCP_SCOPES,
   MCP_GRANT_ABSOLUTE_MAX_AGE_MS,
@@ -189,10 +190,7 @@ export async function revokeMcpConnectionForUser(
 export async function revokeAllMcpConnectionsForUserId(
   userId: string,
 ): Promise<McpRevocationResult> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const deleted = await client.query<{ client_id: string }>(
       `delete from mcp_oauth_access_tokens
        where user_id = $1
@@ -215,14 +213,8 @@ export async function revokeAllMcpConnectionsForUserId(
       userId,
     ]);
 
-    await client.query("commit");
     return { accessTokensRevoked: deleted.rowCount ?? 0 };
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 /**

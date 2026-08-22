@@ -1,6 +1,5 @@
 import type { PoolClient } from "pg";
 
-import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   ModuleResponse,
@@ -12,6 +11,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { insertModuleEvent } from "@ai-catalyst/services/attempt/internal/events";
 import { resolveInteractionProvider } from "@ai-catalyst/services/attempt/internal/interaction-provider";
 import {
@@ -367,9 +367,7 @@ export async function saveFounderResponse(
     "Attempt not found.",
   );
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
 
     // Single-lock path (no run_module lock needed here — see
@@ -534,12 +532,6 @@ export async function saveFounderResponse(
       metadata: { question_key: question.question_key },
     });
 
-    await client.query("commit");
     return mapResponseRow(responseResult.rows[0]);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

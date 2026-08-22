@@ -4,7 +4,7 @@ import type { ModuleAttemptStatus, ModuleType } from "@ai-catalyst/shared";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 const EDITABLE_ATTEMPT_STATUSES = ["draft", "in_progress"] as const;
 

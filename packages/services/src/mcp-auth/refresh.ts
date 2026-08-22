@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 
 import { pool } from "@ai-catalyst/db";
 
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import {
   type AuthorizationCodeCheckResult,
   MCP_BEARER_TOKEN_PATTERN,
@@ -204,9 +205,7 @@ export async function clampMcpRefreshTokenExpiryToGrant(params: {
  * not a decision; hasEverAuthorised stays true for "reconnect" UX.
  */
 async function retireMcpGrant(userId: string, clientId: string): Promise<void> {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  await withTransaction(async (client) => {
     await client.query(
       `delete from mcp_oauth_access_tokens where user_id = $1 and client_id = $2`,
       [userId, clientId],
@@ -215,13 +214,7 @@ async function retireMcpGrant(userId: string, clientId: string): Promise<void> {
       `delete from mcp_oauth_grants where user_id = $1 and client_id = $2`,
       [userId, clientId],
     );
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }
 
 interface GrantLimitRow {
