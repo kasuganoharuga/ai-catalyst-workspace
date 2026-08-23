@@ -3,7 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
-import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
+import {
+  effectiveRole,
+  isFounderPreview,
+} from "@ai-catalyst/contracts/actor-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { autoCompleteSetupModule } from "@ai-catalyst/services/module/auto-setup";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
@@ -134,6 +137,16 @@ export async function setInitialPasswordAction(
 ): Promise<ActionResult> {
   try {
     const actor = await requireFounderActor();
+    // accounts.password is keyed by user_id, not Workspace — this would
+    // change the Mentor's real credential and revoke their MCP grants.
+    // Defense in depth behind the UI lock (account-security/page.tsx and
+    // the dashboard password prompt, both suppressed during preview).
+    if (isFounderPreview(actor)) {
+      throw new ServiceError(
+        "FORBIDDEN",
+        "Password isn't editable while previewing.",
+      );
+    }
 
     if (await hasChangedInvitationPassword(actor)) {
       throw new ServiceError(
