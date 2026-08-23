@@ -95,8 +95,16 @@ function activeStorageIdentity(deps: StorageServiceDependencies): {
 // Founders pass on `role`; trusted system callers pass on `source`.
 // `"system"` is an ActorSource, not an ActorRole, so this cannot be
 // expressed as assertRole(["founder", "system"]).
+//
+// effectiveRole, not actor.role: a Mentor previewing the Founder flow must
+// be able to write into their own sandbox the same way they can already
+// read it back (see getGeneratedTextContent's identical branch below) —
+// their `role` stays "mentor" throughout, only `actingAs` flips to
+// "founder", and every write here still resolves scope via
+// resolveFounderWorkspace(actor), which for a previewing Mentor only ever
+// resolves to their own sandbox.
 function assertFounderOrSystemActor(actor: ActorContext): void {
-  if (actor.role === "founder" || actor.source === "system") {
+  if (effectiveRole(actor) === "founder" || actor.source === "system") {
     return;
   }
   throw new ServiceError(

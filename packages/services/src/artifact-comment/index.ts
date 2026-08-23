@@ -2,7 +2,10 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
-import { resolveMcpProviderTag } from "@ai-catalyst/contracts/actor-context";
+import {
+  effectiveRole,
+  resolveMcpProviderTag,
+} from "@ai-catalyst/contracts/actor-context";
 import type {
   ArtifactComment,
   ArtifactCommentAnchor,
@@ -125,7 +128,14 @@ async function assertActorCanAccessWorkspace(
   client: QueryExecutor,
 ): Promise<void> {
   assertRole(actor, ["founder", "mentor", "admin"]);
-  if (actor.role === "founder") {
+  // effectiveRole, not actor.role: a Mentor previewing the Founder flow
+  // must reach their own sandbox's comment threads through this same
+  // branch (via resolveFounderWorkspace, scoped to their real userId) —
+  // same reasoning as storage/index.ts's getGeneratedTextContent. The
+  // mentor branch below requires kind = 'live' and would otherwise
+  // NOT_FOUND them out of their own sandbox (sandboxes never have a
+  // Mentor of their own — see workspaces_sandbox_has_no_mentor).
+  if (effectiveRole(actor) === "founder") {
     const workspace = await resolveFounderWorkspace(actor, client);
     if (workspace.id !== workspaceId) {
       throw new ServiceError("NOT_FOUND", "Artifact not found.");

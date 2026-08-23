@@ -18,7 +18,7 @@ import type {
   ArtifactCommentThread,
 } from "@ai-catalyst/shared";
 
-import { actorContextFromSession } from "@/lib/actor-context";
+import { actorContextFromSessionWithPreview } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import {
   commentActionInputSchema,
@@ -32,7 +32,7 @@ import { webLog } from "@/lib/web-logger";
 
 // Founder <-> Mentor comment threads on one Artifact — the same shape as
 // mentor-actions.ts/prep-actions.ts: session -> role check ->
-// actorContextFromSession -> service call -> ServiceError mapped to
+// actorContextFromSessionWithPreview -> service call -> ServiceError mapped to
 // { ok: false, message } -> revalidatePath. `pathname` is passed in from
 // the client (via usePathname()) because the Founder and Mentor artefact
 // pages live at different URLs and this file is shared between both.
@@ -48,7 +48,10 @@ async function requireCommentActor() {
   if (session.user.role !== "founder" && session.user.role !== "mentor") {
     throw new ServiceError("FORBIDDEN", "Founder or Mentor access required.");
   }
-  return actorContextFromSession(session);
+  // Preview-aware: a Mentor walking the Founder flow in their own sandbox
+  // (actingAs: "founder") must reply through the same branch a real
+  // Founder does — see artifact-comment/index.ts's assertActorCanAccessWorkspace.
+  return actorContextFromSessionWithPreview(session);
 }
 
 function toActionResult(error: unknown): { ok: false; message: string } {

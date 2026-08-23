@@ -7,6 +7,7 @@ import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { ServiceError } from "@ai-catalyst/services/errors";
+import { createFounderSandbox } from "@ai-catalyst/services/mentor/founder-preview";
 import { seedFixtureProgram } from "@ai-catalyst/services/testing/db-fixtures";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";
 
@@ -169,6 +170,54 @@ describe("artifact-comment service — database integration", () => {
     return { actor, workspaceId, ventureId, attemptId: attempt.attempt.id };
   }
 
+  // A Mentor previewing the Founder flow in their own sandbox — role stays
+  // "mentor", actingAs flips to "founder". Sandboxes never have a Mentor
+  // of their own (workspaces_sandbox_has_no_mentor), so this actor must
+  // reach its own artefact through the founder branch of
+  // assertActorCanAccessWorkspace, not the mentor branch.
+  async function createMentorSandboxWithSavedArtefact(label: string) {
+    const userId = await createUser(label, "mentor");
+    const plainMentorActor: ActorContext = {
+      userId,
+      role: "mentor",
+      source: "web",
+    };
+    const { workspaceId, ventureId } =
+      await createFounderSandbox(plainMentorActor);
+    const previewingActor: ActorContext = {
+      ...plainMentorActor,
+      actingAs: "founder",
+    };
+
+    const run = await getOrCreateProgramRun(
+      previewingActor,
+      { ventureId },
+      { programKey: PROGRAM_KEY },
+    );
+
+    const moduleResult = await pool.query<{ id: string }>(
+      `select id from program_run_modules
+       where program_run_branch_id = $1 and module_key = $2`,
+      [run.run.activeBranchId, MODULE_KEY],
+    );
+
+    const attempt = await startOrResumeAttempt(previewingActor, {
+      programRunModuleId: moduleResult.rows[0].id,
+    });
+    await saveArtifactSubmission(previewingActor, {
+      attemptId: attempt.attempt.id,
+      artifactKey: ARTIFACT_KEY,
+      content: ARTIFACT_CONTENT,
+    });
+
+    return {
+      actor: previewingActor,
+      workspaceId,
+      ventureId,
+      attemptId: attempt.attempt.id,
+    };
+  }
+
   beforeAll(async () => {
     await seedFixtureProgram(fixtureContent());
   });
@@ -190,12 +239,14 @@ describe("artifact-comment service — database integration", () => {
       "delete from artifact_submissions where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
+    // Before ventures: createFounderSandbox sets a user_active_contexts
+    // row pointing at the sandbox Venture, which FK-blocks deleting it.
     await pool.query(
-      "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
       [createdUserIds],
     );
     await pool.query(
-      "delete from user_active_contexts where user_id = any($1::uuid[])",
+      "delete from ventures where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
       [createdUserIds],
     );
     await pool.query(
@@ -400,6 +451,20 @@ describe("artifact-comment service — database integration", () => {
 
       const threads = await listArtifactCommentThreads(founder.actor, {
         attemptId: founder.attemptId,
+        artifactKey: ARTIFACT_KEY,
+      });
+      expect(threads).toEqual([]);
+    });
+
+    it("does not throw for a Mentor previewing the Founder flow in their own sandbox", async () => {
+      const sandbox =
+        await createMentorSandboxWithSavedArtefact("preview-list");
+
+      // Before the fix this threw NOT_FOUND from assertMentorOwnsWorkspace
+      // (sandboxes are never kind = 'live') instead of resolving through
+      // the founder branch via effectiveRole.
+      const threads = await listArtifactCommentThreads(sandbox.actor, {
+        attemptId: sandbox.attemptId,
         artifactKey: ARTIFACT_KEY,
       });
       expect(threads).toEqual([]);
