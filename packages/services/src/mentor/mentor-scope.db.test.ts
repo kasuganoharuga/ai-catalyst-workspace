@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 // MENTOR_SEES_ALL_FOUNDERS is currently true in production (see
 // packages/services/src/internal/mentor-scope.ts). This suite forces the

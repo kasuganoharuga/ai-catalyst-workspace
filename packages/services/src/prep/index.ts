@@ -11,7 +11,6 @@ import {
 
 import {
   MAX_PREP_DOCUMENTS_PER_MODULE,
-  MINIMUM_CONFIRMED_INTERVIEWS,
   type PrepDocument,
   type PrepDocumentKind,
   type SavePrepExtractInput,

@@ -1,5 +1,5 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
 import { createWebActorContext } from "@ai-catalyst/contracts/actor-context";

@@ -6,7 +6,6 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import { saveArtifactSubmission } from "@ai-catalyst/services/artifact";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
-import { ServiceError } from "@ai-catalyst/services/errors";
 import { createFounderSandbox } from "@ai-catalyst/services/mentor/founder-preview";
 import { seedFixtureProgram } from "@ai-catalyst/services/testing/db-fixtures";
 import { getOrCreateProgramRun } from "@ai-catalyst/services/workflow";

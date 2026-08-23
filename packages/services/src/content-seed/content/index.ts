@@ -7,7 +7,10 @@ import { MODULE_4_CONTENT } from "./module-4.js";
 import { MODULE_5_CONTENT } from "./module-5.js";
 import { MODULE_6_CONTENT } from "./module-6.js";
 import { MODULE_7_CONTENT } from "./module-7.js";
-import { MODULE_PROMPT_BINDINGS_CONTENT, PROMPTS_CONTENT } from "./prompts.js";
+import {
+  MODULE_PROMPT_BINDINGS_CONTENT,
+  PROMPTS_CONTENT,
+} from "./prompts/index.js";
 import { PROGRAM_CONTENT } from "./program.js";
 
 // Canonical seed content — not parsed from Markdown at runtime.

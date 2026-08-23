@@ -2,10 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { pool } from "@ai-catalyst/db";
-import {
-  DEFAULT_TOOLKIT_CONTENT,
-  seedToolkitContent,
-} from "@ai-catalyst/services/content-seed";
+import { seedToolkitContent } from "@ai-catalyst/services/content-seed";
 import type { ToolkitSeedContent } from "@ai-catalyst/services/content-seed";
 import {
   founderActor,
