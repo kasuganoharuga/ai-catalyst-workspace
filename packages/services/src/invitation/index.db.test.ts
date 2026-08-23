@@ -280,6 +280,27 @@ describe("invitation service — database integration", () => {
     );
   });
 
+  it("does not write to any row when a list finds nothing pending to expire", async () => {
+    const { invitation } = await createFounderInvitation(admin, {
+      email: testEmail("list-no-write"),
+    });
+
+    const before = await pool.query<{ updated_at: Date }>(
+      `select updated_at from invitations where id = $1`,
+      [invitation.id],
+    );
+
+    await listFounderInvitations(admin);
+
+    const after = await pool.query<{ updated_at: Date }>(
+      `select updated_at from invitations where id = $1`,
+      [invitation.id],
+    );
+    expect(after.rows[0].updated_at.getTime()).toBe(
+      before.rows[0].updated_at.getTime(),
+    );
+  });
+
   describe("acceptFounderInvitation", () => {
     it("accepts a pending invitation: upgrades role, creates a Workspace and a default Venture, writes accepted fields, keeps workspace_id null", async () => {
       const user = await createPendingUser("accept-happy");

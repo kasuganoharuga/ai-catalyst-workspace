@@ -18,6 +18,7 @@ import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 const NAME_MAX_LENGTH = 200;
@@ -311,14 +312,15 @@ export async function listVentures(actor: ActorContext): Promise<Venture[]> {
 export async function getVenture(
   actor: ActorContext,
   ventureId: string,
+  executor: QueryExecutor = pool,
 ): Promise<Venture> {
   assertRole(actor, ["founder"]);
   const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
-  const workspaceId = await resolveFounderWorkspaceId(actor);
+  const workspaceId = await resolveFounderWorkspaceId(actor, executor);
 
   // Scoped by workspace_id, not just id — a Venture belonging to another
   // Workspace is indistinguishable from one that doesn't exist at all.
-  const result = await pool.query<VentureRow>(
+  const result = await executor.query<VentureRow>(
     `select ${VENTURE_COLUMNS} from ventures
      where id = $1 and workspace_id = $2`,
     [id, workspaceId],

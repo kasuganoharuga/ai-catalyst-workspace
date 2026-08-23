@@ -13,6 +13,7 @@ import type {
 
 import { recordAccountEvent } from "@ai-catalyst/services/audit/account-events";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { setInitialActiveContext } from "@ai-catalyst/services/workspace/active-context";
@@ -50,6 +51,22 @@ interface InvitationRow {
   created_at: Date;
   updated_at: Date;
 }
+
+// Explicit column list — never `select *` — matching InvitationRow above.
+// The table also has last_sent_at/send_count, which nothing here reads.
+const INVITATION_COLUMNS = `
+  id, email, invite_role, workspace_id, token_hash, invited_by_user_id,
+  invited_user_id, status, personal_message, expires_at,
+  accepted_by_user_id, accepted_at, revoked_by_user_id, revoked_at,
+  created_at, updated_at
+`
+  .trim()
+  .replace(/\s+/g, " ");
+
+// Same list, qualified for the "i" alias used by listInvitations' join.
+const INVITATION_COLUMNS_QUALIFIED = INVITATION_COLUMNS.split(", ")
+  .map((column) => `i.${column}`)
+  .join(", ");
 
 interface UserRow {
   id: string;
@@ -174,7 +191,7 @@ async function lockInvitation(
   inviteRole: InviteRole,
 ): Promise<InvitationRow | undefined> {
   const result = await client.query<InvitationRow>(
-    `select * from invitations
+    `select ${INVITATION_COLUMNS} from invitations
      where id = $1 and invite_role = $2
      for update`,
     [invitationId, inviteRole],
@@ -212,7 +229,7 @@ async function createInvitation(
            (email, invite_role, token_hash, invited_by_user_id, expires_at, personal_message)
          values
            ($1, $2, $3, $4, now() + ($5 * interval '1 day'), $6)
-         returning *`,
+         returning ${INVITATION_COLUMNS}`,
         [
           input.email,
           inviteRole,
@@ -321,7 +338,7 @@ async function revokeInvitation(
         `update invitations
          set status = 'revoked', revoked_by_user_id = $1, revoked_at = now()
          where id = $2 and invite_role = $3 and status = 'pending'
-         returning *`,
+         returning ${INVITATION_COLUMNS}`,
         [actor.userId, invitationId, inviteRole],
       );
       invitation = mapInvitation(result.rows[0]);
@@ -433,7 +450,7 @@ export async function acceptFounderInvitation(
 
       // Lock full email family by id order — stable lock order prevents deadlocks.
       const familyResult = await client.query<InvitationRow>(
-        `select * from invitations
+        `select ${INVITATION_COLUMNS} from invitations
        where lower(trim(email)) = lower(trim($1))
        order by id
        for update`,
@@ -618,7 +635,7 @@ export async function acceptMentorInvitation(
     }
 
     const familyResult = await client.query<InvitationRow>(
-      `select * from invitations
+      `select ${INVITATION_COLUMNS} from invitations
        where lower(trim(email)) = lower(trim($1))
        order by id
        for update`,
@@ -749,33 +766,53 @@ function mapInvitationListItem(row: InvitationListRow): InvitationListItem {
   };
 }
 
+// Left join: closed inviter accounts still list (revocable, name optional).
+async function fetchInvitationList(
+  executor: QueryExecutor,
+  inviteRole: InviteRole,
+  scopedInviterUserId: string | null,
+): Promise<InvitationListItem[]> {
+  const result = await executor.query<InvitationListRow>(
+    `select
+       ${INVITATION_COLUMNS_QUALIFIED},
+       inviter.name as invited_by_name,
+       inviter.email as invited_by_email,
+       inviter.role as invited_by_role
+     from invitations i
+     left join users inviter on inviter.id = i.invited_by_user_id
+     where i.invite_role = $1
+       and ($2::uuid is null or i.invited_by_user_id = $2)
+     order by i.created_at desc, i.id desc`,
+    [inviteRole, scopedInviterUserId],
+  );
+  return result.rows.map(mapInvitationListItem);
+}
+
 async function listInvitations(
   actor: ActorContext,
   inviteRole: InviteRole,
 ): Promise<InvitationListItem[]> {
   // Mentor list scoped in SQL — other mentors' rows never leave the database.
   const scopeToInviter = actor.role === "mentor";
+  const scopedInviterUserId = scopeToInviter ? actor.userId : null;
+
+  // Probe first — the common case has nothing to expire, so the list can
+  // run as a single read statement instead of opening a write transaction
+  // on every call.
+  const probe = await pool.query(
+    `select 1 from invitations
+     where invite_role = $1 and status = 'pending' and expires_at <= now()
+     limit 1`,
+    [inviteRole],
+  );
+  if (probe.rowCount === 0) {
+    return fetchInvitationList(pool, inviteRole, scopedInviterUserId);
+  }
 
   return withTransaction(async (client) => {
     // Two statements so list sees expireStaleInvitations updates (CTE snapshot rule).
     await expireStaleInvitations(client, inviteRole);
-
-    // Left join: closed inviter accounts still list (revocable, name optional).
-    const result = await client.query<InvitationListRow>(
-      `select
-         i.*,
-         inviter.name as invited_by_name,
-         inviter.email as invited_by_email,
-         inviter.role as invited_by_role
-       from invitations i
-       left join users inviter on inviter.id = i.invited_by_user_id
-       where i.invite_role = $1
-         and ($2::uuid is null or i.invited_by_user_id = $2)
-       order by i.created_at desc, i.id desc`,
-      [inviteRole, scopeToInviter ? actor.userId : null],
-    );
-
-    return result.rows.map(mapInvitationListItem);
+    return fetchInvitationList(client, inviteRole, scopedInviterUserId);
   });
 }
 

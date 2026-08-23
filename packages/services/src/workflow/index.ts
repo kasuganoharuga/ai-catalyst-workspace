@@ -253,29 +253,36 @@ export async function getOrCreateProgramRun(
       );
     }
 
-    for (const [index, moduleDefinition] of activeModules.entries()) {
-      const isFirstModule = index === 0;
-      await client.query(
-        `insert into program_run_modules (
-           workspace_id, program_run_id, program_version_id,
-           program_run_branch_id, module_definition_id, module_key,
-           title_snapshot, sequence_index, status, unlocked_at
-         )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          workspace.id,
-          runRow.id,
-          programVersionId,
-          branchId,
-          moduleDefinition.id,
-          moduleDefinition.module_key,
-          moduleDefinition.title,
-          moduleDefinition.sequence_index,
-          isFirstModule ? "available" : "locked",
-          isFirstModule ? new Date() : null,
-        ],
-      );
-    }
+    // One multi-row insert instead of one round-trip per Module — order
+    // within the arrays is preserved by unnest, so isFirstModule still
+    // lines up with activeModules[0] as it did in the per-row loop.
+    const now = new Date();
+    await client.query(
+      `insert into program_run_modules (
+         workspace_id, program_run_id, program_version_id,
+         program_run_branch_id, module_definition_id, module_key,
+         title_snapshot, sequence_index, status, unlocked_at
+       )
+       select $1, $2, $3, $4, m.module_definition_id, m.module_key,
+              m.title_snapshot, m.sequence_index, m.status, m.unlocked_at
+       from unnest(
+         $5::uuid[], $6::text[], $7::text[], $8::int[], $9::text[], $10::timestamptz[]
+       ) as m(module_definition_id, module_key, title_snapshot, sequence_index, status, unlocked_at)`,
+      [
+        workspace.id,
+        runRow.id,
+        programVersionId,
+        branchId,
+        activeModules.map((moduleDefinition) => moduleDefinition.id),
+        activeModules.map((moduleDefinition) => moduleDefinition.module_key),
+        activeModules.map((moduleDefinition) => moduleDefinition.title),
+        activeModules.map(
+          (moduleDefinition) => moduleDefinition.sequence_index,
+        ),
+        activeModules.map((_, index) => (index === 0 ? "available" : "locked")),
+        activeModules.map((_, index) => (index === 0 ? now : null)),
+      ],
+    );
 
     const activatedRunResult = await client.query<ProgramRunRow>(
       `update program_runs set active_branch_id = $1

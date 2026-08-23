@@ -1,5 +1,6 @@
 import type { PoolClient } from "pg";
 
+import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type { ActiveContext } from "@ai-catalyst/shared";
 
@@ -7,6 +8,7 @@ import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspaceId } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { withTransaction } from "@ai-catalyst/services/internal/transaction";
+import { ensureAndReadActiveContext } from "@ai-catalyst/services/workspace/internal/active-context-upsert";
 
 interface ActiveContextRow {
   active_workspace_id: string | null;
@@ -14,44 +16,34 @@ interface ActiveContextRow {
 }
 
 // UI selection only — never a basis for authorization. Write paths must re-check ownership.
-//
-// Three statements, not one upsert — unconditional upsert would bump updated_at on every read.
 export async function getActiveContext(
   actor: ActorContext,
 ): Promise<ActiveContext> {
   assertRole(actor, ["founder"]);
   const workspaceId = await resolveFounderWorkspaceId(actor);
 
-  return withTransaction(async (client) => {
-    await client.query(
-      `insert into user_active_contexts (user_id, active_workspace_id, active_venture_id)
-       values ($1, $2, null)
-       on conflict (user_id) do nothing`,
-      [actor.userId, workspaceId],
-    );
-
-    // Correct stale workspace only — leave correct rows (and updated_at) untouched.
-    await client.query(
-      `update user_active_contexts
-       set active_workspace_id = $2, active_venture_id = null, updated_at = now()
-       where user_id = $1
-         and active_workspace_id is distinct from $2`,
-      [actor.userId, workspaceId],
-    );
-
-    const result = await client.query<ActiveContextRow>(
-      `select active_workspace_id, active_venture_id
-       from user_active_contexts
-       where user_id = $1`,
-      [actor.userId],
-    );
-
-    const row = result.rows[0];
+  // Read-only fast path — this is called on every page render, and the
+  // overwhelming majority of calls are steady-state (row exists, already
+  // points at the current workspace). Only fall through to the write path
+  // (which self-heals a missing or stale row) when this read can't prove
+  // the row is already correct.
+  const fast = await pool.query<ActiveContextRow>(
+    `select active_workspace_id, active_venture_id
+     from user_active_contexts
+     where user_id = $1`,
+    [actor.userId],
+  );
+  const fastRow = fast.rows[0];
+  if (fastRow && fastRow.active_workspace_id === workspaceId) {
     return {
-      workspaceId: row?.active_workspace_id ?? null,
-      ventureId: row?.active_venture_id ?? null,
+      workspaceId: fastRow.active_workspace_id,
+      ventureId: fastRow.active_venture_id,
     };
-  });
+  }
+
+  return withTransaction((client) =>
+    ensureAndReadActiveContext(client, actor.userId, workspaceId),
+  );
 }
 
 // Invitation-accept path only — no assertRole (caller is still 'pending'). Not for ordinary switches.

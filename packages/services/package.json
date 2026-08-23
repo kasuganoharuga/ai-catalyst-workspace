@@ -104,6 +104,7 @@
     "./workspace": "./src/workspace/index.ts",
     "./workspace/active-context": "./src/workspace/active-context.ts",
     "./workspace/internal/insert-workspace": "./src/workspace/internal/insert-workspace.ts",
+    "./workspace/internal/active-context-upsert": "./src/workspace/internal/active-context-upsert.ts",
     "./venture": "./src/venture/index.ts",
     "./profile": "./src/profile/index.ts",
     "./profile/internal/preferred-ai-provider": "./src/profile/internal/preferred-ai-provider.ts",

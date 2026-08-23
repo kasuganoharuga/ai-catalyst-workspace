@@ -285,17 +285,39 @@ export async function applyBranchReconciliation(
     );
   }
 
-  for (const row of plan.sequenceUpdates) {
+  if (plan.sequenceUpdates.length > 0) {
+    // Safe as one batched statement because every target sequence_index is
+    // already guaranteed free by the offset shift above: computeBranchReconciliationPlan
+    // picks offset = max(currentMax, desiredMax) + SAFE_GAP, and the shift
+    // just moved every row in sequenceUpdates to >= offset, so no target
+    // value here (all <= desiredMax < offset) can collide with a row not
+    // in this list (which already holds its own distinct final value) or
+    // with another row in this same batch (each def/row gets one distinct
+    // target). Postgres still checks branch_sequence_unique per row even
+    // within a single UPDATE, so this only holds because nothing is
+    // occupied at these targets by the time the statement runs.
     await client.query(
-      `update program_run_modules set sequence_index = $1 where id = $2`,
-      [row.finalSequenceIndex, row.id],
+      `update program_run_modules m
+       set sequence_index = u.seq
+       from unnest($1::uuid[], $2::int[]) as u(id, seq)
+       where m.id = u.id`,
+      [
+        plan.sequenceUpdates.map((row) => row.id),
+        plan.sequenceUpdates.map((row) => row.finalSequenceIndex),
+      ],
     );
   }
 
-  for (const row of plan.titleUpdates) {
+  if (plan.titleUpdates.length > 0) {
     await client.query(
-      `update program_run_modules set title_snapshot = $1, updated_at = now() where id = $2`,
-      [row.title, row.id],
+      `update program_run_modules m
+       set title_snapshot = u.title, updated_at = now()
+       from unnest($1::uuid[], $2::text[]) as u(id, title)
+       where m.id = u.id`,
+      [
+        plan.titleUpdates.map((row) => row.id),
+        plan.titleUpdates.map((row) => row.title),
+      ],
     );
   }
 
@@ -325,27 +347,30 @@ export async function applyBranchReconciliation(
         `reconcileRunModules: program_run_branches ${plan.branchId} not found.`,
       );
     }
-    for (const row of plan.missing) {
-      await client.query(
-        `insert into program_run_modules (
-           workspace_id, program_run_id, program_version_id, program_run_branch_id,
-           module_definition_id, module_key, title_snapshot, sequence_index, status, unlocked_at
-         )
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-        [
-          branch.workspace_id,
-          branch.program_run_id,
-          plan.programVersionId,
-          plan.branchId,
-          row.moduleDefinitionId,
-          row.moduleKey,
-          row.title,
-          row.finalSequenceIndex,
-          row.status,
-          row.status === "available" ? new Date() : null,
-        ],
-      );
-    }
+    const now = new Date();
+    await client.query(
+      `insert into program_run_modules (
+         workspace_id, program_run_id, program_version_id, program_run_branch_id,
+         module_definition_id, module_key, title_snapshot, sequence_index, status, unlocked_at
+       )
+       select $1, $2, $3, $4, m.module_definition_id, m.module_key,
+              m.title, m.sequence_index, m.status, m.unlocked_at
+       from unnest(
+         $5::uuid[], $6::text[], $7::text[], $8::int[], $9::text[], $10::timestamptz[]
+       ) as m(module_definition_id, module_key, title, sequence_index, status, unlocked_at)`,
+      [
+        branch.workspace_id,
+        branch.program_run_id,
+        plan.programVersionId,
+        plan.branchId,
+        plan.missing.map((row) => row.moduleDefinitionId),
+        plan.missing.map((row) => row.moduleKey),
+        plan.missing.map((row) => row.title),
+        plan.missing.map((row) => row.finalSequenceIndex),
+        plan.missing.map((row) => row.status),
+        plan.missing.map((row) => (row.status === "available" ? now : null)),
+      ],
+    );
   }
 }
 

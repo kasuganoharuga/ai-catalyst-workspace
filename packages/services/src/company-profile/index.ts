@@ -12,7 +12,7 @@ import {
 } from "@ai-catalyst/services/workspace";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
 import { withTransaction } from "@ai-catalyst/services/internal/transaction";
-import { getActiveContext } from "@ai-catalyst/services/workspace/active-context";
+import { ensureAndReadActiveContext } from "@ai-catalyst/services/workspace/internal/active-context-upsert";
 
 const COMPANY_PROFILE_COLUMNS = `
   id, workspace_id, venture_id, name, website_url, linkedin_url,
@@ -351,7 +351,14 @@ export async function updateMyCompanyProfile(
       return mapCompanyProfileRow(row);
     }
 
-    const activeContext = await getActiveContext(actor);
+    // Same client as the insert below — was previously a nested
+    // getActiveContext(actor)/getVenture(actor, ...) pair, each opening its
+    // own pool connection while this transaction's client was still held.
+    const activeContext = await ensureAndReadActiveContext(
+      client,
+      actor.userId,
+      workspace.id,
+    );
     if (!activeContext.ventureId) {
       throw new ServiceError(
         "VALIDATION_ERROR",
@@ -359,7 +366,7 @@ export async function updateMyCompanyProfile(
       );
     }
 
-    await getVenture(actor, activeContext.ventureId);
+    await getVenture(actor, activeContext.ventureId, client);
 
     const name = updates.get("name");
     if (typeof name !== "string" || name.trim().length === 0) {

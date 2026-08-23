@@ -874,6 +874,61 @@ describe("getOrCreateProgramRun — living content reconciliation", () => {
     expect(zAfter.sequenceIndex).toBe(2);
   });
 
+  // Regression guard for batching the per-row sequence_index UPDATE loop
+  // into one statement (see reconcile-run-modules.ts's applyBranchReconciliation):
+  // a genuine swap — two existing Modules trading sequence_index, with
+  // nothing inserted or removed — is the case where each row's target
+  // value is another row's *current* value. A naive batch (or one missing
+  // the offset shift that already runs before this) could collide with
+  // branch_sequence_unique mid-statement; the old per-row loop only
+  // survived this by accident of statement ordering.
+  it("swaps the sequence_index of two existing Modules without a unique-constraint violation", async () => {
+    const programKey = `${LIVING_PROGRAM_KEY}-swap`;
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-swap-a", 0, true),
+          buildFixtureModule("living-swap-b", 1, true),
+        ]),
+      ),
+    );
+
+    const { actor, ventureId } =
+      await createFounderWithWorkspaceAndVenture("swap");
+    await setActiveVenture(actor, ventureId);
+    await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+
+    const { modules: before } = await listRunModules(actor);
+    expect(
+      before.map((module) => [module.moduleKey, module.sequenceIndex]),
+    ).toEqual([
+      ["living-swap-a", 0],
+      ["living-swap-b", 1],
+    ]);
+
+    // Trade sequence_index — a and b's module_key/title stay put, only
+    // the order swaps. No insert, no removal.
+    await withTransaction((client) =>
+      seedToolkitContent(
+        client,
+        buildMutableFixtureContent(programKey, [
+          buildFixtureModule("living-swap-b", 0, true),
+          buildFixtureModule("living-swap-a", 1, true),
+        ]),
+      ),
+    );
+
+    await getOrCreateProgramRun(actor, { ventureId }, { programKey });
+    const { modules: after } = await listRunModules(actor);
+    expect(
+      after.map((module) => [module.moduleKey, module.sequenceIndex]),
+    ).toEqual([
+      ["living-swap-b", 0],
+      ["living-swap-a", 1],
+    ]);
+  });
+
   it("is a no-op on the second call when nothing changed", async () => {
     const programKey = `${LIVING_PROGRAM_KEY}-noop`;
     await withTransaction((client) =>
