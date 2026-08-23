@@ -72,6 +72,7 @@ export type {
   MentorArtefactSummary,
   MentorArtefactDocument,
   MentorArtefactHeading,
+  FounderSandboxSummary,
 } from "./mentor.js";
 export type {
   ArtifactCommentAnchor,

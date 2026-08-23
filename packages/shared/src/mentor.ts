@@ -57,6 +57,40 @@ export interface MentorFounderDetail {
 }
 
 /**
+ * A Mentor's own founder-preview sandbox, as shown on /sandbox. Deliberately
+ * not a MentorFounderSummary: a sandbox has no Founder to name, is never
+ * assigned a Mentor (workspaces_sandbox_has_no_mentor), and is excluded from
+ * every Founder-facing Mentor query by `kind = 'live'` — so it carries the
+ * workspace's own identity instead of a person's.
+ */
+export interface FounderSandboxSummary {
+  workspaceId: string;
+  workspaceName: string;
+  createdAt: string;
+  /**
+   * Null when the sandbox exists but has no Programme Run yet — created and
+   * never entered. Rendered as "not started", not as zero progress, the same
+   * way MentorFounderSummary treats it.
+   */
+  totalModules: number | null;
+  completedModules: number | null;
+  /** Distinct saved deliverables, on the same terms the Mentor's Founder pages count them. */
+  artefactCount: number;
+  /** Most recent module completion; null if nothing is finished yet. */
+  lastCompletedAt: string | null;
+  /**
+   * The module the Mentor would continue with — the earliest non-setup one
+   * that is `available` or `in_progress`, which is the Founder dashboard's
+   * own definition of "current". Null once every module is complete.
+   */
+  nextModule: {
+    moduleKey: string;
+    title: string;
+    sequenceIndex: number;
+  } | null;
+}
+
+/**
  * A saved deliverable together with its body. The document itself is still
  * Founder-authored and read-only from the Mentor's side — a Mentor cannot
  * edit or advance it — but Artifact comment threads are a real, mutual

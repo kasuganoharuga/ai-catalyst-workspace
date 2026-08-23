@@ -19,6 +19,7 @@ import {
   listRunModulesForBranch,
   resolveWorkspaceRunContext,
 } from "@ai-catalyst/services/internal/run-module";
+import { MENTOR_ARTEFACT_QUERY } from "@ai-catalyst/services/mentor/internal/artefact-query";
 import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 
 // Mentor supervision surface. The Founder's own progress and Artifacts stay
@@ -173,28 +174,6 @@ function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
     workbookAvailable: row.renderer_key !== null,
   };
 }
-
-// Live deliverables on one Run/Branch — draft/submitted only; DISTINCT ON highest version.
-// Excludes setup Module 0 (machine-written, not Founder work).
-const MENTOR_ARTEFACT_QUERY = `
-  select distinct on (d.artifact_key)
-    m.module_key,
-    d.artifact_key,
-    d.name,
-    d.required_filename,
-    s.version_number,
-    coalesce(s.submitted_at, s.updated_at) as saved_at,
-    d.renderer_key
-  from program_run_modules m
-  join module_definitions md on md.id = m.module_definition_id
-  join module_attempts a on a.program_run_module_id = m.id
-  join artifact_submissions s on s.module_attempt_id = a.id
-  join artifact_definitions d on d.id = s.artifact_definition_id
-  where m.program_run_branch_id = $1
-    and s.status in ('draft', 'submitted')
-    and md.module_type <> 'setup'
-  order by d.artifact_key, s.version_number desc
-`;
 
 /**
  * One Founder's progress and deliverables. Raw answers and failed Attempts excluded —

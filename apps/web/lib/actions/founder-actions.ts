@@ -210,6 +210,20 @@ export async function updateCompanyProfileAction(
 
   try {
     const actor = await requireFounderActor();
+
+    // Not a data-safety guard — company_profiles is keyed by workspace_id,
+    // so a previewing Mentor's write lands on their own sandbox and touches
+    // nothing real. It mirrors the page, which locks the form because no
+    // module or MCP tool reads a company profile, so filling one in inside
+    // the sandbox only loses work. A locked form the action still accepts
+    // is the same gap setInitialPasswordAction had.
+    if (isFounderPreview(actor)) {
+      throw new ServiceError(
+        "FORBIDDEN",
+        "Company profile isn't editable while previewing.",
+      );
+    }
+
     await updateMyCompanyProfile(actor, parsed.data);
     revalidateFounderAppShell();
     revalidatePath("/company-profile");

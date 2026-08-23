@@ -3,9 +3,15 @@ import type { PoolClient } from "pg";
 
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import type { FounderSandboxSummary } from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { withTransaction } from "@ai-catalyst/services/internal/transaction";
+import {
+  listRunModulesForBranch,
+  resolveWorkspaceRunContext,
+} from "@ai-catalyst/services/internal/run-module";
+import { countSavedArtefacts } from "@ai-catalyst/services/mentor/internal/artefact-query";
 import { createDefaultVentureForNewWorkspace } from "@ai-catalyst/services/venture";
 import { insertWorkspaceWithRetry } from "@ai-catalyst/services/workspace/internal/insert-workspace";
 
@@ -159,6 +165,141 @@ export async function resolveFounderPreviewState(
   };
 }
 
+interface CurrentSandboxRow {
+  id: string;
+  name: string;
+  created_at: Date;
+}
+
+/**
+ * The Mentor's current sandbox Workspace row, or null if they have none.
+ * Shared by getFounderSandboxSummary and hasActiveSandboxRun so the pin to
+ * `founder_user_id = actor.userId and kind = 'sandbox' and is_current_sandbox`
+ * — the whole reason either function is self-scoped — lives in one place.
+ * Caller must call assertRealMentor first.
+ */
+async function resolveCurrentSandboxWorkspace(
+  actor: ActorContext,
+): Promise<CurrentSandboxRow | undefined> {
+  // workspaces_one_current_sandbox_per_mentor (migration 0024) makes this
+  // at most one row, same guarantee resolveFounderPreviewState relies on.
+  const result = await pool.query<CurrentSandboxRow>(
+    `select id, name, created_at from workspaces
+     where founder_user_id = $1 and kind = 'sandbox' and is_current_sandbox`,
+    [actor.userId],
+  );
+  return result.rows[0];
+}
+
+/**
+ * Whether the Mentor's current sandbox has an active (non-archived) Run —
+ * the cheap existence check FounderPreviewBanner needs to decide whether
+ * "Restart sandbox" has anything to restart. Deliberately not
+ * getFounderSandboxSummary: that loads the module list and artefact count,
+ * and the banner mounts on every page while previewing, so it only ever
+ * needs the boolean.
+ */
+export async function hasActiveSandboxRun(
+  actor: ActorContext,
+): Promise<boolean> {
+  assertRealMentor(actor);
+
+  const workspace = await resolveCurrentSandboxWorkspace(actor);
+  if (!workspace) {
+    return false;
+  }
+  return (await resolveWorkspaceRunContext(workspace.id)) !== null;
+}
+
+/**
+ * Progress inside the Mentor's own current sandbox, for /sandbox to show
+ * instead of two bare buttons. Returns null when they have no sandbox yet.
+ *
+ * Self-scoped on purpose, and this is the whole reason it exists rather
+ * than reusing getMentorFounderDetail: that path goes through
+ * assertMentorOwnsWorkspace, which requires `kind = 'live'` and therefore
+ * excludes every sandbox by design. Here the workspace is pinned to
+ * `founder_user_id = actor.userId and kind = 'sandbox'`, so no argument
+ * reaches the query and no other user's data is addressable — there is
+ * deliberately no workspaceId parameter.
+ *
+ * Read-only: unlike ensureFounderSandbox this never provisions anything, so
+ * rendering the page cannot create a sandbox as a side effect.
+ */
+export async function getFounderSandboxSummary(
+  actor: ActorContext,
+): Promise<FounderSandboxSummary | null> {
+  assertRealMentor(actor);
+
+  const workspace = await resolveCurrentSandboxWorkspace(actor);
+  if (!workspace) {
+    return null;
+  }
+
+  const base = {
+    workspaceId: workspace.id,
+    workspaceName: workspace.name,
+    createdAt: workspace.created_at.toISOString(),
+  };
+
+  const run = await resolveWorkspaceRunContext(workspace.id);
+  if (!run) {
+    // Sandbox created but never entered — nulls, not zeroes, exactly as
+    // getMentorFounderDetail reports a Founder who never started.
+    return {
+      ...base,
+      totalModules: null,
+      completedModules: null,
+      artefactCount: 0,
+      lastCompletedAt: null,
+      nextModule: null,
+    };
+  }
+
+  const [allModules, artefactCount] = await Promise.all([
+    listRunModulesForBranch(run.activeBranchId),
+    countSavedArtefacts(run.activeBranchId),
+  ]);
+
+  // Same setup-Module exclusion as listMentorFounders and the Founder's own
+  // catalogue: Module 0 is system-driven and never shown as progress.
+  const modules = allModules.filter((module) => module.moduleType !== "setup");
+  const completedAts = modules
+    .map((module) => module.completedAt)
+    .filter((value): value is string => value !== null);
+
+  // "available" or "in_progress" — the same pair start-or-resume treats as
+  // startable and the Founder dashboard's findCurrentModule() calls current.
+  // Deliberately not "ready_to_unlock", which the UI labels "Almost there".
+  // listRunModulesForBranch orders by sequence_index, so this is the earliest.
+  const next = modules.find(
+    (module) =>
+      module.status === "available" || module.status === "in_progress",
+  );
+
+  return {
+    ...base,
+    totalModules: modules.length,
+    completedModules: modules.filter((module) => module.status === "completed")
+      .length,
+    artefactCount,
+    // Latest module completion. The Mentor's Founder detail page labels the
+    // same figure "Last activity"; keeping one definition means the sandbox
+    // and a real Founder cannot come to measure it differently.
+    lastCompletedAt:
+      completedAts.length > 0
+        ? completedAts.reduce((a, b) => (a > b ? a : b))
+        : null,
+    nextModule: next
+      ? {
+          moduleKey: next.moduleKey,
+          title: next.title,
+          sequenceIndex: next.sequenceIndex,
+        }
+      : null,
+  };
+}
+
 /**
  * Always creates a brand-new sandbox Workspace + default Venture, and
  * makes it current — this is "start a new sandbox" from the Mentor's point
@@ -303,12 +444,23 @@ export async function restartFounderSandbox(
     state.sandboxWorkspaceId!,
   );
 
-  await pool.query(
+  const result = await pool.query(
     `update program_runs
      set status = 'archived', archived_at = now(), updated_at = now()
      where venture_id = $1 and status <> 'archived'`,
     [ventureId],
   );
+  // A brand-new sandbox, or one already restarted, has no non-archived Run
+  // to archive — the UPDATE above is then a genuine no-op. Reject rather
+  // than let the caller report "restarted" for nothing: FounderPreviewBanner
+  // hides its own Restart control once hasActiveSandboxRun is false, so
+  // reaching this is a stale client, not a real click on a visible button.
+  if (result.rowCount === 0) {
+    throw new ServiceError(
+      "VALIDATION_ERROR",
+      "The sandbox has nothing running to restart yet.",
+    );
+  }
 
   return { workspaceId: state.sandboxWorkspaceId!, ventureId };
 }

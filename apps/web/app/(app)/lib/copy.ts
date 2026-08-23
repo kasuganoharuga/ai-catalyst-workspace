@@ -1299,6 +1299,33 @@ export const founderPreviewCopy = {
     "Walk the Founder flow yourself in your own sandbox — nothing here touches a real Founder's data.",
   introExistingNote:
     "You already have a sandbox — this picks up right where you left off.",
+
+  // Shown when no sandbox exists yet. An invitation rather than a bare
+  // button: until you have one there is nothing on this page to explain
+  // what a sandbox actually gets you.
+  emptyTitle: "You haven't started a sandbox yet",
+  emptyBody:
+    "Starting one gives you your own Workspace and a first idea to work from, so you can walk the modules and hand off to your AI assistant exactly the way a Founder does.",
+
+  // Labels for the existing sandbox's own progress. The three stat labels
+  // are deliberately mentorFounderDetailCopy's, not copies of them — the
+  // sandbox and a real Founder must not come to measure the same things
+  // under different words.
+  // Why /company-profile is locked during preview, and deliberately not
+  // the standard PreviewLockedNotice reason: company_profiles is keyed by
+  // workspace_id, so it genuinely is sandbox data — it's left out because
+  // nothing reads it, not because it would touch the real account. A Mentor
+  // has no company profile of their own, so this must not tell them to exit
+  // preview and go edit one.
+  companyProfileLockedBody:
+    "No module reads a company profile, so the sandbox leaves it out. The Founders you support each fill in their own.",
+
+  startedPrefix: "Started",
+  upNextLabel: "Up next",
+  notStartedNote:
+    "Nothing in it yet — opening the sandbox starts your first run.",
+  allModulesCompleteNote: "Every module in the sandbox is complete.",
+
   enterCta: "Try the Founder flow",
   // Shown instead of enterCta once a sandbox already exists — same action
   // (enterFounderPreviewAction), worded for a return visit rather than a

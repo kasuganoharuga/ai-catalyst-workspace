@@ -5,6 +5,7 @@ import {
   effectiveRole,
   isFounderPreview,
 } from "@ai-catalyst/contracts/actor-context";
+import { hasActiveSandboxRun } from "@ai-catalyst/services/mentor/founder-preview";
 import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 
 import { Logo } from "@/components/logo";
@@ -63,10 +64,19 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   const needsPassword = needsOnboarding
     ? !(await hasChangedInvitationPassword(await getCurrentFounderActor()))
     : false;
+  // actor, not getCurrentFounderActor(): hasActiveSandboxRun asserts
+  // role === "mentor" directly (assertRealMentor), the same "operations on
+  // the preview overlay itself" reasoning as every other founder-preview.ts
+  // function — a Founder-collapsed actor would fail that check.
+  const canRestartSandbox = isPreviewingFounder
+    ? await hasActiveSandboxRun(actor)
+    : false;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
-      {isPreviewingFounder ? <FounderPreviewBanner /> : null}
+      {isPreviewingFounder ? (
+        <FounderPreviewBanner canRestart={canRestartSandbox} />
+      ) : null}
       <div className="flex flex-1 flex-col lg:flex-row">
         <AnalyticsIdentify userId={actor.userId} role={role} />
         {/* Below lg the sidebar is hidden and this bar takes over. Three

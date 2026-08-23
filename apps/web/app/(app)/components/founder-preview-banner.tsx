@@ -14,7 +14,12 @@ import { Button } from "@/components/ui/button";
 import { founderPreviewCopy } from "../lib/copy";
 
 /** Shown across the whole (app) shell only while a Mentor is previewing — see app/(app)/layout.tsx. */
-export function FounderPreviewBanner() {
+export function FounderPreviewBanner({
+  canRestart,
+}: {
+  /** False when the sandbox has no active Run — restarting would archive nothing. */
+  canRestart: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -54,14 +59,20 @@ export function FounderPreviewBanner() {
     <div className="flex flex-wrap items-center justify-between gap-3 bg-accent px-4 py-2.5 text-accent-foreground">
       <p className="text-sm font-medium">{founderPreviewCopy.bannerMessage}</p>
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleRestart}
-          disabled={isPending}
-          className="text-xs underline-offset-2 hover:underline disabled:opacity-50"
-        >
-          {founderPreviewCopy.restartCta}
-        </button>
+        {/* Hidden, not disabled, when there's no active Run: with nothing
+            to archive, "restart" would silently do nothing while telling
+            the Mentor it worked. restartFounderSandboxAction rejects the
+            call server-side too, in case this ever mounts stale. */}
+        {canRestart ? (
+          <button
+            type="button"
+            onClick={handleRestart}
+            disabled={isPending}
+            className="text-xs underline-offset-2 hover:underline disabled:opacity-50"
+          >
+            {founderPreviewCopy.restartCta}
+          </button>
+        ) : null}
         <Button
           size="sm"
           variant="outline"

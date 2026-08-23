@@ -180,6 +180,7 @@
     "./mentor/founder-preview": "./src/mentor/founder-preview.ts",
     "./mentor/render-workbook": "./src/mentor/render-workbook.ts",
     "./mentor/internal/resolve-submission": "./src/mentor/internal/resolve-submission.ts",
+    "./mentor/internal/artefact-query": "./src/mentor/internal/artefact-query.ts",
     "./admin": "./src/admin/index.ts",
     "./admin/users": "./src/admin/users.ts",
     "./admin/dashboard": "./src/admin/dashboard.ts",

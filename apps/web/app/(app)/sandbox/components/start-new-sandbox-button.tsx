@@ -1,5 +1,6 @@
 "use client";
 
+import { TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -67,10 +68,25 @@ export function StartNewSandboxButton() {
             <DialogTitle>
               {founderPreviewCopy.newSandboxConfirmTitle}
             </DialogTitle>
-            <DialogDescription>
-              {founderPreviewCopy.newSandboxConfirmBody}
-            </DialogDescription>
           </DialogHeader>
+
+          {/* The consequence carries the destructive callout rather than
+              reading as ordinary body copy: losing the way back to the
+              current sandbox is the whole reason this dialog exists. Same
+              treatment as module1-brief-step.tsx's hard-prerequisite
+              warning. Styled through DialogDescription's own className
+              (not asChild) so cn()'s tailwind-merge resolves
+              text-destructive against the component's default
+              text-muted-foreground — concatenating the two would leave
+              which one wins up to CSS source order. */}
+          <DialogDescription className="flex gap-2.5 rounded-md border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-destructive">
+            <TriangleAlert
+              aria-hidden="true"
+              className="mt-0.5 h-4 w-4 shrink-0"
+            />
+            <span>{founderPreviewCopy.newSandboxConfirmBody}</span>
+          </DialogDescription>
+
           <DialogFooter>
             <Button
               type="button"
@@ -80,7 +96,12 @@ export function StartNewSandboxButton() {
             >
               {founderPreviewCopy.newSandboxConfirmCancel}
             </Button>
-            <Button type="button" disabled={isPending} onClick={handleConfirm}>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={isPending}
+              onClick={handleConfirm}
+            >
               {isPending
                 ? "Starting…"
                 : founderPreviewCopy.newSandboxConfirmCta}

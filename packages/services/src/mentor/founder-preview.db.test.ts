@@ -23,6 +23,8 @@ import {
   ensureFounderSandbox,
   enterFounderPreview,
   exitFounderPreview,
+  getFounderSandboxSummary,
+  hasActiveSandboxRun,
   resolveFounderPreviewState,
   restartFounderSandbox,
 } from "./founder-preview.js";
@@ -279,6 +281,84 @@ describe("founder-preview service — database integration", () => {
     });
   });
 
+  describe("getFounderSandboxSummary", () => {
+    it("returns null for a Mentor with no sandbox", async () => {
+      const mentor = await createMentor("summary-none");
+
+      expect(await getFounderSandboxSummary(mentor.actor)).toBeNull();
+    });
+
+    it("reports nulls, not zeroes, for a sandbox that has no Run yet", async () => {
+      const mentor = await createMentor("summary-no-run");
+      const sandbox = await createFounderSandbox(mentor.actor, {
+        enablePreview: false,
+      });
+
+      const summary = await getFounderSandboxSummary(mentor.actor);
+      expect(summary).toMatchObject({
+        workspaceId: sandbox.workspaceId,
+        // "created but never entered" must stay distinguishable from
+        // "entered and nothing done" — the page renders them differently.
+        totalModules: null,
+        completedModules: null,
+        artefactCount: 0,
+        lastCompletedAt: null,
+        nextModule: null,
+      });
+    });
+
+    it("counts modules and names the next one once a Run exists", async () => {
+      const mentor = await createMentor("summary-with-run");
+      const sandbox = await enterFounderPreview(mentor.actor);
+      await getOrCreateProgramRun(
+        previewingActor(mentor.userId),
+        { ventureId: sandbox.ventureId },
+        { programKey: PROGRAM_KEY },
+      );
+
+      const summary = await getFounderSandboxSummary(mentor.actor);
+      expect(summary?.totalModules).toBeGreaterThan(0);
+      expect(summary?.completedModules).toBe(0);
+      expect(summary?.nextModule?.moduleKey).toBe(MODULE_KEY);
+    });
+
+    it("never reports a real Founder's workspace, even one assigned to this Mentor", async () => {
+      // The reason this function exists rather than reusing
+      // getMentorFounderDetail: it takes no workspaceId at all, so there is
+      // no argument through which another Workspace could be addressed.
+      // Assignment is the strongest case — this Mentor legitimately reads
+      // that Founder elsewhere, and must still not see them here.
+      const mentor = await createMentor("summary-isolation");
+      const founder = await createFounderWithVenture("summary-isolation-other");
+      // Synthetic admin actor, same as the assignWorkspaceMentor test below:
+      // that service role-checks the actor and never looks its user row up.
+      const adminActor: ActorContext = {
+        userId: randomUUID(),
+        role: "admin",
+        source: "web",
+      };
+      await assignWorkspaceMentor(adminActor, {
+        workspaceId: founder.workspaceId,
+        mentorUserId: mentor.userId,
+      });
+      const sandbox = await createFounderSandbox(mentor.actor, {
+        enablePreview: false,
+      });
+
+      const summary = await getFounderSandboxSummary(mentor.actor);
+      expect(summary?.workspaceId).toBe(sandbox.workspaceId);
+      expect(summary?.workspaceId).not.toBe(founder.workspaceId);
+    });
+
+    it("refuses a non-Mentor actor", async () => {
+      const founder = await createFounderWithVenture("summary-founder-actor");
+
+      await expect(
+        getFounderSandboxSummary(founder.actor),
+      ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+  });
+
   describe("isolation: a previewing Mentor is confined to their own sandbox", () => {
     it("resolveFounderWorkspace resolves to the Mentor's own sandbox, never a real Founder's", async () => {
       const mentor = await createMentor("isolation-resolve");
@@ -389,6 +469,73 @@ describe("founder-preview service — database integration", () => {
     it("forbids a Founder actor from restarting", async () => {
       const founder = await createFounderWithVenture("restart-forbidden");
       await expect(restartFounderSandbox(founder.actor)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+      });
+    });
+
+    it("rejects restarting a sandbox that has no active Run yet", async () => {
+      // FounderPreviewBanner hides its own Restart control once
+      // hasActiveSandboxRun is false — this is the server-side half of that
+      // same guard, for a client that mounted stale or was bypassed.
+      const mentor = await createMentor("restart-no-run");
+      await createFounderSandbox(mentor.actor, { enablePreview: false });
+
+      await expect(restartFounderSandbox(mentor.actor)).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+
+    it("rejects restarting twice in a row, once the first restart already archived the only Run", async () => {
+      const mentor = await createMentor("restart-twice");
+      const sandbox = await enterFounderPreview(mentor.actor);
+      await getOrCreateProgramRun(
+        previewingActor(mentor.userId),
+        { ventureId: sandbox.ventureId },
+        { programKey: PROGRAM_KEY },
+      );
+
+      await restartFounderSandbox(mentor.actor);
+
+      await expect(restartFounderSandbox(mentor.actor)).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+      });
+    });
+  });
+
+  describe("hasActiveSandboxRun", () => {
+    it("is false with no sandbox at all", async () => {
+      const mentor = await createMentor("active-run-none");
+
+      expect(await hasActiveSandboxRun(mentor.actor)).toBe(false);
+    });
+
+    it("is false for a sandbox that exists but was never entered", async () => {
+      const mentor = await createMentor("active-run-unentered");
+      await createFounderSandbox(mentor.actor, { enablePreview: false });
+
+      expect(await hasActiveSandboxRun(mentor.actor)).toBe(false);
+    });
+
+    it("is true once a Run exists, and false again after restarting", async () => {
+      const mentor = await createMentor("active-run-lifecycle");
+      const sandbox = await enterFounderPreview(mentor.actor);
+      await getOrCreateProgramRun(
+        previewingActor(mentor.userId),
+        { ventureId: sandbox.ventureId },
+        { programKey: PROGRAM_KEY },
+      );
+
+      expect(await hasActiveSandboxRun(mentor.actor)).toBe(true);
+
+      await restartFounderSandbox(mentor.actor);
+
+      expect(await hasActiveSandboxRun(mentor.actor)).toBe(false);
+    });
+
+    it("forbids a Founder actor", async () => {
+      const founder = await createFounderWithVenture("active-run-forbidden");
+
+      await expect(hasActiveSandboxRun(founder.actor)).rejects.toMatchObject({
         code: "FORBIDDEN",
       });
     });
