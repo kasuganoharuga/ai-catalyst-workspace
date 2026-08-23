@@ -7,7 +7,6 @@ import type {
 // Presentation-only: maps run/attempt states to labels and colours (logic stays in services).
 
 // Content-stable module keys from content-seed — V1 status UI knows these by name.
-export const MODULE_0_KEY = "module-00-setup";
 export const MODULE_1_KEY = "module-01-pressure-test";
 export const MODULE_2_KEY = "module-02-customer-avatar";
 export const MODULE_3_KEY = "module-03-problem-statement";
@@ -374,15 +373,6 @@ export function claudeChatProjectWebUrl(
     return `https://claude.ai/new?project=${encodeURIComponent(projectId)}&q=${encodeURIComponent(prompt)}`;
   }
   return `https://claude.ai/project/${projectId}`;
-}
-
-const UUID_PATTERN =
-  /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
-
-/** Extract project id from a pasted URL or bare UUID. Returns null if none found. */
-export function extractClaudeProjectId(input: string): string | null {
-  const match = input.trim().match(UUID_PATTERN);
-  return match ? match[0].toLowerCase() : null;
 }
 
 // /customize/connectors — not /settings/connectors; no menu route in copy (UI moves break it).

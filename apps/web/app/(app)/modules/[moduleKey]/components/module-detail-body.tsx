@@ -20,8 +20,8 @@ import { listPrepDocuments } from "@ai-catalyst/services/prep";
 
 import { loadModuleDetail } from "../lib/load-module-detail";
 import type { ModuleArtifactView, PrepDocumentView } from "../types";
-import { Module0Setup } from "./module0-setup";
-import { Module1Run } from "./module1-run";
+import { Module0Setup } from "./module0/module0-setup";
+import { Module1Run } from "./module1/module1-run";
 import { ResetModuleButton } from "./reset-module-button";
 import { RetryPassCard } from "./retry-pass-card";
 import { ValidationIssuesCard } from "./validation-issues-card";
