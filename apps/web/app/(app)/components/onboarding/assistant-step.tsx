@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { PreferredAiProvider } from "@ai-catalyst/shared";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/error-banner";
 import { setPreferredAiProviderAction } from "@/lib/actions/founder-actions";
 import { cn } from "@/lib/utils";
 
@@ -95,14 +96,7 @@ export function AssistantStep({ onDone }: { onDone: () => void }) {
         {onboardingCopy.assistantPlatformNote}
       </p>
 
-      {error ? (
-        <p
-          role="alert"
-          className="border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
       {/* No skip here — see the header comment on OnboardingDialog. */}
       <Button type="submit" disabled={!chosen || saving}>

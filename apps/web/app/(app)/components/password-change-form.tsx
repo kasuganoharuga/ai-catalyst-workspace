@@ -4,6 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/error-banner";
+import { SavedNote } from "@/components/saved-note";
+import { TextField } from "@/components/text-field";
+import { useSaveStatus } from "@/hooks/use-save-status";
 import {
   revokeMcpConnectionAction,
   setInitialPasswordAction,
@@ -40,7 +44,12 @@ export function PasswordChangeForm({
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const {
+    status,
+    setIdle,
+    setSaving,
+    setSaved: setSavedStatus,
+  } = useSaveStatus();
   const [error, setError] = useState<string | null>(null);
 
   const needsCurrent = mode === "change";
@@ -70,7 +79,7 @@ export function PasswordChangeForm({
       return;
     }
 
-    setStatus("saving");
+    setSaving();
 
     if (needsCurrent) {
       const { error: changeError } = await authClient.changePassword({
@@ -80,7 +89,7 @@ export function PasswordChangeForm({
       });
 
       if (changeError) {
-        setStatus("idle");
+        setIdle();
         setError(
           changeError.message ??
             "That didn't work. Check your current password and try again.",
@@ -97,7 +106,7 @@ export function PasswordChangeForm({
     } else {
       const result = await setInitialPasswordAction(newPassword);
       if (!result.ok) {
-        setStatus("idle");
+        setIdle();
         setError(result.message);
         return;
       }
@@ -108,92 +117,56 @@ export function PasswordChangeForm({
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
-    setStatus("saved");
+    setSavedStatus();
     onSuccess?.();
   }
 
   return (
     <form onSubmit={handleSubmit} className={cn("space-y-5", className)}>
       {needsCurrent ? (
-        <PasswordField
+        <TextField
           label="Current password"
+          type="password"
           value={currentPassword}
           onChange={(value) => {
             setCurrentPassword(value);
-            setStatus("idle");
+            setIdle();
           }}
           autoComplete="current-password"
         />
       ) : null}
-      <PasswordField
+      <TextField
         label="New password"
+        type="password"
         value={newPassword}
         onChange={(value) => {
           setNewPassword(value);
-          setStatus("idle");
+          setIdle();
         }}
         autoComplete="new-password"
         hint={`At least ${MIN_PASSWORD_LENGTH} characters.`}
       />
-      <PasswordField
+      <TextField
         label="Confirm new password"
+        type="password"
         value={confirmPassword}
         onChange={(value) => {
           setConfirmPassword(value);
-          setStatus("idle");
+          setIdle();
         }}
         autoComplete="new-password"
       />
 
-      {error ? (
-        <p
-          role="alert"
-          className="border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
       <div className="flex flex-wrap items-center gap-4">
         <Button type="submit" disabled={!canSubmit}>
           {status === "saving" ? pendingLabel : submitLabel}
         </Button>
         {status === "saved" && successNote ? (
-          <span className="text-sm text-muted-foreground">{successNote}</span>
+          <SavedNote>{successNote}</SavedNote>
         ) : null}
       </div>
     </form>
-  );
-}
-
-function PasswordField({
-  label,
-  value,
-  onChange,
-  autoComplete,
-  hint,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  autoComplete?: string;
-  hint?: string;
-}) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <input
-        type="password"
-        value={value}
-        autoComplete={autoComplete}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition focus:border-foreground focus:ring-1 focus:ring-foreground"
-      />
-      {hint ? (
-        <span className="block text-xs leading-5 text-muted-foreground">
-          {hint}
-        </span>
-      ) : null}
-    </label>
   );
 }

@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/error-banner";
 import {
   AUTH_EMAIL_OTP_ENABLED,
   AUTH_GOOGLE_ENABLED,
@@ -74,14 +75,7 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
     handleVerifyCode,
   } = useEmailCodeSignIn({ email, goAfterSignIn, setError, setIsSubmitting });
 
-  const errorBlock = error ? (
-    <p
-      role="alert"
-      className="border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
-    >
-      {error}
-    </p>
-  ) : null;
+  const errorBlock = error ? <ErrorBanner>{error}</ErrorBanner> : null;
 
   const emailField = (
     <Field label="Email">
