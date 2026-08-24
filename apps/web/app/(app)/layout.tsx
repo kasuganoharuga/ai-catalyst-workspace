@@ -8,18 +8,19 @@ import {
 import { hasActiveSandboxRun } from "@ai-catalyst/services/mentor/founder-preview";
 import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 
-import { Logo } from "@/components/logo";
 import { Toaster } from "@/components/ui/toaster";
 import { loadAppShellUser } from "@/lib/app-shell";
 import { getCurrentAppActor } from "@/lib/current-app-actor";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 
+import { MobileTopBar } from "@/components/nav/mobile-top-bar";
+import { SidebarNavigation } from "@/components/nav/sidebar-navigation";
+import { SidebarShell } from "@/components/nav/sidebar-shell";
+import { UserMenu } from "@/components/nav/user-menu";
+
 import { AnalyticsIdentify } from "./components/analytics-identify";
-import { AppSidebar } from "./components/app-sidebar";
-import { AppSidebarNavigation } from "./components/app-sidebar-navigation";
 import { FounderPreviewBanner } from "./components/founder-preview-banner";
 import { OnboardingDialog } from "./components/onboarding/onboarding-dialog";
-import { UserMenu } from "./components/user-menu";
 
 export const metadata: Metadata = {
   title: {
@@ -79,20 +80,9 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       ) : null}
       <div className="flex flex-1 flex-col lg:flex-row">
         <AnalyticsIdentify userId={actor.userId} role={role} />
-        {/* Below lg the sidebar is hidden and this bar takes over. Three
-         equal-weight grid columns rather than a flex row, so the nav sits
-         optically centred regardless of how wide the logo or avatar are.
-         `min-w-8` on the logo is load-bearing: it is a replaced element
-         (an <img>), and a grid item's default `min-width: auto` lets a
-         replaced element shrink well below its own explicit size once the
-         middle "Dashboard / Modules / Artefacts" nav — an `auto` track —
-         claims its full content width on a narrow screen. Without it the
-         mark compresses to a sliver instead of the nav (which already
-         scrolls horizontally via overflow-x-auto) giving way first. */}
-        <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-border px-4 py-2.5 lg:hidden">
-          <Logo variant="compact" className="min-w-8 shrink-0" />
-          <AppSidebarNavigation role={role} orientation="horizontal" />
-          <div className="justify-self-end">
+        <MobileTopBar
+          nav={<SidebarNavigation role={role} orientation="horizontal" />}
+          userMenu={
             <UserMenu
               name={shellUser.displayName}
               email={shellUser.email}
@@ -102,9 +92,22 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
               side="bottom"
               align="end"
             />
-          </div>
-        </header>
-        <AppSidebar user={shellUser} />
+          }
+        />
+        <SidebarShell
+          homeHref="/dashboard"
+          footer={
+            <UserMenu
+              name={shellUser.displayName}
+              email={shellUser.email}
+              subtitle={shellUser.subtitle}
+              side="top"
+              align="start"
+            />
+          }
+        >
+          <SidebarNavigation role={role} />
+        </SidebarShell>
         <main className="min-w-0 flex-1">{children}</main>
         {needsOnboarding ? (
           <OnboardingDialog

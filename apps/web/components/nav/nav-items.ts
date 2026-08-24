@@ -1,7 +1,15 @@
 export type NavItemConfig = {
   href: string;
   label: string;
+  /**
+   * Active-state match for this item is exact only — e.g. "/admin" must
+   * not also light up for "/admin/users". Every other item matches its
+   * own nested routes too (see use-active-nav-item.ts).
+   */
+  exact?: boolean;
 };
+
+export type NavRole = "founder" | "mentor" | "admin";
 
 // Founder and Mentor share /dashboard as the first item (role-aware content
 // in app/(app)/dashboard/page.tsx). Mentors also get /founders for the
@@ -23,10 +31,16 @@ const MENTOR_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
   { href: "/sandbox", label: "Sandbox" },
 ];
 
-export function primaryNavItems(role: "founder" | "mentor"): NavItemConfig[] {
-  return role === "mentor"
-    ? MENTOR_PRIMARY_NAV_ITEMS
-    : FOUNDER_PRIMARY_NAV_ITEMS;
+const ADMIN_PRIMARY_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/admin", label: "Dashboard", exact: true },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/invitations", label: "Invitations" },
+];
+
+export function primaryNavItems(role: NavRole): NavItemConfig[] {
+  if (role === "mentor") return MENTOR_PRIMARY_NAV_ITEMS;
+  if (role === "admin") return ADMIN_PRIMARY_NAV_ITEMS;
+  return FOUNDER_PRIMARY_NAV_ITEMS;
 }
 
 const FOUNDER_ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
@@ -50,8 +64,15 @@ const MENTOR_ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
   { href: "/account-security", label: "Account security" },
 ];
 
-export function accountNavItems(role: "founder" | "mentor"): NavItemConfig[] {
-  return role === "mentor"
-    ? MENTOR_ACCOUNT_NAV_ITEMS
-    : FOUNDER_ACCOUNT_NAV_ITEMS;
+// Same account surface Mentors get: profile + password. No company profile
+// or AI connection — those are Founder-only concepts.
+const ADMIN_ACCOUNT_NAV_ITEMS: NavItemConfig[] = [
+  { href: "/admin/profile", label: "Your profile" },
+  { href: "/admin/account-security", label: "Account security" },
+];
+
+export function accountNavItems(role: NavRole): NavItemConfig[] {
+  if (role === "mentor") return MENTOR_ACCOUNT_NAV_ITEMS;
+  if (role === "admin") return ADMIN_ACCOUNT_NAV_ITEMS;
+  return FOUNDER_ACCOUNT_NAV_ITEMS;
 }

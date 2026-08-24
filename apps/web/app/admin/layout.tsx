@@ -1,14 +1,13 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 
-import { Logo } from "@/components/logo";
 import { Toaster } from "@/components/ui/toaster";
-import { UserMenu } from "@/app/(app)/components/user-menu";
 import { requireAdminUser } from "@/lib/require-active-user";
 
-import { AdminNav } from "./components/admin-nav";
-import { AdminSidebar } from "./components/admin-sidebar";
-import { ADMIN_ACCOUNT_NAV_ITEMS } from "./components/nav-items";
+import { MobileTopBar } from "@/components/nav/mobile-top-bar";
+import { SidebarNavigation } from "@/components/nav/sidebar-navigation";
+import { SidebarShell } from "@/components/nav/sidebar-shell";
+import { UserMenu } from "@/components/nav/user-menu";
 
 export const metadata: Metadata = {
   title: {
@@ -27,22 +26,34 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row">
-      <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-4 border-b border-border px-4 py-2.5 lg:hidden">
-        <Logo variant="compact" className="min-w-8 shrink-0" />
-        <AdminNav orientation="horizontal" />
-        <div className="justify-self-end">
+      <MobileTopBar
+        nav={<SidebarNavigation role="admin" orientation="horizontal" />}
+        userMenu={
           <UserMenu
             name={displayName}
             email={session.user.email}
             showDetails={false}
             includeAccountLinks
-            accountItems={ADMIN_ACCOUNT_NAV_ITEMS}
+            role="admin"
             side="bottom"
             align="end"
           />
-        </div>
-      </header>
-      <AdminSidebar displayName={displayName} email={session.user.email} />
+        }
+      />
+      <SidebarShell
+        homeHref="/admin"
+        footer={
+          <UserMenu
+            name={displayName}
+            email={session.user.email}
+            subtitle="Admin"
+            side="top"
+            align="start"
+          />
+        }
+      >
+        <SidebarNavigation role="admin" />
+      </SidebarShell>
       <main className="min-w-0 flex-1">{children}</main>
       <Toaster />
     </div>

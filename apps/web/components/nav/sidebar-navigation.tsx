@@ -1,18 +1,23 @@
-import { accountNavItems, primaryNavItems } from "./nav-items";
+import { accountNavItems, primaryNavItems, type NavRole } from "./nav-items";
 import { NavLink } from "./nav-link";
 
-export function AppSidebarNavigation({
+export function SidebarNavigation({
   role,
   orientation = "vertical",
 }: {
-  role: "founder" | "mentor";
+  role: NavRole;
   orientation?: "vertical" | "horizontal";
 }) {
   const items = primaryNavItems(role);
 
   if (orientation === "horizontal") {
+    // Wraps rather than scrolling: a Mentor's 4 items (the longest set)
+    // don't fit on one line at ~375px even at compact sizing, and a
+    // same-line overflow-x-auto scroll region hides the last item behind
+    // an edge with no visual cue that there's more to see — it clips mid
+    // label instead of wrapping to a second, fully visible line.
     return (
-      <nav className="flex min-w-0 flex-row gap-1 overflow-x-auto">
+      <nav className="flex min-w-0 flex-row flex-wrap gap-1">
         {items.map((item) => (
           <NavLink key={item.href} item={item} compact />
         ))}

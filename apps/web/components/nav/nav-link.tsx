@@ -17,7 +17,7 @@ import Link from "next/link";
 
 import { cn } from "@/lib/utils";
 
-import { useActiveNavItem } from "../hooks/use-active-nav-item";
+import { useActiveNavItem } from "./use-active-nav-item";
 import type { NavItemConfig } from "./nav-items";
 
 const ICON_BY_HREF: Record<string, LucideIcon> = {
@@ -34,7 +34,9 @@ const ICON_BY_HREF: Record<string, LucideIcon> = {
   "/account-security": KeyRound,
   "/company-profile": Building2,
   "/connection": Plug,
-  // Admin account pages (UserMenu on the admin mobile header).
+  "/admin": LayoutDashboard,
+  "/admin/users": Users,
+  "/admin/invitations": Mail,
   "/admin/profile": UserRound,
   "/admin/account-security": KeyRound,
 };
@@ -49,7 +51,7 @@ export function NavLink({
   /** Mobile top-bar sizing — full sidebar padding clips the last tab at ~375px. */
   compact?: boolean;
 }) {
-  const isActive = useActiveNavItem(item.href);
+  const isActive = useActiveNavItem(item.href, item.exact);
   const Icon = ICON_BY_HREF[item.href];
 
   return (
