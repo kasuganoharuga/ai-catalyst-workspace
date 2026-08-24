@@ -1,8 +1,12 @@
 import type { InvitationListItem } from "@ai-catalyst/shared";
 
+import {
+  revokeInvitationAction,
+  revokeMentorInvitationAction,
+} from "@/lib/actions/admin-actions";
 import { formatShortDate } from "@/lib/format";
 
-import { RevokeInvitationButton } from "./revoke-invitation-button";
+import { RevokeInvitationButton } from "@/components/revoke-invitation-button";
 
 const STATUS_TONE: Record<string, string> = {
   pending: "border border-foreground/25 text-foreground",
@@ -87,7 +91,11 @@ export function InvitationList({
               {invitation.status === "pending" ? (
                 <RevokeInvitationButton
                   invitationId={invitation.id}
-                  inviteRole={inviteRole}
+                  onRevoke={
+                    inviteRole === "mentor"
+                      ? revokeMentorInvitationAction
+                      : revokeInvitationAction
+                  }
                 />
               ) : null}
             </div>

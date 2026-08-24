@@ -4,10 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  revokeInvitationAction,
-  revokeMentorInvitationAction,
-} from "@/lib/actions/admin-actions";
+import type { ActionResult } from "@/lib/actions/action-result";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,16 +14,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { toastCopy } from "@/app/(app)/lib/copy";
 
-import { adminActionCopy } from "../lib/copy";
+import { mentorInvitationsCopy, toastCopy } from "@/app/(app)/lib/copy";
 
+// Shared by the Mentor's own invitations page and the Admin invitations
+// panel (both founder- and mentor-invite tabs) — the dialog and copy are
+// identical between personas, so the caller supplies only which Server
+// Action actually revokes the row.
 export function RevokeInvitationButton({
   invitationId,
-  inviteRole,
+  onRevoke,
 }: {
   invitationId: string;
-  inviteRole: "founder" | "mentor";
+  onRevoke: (invitationId: string) => Promise<ActionResult>;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -42,12 +42,7 @@ export function RevokeInvitationButton({
   function handleConfirm() {
     setError(null);
     startTransition(async () => {
-      const revoke =
-        inviteRole === "mentor"
-          ? revokeMentorInvitationAction
-          : revokeInvitationAction;
-
-      const result = await revoke(invitationId);
+      const result = await onRevoke(invitationId);
       if (!result.ok) {
         setError(result.message);
         toast.error(toastCopy.actionFailedTitle, {
@@ -56,7 +51,7 @@ export function RevokeInvitationButton({
         return;
       }
       setOpen(false);
-      toast.success(adminActionCopy.inviteRevoked);
+      toast.success(mentorInvitationsCopy.inviteRevoked);
       router.refresh();
     });
   }
@@ -73,7 +68,7 @@ export function RevokeInvitationButton({
         }}
         disabled={isPending}
       >
-        Revoke
+        {mentorInvitationsCopy.revokeCta}
       </Button>
 
       <Dialog
@@ -85,10 +80,11 @@ export function RevokeInvitationButton({
       >
         <DialogContent showCloseButton={!isPending}>
           <DialogHeader>
-            <DialogTitle>Revoke invitation?</DialogTitle>
+            <DialogTitle>
+              {mentorInvitationsCopy.revokeConfirmTitle}
+            </DialogTitle>
             <DialogDescription>
-              The one-time code will stop working. You can send a new invite
-              later if needed.
+              {mentorInvitationsCopy.revokeConfirmBody}
             </DialogDescription>
           </DialogHeader>
 
@@ -105,7 +101,7 @@ export function RevokeInvitationButton({
               onClick={handleCancel}
               disabled={isPending}
             >
-              Cancel
+              {mentorInvitationsCopy.revokeConfirmCancel}
             </Button>
             <Button
               type="button"
@@ -113,7 +109,9 @@ export function RevokeInvitationButton({
               onClick={handleConfirm}
               disabled={isPending}
             >
-              {isPending ? "Revoking…" : "Revoke"}
+              {isPending
+                ? mentorInvitationsCopy.revokePending
+                : mentorInvitationsCopy.revokeConfirmSubmit}
             </Button>
           </DialogFooter>
         </DialogContent>

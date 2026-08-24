@@ -1,14 +1,16 @@
 import Link from "next/link";
 
+import { revokeFounderInvitationAction } from "@/lib/actions/mentor-actions";
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { formatShortDate } from "@/lib/format";
 import { listFounderInvitations } from "@/lib/invitations";
 import { appPageTitle } from "@/lib/page-metadata";
 
+import { RevokeInvitationButton } from "@/components/revoke-invitation-button";
+
 import { PageShell } from "../components/page-shell";
 import { mentorInvitationsCopy } from "../lib/copy";
 import { InviteFounderForm } from "./invite-founder-form";
-import { RevokeInvitationButton } from "./revoke-invitation-button";
 
 export const metadata = appPageTitle("Invite founders");
 
@@ -100,7 +102,10 @@ export default async function MentorInvitationsPage() {
 
                 <div className="flex sm:w-24 sm:justify-end">
                   {invitation.status === "pending" ? (
-                    <RevokeInvitationButton invitationId={invitation.id} />
+                    <RevokeInvitationButton
+                      invitationId={invitation.id}
+                      onRevoke={revokeFounderInvitationAction}
+                    />
                   ) : null}
                 </div>
               </div>
