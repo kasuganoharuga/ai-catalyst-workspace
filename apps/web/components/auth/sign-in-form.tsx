@@ -4,11 +4,15 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { authClient } from "@/lib/auth-client";
 import {
   AUTH_EMAIL_OTP_ENABLED,
   AUTH_GOOGLE_ENABLED,
 } from "@/lib/feature-flags";
+
+import { Divider } from "./divider";
+import { useEmailCodeSignIn } from "./hooks/use-email-code-sign-in";
+import { useGoogleSignIn } from "./hooks/use-google-sign-in";
+import { usePasswordSignIn } from "./hooks/use-password-sign-in";
 
 const INPUT_CLASS =
   "h-11 w-full rounded-md border border-border bg-card px-3.5 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/60 focus:border-foreground focus:ring-1 focus:ring-foreground";
@@ -33,12 +37,8 @@ const SHOW_ALTERNATIVES = AUTH_GOOGLE_ENABLED || AUTH_EMAIL_OTP_ENABLED;
 export function SignInForm({ returnTo }: { returnTo: string | null }) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Non-null once a code has been sent: swaps the email field for code entry.
-  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
-  const [code, setCode] = useState("");
 
   /**
    * returnTo is often /api/auth/mcp/authorize, which answers with a 302 to the
@@ -54,84 +54,25 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
     router.push("/dashboard");
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const { error: signInError } = await authClient.signIn.email({
-      email,
-      password,
-    });
-
-    setIsSubmitting(false);
-
-    if (signInError) {
-      setError(signInError.message ?? "Sign in failed. Please try again.");
-      return;
-    }
-
-    goAfterSignIn();
-  }
-
-  async function handleGoogle() {
-    setError(null);
-    setIsSubmitting(true);
-    // No goAfterSignIn() here: this navigates away to Google, and Better Auth
-    // brings the browser back to callbackURL itself once the round trip
-    // completes. Nothing after this line runs on the happy path.
-    const { error: socialError } = await authClient.signIn.social({
-      provider: "google",
-      callbackURL: returnTo ?? "/dashboard",
-    });
-    if (socialError) {
-      setIsSubmitting(false);
-      setError(
-        socialError.message ?? "Could not continue with Google. Try again.",
-      );
-    }
-  }
-
-  async function handleSendCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const { error: sendError } = await authClient.emailOtp.sendVerificationOtp({
-      email,
-      type: "sign-in",
-    });
-
-    setIsSubmitting(false);
-
-    if (sendError) {
-      setError(sendError.message ?? "Could not send a code. Try again.");
-      return;
-    }
-    setCodeSentTo(email);
-  }
-
-  async function handleVerifyCode(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError(null);
-    setIsSubmitting(true);
-
-    const { error: verifyError } = await authClient.signIn.emailOtp({
-      email: codeSentTo ?? email,
-      otp: code,
-    });
-
-    setIsSubmitting(false);
-
-    if (verifyError) {
-      setError(
-        verifyError.message ?? "That code didn't work. Check it and try again.",
-      );
-      return;
-    }
-
-    goAfterSignIn();
-  }
+  const { password, setPassword, handleSubmit } = usePasswordSignIn({
+    email,
+    goAfterSignIn,
+    setError,
+    setIsSubmitting,
+  });
+  const { handleGoogle } = useGoogleSignIn({
+    returnTo,
+    setError,
+    setIsSubmitting,
+  });
+  const {
+    codeSentTo,
+    setCodeSentTo,
+    code,
+    setCode,
+    handleSendCode,
+    handleVerifyCode,
+  } = useEmailCodeSignIn({ email, goAfterSignIn, setError, setIsSubmitting });
 
   const errorBlock = error ? (
     <p
@@ -276,18 +217,6 @@ export function SignInForm({ returnTo }: { returnTo: string | null }) {
         {AUTH_EMAIL_OTP_ENABLED ? null : errorBlock}
         {submitButton}
       </form>
-    </div>
-  );
-}
-
-function Divider() {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="h-px flex-1 bg-border" />
-      <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-        or
-      </span>
-      <span className="h-px flex-1 bg-border" />
     </div>
   );
 }
