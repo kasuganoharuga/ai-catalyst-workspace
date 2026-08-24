@@ -2,6 +2,7 @@ import { getAdminDashboardStats } from "@ai-catalyst/services/admin";
 
 import { PageShell } from "@/app/(app)/components/page-shell";
 import { Stat, StatRow } from "@/app/(app)/components/stat";
+import { PageHeader } from "@/components/page-header";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { appPageTitle } from "@/lib/page-metadata";
 import { requireAdminUser } from "@/lib/require-active-user";
@@ -39,17 +40,11 @@ export default async function AdminDashboardPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {adminDashboardCopy.kicker}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {adminDashboardCopy.greeting(greetingName)}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {adminDashboardCopy.intro}
-        </p>
-      </div>
+      <PageHeader
+        kicker={adminDashboardCopy.kicker}
+        title={adminDashboardCopy.greeting(greetingName)}
+        intro={adminDashboardCopy.intro}
+      />
 
       <StatRow>
         <Stat value={`${stats.liveUsers}`}>

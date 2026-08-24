@@ -1,5 +1,6 @@
 import { PageShell } from "@/app/(app)/components/page-shell";
 import { ProfileForm } from "@/app/(app)/profile/components/profile-form";
+import { PageHeader } from "@/components/page-header";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { appPageTitle } from "@/lib/page-metadata";
 import { requireAdminUser } from "@/lib/require-active-user";
@@ -15,12 +16,11 @@ export default async function AdminProfilePage() {
 
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Your profile
-      </p>
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {displayName}
-      </h1>
+      <PageHeader
+        className="max-w-none"
+        kicker="Your profile"
+        title={displayName}
+      />
 
       <ProfileForm profile={profile} />
     </PageShell>

@@ -6,7 +6,10 @@ import { formatShortDate } from "@/lib/format";
 import { listFounderInvitations } from "@/lib/invitations";
 import { appPageTitle } from "@/lib/page-metadata";
 
+import { InvitationStatusPill } from "@/components/invitation-status-pill";
+import { PageHeader } from "@/components/page-header";
 import { RevokeInvitationButton } from "@/components/revoke-invitation-button";
+import { SectionHeaderRow } from "@/components/section-header-row";
 
 import { PageShell } from "../components/page-shell";
 import { mentorInvitationsCopy } from "../lib/copy";
@@ -26,32 +29,25 @@ export default async function MentorInvitationsPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <PageHeader
+        kicker={
           <Link href="/founders" className="underline-offset-2 hover:underline">
             {mentorInvitationsCopy.backLink}
           </Link>
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {mentorInvitationsCopy.title}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {mentorInvitationsCopy.intro}
-        </p>
-      </div>
+        }
+        title={mentorInvitationsCopy.title}
+        intro={mentorInvitationsCopy.intro}
+      />
 
       <div className="mt-8">
         <InviteFounderForm />
       </div>
 
-      <div className="mt-14 flex items-baseline justify-between gap-4">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {mentorInvitationsCopy.sectionHeading}
-        </p>
-        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-          {pendingCount} pending
-        </p>
-      </div>
+      <SectionHeaderRow
+        className="mt-14"
+        label={mentorInvitationsCopy.sectionHeading}
+        meta={`${pendingCount} pending`}
+      />
 
       {invitations.length === 0 ? (
         <p className="mt-5 text-sm text-muted-foreground">
@@ -114,28 +110,5 @@ export default async function MentorInvitationsPage() {
         </div>
       )}
     </PageShell>
-  );
-}
-
-const STATUS_TONE: Record<string, string> = {
-  pending: "border border-foreground/25 text-foreground",
-  accepted: "bg-primary text-primary-foreground",
-  revoked: "bg-muted text-muted-foreground",
-  expired: "bg-muted text-muted-foreground",
-};
-
-/**
- * Same visual vocabulary as StatusBadge (../components/status-badge.tsx) —
- * solid pill, uppercase, tracked-out label — kept local rather than reusing
- * that component directly: it's typed around ModuleDisplayStatus's tone
- * set, which has no member for an accepted/revoked/expired Invitation.
- */
-function InvitationStatusPill({ status }: { status: string }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${STATUS_TONE[status] ?? STATUS_TONE.pending}`}
-    >
-      {status}
-    </span>
   );
 }

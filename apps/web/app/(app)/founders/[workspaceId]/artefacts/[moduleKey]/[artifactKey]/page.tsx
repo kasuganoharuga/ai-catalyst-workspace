@@ -9,6 +9,7 @@ import { formatDateTime } from "@/lib/format";
 import { getMentorArtefactDocument } from "@/lib/mentor";
 import { appPageTitle } from "@/lib/page-metadata";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { PageHeader } from "@/components/page-header";
 
 import { AnalyticsTrack } from "../../../../../components/analytics-track";
 import { ArtefactDownloadMenu } from "../../../../../components/artefact-download-menu";
@@ -86,27 +87,26 @@ export default async function MentorArtefactPage({
         })}
       />
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 max-w-2xl">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            <Link
-              href={`/founders/${encodeURIComponent(workspaceId)}`}
-              className="underline-offset-2 hover:underline"
-            >
-              {mentorArtefactDocumentCopy.backLink}
-            </Link>
-            <span aria-hidden="true"> / </span>
-            {document.moduleTitle}
-          </p>
-          <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-            {document.name}
-          </h1>
-          <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-            {mentorArtefactDocumentCopy.savedLine(
-              document.versionNumber,
-              formatDateTime(document.savedAt),
-            )}
-          </p>
-        </div>
+        <PageHeader
+          kicker={
+            <>
+              <Link
+                href={`/founders/${encodeURIComponent(workspaceId)}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {mentorArtefactDocumentCopy.backLink}
+              </Link>
+              <span aria-hidden="true"> / </span>
+              {document.moduleTitle}
+            </>
+          }
+          title={document.name}
+          intro={mentorArtefactDocumentCopy.savedLine(
+            document.versionNumber,
+            formatDateTime(document.savedAt),
+          )}
+          className="min-w-0 max-w-2xl"
+        />
 
         <ArtefactDownloadMenu
           downloadHref={`/founders/${encodeURIComponent(workspaceId)}/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`}

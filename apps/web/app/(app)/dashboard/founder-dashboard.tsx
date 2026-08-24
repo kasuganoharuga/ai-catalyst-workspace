@@ -4,6 +4,7 @@ import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
 import { hasChangedInvitationPassword } from "@ai-catalyst/services/profile";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { getActiveContext } from "@/lib/active-context";
 import {
   getCurrentFounderActor,
@@ -81,16 +82,11 @@ export async function FounderDashboard() {
 
   return (
     <PageShell>
-      <div>
-        <h1 className="font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {view.greeting}
-        </h1>
-        {view.welcomeSub ? (
-          <p className="mt-3 max-w-xl text-[15px] leading-7 text-muted-foreground">
-            {view.welcomeSub}
-          </p>
-        ) : null}
-      </div>
+      <PageHeader
+        title={view.greeting}
+        intro={view.welcomeSub ? view.welcomeSub : undefined}
+        introClassName="max-w-xl"
+      />
 
       <div className="mt-10">
         <NextActionCard

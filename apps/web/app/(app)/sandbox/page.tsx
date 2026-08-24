@@ -6,6 +6,7 @@ import {
 import { appPageTitle } from "@/lib/page-metadata";
 import { formatDate } from "@/lib/format";
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
+import { PageHeader } from "@/components/page-header";
 
 import { PageShell } from "../components/page-shell";
 import { Stat } from "../components/stat";
@@ -40,17 +41,11 @@ export default async function SandboxPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          Sandbox
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {founderPreviewCopy.introHeading}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {founderPreviewCopy.introBody}
-        </p>
-      </div>
+      <PageHeader
+        kicker="Sandbox"
+        title={founderPreviewCopy.introHeading}
+        intro={founderPreviewCopy.introBody}
+      />
 
       <div className="mt-8 max-w-2xl overflow-hidden rounded-xl border border-border bg-card">
         {preview.hasSandbox && sandbox ? (

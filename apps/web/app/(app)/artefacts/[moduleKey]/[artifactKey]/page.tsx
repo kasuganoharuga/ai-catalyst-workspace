@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
 import { listArtifactCommentThreads } from "@/lib/artifact-comments";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getFounderArtifactDocument } from "@/lib/artifacts";
@@ -62,26 +63,29 @@ export default async function ArtefactDetailPage({
         })}
       />
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 max-w-2xl">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            <Link
-              href="/artefacts"
-              className="underline-offset-2 hover:underline"
-            >
-              Artefacts
-            </Link>
-            <span aria-hidden="true"> / </span>
-            From {document.moduleTitle}
-          </p>
-          <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-            {document.name}
-          </h1>
-          <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-            Version {document.versionNumber}
-            {" · "}
-            Saved at: {formatDateTime(document.savedAt)}
-          </p>
-        </div>
+        <PageHeader
+          kicker={
+            <>
+              <Link
+                href="/artefacts"
+                className="underline-offset-2 hover:underline"
+              >
+                Artefacts
+              </Link>
+              <span aria-hidden="true"> / </span>
+              From {document.moduleTitle}
+            </>
+          }
+          title={document.name}
+          intro={
+            <>
+              Version {document.versionNumber}
+              {" · "}
+              Saved at: {formatDateTime(document.savedAt)}
+            </>
+          }
+          className="min-w-0 max-w-2xl"
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="lg" variant="outline">

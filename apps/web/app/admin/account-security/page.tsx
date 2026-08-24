@@ -1,5 +1,6 @@
 import { PasswordSection } from "@/app/(app)/account-security/components/password-section";
 import { PageShell } from "@/app/(app)/components/page-shell";
+import { PageHeader } from "@/components/page-header";
 import { appPageTitle } from "@/lib/page-metadata";
 
 export const metadata = appPageTitle("Account security");
@@ -7,12 +8,11 @@ export const metadata = appPageTitle("Account security");
 export default function AdminAccountSecurityPage() {
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Account
-      </p>
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        Account security
-      </h1>
+      <PageHeader
+        className="max-w-none"
+        kicker="Account"
+        title="Account security"
+      />
 
       <PasswordSection
         successNote="Password updated. Other devices have been signed out."

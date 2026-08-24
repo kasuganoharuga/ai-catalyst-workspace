@@ -3,6 +3,8 @@ import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
 import { appPageTitle } from "@/lib/page-metadata";
 import { getCurrentAppActor } from "@/lib/current-app-actor";
 
+import { PageHeader } from "@/components/page-header";
+
 import { PageShell } from "../components/page-shell";
 import { PreviewLockedNotice } from "../components/preview-locked-notice";
 import { PasswordSection } from "./components/password-section";
@@ -14,14 +16,13 @@ export default async function AccountSecurityPage() {
 
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Account
-      </p>
       {/* No subtitle, same as Your profile and Company profile: the one
           thing on this page is labelled by its own heading below. */}
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        Account security
-      </h1>
+      <PageHeader
+        className="max-w-none"
+        kicker="Account"
+        title="Account security"
+      />
 
       {isFounderPreview(actor) ? (
         // Changing the password signs out other devices and disconnects

@@ -5,6 +5,8 @@ import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getMyProfile } from "@/lib/user-profile";
 import { appPageTitle } from "@/lib/page-metadata";
 
+import { PageHeader } from "@/components/page-header";
+
 import { AssistantMark } from "../components/assistant-mark";
 import { PageShell } from "../components/page-shell";
 import { connectionCopy } from "../lib/copy";
@@ -35,15 +37,18 @@ export default async function ConnectionPage() {
 
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {isAuthorised ? connectionCopy.kickerConnected : connectionCopy.kicker}
-      </p>
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {isAuthorised ? connected.copy.titleConnected : assistant.copy.title}
-      </h1>
-      <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-        {isAuthorised ? connected.copy.introConnected : assistant.copy.intro}
-      </p>
+      <PageHeader
+        className="max-w-none"
+        kicker={
+          isAuthorised ? connectionCopy.kickerConnected : connectionCopy.kicker
+        }
+        title={
+          isAuthorised ? connected.copy.titleConnected : assistant.copy.title
+        }
+        intro={
+          isAuthorised ? connected.copy.introConnected : assistant.copy.intro
+        }
+      />
 
       <p className="mt-3 flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
         {connectionCopy.assistantLabel}:

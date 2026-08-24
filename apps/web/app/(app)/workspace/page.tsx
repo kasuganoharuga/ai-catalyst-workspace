@@ -4,6 +4,7 @@ import { listVentures } from "@/lib/ventures";
 import { getMyWorkspace } from "@/lib/workspace";
 import { appPageTitle } from "@/lib/page-metadata";
 import { SHOW_CLAUDE_PROJECT } from "@/lib/feature-flags";
+import { PageHeader } from "@/components/page-header";
 
 import { PageShell } from "../components/page-shell";
 import {
@@ -33,15 +34,12 @@ export default async function WorkspacePage() {
        still on an older set (0.3em kicker, text-4xl heading, text-lg body)
        and read as a different product. */
     <PageShell className="max-w-4xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        {workspaceCopy.kicker}
-      </p>
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {workspace.name}
-      </h1>
-      <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-        {workspaceCopy.intro}
-      </p>
+      <PageHeader
+        kicker={workspaceCopy.kicker}
+        title={workspace.name}
+        intro={workspaceCopy.intro}
+        className="max-w-none"
+      />
 
       {!isWorkspaceActive ? (
         <div className="mt-6 rounded-xl border border-border bg-muted/40 px-5 py-4">

@@ -5,6 +5,8 @@ import {
 import { listMentorFounders } from "@/lib/mentor";
 import { getMyProfile, resolveGreetingName } from "@/lib/user-profile";
 
+import { PageHeader } from "@/components/page-header";
+
 import { PageShell } from "../components/page-shell";
 import { Stat, StatRow } from "../components/stat";
 import { mentorDashboardCopy } from "../lib/copy";
@@ -32,17 +34,11 @@ export async function MentorDashboard() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {mentorDashboardCopy.kicker}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {mentorDashboardCopy.greeting(greetingName)}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {mentorDashboardCopy.intro}
-        </p>
-      </div>
+      <PageHeader
+        kicker={mentorDashboardCopy.kicker}
+        title={mentorDashboardCopy.greeting(greetingName)}
+        intro={mentorDashboardCopy.intro}
+      />
 
       <StatRow>
         <Stat value={`${view.founderCount}`}>

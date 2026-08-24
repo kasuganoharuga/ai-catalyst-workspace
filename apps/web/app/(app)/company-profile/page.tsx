@@ -7,6 +7,8 @@ import {
   resolveCompanyDisplayName,
 } from "@/lib/company-profile";
 
+import { PageHeader } from "@/components/page-header";
+
 import { PageShell } from "../components/page-shell";
 import { PreviewLockedNotice } from "../components/preview-locked-notice";
 import { founderPreviewCopy } from "../lib/copy";
@@ -25,14 +27,13 @@ export default async function CompanyProfilePage() {
 
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Company profile
-      </p>
       {/* No subtitle, same as Your profile: the fields are labelled, and a
           sentence listing them back is a line people learn to skip. */}
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {displayName}
-      </h1>
+      <PageHeader
+        className="max-w-none"
+        kicker="Company profile"
+        title={displayName}
+      />
 
       {isFounderPreview(actor) ? (
         // Locked for a different reason than /profile and /account-security:

@@ -9,6 +9,10 @@ import { getMentorFounderDetail } from "@/lib/mentor";
 import { appPageTitle } from "@/lib/page-metadata";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
+import { EmptyStateCard } from "@/components/empty-state-card";
+import { PageHeader } from "@/components/page-header";
+import { SectionHeaderRow } from "@/components/section-header-row";
+
 import { AnalyticsTrack } from "../../components/analytics-track";
 import { ArtefactModuleGroup } from "../../artefacts/components/artefact-module-group";
 import {
@@ -72,31 +76,32 @@ export default async function MentorFounderDetailPage({
           carries the field, so this doubles as usage data for how much of
           that widened visibility actually gets used. */}
       <AnalyticsTrack event={ANALYTICS_EVENTS.mentorFounderOpened} />
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          <Link href="/founders" className="underline-offset-2 hover:underline">
-            {mentorFounderDetailCopy.backLink}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          {founder.workspaceName}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {displayName}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {founder.founderEmail}
-        </p>
-      </div>
+      <PageHeader
+        kicker={
+          <>
+            <Link
+              href="/founders"
+              className="underline-offset-2 hover:underline"
+            >
+              {mentorFounderDetailCopy.backLink}
+            </Link>
+            <span aria-hidden="true"> / </span>
+            {founder.workspaceName}
+          </>
+        }
+        title={displayName}
+        intro={founder.founderEmail}
+      />
 
       {founder.totalModules === null ? (
-        <div className="mt-10 rounded-xl border border-border bg-card px-6 py-14 text-center">
+        <EmptyStateCard className="mt-10">
           <p className="text-[15px] font-semibold text-foreground">
             {mentorFounderDetailCopy.notStartedTitle}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {mentorFounderDetailCopy.notStartedBody}
           </p>
-        </div>
+        </EmptyStateCard>
       ) : (
         <>
           <StatRow>
@@ -120,16 +125,15 @@ export default async function MentorFounderDetailPage({
             </Stat>
           </StatRow>
 
-          <div className="mt-14 flex items-baseline justify-between gap-4 border-t border-border pt-4">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-              {mentorFounderDetailCopy.artefactsHeading}
-            </p>
-            {artefactGroups.length > 0 ? (
-              <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-                {artefactsCopy.savedCount(savedCount, totalArtefacts)}
-              </p>
-            ) : null}
-          </div>
+          <SectionHeaderRow
+            className="mt-14 border-t border-border pt-4"
+            label={mentorFounderDetailCopy.artefactsHeading}
+            meta={
+              artefactGroups.length > 0 ? (
+                <>{artefactsCopy.savedCount(savedCount, totalArtefacts)}</>
+              ) : undefined
+            }
+          />
 
           {artefactGroups.length > 0 ? (
             <div className="mt-5 flex flex-col gap-5">

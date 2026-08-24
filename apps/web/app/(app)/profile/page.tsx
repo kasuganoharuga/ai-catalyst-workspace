@@ -11,6 +11,8 @@ import {
 import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getMyProfile, resolveDisplayName } from "@/lib/user-profile";
 
+import { PageHeader } from "@/components/page-header";
+
 import { PageShell } from "../components/page-shell";
 import { PreviewLockedNotice } from "../components/preview-locked-notice";
 import { AssistantSection } from "./components/assistant-section";
@@ -40,15 +42,14 @@ export default async function ProfilePage() {
 
   return (
     <PageShell className="max-w-6xl">
-      <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-        Your profile
-      </p>
       {/* No subtitle: the page is called "Your profile", the fields are
           labelled, and a sentence explaining that a profile is how you
           appear is the kind of line people learn to skip. */}
-      <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-        {displayName}
-      </h1>
+      <PageHeader
+        className="max-w-none"
+        kicker="Your profile"
+        title={displayName}
+      />
 
       {isFounderPreview(actor) ? (
         // Identity fields (name, job title, contact, LinkedIn) belong to
