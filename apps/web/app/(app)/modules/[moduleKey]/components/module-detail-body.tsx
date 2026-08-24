@@ -10,10 +10,8 @@ import { ContinueProgrammeButton } from "../../../components/continue-programme-
 import { MarkdownDocument } from "../../../components/markdown-document";
 import { StatusBadge } from "../../../components/status-badge";
 import { moduleGateCopy } from "../../../lib/copy";
-import {
-  deriveModuleDisplayStatus,
-  moduleAccentStyle,
-} from "../../../lib/module-display";
+import { moduleAccentStyle } from "../../../lib/module-display";
+import { deriveModuleDisplayStatus } from "../../../lib/module-status";
 import { StatusPill } from "../../components/status-pill";
 import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 import { listPrepDocuments } from "@ai-catalyst/services/prep";

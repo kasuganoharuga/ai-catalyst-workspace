@@ -6,7 +6,7 @@ import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 
 import { PageShell } from "../components/page-shell";
 import { modulesCopy } from "../lib/copy";
-import { deriveModuleDisplayStatus } from "../lib/module-display";
+import { deriveModuleDisplayStatus } from "../lib/module-status";
 import { ModuleCatalogCard } from "./components/module-catalog-card";
 
 export const metadata = appPageTitle("Modules");

@@ -9,7 +9,7 @@ import { updateVentureClaudeProjectAction } from "@/lib/actions/founder-actions"
 import {
   claudeChatProjectUrl,
   claudeChatProjectWebUrl,
-} from "../../lib/module-display";
+} from "../../lib/assistant-links";
 
 type VentureClaudeProjectFieldProps = {
   ventureId: string;

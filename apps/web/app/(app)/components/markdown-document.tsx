@@ -2,9 +2,15 @@ import { isValidElement, type ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+import { slugifyArtifactHeading } from "@/lib/artifact-heading-slug";
 import { cn } from "@/lib/utils";
 
 import { NewThreadDialog } from "./artefact-comments/new-thread-dialog";
+
+// Re-exported for existing importers — the slug itself now lives in a
+// dependency-free module so a client component can use it without dragging
+// in react-markdown, which this file pulls in at module scope.
+export { slugifyArtifactHeading };
 
 // Plain-text extraction from a react-markdown heading's rendered children,
 // for computing an anchor id. Note this reads the *rendered* text, not the
@@ -28,18 +34,6 @@ function extractPlainText(node: ReactNode): string {
     return extractPlainText(props.children);
   }
   return "";
-}
-
-/** Same slug shape used for both the rendered heading id and a comment anchor's `href="#…"` — see slugifyArtifactHeading. */
-export function slugifyArtifactHeading(text: string): string {
-  const slug = text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug.length > 0 ? slug : "section";
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { StatusTone } from "./module-display";
+import type { StatusTone } from "./module-status";
 
 export interface FounderDisplayStatus {
   label: string;

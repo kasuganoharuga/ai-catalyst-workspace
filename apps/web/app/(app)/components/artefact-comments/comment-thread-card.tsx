@@ -16,6 +16,7 @@ import {
   resolveArtifactCommentThreadAction,
   softDeleteArtifactCommentAction,
 } from "@/lib/actions/artifact-comment-actions";
+import { slugifyArtifactHeading } from "@/lib/artifact-heading-slug";
 import { formatShortDate } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -329,27 +330,15 @@ export function CommentThreadCard({
   );
 }
 
-// Deliberately duplicated from markdown-document.tsx's slugifyArtifactHeading
-// rather than imported: that file has no "use client" directive and pulls in
-// react-markdown at module scope, so a client component importing anything
-// from it — even this one pure string function — would drag react-markdown
-// into this bundle, exactly what that file's own docstring says to avoid.
 // Same slug shape, same input (the anchor's raw heading text), so a click
-// here lands on the heading MarkdownDocument rendered.
+// here lands on the heading MarkdownDocument rendered. Imported rather than
+// duplicated now that the slug lives in its own dependency-free module —
+// see lib/artifact-heading-slug.ts — so this "use client" bundle still
+// never drags in react-markdown, which markdown-document.tsx pulls in at
+// module scope.
 function slugForAnchor(thread: ArtifactCommentThread): string {
   if (thread.anchor.kind === "document") {
     return "";
   }
-  return slugifyArtifactHeadingClient(thread.anchor.heading ?? "");
-}
-
-function slugifyArtifactHeadingClient(text: string): string {
-  const slug = text
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/\s+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
-  return slug.length > 0 ? slug : "section";
+  return slugifyArtifactHeading(thread.anchor.heading ?? "");
 }

@@ -18,11 +18,9 @@ import { getMcpConnectionStatus } from "@/lib/mcp-connection";
 import { getModuleContextByKey, listRunModules } from "@/lib/run-modules";
 import { ventureForActiveContext } from "@/lib/ventures";
 
-import {
-  needsModuleRetry,
-  requiredOutputArtifactsSaved,
-  startModulePrompt,
-} from "../../../lib/module-display";
+import { startModulePrompt } from "../../../lib/assistant-links";
+import { requiredOutputArtifactsSaved } from "../../../lib/module-display";
+import { needsModuleRetry } from "../../../lib/module-status";
 import type { ExpectedArtifact, ModuleArtifactView } from "../types";
 
 /** ModuleArtifactView metadata; Markdown content stays a plain string for server-side rendering. */

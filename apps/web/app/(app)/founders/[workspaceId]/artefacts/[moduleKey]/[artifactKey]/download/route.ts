@@ -1,5 +1,13 @@
-import { NextResponse } from "next/server";
-
+import {
+  artefactNotFoundResponse,
+  attachmentResponse,
+  isExportFormat,
+  parseDownloadFormat,
+  parseSectionCount,
+  safeFilename,
+  validationErrorResponse,
+  withExtension,
+} from "@/app/(app)/artefacts/lib/artefact-download";
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { getMentorArtefactDocument } from "@/lib/mentor";
 import { getMentorArtifactExport } from "@/lib/mentor-export";
@@ -22,40 +30,12 @@ type DownloadRouteContext = {
   }>;
 };
 
-const EXPORT_FORMATS = ["docx", "xlsx"] as const;
-type ExportFormat = (typeof EXPORT_FORMATS)[number];
-
-function isExportFormat(value: string): value is ExportFormat {
-  return (EXPORT_FORMATS as readonly string[]).includes(value);
-}
-
-function safeFilename(name: string, fallback: string): string {
-  const cleaned = name.replace(/[\\/:*?"<>|]+/g, "_").trim();
-  return cleaned.length > 0 ? cleaned : fallback;
-}
-
-function withExtension(name: string, extension: string): string {
-  const withoutExtension = name.replace(/\.[^./\\]+$/, "");
-  return `${withoutExtension}.${extension}`;
-}
-
-function validationErrorResponse(message: string): NextResponse {
-  return NextResponse.json(
-    { error: { code: "VALIDATION_ERROR", message } },
-    { status: 400 },
-  );
-}
-
 export async function GET(request: Request, context: DownloadRouteContext) {
   try {
     const { workspaceId, moduleKey, artifactKey } = await context.params;
     const searchParams = new URL(request.url).searchParams;
-    const format = searchParams.get("format") ?? "source";
-    if (
-      format !== "source" &&
-      format !== "workbook" &&
-      !isExportFormat(format)
-    ) {
+    const format = parseDownloadFormat(searchParams.get("format"));
+    if (format === null) {
       return validationErrorResponse(
         'format must be "source", "workbook", "docx", or "xlsx".',
       );
@@ -71,26 +51,25 @@ export async function GET(request: Request, context: DownloadRouteContext) {
         artifactKey,
       );
       if (!document) {
-        return NextResponse.json(
-          { error: { code: "NOT_FOUND", message: "Artefact not found." } },
-          { status: 404 },
-        );
+        return artefactNotFoundResponse();
       }
 
       const filename = safeFilename(
         document.requiredFilename ?? `${document.artifactKey}.md`,
         "artefact.md",
       );
-      return new NextResponse(document.content, {
-        headers: {
-          "Content-Type": "text/markdown; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${filename}"`,
-          "Cache-Control": "private, no-store",
-        },
-      });
+      return attachmentResponse(
+        document.content,
+        "text/markdown; charset=utf-8",
+        filename,
+      );
     }
 
     if (isExportFormat(format)) {
+      // getMentorArtifactExport never resolves to null/undefined — business-
+      // rule failures propagate as thrown errors instead (see its JSDoc),
+      // unlike the Founder route's getFounderArtifactExport. No `if
+      // (!exported)` guard here is deliberate, not an oversight.
       const exported = await getMentorArtifactExport(
         actor,
         workspaceId,
@@ -105,27 +84,22 @@ export async function GET(request: Request, context: DownloadRouteContext) {
         ),
         `artefact.${exported.extension}`,
       );
-      return new NextResponse(new Uint8Array(exported.buffer), {
-        headers: {
-          "Content-Type": exported.mimeType,
-          "Content-Disposition": `attachment; filename="${filename}"`,
-          "Cache-Control": "private, no-store",
-        },
-      });
+      return attachmentResponse(
+        new Uint8Array(exported.buffer),
+        exported.mimeType,
+        filename,
+      );
     }
 
-    const sectionsParam = searchParams.get("sections");
-    let sectionCount: number | undefined;
-    if (sectionsParam !== null) {
-      const parsed = Number(sectionsParam);
-      if (!Number.isInteger(parsed) || parsed < 5 || parsed > 10) {
-        return validationErrorResponse(
-          "sections must be an integer between 5 and 10.",
-        );
-      }
-      sectionCount = parsed;
+    const sectionCount = parseSectionCount(searchParams.get("sections"));
+    if (sectionCount === null) {
+      return validationErrorResponse(
+        "sections must be an integer between 5 and 10.",
+      );
     }
 
+    // Same deliberate no-null-guard as the export branch above:
+    // getMentorArtifactWorkbook never resolves to null/undefined either.
     const workbook = await getMentorArtifactWorkbook(
       actor,
       workspaceId,
@@ -134,13 +108,11 @@ export async function GET(request: Request, context: DownloadRouteContext) {
       sectionCount,
     );
     const filename = safeFilename(workbook.filename, "artefact.pdf");
-    return new NextResponse(new Uint8Array(workbook.buffer), {
-      headers: {
-        "Content-Type": workbook.mimeType,
-        "Content-Disposition": `attachment; filename="${filename}"`,
-        "Cache-Control": "private, no-store",
-      },
-    });
+    return attachmentResponse(
+      new Uint8Array(workbook.buffer),
+      workbook.mimeType,
+      filename,
+    );
   } catch (error) {
     return serviceErrorResponse(error);
   }

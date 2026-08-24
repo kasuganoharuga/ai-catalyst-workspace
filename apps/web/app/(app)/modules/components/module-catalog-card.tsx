@@ -3,11 +3,8 @@ import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
-import {
-  headlineArtifact,
-  moduleAccentStyle,
-  type ModuleDisplayStatus,
-} from "../../lib/module-display";
+import { headlineArtifact, moduleAccentStyle } from "../../lib/module-display";
+import type { ModuleDisplayStatus } from "../../lib/module-status";
 import type { ModuleCatalogEntry } from "../types";
 import { StatusPill } from "./status-pill";
 
