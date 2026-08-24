@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import {
   createArtifactCommentThread,
@@ -12,14 +11,11 @@ import {
   resolveArtifactCommentThread,
   softDeleteArtifactComment,
 } from "@ai-catalyst/services/artifact-comment";
-import { ServiceError } from "@ai-catalyst/services/errors";
 import type {
   ArtifactComment,
   ArtifactCommentThread,
 } from "@ai-catalyst/shared";
 
-import { actorContextFromSessionWithPreview } from "@/lib/actor-context";
-import { auth } from "@/lib/auth";
 import {
   commentActionInputSchema,
   createArtifactCommentThreadInputSchema,
@@ -28,7 +24,10 @@ import {
   replyToArtifactCommentThreadInputSchema,
   threadActionInputSchema,
 } from "@/lib/validation/artifact-comment";
-import { webLog } from "@/lib/web-logger";
+
+import type { ActionResultWith } from "./action-result";
+import { internalActionResult } from "./action-error";
+import { requireCommentActor } from "./require-actor";
 
 // Founder <-> Mentor comment threads on one Artifact — the same shape as
 // mentor-actions.ts/prep-actions.ts: session -> role check ->
@@ -37,34 +36,9 @@ import { webLog } from "@/lib/web-logger";
 // the client (via usePathname()) because the Founder and Mentor artefact
 // pages live at different URLs and this file is shared between both.
 
-export type ArtifactCommentActionResult<T> =
-  { ok: true; data: T } | { ok: false; message: string };
+export type ArtifactCommentActionResult<T> = ActionResultWith<{ data: T }>;
 
-async function requireCommentActor() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
-  }
-  if (session.user.role !== "founder" && session.user.role !== "mentor") {
-    throw new ServiceError("FORBIDDEN", "Founder or Mentor access required.");
-  }
-  // Preview-aware: a Mentor walking the Founder flow in their own sandbox
-  // (actingAs: "founder") must reply through the same branch a real
-  // Founder does — see artifact-comment/index.ts's assertActorCanAccessWorkspace.
-  return actorContextFromSessionWithPreview(session);
-}
-
-function toActionResult(error: unknown): { ok: false; message: string } {
-  if (error instanceof ServiceError) {
-    return { ok: false, message: error.message };
-  }
-  webLog.error({
-    event: "web_unhandled_action_error",
-    message: "Unhandled artifact-comment server action error",
-    error_name: error instanceof Error ? error.name : typeof error,
-  });
-  return { ok: false, message: "Something went wrong." };
-}
+const toActionResult = internalActionResult({ domain: "artifact-comment" });
 
 export async function createArtifactCommentThreadAction(
   input: unknown,

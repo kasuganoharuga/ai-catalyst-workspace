@@ -1,12 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
-import {
-  effectiveRole,
-  isFounderPreview,
-} from "@ai-catalyst/contracts/actor-context";
+import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { autoCompleteSetupModule } from "@ai-catalyst/services/module/auto-setup";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
@@ -37,7 +33,6 @@ import {
   setActiveVenture,
 } from "@ai-catalyst/services/workspace/active-context";
 
-import { actorContextFromSessionWithPreview } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { errorCopy } from "@/app/(app)/lib/copy";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
@@ -51,47 +46,12 @@ import {
 } from "@/lib/ensure-program-destination";
 import { webLog } from "@/lib/web-logger";
 
-export type ActionResult = { ok: true } | { ok: false; message: string };
+import type { ActionResult } from "./action-result";
+import { founderActionResult } from "./action-error";
+import { requireFounderActor } from "./require-actor";
+import { revalidateFounderAppShell } from "./revalidate";
 
-async function requireFounderActor() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
-  }
-  const actor = await actorContextFromSessionWithPreview(session);
-  // effectiveRole, not actor.role: lets a Mentor previewing the Founder
-  // flow through, scoped to their own sandbox exactly as a real Founder
-  // would be (every service call below re-resolves scope from actor.userId).
-  if (effectiveRole(actor) !== "founder") {
-    throw new ServiceError("FORBIDDEN", "Founder access required.");
-  }
-  return actor;
-}
-
-function toActionResult(error: unknown): ActionResult {
-  if (error instanceof ServiceError) {
-    // Log the real message, show the founder the mapped one — service copy
-    // is written for whoever reads the logs, not for them.
-    webLog.error({
-      event: "web_service_action_error",
-      message: "Service error in founder server action",
-      code: error.code,
-      detail: error.message,
-    });
-    return { ok: false, message: founderMessageForServiceError(error) };
-  }
-  webLog.error({
-    event: "web_unhandled_action_error",
-    message: "Unhandled founder server action error",
-    error_name: error instanceof Error ? error.name : typeof error,
-  });
-  return { ok: false, message: errorCopy.generic };
-}
-
-/** Revalidate the (app) layout so sidebar shell data refreshes after mutations. */
-function revalidateFounderAppShell() {
-  revalidatePath("/dashboard", "layout");
-}
+const toActionResult = founderActionResult({ domain: "founder" });
 
 /**
  * Records that the founder chose to move past the profile step. It gates
