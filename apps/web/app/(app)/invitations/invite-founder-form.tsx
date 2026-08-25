@@ -9,6 +9,7 @@ import {
   firstZodMessage,
   invitationEmailSchema,
 } from "@/lib/validation/invitation";
+import { IssuedInvitationCredentials } from "@/components/issued-invitation-credentials";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,7 +28,11 @@ export function InviteFounderForm() {
   const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [issuedCredentials, setIssuedCredentials] = useState<{
+    loginUrl: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +44,7 @@ export function InviteFounderForm() {
       return;
     }
     setError(null);
-    setIssuedToken(null);
+    setIssuedCredentials(null);
     setConfirmEmail(parsed.data);
   }
 
@@ -65,9 +70,17 @@ export function InviteFounderForm() {
         return;
       }
 
-      // The code now goes out by email — only surface it on screen when
-      // delivery failed, so there is still a way to hand it over manually.
-      setIssuedToken(result.emailSent ? null : result.rawToken);
+      // Credentials go out by email — only surface them on screen when
+      // delivery failed, so there is still a way to hand them over manually.
+      setIssuedCredentials(
+        result.emailSent
+          ? null
+          : {
+              loginUrl: result.loginUrl,
+              email: result.email,
+              password: result.initialPassword,
+            },
+      );
       setEmail("");
       setConfirmEmail(null);
       toast.success(mentorInvitationsCopy.inviteCreated, {
@@ -119,20 +132,14 @@ export function InviteFounderForm() {
         </p>
       ) : null}
 
-      {issuedToken ? (
-        <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            {mentorInvitationsCopy.tokenHeadingEmailFailed}
-          </p>
-          <p className="mt-2 break-all font-mono text-sm text-foreground">
-            {issuedToken}
-          </p>
-          {/* "Code", not "token", to match the field the invitee is asked to
-              paste it into on /pending. */}
-          <p className="mt-2 text-xs text-muted-foreground">
-            {mentorInvitationsCopy.tokenNoteEmailFailed}
-          </p>
-        </div>
+      {issuedCredentials ? (
+        <IssuedInvitationCredentials
+          heading={mentorInvitationsCopy.credentialsHeadingEmailFailed}
+          loginUrl={issuedCredentials.loginUrl}
+          email={issuedCredentials.email}
+          password={issuedCredentials.password}
+          note={mentorInvitationsCopy.credentialsNoteEmailFailed}
+        />
       ) : null}
 
       <Dialog

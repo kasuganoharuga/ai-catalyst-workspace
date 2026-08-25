@@ -1,5 +1,3 @@
-import { redirect } from "next/navigation";
-
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
   getMcpConnectionToBeReplaced,
@@ -7,7 +5,10 @@ import {
 } from "@ai-catalyst/services/mcp-auth";
 
 import { Logo } from "@/components/logo";
-import { requireAuthenticatedUser } from "@/lib/require-active-user";
+import {
+  rejectPendingSession,
+  requireAuthenticatedUser,
+} from "@/lib/require-active-user";
 
 import { ConsentForm } from "./components/consent-form";
 import { InvalidConsentRequest } from "./components/invalid-consent-request";
@@ -30,11 +31,8 @@ export default async function OAuthConsentPage({
       : undefined,
   });
 
-  // Pending accounts cannot redeem grants — send them to /pending instead of
-  // a consent screen that would end in invalid_grant.
-  if (session.user.role === "pending") {
-    redirect("/pending");
-  }
+  // Leftover pending accounts cannot redeem grants.
+  await rejectPendingSession(session.user.role);
 
   if (!consentCode) {
     return <InvalidConsentRequest />;

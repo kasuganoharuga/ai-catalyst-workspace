@@ -8,14 +8,12 @@ import {
   softDeleteUser,
 } from "@ai-catalyst/services/admin";
 import {
-  createFounderInvitation,
-  createMentorInvitation,
   revokeFounderInvitation,
   revokeMentorInvitation,
 } from "@ai-catalyst/services/invitation";
 
 import { auth } from "@/lib/auth";
-import { sendInvitationEmail } from "@/lib/invitation-emails";
+import { inviteWithCredentials } from "@/lib/invite-with-credentials";
 import {
   createInvitationInputSchema,
   firstZodMessage,
@@ -50,13 +48,13 @@ export async function createInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { invitation, rawToken } = await createFounderInvitation(
-      actor,
-      parsed.data,
-    );
-    const emailSent = await sendInvitationEmail(invitation, rawToken);
+    const result = await inviteWithCredentials(actor, {
+      ...parsed.data,
+      inviteRole: "founder",
+    });
     revalidateAdminInvitations();
-    return { ok: true, rawToken, emailSent };
+    revalidatePath("/admin/users");
+    return { ok: true, ...result };
   } catch (error) {
     return toActionResult(error);
   }
@@ -91,13 +89,13 @@ export async function createMentorInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { invitation, rawToken } = await createMentorInvitation(
-      actor,
-      parsed.data,
-    );
-    const emailSent = await sendInvitationEmail(invitation, rawToken);
+    const result = await inviteWithCredentials(actor, {
+      ...parsed.data,
+      inviteRole: "mentor",
+    });
     revalidateAdminInvitations();
-    return { ok: true, rawToken, emailSent };
+    revalidatePath("/admin/users");
+    return { ok: true, ...result };
   } catch (error) {
     return toActionResult(error);
   }

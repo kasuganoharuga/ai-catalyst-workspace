@@ -1032,8 +1032,8 @@ describe("invitation service — database integration", () => {
       expect(listedForAdmin.map((row) => row.id)).toContain(ownedByA.id);
     });
 
-    // The redeemer cannot tell the two token kinds apart, so /pending sends
-    // both here and the token decides which path runs.
+    // The redeemer cannot tell the two token kinds apart, so acceptInvitation
+    // dispatches on the token and the token decides which path runs.
     it("routes a founder token to the founder accept path", async () => {
       const mentor = await createMentorUser("dispatch-mentor");
       const user = await createPendingUser("dispatch-founder");

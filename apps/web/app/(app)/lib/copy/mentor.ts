@@ -146,7 +146,7 @@ export const mentorInvitationsCopy = {
   kicker: "Mentor",
   title: "Invite founders",
   intro:
-    "We'll email the founder a one-time code. When they accept, their workspace is created and comes under your support automatically.",
+    "We'll email the founder a login page, their account, and an initial password. Their workspace is created straight away and comes under your support automatically.",
   backLink: "Founders",
   formEmailLabel: "Founder email",
   formEmailPlaceholder: "founder@company.com",
@@ -154,24 +154,25 @@ export const mentorInvitationsCopy = {
   formSubmitPending: "Sending invitation…",
   confirmTitle: "Send founder invitation?",
   confirmBody: (email: string) =>
-    `Create a one-time invite for ${email} and email them the code.`,
+    `Create an account for ${email} and email them how to sign in.`,
   confirmCancel: "Cancel",
   confirmSubmit: "Send invitation",
   confirmSubmitPending: "Creating…",
   inviteCreated: "Founder invitation created",
   inviteCreatedDescription: "The invitation email is on its way.",
   inviteEmailFailedDescription:
-    "The invitation email failed to send — copy the one-time code below and share it manually.",
-  tokenHeadingEmailFailed: "Email failed — copy this code now",
-  tokenNoteEmailFailed:
-    "This code is shown once and cannot be retrieved again. Send it to the founder yourself.",
+    "The invitation email failed to send — copy the sign-in details below and share them manually.",
+  credentialsHeadingEmailFailed:
+    "Email failed — copy these sign-in details now",
+  credentialsNoteEmailFailed:
+    "These details are shown once and cannot be retrieved again. Send them to the founder yourself.",
   sectionHeading: "Sent invitations",
   emptyBody: "You haven't invited anyone yet.",
   revokeCta: "Revoke",
   revokePending: "Revoking…",
   revokeConfirmTitle: "Revoke invitation?",
   revokeConfirmBody:
-    "The one-time code will stop working. You can send a new invite later if needed.",
+    "This invitation will stop working. You can send a new invite later if needed.",
   revokeConfirmCancel: "Cancel",
   revokeConfirmSubmit: "Revoke",
   inviteRevoked: "Invitation revoked",

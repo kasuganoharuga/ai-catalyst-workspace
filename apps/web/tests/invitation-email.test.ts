@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Invitation } from "@ai-catalyst/shared";
-
 import { getEmailSender } from "@/lib/email";
-import { invitationEmail, sendInvitationEmail } from "@/lib/invitation-emails";
+import {
+  invitationEmail,
+  loginUrlFromEnv,
+  sendInvitationEmail,
+} from "@/lib/invitation-emails";
 import { webLog } from "@/lib/web-logger";
 
 vi.mock("@/lib/email", () => ({
@@ -14,63 +16,45 @@ vi.mock("@/lib/web-logger", () => ({
   webLog: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
 
-const invitation: Invitation = {
-  id: "inv-1",
-  email: "founder@example.com",
-  inviteRole: "founder",
-  workspaceId: null,
-  status: "pending",
-  invitedByUserId: "admin-1",
-  personalMessage: null,
-  expiresAt: "2026-09-01T00:00:00.000Z",
-  acceptedAt: null,
-  revokedAt: null,
-  createdAt: "2026-08-25T00:00:00.000Z",
-  updatedAt: "2026-08-25T00:00:00.000Z",
-};
-
 describe("invitationEmail", () => {
   const message = invitationEmail({
     to: "founder@example.com",
-    inviteRole: "founder",
-    token: "one-time-code",
-    expiresAt: "2026-09-01T00:00:00.000Z",
-    origin: "https://develop.aicatalyst.toruscap.vc",
+    loginUrl: "https://develop.aicatalyst.toruscap.vc",
+    password: "temporary-pass",
   });
 
-  it("addresses the recipient and carries the code in the body", () => {
+  it("is only the login page, account, and initial password", () => {
     expect(message.to).toBe("founder@example.com");
-    expect(message.text).toContain("one-time-code");
-  });
-
-  it("keeps the code out of the subject", () => {
-    expect(message.subject).not.toContain("one-time-code");
-    expect(message.subject).toContain("Founder");
-  });
-
-  it("points at register and the awaiting-invitation page", () => {
-    expect(message.text).toContain(
-      "https://develop.aicatalyst.toruscap.vc/register",
-    );
-    expect(message.text).toContain(
-      "https://develop.aicatalyst.toruscap.vc/pending",
+    expect(message.text).toBe(
+      [
+        "Login: https://develop.aicatalyst.toruscap.vc",
+        "Account: founder@example.com",
+        "Password: temporary-pass",
+      ].join("\n"),
     );
   });
 
-  it("includes a personal message when one was supplied", () => {
-    const withNote = invitationEmail({
-      to: "founder@example.com",
-      inviteRole: "mentor",
-      token: "abc",
-      expiresAt: "2026-09-01T00:00:00.000Z",
-      personalMessage: "Looking forward to working together.",
-    });
-    expect(withNote.text).toContain("Looking forward to working together.");
-    expect(withNote.subject).toContain("Mentor");
+  it("keeps the password out of the subject", () => {
+    expect(message.subject).not.toContain("temporary-pass");
+    expect(message.subject).toBe("Your AI Catalyst account");
+  });
+
+  it("does not mention an invitation code or the register/pending path", () => {
+    expect(message.text).not.toMatch(/code|register|pending/i);
   });
 
   it("is plain text only — there is no HTML template to render", () => {
     expect(message.html).toBeUndefined();
+  });
+});
+
+describe("loginUrlFromEnv", () => {
+  it("strips a trailing slash from AUTH_ISSUER_URL", () => {
+    expect(
+      loginUrlFromEnv({
+        AUTH_ISSUER_URL: "https://develop.aicatalyst.toruscap.vc/",
+      }),
+    ).toBe("https://develop.aicatalyst.toruscap.vc");
   });
 });
 
@@ -85,21 +69,30 @@ describe("sendInvitationEmail", () => {
 
   it("returns true when enqueue succeeds", async () => {
     enqueue.mockResolvedValue(undefined);
-    await expect(sendInvitationEmail(invitation, "token-1")).resolves.toBe(
-      true,
-    );
+    await expect(
+      sendInvitationEmail({
+        to: "founder@example.com",
+        loginUrl: "https://example.com",
+        password: "pw",
+      }),
+    ).resolves.toBe(true);
     expect(enqueue).toHaveBeenCalledTimes(1);
     expect(webLog.error).not.toHaveBeenCalled();
   });
 
   it("returns false and logs when enqueue fails, so create still succeeds", async () => {
     enqueue.mockRejectedValue(new Error("SES rejected the message"));
-    await expect(sendInvitationEmail(invitation, "token-1")).resolves.toBe(
-      false,
-    );
+    await expect(
+      sendInvitationEmail({
+        to: "founder@example.com",
+        loginUrl: "https://example.com",
+        password: "pw",
+      }),
+    ).resolves.toBe(false);
     expect(webLog.error).toHaveBeenCalledWith(
       expect.objectContaining({
         event: "web_invitation_email_failed",
+        error_message: "SES rejected the message",
       }),
     );
   });

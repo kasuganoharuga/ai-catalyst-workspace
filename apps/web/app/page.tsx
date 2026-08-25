@@ -9,6 +9,7 @@ import { SignInForm } from "@/components/auth/sign-in-form";
 import { Logo } from "@/components/logo";
 import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import { rejectPendingSession } from "@/lib/require-active-user";
 import { safeReturnTo } from "@/lib/safe-return-to";
 
 type HomePageProps = {
@@ -17,11 +18,11 @@ type HomePageProps = {
 
 // founder and mentor deliberately share a destination: /dashboard is a
 // role-aware page (app/(app)/dashboard/page.tsx) that renders different
-// content for each, inside the same shared app shell.
-const ROLE_DESTINATION: Record<ActorRole, string> = {
+// content for each, inside the same shared app shell. `pending` is not
+// listed: leftover pending sessions are signed out below.
+const ROLE_DESTINATION: Record<Exclude<ActorRole, "pending">, string> = {
   founder: "/dashboard",
   admin: "/admin",
-  pending: "/pending",
   mentor: "/dashboard",
 };
 
@@ -47,14 +48,14 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       role = null;
     }
 
-    // Before returnTo: pending accounts cannot complete MCP authorize.
+    // Before returnTo: leftover pending accounts cannot use the app.
     if (role === "pending") {
-      redirect(ROLE_DESTINATION.pending);
+      await rejectPendingSession(role);
     }
     if (safeTo) {
       redirect(safeTo);
     }
-    if (role) {
+    if (role && role !== "pending") {
       redirect(ROLE_DESTINATION[role]);
     }
   }

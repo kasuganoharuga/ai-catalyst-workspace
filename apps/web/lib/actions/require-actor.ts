@@ -142,11 +142,3 @@ export function requireRealMentorActor(): Promise<ActorContext> {
     forbiddenMessage: "Mentor access required.",
   });
 }
-
-export function requirePendingActor(): Promise<ActorContext> {
-  return requireActorContext({
-    roles: ["pending"],
-    previewAware: false,
-    forbiddenMessage: "Pending account required.",
-  });
-}

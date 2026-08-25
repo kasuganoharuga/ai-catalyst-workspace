@@ -7,19 +7,21 @@ export type ActionFailure = { ok: false; message: string };
 
 /**
  * ActionResult with success-only fields attached at the top level, e.g.
- * `{ ok: true, rawToken }` — not nested under a `data` key. For a result
+ * `{ ok: true, initialPassword }` — not nested under a `data` key. For a result
  * that should nest instead, wrap `T` in `{ data: T }` yourself (see
  * artifact-comment-actions.ts's ArtifactCommentActionResult).
  */
 export type ActionResultWith<T> = ({ ok: true } & T) | ActionFailure;
 
 /**
- * Shared by admin-actions.ts and mentor-actions.ts — both create Founder
- * invitations through the same action shape. `emailSent` is false when the
- * invitation was created but the email failed to send (e.g. SES rejection)
- * — `rawToken` is still returned so the caller can share it manually.
+ * Shared by admin-actions.ts and mentor-actions.ts. `emailSent` is false
+ * when the account was created but the email failed to send (e.g. SES
+ * rejection) — the same login / account / password fields are returned so
+ * the caller can share them manually.
  */
 export type CreateInvitationResult = ActionResultWith<{
-  rawToken: string;
+  email: string;
+  loginUrl: string;
+  initialPassword: string;
   emailSent: boolean;
 }>;

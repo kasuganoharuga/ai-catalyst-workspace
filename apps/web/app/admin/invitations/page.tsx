@@ -36,9 +36,9 @@ export default async function AdminInvitationsPage() {
         title="Invitations"
         intro={
           <>
-            We&apos;ll email the invitee a one-time code. Admin-issued founder
-            invites create a workspace with no mentor; bind one later from
-            Users.
+            We&apos;ll email the invitee a login page, their account, and an
+            initial password. Admin-issued founder invites create a workspace
+            with no mentor; bind one later from Users.
           </>
         }
       />

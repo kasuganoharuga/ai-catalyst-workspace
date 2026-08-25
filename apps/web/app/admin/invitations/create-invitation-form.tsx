@@ -12,6 +12,7 @@ import {
   firstZodMessage,
   invitationEmailSchema,
 } from "@/lib/validation/invitation";
+import { IssuedInvitationCredentials } from "@/components/issued-invitation-credentials";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -35,7 +36,11 @@ export function CreateInvitationForm({
   const [confirmEmail, setConfirmEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [issuedCredentials, setIssuedCredentials] = useState<{
+    loginUrl: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   const label = inviteRole === "mentor" ? "Mentor" : "Founder";
 
@@ -49,7 +54,7 @@ export function CreateInvitationForm({
       return;
     }
     setError(null);
-    setIssuedToken(null);
+    setIssuedCredentials(null);
     setConfirmEmail(parsed.data);
   }
 
@@ -78,9 +83,17 @@ export function CreateInvitationForm({
         return;
       }
 
-      // The code now goes out by email — only surface it on screen when
-      // delivery failed, so there is still a way to hand it over manually.
-      setIssuedToken(result.emailSent ? null : result.rawToken);
+      // Credentials go out by email — only surface them on screen when
+      // delivery failed, so there is still a way to hand them over manually.
+      setIssuedCredentials(
+        result.emailSent
+          ? null
+          : {
+              loginUrl: result.loginUrl,
+              email: result.email,
+              password: result.initialPassword,
+            },
+      );
       setEmail("");
       setConfirmEmail(null);
       toast.success(adminActionCopy.inviteCreated(label), {
@@ -125,19 +138,14 @@ export function CreateInvitationForm({
         </p>
       ) : null}
 
-      {issuedToken ? (
-        <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            Email failed — copy this code now
-          </p>
-          <p className="mt-2 break-all font-mono text-sm text-foreground">
-            {issuedToken}
-          </p>
-          <p className="mt-2 text-xs text-muted-foreground">
-            This code is shown once and cannot be retrieved again. Share it with
-            the invited {inviteRole} manually.
-          </p>
-        </div>
+      {issuedCredentials ? (
+        <IssuedInvitationCredentials
+          heading={adminActionCopy.credentialsHeadingEmailFailed}
+          loginUrl={issuedCredentials.loginUrl}
+          email={issuedCredentials.email}
+          password={issuedCredentials.password}
+          note={adminActionCopy.credentialsNoteEmailFailed(inviteRole)}
+        />
       ) : null}
 
       <Dialog
@@ -150,11 +158,11 @@ export function CreateInvitationForm({
           <DialogHeader>
             <DialogTitle>Send {label.toLowerCase()} invitation?</DialogTitle>
             <DialogDescription>
-              Create a one-time invite for{" "}
+              Create an account for{" "}
               <span className="font-medium text-foreground">
                 {confirmEmail}
-              </span>
-              . We&apos;ll email them the code.
+              </span>{" "}
+              and email them how to sign in.
             </DialogDescription>
           </DialogHeader>
 

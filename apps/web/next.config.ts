@@ -32,6 +32,9 @@ const nextConfig: NextConfig = {
         destination: "/dashboard",
         permanent: true,
       },
+      // Invitation codes are gone — accounts are provisioned at invite time.
+      { source: "/pending", destination: "/", permanent: true },
+      { source: "/register", destination: "/", permanent: true },
     ];
   },
   /**

@@ -1,11 +1,8 @@
 "use server";
 
-import {
-  createFounderInvitation,
-  revokeFounderInvitation,
-} from "@ai-catalyst/services/invitation";
+import { revokeFounderInvitation } from "@ai-catalyst/services/invitation";
 
-import { sendInvitationEmail } from "@/lib/invitation-emails";
+import { inviteWithCredentials } from "@/lib/invite-with-credentials";
 import {
   createInvitationInputSchema,
   firstZodMessage,
@@ -26,8 +23,9 @@ import { revalidateMentorInvitations } from "./revalidate";
 const toActionResult = internalActionResult({ domain: "mentor" });
 
 /**
- * Invites a Founder. Accepting this is what creates their Workspace and
- * attributes it to this Mentor — there is no separate "assign" step.
+ * Invites a Founder: creates their account, accepts the invitation on
+ * their behalf (workspace attributed to this Mentor), and emails login
+ * details. There is no separate "assign" step.
  */
 export async function createFounderInvitationAction(input: {
   email: string;
@@ -40,13 +38,12 @@ export async function createFounderInvitationAction(input: {
 
   try {
     const actor = await requireMentorActor();
-    const { invitation, rawToken } = await createFounderInvitation(
-      actor,
-      parsed.data,
-    );
-    const emailSent = await sendInvitationEmail(invitation, rawToken);
+    const result = await inviteWithCredentials(actor, {
+      ...parsed.data,
+      inviteRole: "founder",
+    });
     revalidateMentorInvitations();
-    return { ok: true, rawToken, emailSent };
+    return { ok: true, ...result };
   } catch (error) {
     return toActionResult(error);
   }

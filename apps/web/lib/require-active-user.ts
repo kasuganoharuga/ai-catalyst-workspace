@@ -11,6 +11,17 @@ import { safeReturnTo } from "./safe-return-to";
  * `assertRole` in packages/services re-checks on every call regardless of which guard ran.
  */
 
+/**
+ * Leftover `pending` rows (self-registered before invites provisioned the
+ * account) have no destination in the app. End the session so they land on
+ * the sign-in page instead of looping.
+ */
+export async function rejectPendingSession(role: string): Promise<void> {
+  if (role !== "pending") return;
+  await auth.api.signOut({ headers: await headers() });
+  redirect("/");
+}
+
 /** @param options.returnTo Same-origin path after sign-in (e.g. consent_code URL). */
 export async function requireAuthenticatedUser(options?: {
   returnTo?: string;
@@ -27,11 +38,7 @@ export async function requireAuthenticatedUser(options?: {
 
 export async function requireActiveUser() {
   const session = await requireAuthenticatedUser();
-
-  if (session.user.role === "pending") {
-    redirect("/pending");
-  }
-
+  await rejectPendingSession(session.user.role);
   return session;
 }
 
