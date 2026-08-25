@@ -162,9 +162,6 @@ export const mentorInvitationsCopy = {
   inviteCreatedDescription: "The invitation email is on its way.",
   inviteEmailFailedDescription:
     "The invitation email failed to send — copy the one-time code below and share it manually.",
-  tokenHeading: "Invitation emailed — code below for reference",
-  tokenNote:
-    "This code was included in the invitation email. It is shown once here and cannot be retrieved again.",
   tokenHeadingEmailFailed: "Email failed — copy this code now",
   tokenNoteEmailFailed:
     "This code is shown once and cannot be retrieved again. Send it to the founder yourself.",

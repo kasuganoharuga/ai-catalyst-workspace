@@ -28,7 +28,6 @@ export function InviteFounderForm() {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
-  const [emailSent, setEmailSent] = useState(true);
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,8 +65,9 @@ export function InviteFounderForm() {
         return;
       }
 
-      setIssuedToken(result.rawToken);
-      setEmailSent(result.emailSent);
+      // The code now goes out by email — only surface it on screen when
+      // delivery failed, so there is still a way to hand it over manually.
+      setIssuedToken(result.emailSent ? null : result.rawToken);
       setEmail("");
       setConfirmEmail(null);
       toast.success(mentorInvitationsCopy.inviteCreated, {
@@ -122,9 +122,7 @@ export function InviteFounderForm() {
       {issuedToken ? (
         <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            {emailSent
-              ? mentorInvitationsCopy.tokenHeading
-              : mentorInvitationsCopy.tokenHeadingEmailFailed}
+            {mentorInvitationsCopy.tokenHeadingEmailFailed}
           </p>
           <p className="mt-2 break-all font-mono text-sm text-foreground">
             {issuedToken}
@@ -132,9 +130,7 @@ export function InviteFounderForm() {
           {/* "Code", not "token", to match the field the invitee is asked to
               paste it into on /pending. */}
           <p className="mt-2 text-xs text-muted-foreground">
-            {emailSent
-              ? mentorInvitationsCopy.tokenNote
-              : mentorInvitationsCopy.tokenNoteEmailFailed}
+            {mentorInvitationsCopy.tokenNoteEmailFailed}
           </p>
         </div>
       ) : null}
