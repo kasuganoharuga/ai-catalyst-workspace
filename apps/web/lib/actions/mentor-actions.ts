@@ -5,6 +5,7 @@ import {
   revokeFounderInvitation,
 } from "@ai-catalyst/services/invitation";
 
+import { sendInvitationEmail } from "@/lib/invitation-emails";
 import {
   createInvitationInputSchema,
   firstZodMessage,
@@ -39,9 +40,13 @@ export async function createFounderInvitationAction(input: {
 
   try {
     const actor = await requireMentorActor();
-    const { rawToken } = await createFounderInvitation(actor, parsed.data);
+    const { invitation, rawToken } = await createFounderInvitation(
+      actor,
+      parsed.data,
+    );
+    const emailSent = await sendInvitationEmail(invitation, rawToken);
     revalidateMentorInvitations();
-    return { ok: true, rawToken };
+    return { ok: true, rawToken, emailSent };
   } catch (error) {
     return toActionResult(error);
   }

@@ -1,7 +1,8 @@
 export const adminActionCopy = {
   inviteCreated: (roleLabel: string) => `${roleLabel} invitation created`,
-  inviteCreatedDescription:
-    "Copy the one-time code below and share it manually.",
+  inviteCreatedDescription: "The invitation email is on its way.",
+  inviteEmailFailedDescription:
+    "The invitation email failed to send — copy the one-time code below and share it manually.",
   mentorAssigned: "Mentor updated",
   userDeleted: "User deleted",
   passwordReset: "Temporary password issued",

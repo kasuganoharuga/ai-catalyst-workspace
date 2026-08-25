@@ -15,6 +15,7 @@ import {
 } from "@ai-catalyst/services/invitation";
 
 import { auth } from "@/lib/auth";
+import { sendInvitationEmail } from "@/lib/invitation-emails";
 import {
   createInvitationInputSchema,
   firstZodMessage,
@@ -49,9 +50,13 @@ export async function createInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createFounderInvitation(actor, parsed.data);
+    const { invitation, rawToken } = await createFounderInvitation(
+      actor,
+      parsed.data,
+    );
+    const emailSent = await sendInvitationEmail(invitation, rawToken);
     revalidateAdminInvitations();
-    return { ok: true, rawToken };
+    return { ok: true, rawToken, emailSent };
   } catch (error) {
     return toActionResult(error);
   }
@@ -86,9 +91,13 @@ export async function createMentorInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createMentorInvitation(actor, parsed.data);
+    const { invitation, rawToken } = await createMentorInvitation(
+      actor,
+      parsed.data,
+    );
+    const emailSent = await sendInvitationEmail(invitation, rawToken);
     revalidateAdminInvitations();
-    return { ok: true, rawToken };
+    return { ok: true, rawToken, emailSent };
   } catch (error) {
     return toActionResult(error);
   }

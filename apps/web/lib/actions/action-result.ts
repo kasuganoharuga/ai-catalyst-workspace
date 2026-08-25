@@ -13,5 +13,13 @@ export type ActionFailure = { ok: false; message: string };
  */
 export type ActionResultWith<T> = ({ ok: true } & T) | ActionFailure;
 
-/** Shared by admin-actions.ts and mentor-actions.ts — both create Founder invitations through the same action shape. */
-export type CreateInvitationResult = ActionResultWith<{ rawToken: string }>;
+/**
+ * Shared by admin-actions.ts and mentor-actions.ts — both create Founder
+ * invitations through the same action shape. `emailSent` is false when the
+ * invitation was created but the email failed to send (e.g. SES rejection)
+ * — `rawToken` is still returned so the caller can share it manually.
+ */
+export type CreateInvitationResult = ActionResultWith<{
+  rawToken: string;
+  emailSent: boolean;
+}>;

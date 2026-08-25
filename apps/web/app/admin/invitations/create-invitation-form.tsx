@@ -36,6 +36,7 @@ export function CreateInvitationForm({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [issuedToken, setIssuedToken] = useState<string | null>(null);
+  const [emailSent, setEmailSent] = useState(true);
 
   const label = inviteRole === "mentor" ? "Mentor" : "Founder";
 
@@ -79,10 +80,13 @@ export function CreateInvitationForm({
       }
 
       setIssuedToken(result.rawToken);
+      setEmailSent(result.emailSent);
       setEmail("");
       setConfirmEmail(null);
       toast.success(adminActionCopy.inviteCreated(label), {
-        description: adminActionCopy.inviteCreatedDescription,
+        description: result.emailSent
+          ? adminActionCopy.inviteCreatedDescription
+          : adminActionCopy.inviteEmailFailedDescription,
       });
       router.refresh();
     });
@@ -124,14 +128,19 @@ export function CreateInvitationForm({
       {issuedToken ? (
         <div className="mt-5 rounded-xl border border-accent bg-accent p-4 sm:max-w-xl">
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-accent-foreground">
-            One-time code — copy it now
+            {emailSent
+              ? "Invitation emailed — code below for reference"
+              : "Email failed — copy this code now"}
           </p>
           <p className="mt-2 break-all font-mono text-sm text-foreground">
             {issuedToken}
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            This code is shown once and cannot be retrieved again. Share it with
-            the invited {inviteRole} manually.
+            {emailSent
+              ? "This code was included in the invitation email. It is shown once here and cannot be retrieved again."
+              : "This code is shown once and cannot be retrieved again. Share it with the invited " +
+                inviteRole +
+                " manually."}
           </p>
         </div>
       ) : null}
@@ -150,8 +159,7 @@ export function CreateInvitationForm({
               <span className="font-medium text-foreground">
                 {confirmEmail}
               </span>
-              . You will need to share the code yourself — there is no email
-              delivery yet.
+              . We&apos;ll email them the code.
             </DialogDescription>
           </DialogHeader>
 

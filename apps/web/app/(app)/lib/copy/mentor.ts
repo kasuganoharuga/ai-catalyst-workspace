@@ -146,7 +146,7 @@ export const mentorInvitationsCopy = {
   kicker: "Mentor",
   title: "Invite founders",
   intro:
-    "Share the one-time code with the founder yourself — there is no email delivery yet. When they accept, their workspace is created and comes under your support automatically.",
+    "We'll email the founder a one-time code. When they accept, their workspace is created and comes under your support automatically.",
   backLink: "Founders",
   formEmailLabel: "Founder email",
   formEmailPlaceholder: "founder@company.com",
@@ -154,15 +154,19 @@ export const mentorInvitationsCopy = {
   formSubmitPending: "Sending invitation…",
   confirmTitle: "Send founder invitation?",
   confirmBody: (email: string) =>
-    `Create a one-time invite for ${email}. You will need to share the code yourself — there is no email delivery yet.`,
+    `Create a one-time invite for ${email} and email them the code.`,
   confirmCancel: "Cancel",
   confirmSubmit: "Send invitation",
   confirmSubmitPending: "Creating…",
   inviteCreated: "Founder invitation created",
-  inviteCreatedDescription:
-    "Copy the one-time code below and share it manually.",
-  tokenHeading: "One-time code — copy it now",
+  inviteCreatedDescription: "The invitation email is on its way.",
+  inviteEmailFailedDescription:
+    "The invitation email failed to send — copy the one-time code below and share it manually.",
+  tokenHeading: "Invitation emailed — code below for reference",
   tokenNote:
+    "This code was included in the invitation email. It is shown once here and cannot be retrieved again.",
+  tokenHeadingEmailFailed: "Email failed — copy this code now",
+  tokenNoteEmailFailed:
     "This code is shown once and cannot be retrieved again. Send it to the founder yourself.",
   sectionHeading: "Sent invitations",
   emptyBody: "You haven't invited anyone yet.",
