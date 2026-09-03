@@ -257,14 +257,14 @@ content keys including `email` and `answer`. A field named `email` will read
 
 Account lifecycle is logged, not stored in a table. Search by `event`:
 
-| Event                              | Meaning                              |
-| ---------------------------------- | ------------------------------------ |
-| `account_invitation_created`       | An invitation was issued             |
+| Event                              | Meaning                                                       |
+| ---------------------------------- | ------------------------------------------------------------- |
+| `account_invitation_created`       | An invitation was issued                                      |
 | `account_invitation_accepted`      | Invitation accepted (including auto-accept at provision time) |
-| `account_invitation_revoked`       | An invitation was withdrawn          |
-| `account_password_reset_by_admin`  | An admin issued a temporary password |
-| `account_soft_deleted`             | An account lost access               |
-| `account_workspace_mentor_changed` | A mentor binding changed             |
+| `account_invitation_revoked`       | An invitation was withdrawn                                   |
+| `account_password_reset_by_admin`  | An admin issued a temporary password                          |
+| `account_soft_deleted`             | An account lost access                                        |
+| `account_workspace_mentor_changed` | A mentor binding changed                                      |
 
 Each carries `actor_user_id` (who did it), `target_user_id` / `invitation_id`
 (what it was done to) and `actor_role`. Resolve ids against the `users` and
@@ -339,7 +339,7 @@ aws logs tail /ecs/ai-catalyst-production-web --since 15m --filter-pattern '{ $.
 | Deploy hangs then rolls back               | Health check failing; the circuit breaker reverted it                      | The rolled-back deployment's task logs                                     |
 | Sign-in fails for everyone                 | `better-auth-secret` changed, or `AUTH_ISSUER_URL` ≠ the real origin       | Secrets Manager, then task definition env                                  |
 | Sign-in fails for one person               | Wrong password, leftover `pending` row, or soft-deleted                    | Admin Users page; `users.role`, `users.deleted_at`                         |
-| Invite mail never arrives                  | SES identity / `EMAIL_FROM` wrong, or `AUTH_ISSUER_URL` empty              | Task definition env; SES sending statistics; web log `event` for mail    |
+| Invite mail never arrives                  | SES identity / `EMAIL_FROM` wrong, or `AUTH_ISSUER_URL` empty              | Task definition env; SES sending statistics; web log `event` for mail      |
 | Sporadic "too many requests" on sign-in    | Rate limiting on a shared bucket — `AUTH_TRUSTED_PROXIES` unset            | Task definition env                                                        |
 | AI assistant cannot connect                | MCP OAuth; check discovery first                                           | `/.well-known/oauth-protected-resource` must be served by **mcp**, not web |
 | MCP tool calls failing                     | `mcp_tool_failed` events                                                   | mcp log group, then `mcp_tool_audit_logs`                                  |
