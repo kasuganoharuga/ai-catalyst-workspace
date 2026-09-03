@@ -8,10 +8,13 @@ import type { CompanyProfile } from "@ai-catalyst/shared";
 
 import { toastCopy } from "@/app/(app)/lib/copy";
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/error-banner";
+import { SavedNote } from "@/components/saved-note";
+import { TextField } from "@/components/text-field";
+import { useSaveStatus } from "@/hooks/use-save-status";
 import { updateCompanyProfileAction } from "@/lib/actions/founder-actions";
 import { firstZodMessage } from "@/lib/validation/common";
 import { updateCompanyProfileInputSchema } from "@/lib/validation/company-profile";
-import { cn } from "@/lib/utils";
 
 type FormState = {
   name: string;
@@ -49,7 +52,12 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
   const [isPending, startTransition] = useTransition();
   const [form, setForm] = useState<FormState>(() => toFormState(profile));
   const [saved, setSaved] = useState<FormState>(() => toFormState(profile));
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const {
+    status,
+    setIdle,
+    setSaving,
+    setSaved: setSavedStatus,
+  } = useSaveStatus();
   const [error, setError] = useState<string | null>(null);
 
   const isDirty = (Object.keys(form) as (keyof FormState)[]).some(
@@ -63,7 +71,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
 
   function update(key: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [key]: value }));
-    setStatus("idle");
+    setIdle();
     if (error) setError(null);
   }
 
@@ -96,14 +104,14 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
       return;
     }
 
-    setStatus("saving");
+    setSaving();
 
     try {
       const result = await updateCompanyProfileAction(parsed.data);
 
       if (!result.ok) {
         setError(result.message);
-        setStatus("idle");
+        setIdle();
         toast.error(toastCopy.actionFailedTitle, {
           description: result.message,
         });
@@ -111,7 +119,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
       }
 
       setSaved(form);
-      setStatus("saved");
+      setSavedStatus();
       toast.success(toastCopy.companyProfileSaved);
       startTransition(() => {
         router.refresh();
@@ -119,7 +127,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
     } catch {
       const message = "That didn't save. Try again in a moment.";
       setError(message);
-      setStatus("idle");
+      setIdle();
       toast.error(toastCopy.actionFailedTitle, { description: message });
     }
   }
@@ -137,7 +145,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
         disabled={isArchived}
       >
         <legend className="sr-only">Company details</legend>
-        <Field
+        <TextField
           label="Company name"
           value={form.name}
           onChange={(value) => update("name", value)}
@@ -145,22 +153,23 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           placeholder="Acme Pty Ltd"
           className="sm:col-span-2"
         />
-        <Field
+        <TextField
           label="One-liner"
           value={form.oneLiner}
           onChange={(value) => update("oneLiner", value)}
           placeholder="What you do in one sentence."
           className="sm:col-span-2"
         />
-        <Field
+        <TextField
           label="Description"
           value={form.description}
           onChange={(value) => update("description", value)}
           multiline
+          rows={4}
           placeholder="A short overview of the company, product, and market."
           className="sm:col-span-2"
         />
-        <Field
+        <TextField
           label="Website"
           value={form.websiteUrl}
           onChange={(value) => update("websiteUrl", value)}
@@ -168,7 +177,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           autoComplete="url"
           placeholder="https://example.com"
         />
-        <Field
+        <TextField
           label="LinkedIn"
           value={form.linkedinUrl}
           onChange={(value) => update("linkedinUrl", value)}
@@ -176,7 +185,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           autoComplete="url"
           placeholder="https://www.linkedin.com/company/example"
         />
-        <Field
+        <TextField
           label="Country"
           value={form.hqCountry}
           onChange={(value) => update("hqCountry", value.toUpperCase())}
@@ -184,28 +193,28 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           placeholder="AU"
           hint="Two-letter code, e.g. AU for Australia."
         />
-        <Field
+        <TextField
           label="State or region"
           value={form.hqState}
           onChange={(value) => update("hqState", value)}
           autoComplete="address-level1"
           placeholder="NSW"
         />
-        <Field
+        <TextField
           label="City"
           value={form.hqCity}
           onChange={(value) => update("hqCity", value)}
           autoComplete="address-level2"
           placeholder="Sydney"
         />
-        <Field
+        <TextField
           label="Postcode"
           value={form.hqPostalCode}
           onChange={(value) => update("hqPostalCode", value)}
           autoComplete="postal-code"
           placeholder="2000"
         />
-        <Field
+        <TextField
           label="Street address"
           value={form.hqStreet}
           onChange={(value) => update("hqStreet", value)}
@@ -213,7 +222,7 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
           placeholder="1 Market St"
           className="sm:col-span-2"
         />
-        <Field
+        <TextField
           label="Year founded"
           value={form.foundedYear}
           onChange={(value) => update("foundedYear", value.replace(/\D/g, ""))}
@@ -222,80 +231,14 @@ export function CompanyProfileForm({ profile }: { profile: CompanyProfile }) {
         />
       </fieldset>
 
-      {error ? (
-        <p
-          role="alert"
-          className="mt-5 border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorBanner className="mt-5">{error}</ErrorBanner> : null}
 
       <div className="mt-6 flex items-center gap-4">
         <Button type="submit" disabled={saveDisabled}>
           {status === "saving" || isPending ? "Saving…" : "Save changes"}
         </Button>
-        {status === "saved" && !isDirty ? (
-          <span className="text-sm text-muted-foreground">Saved</span>
-        ) : null}
+        {status === "saved" && !isDirty ? <SavedNote>Saved</SavedNote> : null}
       </div>
     </form>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  type = "text",
-  multiline,
-  placeholder,
-  autoComplete,
-  hint,
-  inputMode,
-  className,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  type?: string;
-  multiline?: boolean;
-  placeholder?: string;
-  autoComplete?: string;
-  hint?: string;
-  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
-  className?: string;
-}) {
-  const inputClass =
-    "w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-foreground focus:ring-1 focus:ring-foreground";
-
-  return (
-    <label className={cn("block space-y-2", className)}>
-      <span className="text-sm text-muted-foreground">{label}</span>
-      {multiline ? (
-        <textarea
-          rows={4}
-          value={value}
-          placeholder={placeholder}
-          onChange={(event) => onChange(event.target.value)}
-          className={inputClass}
-        />
-      ) : (
-        <input
-          type={type}
-          value={value}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          inputMode={inputMode}
-          onChange={(event) => onChange(event.target.value)}
-          className={inputClass}
-        />
-      )}
-      {hint ? (
-        <span className="block text-xs leading-5 text-muted-foreground">
-          {hint}
-        </span>
-      ) : null}
-    </label>
   );
 }

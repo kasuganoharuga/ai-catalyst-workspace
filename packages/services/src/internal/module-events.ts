@@ -6,7 +6,7 @@ import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
  * Shared insert shape for `module_events`. Callers still own actor_type /
  * source_provider mapping (those domains differ per Service module); this
  * only centralises the expanded column list (status, correlation, entity,
- * metadata) so PR2 field-contract changes land once.
+ * metadata) so field-contract changes land once.
  */
 export type ModuleEventInsert = {
   workspaceId: string;

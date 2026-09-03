@@ -16,10 +16,10 @@ import {
   createFixtureVenture,
   seedFixtureProgram,
 } from "@ai-catalyst/services/testing/db-fixtures";
+import { MAX_PREP_DOCUMENTS_PER_MODULE } from "@ai-catalyst/services/prep/types";
 
 import {
-  MAX_PREP_DOCUMENTS_PER_MODULE,
-  getConfirmedInterviewCount,
+  countConfirmedInterviews,
   listPrepDocuments,
   readPrepDocument,
   savePrepExtract,
@@ -468,7 +468,7 @@ describe("module prep documents — database integration", () => {
     });
     expect(transcript.documentKind).toBe("interview_transcript");
     expect(transcript.interviewCount).toBe(3);
-    expect(await getConfirmedInterviewCount(actor, programRunModuleId)).toBe(3);
+    expect(await countConfirmedInterviews(programRunModuleId)).toBe(3);
 
     await savePrepExtract(actor, {
       programRunModuleId,
@@ -476,7 +476,7 @@ describe("module prep documents — database integration", () => {
       extractedText: "A deck, not an interview.",
       documentKind: "other",
     });
-    expect(await getConfirmedInterviewCount(actor, programRunModuleId)).toBe(3);
+    expect(await countConfirmedInterviews(programRunModuleId)).toBe(3);
   });
 
   it("rejects interview_transcript without interviewCount, and other with a count", async () => {

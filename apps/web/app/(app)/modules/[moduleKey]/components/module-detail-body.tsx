@@ -8,27 +8,17 @@ import { getMyProfile } from "@/lib/user-profile";
 
 import { ContinueProgrammeButton } from "../../../components/continue-programme-button";
 import { MarkdownDocument } from "../../../components/markdown-document";
-import { StatusBadge } from "../../../components/status-badge";
 import { moduleGateCopy } from "../../../lib/copy";
-import {
-  deriveModuleDisplayStatus,
-  moduleAccentStyle,
-} from "../../../lib/module-display";
-import { StatusPill } from "../../components/status-pill";
-import { isModuleResetAllowed } from "@ai-catalyst/services/module/reset-allowed";
 import { listPrepDocuments } from "@ai-catalyst/services/prep";
 
 import { loadModuleDetail } from "../lib/load-module-detail";
+import { module1RunProps } from "../lib/module1-run-props";
 import type { ModuleArtifactView, PrepDocumentView } from "../types";
-import { Module0Setup } from "./module0-setup";
-import { Module1Run } from "./module1-run";
-import { ResetModuleButton } from "./reset-module-button";
-import { RetryPassCard } from "./retry-pass-card";
-import { ValidationIssuesCard } from "./validation-issues-card";
-
-// Runtime APP_ENV gate (not NODE_ENV): the staging image is a Next.js
-// production build, so NODE_ENV=production there too. Hidden only when
-// APP_ENV is explicitly production.
+import { ModuleDetailHeader } from "./module-detail-header";
+import { Module0Setup } from "./module0/module0-setup";
+import { Module1Run } from "./module1/module1-run";
+import { ModuleGateCard } from "./shared/module-gate-card";
+import { ModuleRunSection } from "./shared/module-run-section";
 
 type ModuleDetailBodyProps = {
   moduleKey: string;
@@ -92,54 +82,26 @@ export async function ModuleDetailBody({
       }))
     : [];
 
+  const sharedRunProps = {
+    moduleKey: entry.moduleKey,
+    moduleIndex: entry.sequenceIndex,
+    provider,
+    connected: Boolean(connection?.authorised),
+    artifacts: artifactViews,
+    prepDocuments,
+    startPrompt,
+    nextModuleTitle,
+  };
+
   return (
     <>
-      <p className="text-sm font-semibold text-muted-foreground">
-        <Link href="/modules" className="hover:underline">
-          Modules
-        </Link>{" "}
-        <span className="text-border">/</span> Module {entry.sequenceIndex}
-      </p>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <span
-            className="flex h-11 w-11 items-center justify-center rounded-full font-mono text-sm font-semibold tabular-nums text-white"
-            style={moduleAccentStyle(entry.sequenceIndex)}
-          >
-            {isCompleted ? "✓" : String(entry.sequenceIndex).padStart(2, "0")}
-          </span>
-          <h1 className="text-4xl font-semibold tracking-tight">
-            {entry.title}
-          </h1>
-        </div>
-        <div className="flex items-center gap-3">
-          {runModule ? (
-            <StatusBadge
-              status={deriveModuleDisplayStatus(
-                runModule.status,
-                activeAttempt?.status ?? null,
-                displayAttempt?.status ?? null,
-              )}
-              moduleIndex={entry.sequenceIndex}
-            />
-          ) : (
-            <StatusPill status={entry.catalogStatus} />
-          )}
-          {isModuleResetAllowed() && runModule ? (
-            <ResetModuleButton
-              programRunModuleId={runModule.id}
-              moduleTitle={entry.title}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      {entry.subtitle ? (
-        <p className="mt-4 max-w-3xl text-lg leading-8 text-muted-foreground">
-          {entry.subtitle}
-        </p>
-      ) : null}
+      <ModuleDetailHeader
+        entry={entry}
+        isCompleted={isCompleted}
+        runModule={runModule}
+        activeAttempt={activeAttempt}
+        displayAttempt={displayAttempt}
+      />
 
       {!isLive ? (
         <div className="mt-10 max-w-3xl rounded-[2rem] border border-border bg-muted/40 p-8">
@@ -158,32 +120,30 @@ export async function ModuleDetailBody({
           Run and quietly return, leaving the founder right back here. This
           is its own honest state, not the ordinary "needs a Run" gate. */}
       {isLive && !runModule && moduleMissingFromExistingRun ? (
-        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
-          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
-            {moduleGateCopy.missingFromRunTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {moduleGateCopy.missingFromRunBody}
-          </p>
+        <ModuleGateCard
+          title={moduleGateCopy.missingFromRunTitle}
+          body={moduleGateCopy.missingFromRunBody}
+        >
           <Button asChild variant="outline" size="lg" className="mt-6">
             <Link href="/modules">{moduleGateCopy.backToModules}</Link>
           </Button>
-        </div>
+        </ModuleGateCard>
       ) : null}
 
       {/* Without a connection, Continue only surfaces an error toast. */}
       {isLive && !runModule && !moduleMissingFromExistingRun ? (
-        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
-          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
-            {connection?.authorised
+        <ModuleGateCard
+          title={
+            connection?.authorised
               ? moduleGateCopy.needsRunTitle
-              : moduleGateCopy.needsConnectionTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {connection?.authorised
+              : moduleGateCopy.needsConnectionTitle
+          }
+          body={
+            connection?.authorised
               ? moduleGateCopy.needsRunBody
-              : moduleGateCopy.needsConnectionBody}
-          </p>
+              : moduleGateCopy.needsConnectionBody
+          }
+        >
           {connection?.authorised ? (
             <ContinueProgrammeButton
               className="mt-6"
@@ -197,24 +157,21 @@ export async function ModuleDetailBody({
               </Link>
             </Button>
           )}
-        </div>
+        </ModuleGateCard>
       ) : null}
 
       {/* Hidden setup still open is a dead end without the ensure action. */}
       {isLocked && setupPending ? (
-        <div className="mt-10 max-w-3xl rounded-xl border border-border bg-card p-8 shadow-sm">
-          <h2 className="font-serif text-xl font-medium tracking-[-0.01em] text-foreground">
-            {moduleGateCopy.setupPendingTitle}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-muted-foreground">
-            {moduleGateCopy.setupPendingBody}
-          </p>
+        <ModuleGateCard
+          title={moduleGateCopy.setupPendingTitle}
+          body={moduleGateCopy.setupPendingBody}
+        >
           <ContinueProgrammeButton
             className="mt-6"
             label={moduleGateCopy.setupPendingCta}
             pendingLabel="Setting things up…"
           />
-        </div>
+        </ModuleGateCard>
       ) : isLocked ? (
         <div className="mt-10 flex max-w-3xl flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-muted/40 p-6">
           <p className="text-sm leading-6 text-muted-foreground">
@@ -231,19 +188,12 @@ export async function ModuleDetailBody({
 
       {runModule && context ? (
         isSetupModule ? (
-          <section className="mt-8 space-y-6">
-            {failedValidations.map((validation) => (
-              <ValidationIssuesCard
-                key={validation.id}
-                validation={validation}
-              />
-            ))}
-            {needsRetry ? (
-              <RetryPassCard
-                programRunModuleId={runModule.id}
-                moduleIndex={entry.sequenceIndex}
-              />
-            ) : null}
+          <ModuleRunSection
+            failedValidations={failedValidations}
+            needsRetry={needsRetry}
+            programRunModuleId={runModule.id}
+            moduleIndex={entry.sequenceIndex}
+          >
             <Module0Setup
               moduleKey={entry.moduleKey}
               moduleIndex={entry.sequenceIndex}
@@ -267,46 +217,33 @@ export async function ModuleDetailBody({
               startPrompt={startPrompt}
               nextModuleTitle={nextModuleTitle}
             />
-          </section>
+          </ModuleRunSection>
         ) : (
-          <section className="mt-8 space-y-6">
-            {failedValidations.map((validation) => (
-              <ValidationIssuesCard
-                key={validation.id}
-                validation={validation}
-              />
-            ))}
-            {needsRetry ? (
-              <RetryPassCard
-                programRunModuleId={runModule.id}
-                moduleIndex={entry.sequenceIndex}
-              />
-            ) : null}
+          <ModuleRunSection
+            failedValidations={failedValidations}
+            needsRetry={needsRetry}
+            programRunModuleId={runModule.id}
+            moduleIndex={entry.sequenceIndex}
+          >
             {/* Module 4 used to render its own interview-evidence panel
                 here. Interview material is now uploaded as prep documents
                 on the Work step like any other module's, so Module 4 goes
                 through the same three-card wizard as the rest. */}
             <Module1Run
-              moduleKey={entry.moduleKey}
-              moduleIndex={entry.sequenceIndex}
-              provider={provider}
-              programRunModuleId={runModule.id}
-              ventureId={venture?.id ?? null}
-              claudeProjectId={venture?.claudeProjectId ?? null}
-              connected={Boolean(connection?.authorised)}
-              coreQuestions={coreQuestions}
-              artifacts={artifactViews}
-              prepDocuments={prepDocuments}
-              interviewGate={context.interviewGate}
-              hasAttempt={activeAttempt !== null}
-              needsRetry={needsRetry}
-              awaitingConfirmation={awaitingConfirmation}
-              isCompleted={isCompleted}
-              preview={isLocked ? "locked" : null}
-              startPrompt={startPrompt}
-              nextModuleTitle={nextModuleTitle}
+              {...module1RunProps(sharedRunProps, {
+                programRunModuleId: runModule.id,
+                ventureId: venture?.id ?? null,
+                claudeProjectId: venture?.claudeProjectId ?? null,
+                coreQuestions,
+                interviewGate: context.interviewGate,
+                hasAttempt: activeAttempt !== null,
+                needsRetry,
+                awaitingConfirmation,
+                isCompleted,
+                preview: isLocked ? "locked" : null,
+              })}
             />
-          </section>
+          </ModuleRunSection>
         )
       ) : null}
 
@@ -314,24 +251,18 @@ export async function ModuleDetailBody({
       {isLive && !runModule && !isSetupModule ? (
         <section className="mt-8">
           <Module1Run
-            moduleKey={entry.moduleKey}
-            moduleIndex={entry.sequenceIndex}
-            provider={provider}
-            programRunModuleId={null}
-            ventureId={null}
-            claudeProjectId={null}
-            connected={Boolean(connection?.authorised)}
-            coreQuestions={[]}
-            artifacts={artifactViews}
-            prepDocuments={prepDocuments}
-            interviewGate={null}
-            hasAttempt={false}
-            needsRetry={false}
-            awaitingConfirmation={false}
-            isCompleted={false}
-            preview="not-started"
-            startPrompt={startPrompt}
-            nextModuleTitle={nextModuleTitle}
+            {...module1RunProps(sharedRunProps, {
+              programRunModuleId: null,
+              ventureId: null,
+              claudeProjectId: null,
+              coreQuestions: [],
+              interviewGate: null,
+              hasAttempt: false,
+              needsRetry: false,
+              awaitingConfirmation: false,
+              isCompleted: false,
+              preview: "not-started",
+            })}
           />
         </section>
       ) : null}

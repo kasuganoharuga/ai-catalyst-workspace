@@ -16,6 +16,7 @@ import { sha256 } from "@ai-catalyst/services/storage/internal/hash";
 import { MAX_GENERATED_TEXT_BYTES } from "@ai-catalyst/services/storage/internal/validation";
 import { LocalStorageProvider } from "@ai-catalyst/services/storage/providers/local";
 import { createFixtureFounderAccount } from "@ai-catalyst/services/testing/db-fixtures";
+import { createFounderSandbox } from "@ai-catalyst/services/mentor/founder-preview";
 
 import {
   createPendingGeneratedObject,
@@ -52,6 +53,19 @@ describe("storage service — database integration", () => {
     return { actor: { userId, role: "founder" }, workspaceId };
   }
 
+  async function createMentor(
+    label: string,
+  ): Promise<{ userId: string; actor: ActorContext }> {
+    const email = `${emailPrefix}-${label}-${randomUUID()}@example.com`;
+    const result = await pool.query<{ id: string }>(
+      "insert into users (name, email, role) values ($1, $2, 'mentor') returning id",
+      [`${emailPrefix}-${label}`, email],
+    );
+    const userId = result.rows[0].id;
+    createdUserIds.push(userId);
+    return { userId, actor: { userId, role: "mentor", source: "web" } };
+  }
+
   async function getRawRow(id: string): Promise<{
     upload_status: string;
     checksum_sha256: string | null;
@@ -86,6 +100,12 @@ describe("storage service — database integration", () => {
 
     await pool.query(
       "delete from storage_objects where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
+      [createdUserIds],
+    );
+    // createFounderSandbox sets a user_active_contexts row pointing at the
+    // sandbox Workspace, which FK-blocks deleting it below.
+    await pool.query(
+      "delete from user_active_contexts where user_id = any($1::uuid[])",
       [createdUserIds],
     );
     await pool.query(
@@ -449,6 +469,33 @@ describe("storage service — database integration", () => {
           filename: "x.md",
         }),
       ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    });
+
+    it("lets a Mentor previewing the Founder flow write into their own sandbox", async () => {
+      const mentor = await createMentor("preview-write");
+      const { workspaceId: sandboxWorkspaceId } = await createFounderSandbox(
+        mentor.actor,
+      );
+      const previewingActor: ActorContext = {
+        ...mentor.actor,
+        actingAs: "founder",
+      };
+
+      const pending = await createPendingGeneratedObject(previewingActor, {
+        workspaceId: sandboxWorkspaceId,
+        filename: "sandbox-artifact.md",
+      });
+      const written = await writeGeneratedTextContent(previewingActor, {
+        storageObjectId: pending.id,
+        content: "# Sandbox content\n",
+      });
+      expect(written.workspaceId).toBe(sandboxWorkspaceId);
+
+      const content = await getGeneratedTextContent(
+        previewingActor,
+        pending.id,
+      );
+      expect(content).toBe("# Sandbox content\n");
     });
 
     it("lets a system-sourced actor target an explicit workspaceId directly", async () => {

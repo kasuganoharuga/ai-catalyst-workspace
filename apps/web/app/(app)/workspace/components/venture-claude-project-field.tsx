@@ -4,12 +4,14 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SavedNote } from "@/components/saved-note";
+import { useSaveStatus } from "@/hooks/use-save-status";
 import { updateVentureClaudeProjectAction } from "@/lib/actions/founder-actions";
 
 import {
   claudeChatProjectUrl,
   claudeChatProjectWebUrl,
-} from "../../lib/module-display";
+} from "../../lib/assistant-links";
 
 type VentureClaudeProjectFieldProps = {
   ventureId: string;
@@ -29,7 +31,12 @@ export function VentureClaudeProjectField({
   const [value, setValue] = useState(initialProjectId ?? "");
   const [saved, setSaved] = useState(initialProjectId ?? "");
   const [error, setError] = useState<string | null>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const {
+    status,
+    setIdle,
+    setSaving,
+    setSaved: setSavedStatus,
+  } = useSaveStatus();
 
   const isDirty = value.trim() !== saved.trim();
   const saveDisabled =
@@ -38,7 +45,7 @@ export function VentureClaudeProjectField({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("saving");
+    setSaving();
     setError(null);
 
     const trimmed = value.trim();
@@ -48,7 +55,7 @@ export function VentureClaudeProjectField({
       const result = await updateVentureClaudeProjectAction(ventureId, payload);
 
       if (!result.ok) {
-        setStatus("idle");
+        setIdle();
         setError(result.message);
         return;
       }
@@ -56,12 +63,12 @@ export function VentureClaudeProjectField({
       const nextSaved = payload ?? "";
       setSaved(nextSaved);
       setValue(nextSaved);
-      setStatus("saved");
+      setSavedStatus();
       startTransition(() => {
         router.refresh();
       });
     } catch {
-      setStatus("idle");
+      setIdle();
       setError("Something went wrong.");
     }
   }
@@ -94,7 +101,7 @@ export function VentureClaudeProjectField({
           value={value}
           onChange={(event) => {
             setValue(event.target.value);
-            setStatus("idle");
+            setIdle();
           }}
           disabled={!canEdit || isArchived}
           placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
@@ -107,7 +114,7 @@ export function VentureClaudeProjectField({
           {status === "saving" || isPending ? "Saving..." : "Save project ID"}
         </Button>
         {status === "saved" ? (
-          <p className="text-xs text-muted-foreground">Saved.</p>
+          <SavedNote className="text-xs">Saved.</SavedNote>
         ) : null}
         {savedProjectId ? (
           <>

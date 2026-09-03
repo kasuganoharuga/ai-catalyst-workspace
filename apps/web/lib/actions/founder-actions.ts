@@ -1,8 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
+import { isFounderPreview } from "@ai-catalyst/contracts/actor-context";
 import { startOrResumeAttempt } from "@ai-catalyst/services/attempt";
 import { autoCompleteSetupModule } from "@ai-catalyst/services/module/auto-setup";
 import { confirmModuleCompletion } from "@ai-catalyst/services/module/completion";
@@ -33,7 +33,6 @@ import {
   setActiveVenture,
 } from "@ai-catalyst/services/workspace/active-context";
 
-import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
 import { errorCopy } from "@/app/(app)/lib/copy";
 import { founderMessageForServiceError } from "@/lib/service-error-copy";
@@ -47,44 +46,12 @@ import {
 } from "@/lib/ensure-program-destination";
 import { webLog } from "@/lib/web-logger";
 
-export type ActionResult = { ok: true } | { ok: false; message: string };
+import type { ActionResult } from "./action-result";
+import { founderActionResult } from "./action-error";
+import { requireFounderActor } from "./require-actor";
+import { revalidateFounderAppShell } from "./revalidate";
 
-async function requireFounderActor() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
-  }
-  const actor = actorContextFromSession(session);
-  if (actor.role !== "founder") {
-    throw new ServiceError("FORBIDDEN", "Founder access required.");
-  }
-  return actor;
-}
-
-function toActionResult(error: unknown): ActionResult {
-  if (error instanceof ServiceError) {
-    // Log the real message, show the founder the mapped one — service copy
-    // is written for whoever reads the logs, not for them.
-    webLog.error({
-      event: "web_service_action_error",
-      message: "Service error in founder server action",
-      code: error.code,
-      detail: error.message,
-    });
-    return { ok: false, message: founderMessageForServiceError(error) };
-  }
-  webLog.error({
-    event: "web_unhandled_action_error",
-    message: "Unhandled founder server action error",
-    error_name: error instanceof Error ? error.name : typeof error,
-  });
-  return { ok: false, message: errorCopy.generic };
-}
-
-/** Revalidate the (app) layout so sidebar shell data refreshes after mutations. */
-function revalidateFounderAppShell() {
-  revalidatePath("/dashboard", "layout");
-}
+const toActionResult = founderActionResult({ domain: "founder" });
 
 /**
  * Records that the founder chose to move past the profile step. It gates
@@ -130,6 +97,16 @@ export async function setInitialPasswordAction(
 ): Promise<ActionResult> {
   try {
     const actor = await requireFounderActor();
+    // accounts.password is keyed by user_id, not Workspace — this would
+    // change the Mentor's real credential and revoke their MCP grants.
+    // Defense in depth behind the UI lock (account-security/page.tsx and
+    // the dashboard password prompt, both suppressed during preview).
+    if (isFounderPreview(actor)) {
+      throw new ServiceError(
+        "FORBIDDEN",
+        "Password isn't editable while previewing.",
+      );
+    }
 
     if (await hasChangedInvitationPassword(actor)) {
       throw new ServiceError(
@@ -193,6 +170,20 @@ export async function updateCompanyProfileAction(
 
   try {
     const actor = await requireFounderActor();
+
+    // Not a data-safety guard — company_profiles is keyed by workspace_id,
+    // so a previewing Mentor's write lands on their own sandbox and touches
+    // nothing real. It mirrors the page, which locks the form because no
+    // module or MCP tool reads a company profile, so filling one in inside
+    // the sandbox only loses work. A locked form the action still accepts
+    // is the same gap setInitialPasswordAction had.
+    if (isFounderPreview(actor)) {
+      throw new ServiceError(
+        "FORBIDDEN",
+        "Company profile isn't editable while previewing.",
+      );
+    }
+
     await updateMyCompanyProfile(actor, parsed.data);
     revalidateFounderAppShell();
     revalidatePath("/company-profile");

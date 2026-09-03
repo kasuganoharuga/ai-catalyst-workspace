@@ -9,11 +9,11 @@ import { cn } from "@/lib/utils";
 import { AssistantHandoff } from "../../../../components/assistant-handoff";
 import { resolveModuleCopy } from "../../../../lib/copy";
 import {
-  buildQuestionDisplayGroups,
   isWorkPrerequisiteMet,
   prerequisiteArtifactKey,
   requiredOutputArtifactsSaved,
 } from "../../../../lib/module-display";
+import { buildQuestionDisplayGroups } from "../../../../lib/module-questions";
 import type { Module1RunProps, ModuleAccent } from "../../types";
 import { CheckLine } from "../shared/check-line";
 import { StepHeading } from "../shared/step-heading";

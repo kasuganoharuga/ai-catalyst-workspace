@@ -1,4 +1,3 @@
-import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
 import type {
   ModuleAttempt,
@@ -9,6 +8,7 @@ import type {
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { insertModuleEvent } from "@ai-catalyst/services/attempt/internal/events";
 import {
   ATTEMPT_COLUMNS,
@@ -44,9 +44,7 @@ export async function submitAttempt(
     "Attempt not found.",
   );
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
+  return withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
 
     const lookupResult = await client.query<{ program_run_module_id: string }>(
@@ -97,7 +95,6 @@ export async function submitAttempt(
       attempt.status === "submitted" ||
       attempt.status === "ready_for_review"
     ) {
-      await client.query("commit");
       return mapAttemptRow(attempt);
     }
 
@@ -160,12 +157,6 @@ export async function submitAttempt(
       toStatus: "submitted",
     });
 
-    await client.query("commit");
     return mapAttemptRow(updatedResult.rows[0]);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

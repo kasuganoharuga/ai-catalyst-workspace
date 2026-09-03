@@ -3,10 +3,8 @@
  * outbound email.
  *
  * This is the supported answer to "how does a person get in when SES is still
- * in the sandbox". Without it the options are the public /register page (which
- * needs the operator to invent a password and still leaves the account at role
- * `pending`) or hand-written SQL against production — the second being the thing
- * this exists to make unnecessary.
+ * in the sandbox". Without it the remaining option is hand-written SQL against
+ * production — the thing this exists to make unnecessary.
  *
  *   pnpm --filter web create-account -- --email founder@example.com
  *   pnpm --filter web create-account -- --email you@example.com --role admin

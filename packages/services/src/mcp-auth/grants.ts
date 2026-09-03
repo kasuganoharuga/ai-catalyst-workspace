@@ -1,5 +1,4 @@
-import { pool } from "@ai-catalyst/db";
-
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 import { upsertPreferredAiProvider } from "@ai-catalyst/services/profile/internal/preferred-ai-provider";
 import { GRANTED_MCP_SCOPES } from "@ai-catalyst/services/mcp-auth/types";
 import {
@@ -22,10 +21,7 @@ export async function recordMcpGrantIssued(params: {
     return;
   }
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  return withTransaction(async (client) => {
     const owner = await client.query<{
       user_id: string;
       client_id: string;
@@ -40,7 +36,8 @@ export async function recordMcpGrantIssued(params: {
     );
     const row = owner.rows[0];
     if (!row?.user_id) {
-      await client.query("rollback");
+      // Nothing was written — committing this SELECT-only transaction and
+      // rolling it back are equivalent (both just release the row lock).
       return;
     }
 
@@ -82,12 +79,5 @@ export async function recordMcpGrantIssued(params: {
       // Same transaction as grant eviction — uses passed client, not pool.
       await upsertPreferredAiProvider(client, row.user_id, connectedProvider);
     }
-
-    await client.query("commit");
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
 }

@@ -1,7 +1,10 @@
 /**
  * Seeds signable-in Founder accounts covering each state the onboarding
  * screens branch on, so they can be eyeballed without walking the whole
- * flow by hand every time.
+ * flow by hand every time. Also seeds one Mentor and one Admin account
+ * (see seedMentorAndAdmin) so the Mentor/Admin routes have the same kind
+ * of coverage — capture-onboarding.ts's shots read the Founder workspace
+ * id this writes to screenshots/.fixture-ids.json.
  *
  * Local development only. It refuses to run against anything that doesn't
  * look like a local database, and every account shares one well-known
@@ -17,6 +20,7 @@
  * version bump.
  */
 import { randomUUID } from "node:crypto";
+import fs from "node:fs/promises";
 import path from "node:path";
 
 import { config as loadEnv } from "dotenv";
@@ -39,6 +43,17 @@ const EMAIL_DOMAIN = "seed.test";
 const PASSWORD = "TestFounder!2026";
 const CLIENT_ID = "seed-test-claude-client";
 
+// Where the Mentor/Admin fixture facts land for capture-onboarding.ts to
+// read — specifically the Founder workspace id assigned to the seeded
+// Mentor, which is a random UUID this script generates and has no other
+// stable way to hand to a separate process. Lives under screenshots/,
+// already gitignored wholesale, so this needs no gitignore entry of its
+// own.
+const FIXTURE_IDS_PATH = path.resolve(
+  __dirname,
+  "../screenshots/.fixture-ids.json",
+);
+
 type Deps = {
   pool: typeof import("@ai-catalyst/db").pool;
   auth: typeof import("../lib/auth").auth;
@@ -52,6 +67,12 @@ type Deps = {
   saveArtifactSubmission: typeof import("@ai-catalyst/services/artifact").saveArtifactSubmission;
   completeModuleAttempt: typeof import("@ai-catalyst/services/module/completion").completeModuleAttempt;
   confirmModuleCompletion: typeof import("@ai-catalyst/services/module/completion").confirmModuleCompletion;
+  createFounderInvitation: typeof import("@ai-catalyst/services/invitation").createFounderInvitation;
+  createMentorInvitation: typeof import("@ai-catalyst/services/invitation").createMentorInvitation;
+  acceptInvitation: typeof import("@ai-catalyst/services/invitation").acceptInvitation;
+  revokeFounderInvitation: typeof import("@ai-catalyst/services/invitation").revokeFounderInvitation;
+  createFounderSandbox: typeof import("@ai-catalyst/services/mentor/founder-preview").createFounderSandbox;
+  assignWorkspaceMentor: typeof import("@ai-catalyst/services/admin").assignWorkspaceMentor;
 };
 
 async function loadDeps(): Promise<Deps> {
@@ -65,6 +86,9 @@ async function loadDeps(): Promise<Deps> {
     attempt,
     artifact,
     completion,
+    invitation,
+    founderPreview,
+    admin,
   ] = await Promise.all([
     import("@ai-catalyst/db"),
     import("../lib/auth"),
@@ -75,6 +99,9 @@ async function loadDeps(): Promise<Deps> {
     import("@ai-catalyst/services/attempt"),
     import("@ai-catalyst/services/artifact"),
     import("@ai-catalyst/services/module/completion"),
+    import("@ai-catalyst/services/invitation"),
+    import("@ai-catalyst/services/mentor/founder-preview"),
+    import("@ai-catalyst/services/admin"),
   ]);
   return {
     pool: db.pool,
@@ -89,6 +116,12 @@ async function loadDeps(): Promise<Deps> {
     saveArtifactSubmission: artifact.saveArtifactSubmission,
     completeModuleAttempt: completion.completeModuleAttempt,
     confirmModuleCompletion: completion.confirmModuleCompletion,
+    createFounderInvitation: invitation.createFounderInvitation,
+    createMentorInvitation: invitation.createMentorInvitation,
+    acceptInvitation: invitation.acceptInvitation,
+    revokeFounderInvitation: invitation.revokeFounderInvitation,
+    createFounderSandbox: founderPreview.createFounderSandbox,
+    assignWorkspaceMentor: admin.assignWorkspaceMentor,
   };
 }
 
@@ -110,6 +143,14 @@ function assertLocalDatabase(): void {
 
 function founderActor(userId: string): ActorContext {
   return { userId, role: "founder", source: "web" };
+}
+
+function mentorActor(userId: string): ActorContext {
+  return { userId, role: "mentor", source: "web" };
+}
+
+function adminActor(userId: string): ActorContext {
+  return { userId, role: "admin", source: "web" };
 }
 
 const MODULE_1_KEY = "module-01-pressure-test";
@@ -435,7 +476,7 @@ async function createWorkspaceAndVenture(
   deps: Deps,
   userId: string,
   label: string,
-): Promise<string> {
+): Promise<{ workspaceId: string; ventureId: string }> {
   const workspace = await deps.pool.query<{ id: string }>(
     `insert into workspaces (founder_user_id, name, slug)
      values ($1, $2, $3) returning id`,
@@ -454,7 +495,7 @@ async function createWorkspaceAndVenture(
   );
   const ventureId = venture.rows[0].id;
   await deps.setActiveVenture(founderActor(userId), ventureId);
-  return ventureId;
+  return { workspaceId: workspace.rows[0].id, ventureId };
 }
 
 /**
@@ -508,14 +549,18 @@ async function fakeMcpConnection(deps: Deps, userId: string): Promise<void> {
   );
 }
 
-async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
+async function seedOne(deps: Deps, spec: SeedSpec): Promise<string> {
   const userId = await createSignedUpFounder(
     deps,
     spec.label,
     spec.displayName,
   );
   const actor = founderActor(userId);
-  const ventureId = await createWorkspaceAndVenture(deps, userId, spec.label);
+  const { workspaceId, ventureId } = await createWorkspaceAndVenture(
+    deps,
+    userId,
+    spec.label,
+  );
 
   if (spec.profileName) {
     await deps.updateMyProfile(actor, spec.profileName);
@@ -591,6 +636,8 @@ async function seedOne(deps: Deps, spec: SeedSpec): Promise<void> {
       }
     }
   }
+
+  return workspaceId;
 }
 
 /**
@@ -709,6 +756,163 @@ async function completeModuleFixture(
   await deps.confirmModuleCompletion(actor, { programRunModuleId });
 }
 
+/**
+ * Sign-up only, left at the default `pending` role. `createSignedUpFounder`
+ * promotes to `founder` immediately after; this is the same first half for
+ * personas that need a different role (or no role change at all).
+ */
+async function createSignedUpUser(
+  deps: Deps,
+  label: string,
+  displayName: string,
+): Promise<string> {
+  const email = `${label}@${EMAIL_DOMAIN}`;
+  await deps.auth.api.signUpEmail({
+    body: { name: displayName, email, password: PASSWORD },
+  });
+  // Same reasoning as createSignedUpFounder: these are fixtures for
+  // addresses this script owns, so treating them as verified is accurate.
+  const result = await deps.pool.query<{ id: string }>(
+    "update users set email_verified = true where email = $1 returning id",
+    [email],
+  );
+  const userId = result.rows[0]?.id;
+  if (!userId) {
+    throw new Error(`Sign-up did not create a user for ${email}.`);
+  }
+  return userId;
+}
+
+interface MentorAdminFixtureIds {
+  mentorEmail: string;
+  adminEmail: string;
+  pendingEmail: string;
+  assignedFounderWorkspaceId: string;
+}
+
+/**
+ * Seeds one Mentor and one Admin account, plus the state their own pages
+ * need to render non-empty: a Founder workspace assigned to the Mentor, a
+ * few invitations the Mentor themselves issued, a Mentor sandbox, and one
+ * plain pending-role account for the Admin Users page. See
+ * scripts/capture-onboarding.ts for which shots this backs.
+ *
+ * Must run after the Founder personas in SPECS have been seeded:
+ * `founderWorkspaceIds` supplies the "module1" persona's own workspace id,
+ * which gets assigned to the Mentor here.
+ */
+async function seedMentorAndAdmin(
+  deps: Deps,
+  founderWorkspaceIds: Map<string, string>,
+): Promise<MentorAdminFixtureIds> {
+  const adminUserId = await createSignedUpUser(deps, "admin", "Admin Account");
+  // Bootstrap, same as create-account.ts's --role admin: nothing can invite
+  // the first Admin, so this is the one role change allowed to skip the
+  // invitation path.
+  await deps.pool.query("update users set role = 'admin' where id = $1", [
+    adminUserId,
+  ]);
+  const admin = adminActor(adminUserId);
+  await deps.updateMyProfile(admin, { firstName: "Ada", lastName: "Admin" });
+
+  const mentorUserId = await createSignedUpUser(
+    deps,
+    "mentor",
+    "Mentor Account",
+  );
+  const { rawToken: mentorToken } = await deps.createMentorInvitation(admin, {
+    email: `mentor@${EMAIL_DOMAIN}`,
+  });
+  await deps.acceptInvitation(
+    { userId: mentorUserId, role: "pending" },
+    mentorToken,
+  );
+  const mentor = mentorActor(mentorUserId);
+  await deps.updateMyProfile(mentor, { firstName: "Mira", lastName: "Mentor" });
+
+  // Assigning an existing Founder workspace (rather than inviting a fresh
+  // one) is enough: MENTOR_SEES_ALL_FOUNDERS already makes every live
+  // Founder visible to every Mentor (see internal/mentor-scope.ts), so
+  // assignment only needs to exist at all for the "assigned to me" badge
+  // on /founders and the Admin dashboard's mentor-coverage stat. "toolkit"
+  // specifically (not, say, "module1") so /founders/[workspaceId] has real
+  // completed modules and saved artefacts to show, not an all-zero state.
+  const assignedFounderWorkspaceId = founderWorkspaceIds.get("toolkit");
+  if (!assignedFounderWorkspaceId) {
+    throw new Error(
+      'Expected a "toolkit" Founder workspace to assign to the seeded Mentor.',
+    );
+  }
+  await deps.assignWorkspaceMentor(admin, {
+    workspaceId: assignedFounderWorkspaceId,
+    mentorUserId,
+  });
+
+  // One left pending, one revoked — /invitations (Mentor-scoped: only this
+  // Mentor's own sends) and /admin/invitations both read better with more
+  // than a single status showing.
+  await deps.createFounderInvitation(mentor, {
+    email: `mentor-invite-pending@${EMAIL_DOMAIN}`,
+  });
+  const { invitation: toRevoke } = await deps.createFounderInvitation(mentor, {
+    email: `mentor-invite-revoked@${EMAIL_DOMAIN}`,
+  });
+  await deps.revokeFounderInvitation(mentor, toRevoke.id);
+
+  // A second Mentor invitation, left pending — the first (above, accepted)
+  // is what created the seeded Mentor account itself, so /admin/invitations
+  // would otherwise show exactly one accepted row and nothing else.
+  await deps.createMentorInvitation(admin, {
+    email: `mentor-invite-pending-2@${EMAIL_DOMAIN}`,
+  });
+
+  // enablePreview: false — creating the sandbox structure should not by
+  // itself flip the seeded Mentor's session into preview mode, or the very
+  // next page load would redirect every Mentor-only route (including
+  // /sandbox itself) to /dashboard. See requireMentorUser's preview gate.
+  const sandbox = await deps.createFounderSandbox(mentor, {
+    enablePreview: false,
+  });
+
+  // Give the sandbox a real Programme Run, so /sandbox shows its progress
+  // card rather than the "nothing in it yet" branch. Founder-scoped
+  // services need the preview overlay to resolve the sandbox Workspace at
+  // all, hence actingAs — the same shape actorContextFromSessionWithPreview
+  // builds for a previewing Mentor, and the only actor for which
+  // resolveFounderWorkspace resolves a sandbox.
+  const previewingMentor: ActorContext = {
+    userId: mentorUserId,
+    role: "mentor",
+    actingAs: "founder",
+    source: "web",
+  };
+  const { run: sandboxRun } = await deps.getOrCreateProgramRun(
+    previewingMentor,
+    { ventureId: sandbox.ventureId },
+  );
+  const sandboxSetup = await deps.autoCompleteSetupModule(previewingMentor, {
+    programRunId: sandboxRun.id,
+  });
+  if (sandboxSetup.status === "failed") {
+    throw new Error(
+      `Seeding the Mentor sandbox could not complete its setup module: ${sandboxSetup.reason}`,
+    );
+  }
+
+  // A plain pending-role account: every other seeded account here ends up
+  // promoted the moment its invitation is accepted, so without this,
+  // /admin/users would have no `pending` row to show at all.
+  const pendingEmail = `pending-review@${EMAIL_DOMAIN}`;
+  await createSignedUpUser(deps, "pending-review", "Pending Review");
+
+  return {
+    mentorEmail: `mentor@${EMAIL_DOMAIN}`,
+    adminEmail: `admin@${EMAIL_DOMAIN}`,
+    pendingEmail,
+    assignedFounderWorkspaceId,
+  };
+}
+
 async function clean(deps: Deps): Promise<number> {
   const users = await deps.pool.query<{ id: string }>(
     "select id from users where email like $1",
@@ -743,6 +947,15 @@ async function clean(deps: Deps): Promise<number> {
   // during seeding), so deleting ventures first fails on that constraint.
   await deps.pool.query(
     "delete from user_active_contexts where user_id = any($1::uuid[])",
+    [ids],
+  );
+  // artifact_comment_threads_run_module_definition_fk has no ON DELETE
+  // CASCADE (only its module_attempts-scoped sibling FK does) — a thread
+  // left over from a Mentor previewing one of these Founders' artefacts
+  // (see mentor/founder-preview.ts) fails the ventures delete below if it's
+  // still there when program_runs' cascade reaches program_run_modules.
+  await deps.pool.query(
+    "delete from artifact_comment_threads where workspace_id in (select id from workspaces where founder_user_id = any($1::uuid[]))",
     [ids],
   );
   await deps.pool.query(
@@ -814,6 +1027,7 @@ async function main(): Promise<void> {
 
     if (process.argv.includes("--clean")) {
       const removed = await clean(deps);
+      await fs.rm(FIXTURE_IDS_PATH, { force: true });
       console.log(
         removed === 0
           ? "Nothing to clean — no seeded accounts found."
@@ -825,16 +1039,40 @@ async function main(): Promise<void> {
     // Re-runnable: clear any previous seed first so emails don't collide.
     await clean(deps);
 
+    const founderWorkspaceIds = new Map<string, string>();
     for (const spec of SPECS) {
-      await seedOne(deps, spec);
+      const workspaceId = await seedOne(deps, spec);
+      founderWorkspaceIds.set(spec.label, workspaceId);
       console.log(`  seeded ${spec.label}@${EMAIL_DOMAIN}`);
     }
+
+    const mentorAdminIds = await seedMentorAndAdmin(deps, founderWorkspaceIds);
+    console.log(`  seeded ${mentorAdminIds.adminEmail}`);
+    console.log(`  seeded ${mentorAdminIds.mentorEmail}`);
+    console.log(`  seeded ${mentorAdminIds.pendingEmail}`);
+
+    await fs.mkdir(path.dirname(FIXTURE_IDS_PATH), { recursive: true });
+    await fs.writeFile(
+      FIXTURE_IDS_PATH,
+      `${JSON.stringify(mentorAdminIds, null, 2)}\n`,
+      "utf8",
+    );
 
     console.log(`\nAll accounts use the password: ${PASSWORD}\n`);
     for (const spec of SPECS) {
       console.log(`${spec.label}@${EMAIL_DOMAIN}`);
       console.log(`  ${spec.shows}\n`);
     }
+    console.log(`${mentorAdminIds.adminEmail}`);
+    console.log(`  Admin account. Sees every user, every invitation.\n`);
+    console.log(`${mentorAdminIds.mentorEmail}`);
+    console.log(
+      `  Mentor account. Assigned the "toolkit" Founder's workspace, has issued Founder and been issued invitations in mixed statuses, and has a founder-preview sandbox.\n`,
+    );
+    console.log(`${mentorAdminIds.pendingEmail}`);
+    console.log(
+      `  Signed up, invitation never accepted — role stays pending.\n`,
+    );
   } finally {
     await deps.pool.end();
   }

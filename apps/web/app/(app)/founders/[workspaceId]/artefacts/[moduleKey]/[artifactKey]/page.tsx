@@ -3,14 +3,17 @@ import { notFound } from "next/navigation";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 
+import { listArtifactCommentThreads } from "@/lib/artifact-comments";
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { formatDateTime } from "@/lib/format";
 import { getMentorArtefactDocument } from "@/lib/mentor";
 import { appPageTitle } from "@/lib/page-metadata";
 import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
+import { PageHeader } from "@/components/page-header";
 
 import { AnalyticsTrack } from "../../../../../components/analytics-track";
-import { MarkdownDocument } from "../../../../../components/markdown-document";
+import { ArtefactDownloadMenu } from "../../../../../components/artefact-download-menu";
+import { ArtifactDocumentWithComments } from "../../../../../components/artefact-comments/artifact-document-with-comments";
 import { PageShell } from "../../../../../components/page-shell";
 import { mentorArtefactDocumentCopy } from "../../../../../lib/copy";
 
@@ -67,6 +70,12 @@ export default async function MentorArtefactPage({
     notFound();
   }
 
+  const pathname = `/founders/${encodeURIComponent(workspaceId)}/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}`;
+  const threads = await listArtifactCommentThreads(actor, {
+    attemptId: document.attemptId,
+    artifactKey,
+  });
+
   return (
     <PageShell>
       <AnalyticsTrack
@@ -77,43 +86,56 @@ export default async function MentorArtefactPage({
           artifactKey,
         })}
       />
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          <Link
-            href={`/founders/${encodeURIComponent(workspaceId)}`}
-            className="underline-offset-2 hover:underline"
-          >
-            {mentorArtefactDocumentCopy.backLink}
-          </Link>
-          <span aria-hidden="true"> / </span>
-          {document.moduleTitle}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {document.name}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {mentorArtefactDocumentCopy.savedLine(
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <PageHeader
+          kicker={
+            <>
+              <Link
+                href={`/founders/${encodeURIComponent(workspaceId)}`}
+                className="underline-offset-2 hover:underline"
+              >
+                {mentorArtefactDocumentCopy.backLink}
+              </Link>
+              <span aria-hidden="true"> / </span>
+              {document.moduleTitle}
+            </>
+          }
+          title={document.name}
+          intro={mentorArtefactDocumentCopy.savedLine(
             document.versionNumber,
             formatDateTime(document.savedAt),
           )}
-        </p>
+          className="min-w-0 max-w-2xl"
+        />
+
+        <ArtefactDownloadMenu
+          downloadHref={`/founders/${encodeURIComponent(workspaceId)}/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`}
+          workbookAvailable={document.workbookAvailable}
+          tablesAvailable={document.tablesAvailable}
+          size="lg"
+        />
       </div>
 
-      <article className="mt-10 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="flex items-center justify-between gap-4 border-b border-border bg-muted/40 px-5 py-3">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Document
-          </p>
-        </div>
-        <MarkdownDocument content={document.content} />
-      </article>
-
-      {/* Read-only by design: V1 Mentors observe and advise, and the founder
-          still signs their own module off. Accept/reject controls arrive
-          with the review phase. */}
-      <p className="mt-4 text-xs text-muted-foreground">
+      {/* The document itself stays read-only from the Mentor's side — a
+          Mentor cannot edit it or advance the Founder's module. Comments
+          are the one write surface layered on top: see
+          packages/services/src/artifact-comment for the authorization
+          model (any Mentor may open threads and reply, matching
+          MENTOR_SEES_ALL_FOUNDERS' read scope). */}
+      <p className="mt-6 text-xs text-muted-foreground">
         {mentorArtefactDocumentCopy.readOnlyNote}
       </p>
+
+      <ArtifactDocumentWithComments
+        content={document.content}
+        threads={threads}
+        viewerUserId={actor.userId}
+        viewerRole="mentor"
+        pathname={pathname}
+        attemptId={document.attemptId}
+        artifactKey={artifactKey}
+        headings={document.headings}
+      />
     </PageShell>
   );
 }

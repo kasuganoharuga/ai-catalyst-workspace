@@ -5,6 +5,8 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import type { AdminUserListItem, AssignableMentor } from "@ai-catalyst/shared";
 
+import { EmptyStateCard } from "@/components/empty-state-card";
+
 import { UserRow } from "./user-row";
 
 type RoleFilter = "all" | "founder" | "mentor" | "admin" | "pending";
@@ -167,14 +169,14 @@ export function UserList({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-card px-6 py-14 text-center">
+        <EmptyStateCard className="mt-6">
           <p className="text-[15px] font-semibold text-foreground">
             No matching users
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             Try a different search or clear the role / mentor filters.
           </p>
-        </div>
+        </EmptyStateCard>
       ) : (
         <div className="mt-8">
           <div className="hidden items-center gap-6 border-b border-border pb-2.5 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground sm:flex">

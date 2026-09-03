@@ -384,6 +384,9 @@ module "api" {
   execution_role_arn = module.iam.execution_role_arn
   task_role_arn      = module.iam.task_role_arns["api"]
   aws_region         = var.aws_region
+  # Same as production: reserved AI service, no product traffic. Scale to 1
+  # when packages/services starts calling apps/api.
+  desired_count = 0
   environment = merge(local.common_env, {
     SERVICE_NAME = "aicatalyst-api"
   })

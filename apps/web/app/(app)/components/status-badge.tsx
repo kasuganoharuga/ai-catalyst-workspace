@@ -1,10 +1,7 @@
 import { cn } from "@/lib/utils";
 
-import {
-  moduleAccentStyle,
-  type ModuleDisplayStatus,
-  type StatusTone,
-} from "../lib/module-display";
+import { moduleAccentStyle } from "../lib/module-display";
+import type { ModuleDisplayStatus, StatusTone } from "../lib/module-status";
 
 // Fill/outlined/flat grey distinguish states — lime solid = "do this next"; completed uses module accent (see "module" tone).
 const TONE_CLASSES: Record<Exclude<StatusTone, "module">, string> = {

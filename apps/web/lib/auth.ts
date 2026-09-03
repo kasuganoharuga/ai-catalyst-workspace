@@ -13,7 +13,9 @@ import { readTrustedProxies } from "./trusted-proxies";
 
 /**
  * Better Auth: platform Authorization Server (users, sessions, MCP OAuth).
- * Registration is temporarily public — new accounts start at role `pending` until invitation acceptance.
+ * Registration is invitation-only. New rows still start at role `pending`
+ * until the invite action accepts on their behalf; there is no public
+ * /register or /pending wait page.
  */
 function requireEnv(name: string): string {
   const value = process.env[name];

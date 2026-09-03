@@ -7,7 +7,7 @@ import type {
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 const ACTIVE_SUBMISSION_EXCLUDED_STATUSES = ["superseded", "deleted"] as const;
 

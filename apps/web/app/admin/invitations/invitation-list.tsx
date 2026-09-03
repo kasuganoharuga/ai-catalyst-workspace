@@ -1,25 +1,14 @@
 import type { InvitationListItem } from "@ai-catalyst/shared";
 
+import {
+  revokeInvitationAction,
+  revokeMentorInvitationAction,
+} from "@/lib/actions/admin-actions";
 import { formatShortDate } from "@/lib/format";
 
-import { RevokeInvitationButton } from "./revoke-invitation-button";
-
-const STATUS_TONE: Record<string, string> = {
-  pending: "border border-foreground/25 text-foreground",
-  accepted: "bg-primary text-primary-foreground",
-  revoked: "bg-muted text-muted-foreground",
-  expired: "bg-muted text-muted-foreground",
-};
-
-function InvitationStatusPill({ status }: { status: string }) {
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.08em] ${STATUS_TONE[status] ?? STATUS_TONE.pending}`}
-    >
-      {status}
-    </span>
-  );
-}
+import { EmptyStateCard } from "@/components/empty-state-card";
+import { InvitationStatusPill } from "@/components/invitation-status-pill";
+import { RevokeInvitationButton } from "@/components/revoke-invitation-button";
 
 function describeInviter(invitation: InvitationListItem): string {
   if (!invitation.invitedByEmail) {
@@ -41,11 +30,11 @@ export function InvitationList({
 }) {
   if (invitations.length === 0) {
     return (
-      <div className="mt-8 rounded-xl border border-border bg-card px-6 py-14 text-center">
+      <EmptyStateCard className="mt-8">
         <p className="text-[15px] font-semibold text-foreground">
           {emptyLabel}
         </p>
-      </div>
+      </EmptyStateCard>
     );
   }
 
@@ -87,7 +76,11 @@ export function InvitationList({
               {invitation.status === "pending" ? (
                 <RevokeInvitationButton
                   invitationId={invitation.id}
-                  inviteRole={inviteRole}
+                  onRevoke={
+                    inviteRole === "mentor"
+                      ? revokeMentorInvitationAction
+                      : revokeInvitationAction
+                  }
                 />
               ) : null}
             </div>

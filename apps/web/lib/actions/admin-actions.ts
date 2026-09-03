@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import {
   assignWorkspaceMentor,
@@ -9,52 +8,34 @@ import {
   softDeleteUser,
 } from "@ai-catalyst/services/admin";
 import {
-  createFounderInvitation,
-  createMentorInvitation,
   revokeFounderInvitation,
   revokeMentorInvitation,
 } from "@ai-catalyst/services/invitation";
-import { ServiceError } from "@ai-catalyst/services/errors";
 
-import { actorContextFromSession } from "@/lib/actor-context";
 import { auth } from "@/lib/auth";
+import { inviteWithCredentials } from "@/lib/invite-with-credentials";
 import {
   createInvitationInputSchema,
   firstZodMessage,
 } from "@/lib/validation/invitation";
-import { webLog } from "@/lib/web-logger";
 
-export type ActionResult = { ok: true } | { ok: false; message: string };
+import type {
+  ActionResult,
+  ActionResultWith,
+  CreateInvitationResult,
+} from "./action-result";
+import { internalActionResult } from "./action-error";
+import { requireAdminActor } from "./require-actor";
+import { revalidateAdminInvitations } from "./revalidate";
 
-export type CreateInvitationResult =
-  { ok: true; rawToken: string } | { ok: false; message: string };
+export type { ActionResult, CreateInvitationResult };
 
-export type ResetUserPasswordResult =
-  | { ok: true; email: string; temporaryPassword: string }
-  | { ok: false; message: string };
+export type ResetUserPasswordResult = ActionResultWith<{
+  email: string;
+  temporaryPassword: string;
+}>;
 
-async function requireAdminActor() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
-  }
-  if (session.user.role !== "admin") {
-    throw new ServiceError("FORBIDDEN", "Admin access required.");
-  }
-  return actorContextFromSession(session);
-}
-
-function toActionResult(error: unknown): ActionResult {
-  if (error instanceof ServiceError) {
-    return { ok: false, message: error.message };
-  }
-  webLog.error({
-    event: "web_unhandled_action_error",
-    message: "Unhandled admin server action error",
-    error_name: error instanceof Error ? error.name : typeof error,
-  });
-  return { ok: false, message: "Something went wrong." };
-}
+const toActionResult = internalActionResult({ domain: "admin" });
 
 export async function createInvitationAction(input: {
   email: string;
@@ -67,20 +48,15 @@ export async function createInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createFounderInvitation(actor, parsed.data);
-    revalidatePath("/admin");
-    revalidatePath("/admin/invitations");
-    return { ok: true, rawToken };
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return { ok: false, message: error.message };
-    }
-    webLog.error({
-      event: "web_unhandled_action_error",
-      message: "Unhandled admin createInvitationAction error",
-      error_name: error instanceof Error ? error.name : typeof error,
+    const result = await inviteWithCredentials(actor, {
+      ...parsed.data,
+      inviteRole: "founder",
     });
-    return { ok: false, message: "Something went wrong." };
+    revalidateAdminInvitations();
+    revalidatePath("/admin/users");
+    return { ok: true, ...result };
+  } catch (error) {
+    return toActionResult(error);
   }
 }
 
@@ -90,8 +66,7 @@ export async function revokeInvitationAction(
   try {
     const actor = await requireAdminActor();
     await revokeFounderInvitation(actor, invitationId);
-    revalidatePath("/admin");
-    revalidatePath("/admin/invitations");
+    revalidateAdminInvitations();
     return { ok: true };
   } catch (error) {
     return toActionResult(error);
@@ -114,20 +89,15 @@ export async function createMentorInvitationAction(input: {
 
   try {
     const actor = await requireAdminActor();
-    const { rawToken } = await createMentorInvitation(actor, parsed.data);
-    revalidatePath("/admin");
-    revalidatePath("/admin/invitations");
-    return { ok: true, rawToken };
-  } catch (error) {
-    if (error instanceof ServiceError) {
-      return { ok: false, message: error.message };
-    }
-    webLog.error({
-      event: "web_unhandled_action_error",
-      message: "Unhandled admin createMentorInvitationAction error",
-      error_name: error instanceof Error ? error.name : typeof error,
+    const result = await inviteWithCredentials(actor, {
+      ...parsed.data,
+      inviteRole: "mentor",
     });
-    return { ok: false, message: "Something went wrong." };
+    revalidateAdminInvitations();
+    revalidatePath("/admin/users");
+    return { ok: true, ...result };
+  } catch (error) {
+    return toActionResult(error);
   }
 }
 
@@ -137,8 +107,7 @@ export async function revokeMentorInvitationAction(
   try {
     const actor = await requireAdminActor();
     await revokeMentorInvitation(actor, invitationId);
-    revalidatePath("/admin");
-    revalidatePath("/admin/invitations");
+    revalidateAdminInvitations();
     return { ok: true };
   } catch (error) {
     return toActionResult(error);
@@ -207,14 +176,6 @@ export async function resetUserPasswordAction(
     revalidatePath("/admin/users");
     return { ok: true, email, temporaryPassword };
   } catch (error) {
-    if (error instanceof ServiceError) {
-      return { ok: false, message: error.message };
-    }
-    webLog.error({
-      event: "web_unhandled_action_error",
-      message: "Unhandled admin resetUserPasswordAction error",
-      error_name: error instanceof Error ? error.name : typeof error,
-    });
-    return { ok: false, message: "Something went wrong." };
+    return toActionResult(error);
   }
 }

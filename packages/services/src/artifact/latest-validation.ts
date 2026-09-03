@@ -1,5 +1,6 @@
 import { pool } from "@ai-catalyst/db";
 import type { ActorContext } from "@ai-catalyst/contracts/actor-context";
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
 import type { ArtifactValidation } from "@ai-catalyst/shared";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
@@ -14,9 +15,12 @@ import {
 import { normalizeArtifactKeyInput } from "@ai-catalyst/services/artifact/internal/normalize-input";
 
 // Same reader-permission shape as storage assertGeneratedContentReader — kept local to avoid cross-module coupling.
+// effectiveRole, not actor.role: a Mentor previewing the Founder flow reads
+// their own sandbox's validation status through the same founder branch
+// below.
 function assertValidationReader(actor: ActorContext): void {
   if (
-    actor.role === "founder" ||
+    effectiveRole(actor) === "founder" ||
     actor.role === "admin" ||
     actor.source === "system"
   ) {
@@ -53,7 +57,7 @@ export async function getLatestValidation(
     throw new ServiceError("NOT_FOUND", "Attempt not found.");
   }
 
-  if (actor.role === "founder") {
+  if (effectiveRole(actor) === "founder") {
     const workspace = await resolveFounderWorkspace(actor, pool);
     if (attemptRow.workspace_id !== workspace.id) {
       throw new ServiceError("NOT_FOUND", "Attempt not found.");

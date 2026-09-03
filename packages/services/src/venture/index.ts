@@ -18,6 +18,8 @@ import { slugifyBase } from "@ai-catalyst/services/internal/slug";
 import { assertVentureWritable } from "@ai-catalyst/services/internal/venture";
 import { assertWorkspaceActive } from "@ai-catalyst/services/internal/workspace";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 const NAME_MAX_LENGTH = 200;
 const ONE_LINER_MAX_LENGTH = 300;
@@ -273,32 +275,22 @@ export async function createVenture(
   const createSuffix =
     deps.createSlugSuffix ?? (() => randomBytes(3).toString("hex"));
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  const row = await withTransaction(async (client) => {
     // Resolved on the same client as the insert below, so the Workspace
     // cannot be suspended by a concurrent transaction between this check
     // and the write.
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
-    const row = await insertVentureWithRetry(
+    return insertVentureWithRetry(
       client,
       workspace.id,
       actor.userId,
       normalized,
       createSuffix,
     );
-
-    await client.query("commit");
-    return mapVentureRow(row);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+  });
+  return mapVentureRow(row);
 }
 
 // Newest first, with a stable id tie-break so rows created within the same
@@ -320,14 +312,15 @@ export async function listVentures(actor: ActorContext): Promise<Venture[]> {
 export async function getVenture(
   actor: ActorContext,
   ventureId: string,
+  executor: QueryExecutor = pool,
 ): Promise<Venture> {
   assertRole(actor, ["founder"]);
   const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
-  const workspaceId = await resolveFounderWorkspaceId(actor);
+  const workspaceId = await resolveFounderWorkspaceId(actor, executor);
 
   // Scoped by workspace_id, not just id — a Venture belonging to another
   // Workspace is indistinguishable from one that doesn't exist at all.
-  const result = await pool.query<VentureRow>(
+  const result = await executor.query<VentureRow>(
     `select ${VENTURE_COLUMNS} from ventures
      where id = $1 and workspace_id = $2`,
     [id, workspaceId],
@@ -350,10 +343,7 @@ export async function updateVentureClaudeProjectId(
   const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
   const claudeProjectId = normalizeUpdateClaudeProjectInput(input);
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  const updatedRow = await withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
@@ -378,14 +368,9 @@ export async function updateVentureClaudeProjectId(
       [id, workspace.id, claudeProjectId],
     );
 
-    await client.query("commit");
-    return mapVentureRow(updatedResult.rows[0]);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+    return updatedResult.rows[0];
+  });
+  return mapVentureRow(updatedRow);
 }
 
 export async function archiveVenture(
@@ -395,10 +380,7 @@ export async function archiveVenture(
   assertRole(actor, ["founder"]);
   const id = parseEntityIdOrNotFound(ventureId, "Venture not found.");
 
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
+  const resultRow = await withTransaction(async (client) => {
     const workspace = await resolveFounderWorkspace(actor, client);
     assertWorkspaceActive(workspace.status);
 
@@ -416,8 +398,7 @@ export async function archiveVenture(
     // Idempotent: archiving an already-archived Venture is a no-op, not an
     // error — and deliberately does not touch `archived_at` a second time.
     if (row.status === "archived") {
-      await client.query("commit");
-      return mapVentureRow(row);
+      return row;
     }
 
     const archivedResult = await client.query<VentureRow>(
@@ -439,12 +420,7 @@ export async function archiveVenture(
       [workspace.id, id],
     );
 
-    await client.query("commit");
-    return mapVentureRow(archivedResult.rows[0]);
-  } catch (error) {
-    await client.query("rollback");
-    throw error;
-  } finally {
-    client.release();
-  }
+    return archivedResult.rows[0];
+  });
+  return mapVentureRow(resultRow);
 }

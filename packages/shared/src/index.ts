@@ -71,7 +71,17 @@ export type {
   MentorFounderDetail,
   MentorArtefactSummary,
   MentorArtefactDocument,
+  MentorArtefactHeading,
+  FounderSandboxSummary,
 } from "./mentor.js";
+export type {
+  ArtifactCommentAnchor,
+  ArtifactCommentAnchorKind,
+  ArtifactComment,
+  ArtifactCommentAuthorRole,
+  ArtifactCommentThread,
+  ArtifactCommentThreadStatus,
+} from "./artifact-comment.js";
 export type {
   AdminUserListItem,
   AssignableMentor,

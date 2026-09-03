@@ -4,7 +4,7 @@ import type { ModuleAttemptStatus, ModuleType } from "@ai-catalyst/shared";
 import { ServiceError } from "@ai-catalyst/services/errors";
 import { resolveFounderWorkspace } from "@ai-catalyst/services/workspace";
 
-import type { QueryExecutor } from "@ai-catalyst/services/artifact/internal/transaction";
+import type { QueryExecutor } from "@ai-catalyst/services/internal/transaction";
 
 const EDITABLE_ATTEMPT_STATUSES = ["draft", "in_progress"] as const;
 
@@ -55,26 +55,36 @@ export async function resolveAttemptContext(
   executor: QueryExecutor,
   options: { forUpdate: boolean },
 ): Promise<{ runModule: RunModuleRow; attempt: AttemptRow }> {
-  const lookupResult = await executor.query<{ program_run_module_id: string }>(
-    `select program_run_module_id from module_attempts where id = $1 and workspace_id = $2`,
-    [attemptId, workspaceId],
-  );
-  const runModuleId = lookupResult.rows[0]?.program_run_module_id;
-  if (!runModuleId) {
-    throw new ServiceError("NOT_FOUND", "Attempt not found.");
-  }
-
+  // Merged what used to be two separate statements (a plain lookup of
+  // program_run_module_id, then a separate program_run_modules load) into
+  // one join. `for update of m` locks only program_run_modules here —
+  // module_attempts stays unlocked until the second query below, so the
+  // mandated program_run_modules-before-module_attempts lock order still
+  // holds exactly as it did across the original three statements.
   const runModuleResult = await executor.query<RunModuleRow>(
     `select m.id, m.module_definition_id, m.program_run_id, m.program_run_branch_id,
             m.active_attempt_id, d.module_type
-     from program_run_modules m
+     from module_attempts a
+     join program_run_modules m on m.id = a.program_run_module_id
      join module_definitions d on d.id = m.module_definition_id
-     where m.id = $1 and m.workspace_id = $2
+     where a.id = $1 and m.workspace_id = $2
      ${options.forUpdate ? "for update of m" : ""}`,
-    [runModuleId, workspaceId],
+    [attemptId, workspaceId],
   );
   const runModule = runModuleResult.rows[0];
   if (!runModule) {
+    // The merged query can't tell "no such Attempt" apart from "Attempt
+    // exists but has no owning program_run_module" — both are an empty
+    // join result. Only on this (rare) error path, one more query
+    // recovers the distinction so callers keep getting NOT_FOUND for the
+    // former and a real invariant violation for the latter.
+    const attemptExists = await executor.query(
+      `select 1 from module_attempts where id = $1 and workspace_id = $2`,
+      [attemptId, workspaceId],
+    );
+    if (attemptExists.rowCount === 0) {
+      throw new ServiceError("NOT_FOUND", "Attempt not found.");
+    }
     throw new ServiceError(
       "INTERNAL_INVARIANT_ERROR",
       `Attempt ${attemptId} has no owning program_run_module.`,

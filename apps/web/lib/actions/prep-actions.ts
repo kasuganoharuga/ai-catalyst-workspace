@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
 
 import { ServiceError } from "@ai-catalyst/services/errors";
 import {
@@ -9,11 +8,9 @@ import {
   withdrawPrepDocument,
 } from "@ai-catalyst/services/prep";
 
-import { actorContextFromSession } from "@/lib/actor-context";
-import { auth } from "@/lib/auth";
-import { errorCopy } from "@/app/(app)/lib/copy";
-import { founderMessageForServiceError } from "@/lib/service-error-copy";
-import { webLog } from "@/lib/web-logger";
+import type { ActionResult } from "./action-result";
+import { founderActionResult } from "./action-error";
+import { requireFounderActor } from "./require-actor";
 
 // Founder-uploaded prep material for a Module's Work step.
 //
@@ -22,37 +19,11 @@ import { webLog } from "@/lib/web-logger";
 // duplicate the session/actor plumbing every other founder mutation
 // already goes through.
 
-export type PrepActionResult = { ok: true } | { ok: false; message: string };
-
-async function requireFounderActor() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
-    throw new ServiceError("UNAUTHENTICATED", "Sign in required.");
-  }
-  const actor = actorContextFromSession(session);
-  if (actor.role !== "founder") {
-    throw new ServiceError("FORBIDDEN", "Founder access required.");
-  }
-  return actor;
-}
-
-function toActionResult(error: unknown): PrepActionResult {
-  if (error instanceof ServiceError) {
-    webLog.error({
-      event: "web_prep_action_error",
-      message: "Service error in prep server action",
-      code: error.code,
-      detail: error.message,
-    });
-    return { ok: false, message: founderMessageForServiceError(error) };
-  }
-  webLog.error({
-    event: "web_unhandled_prep_action_error",
-    message: "Unhandled prep server action error",
-    error_name: error instanceof Error ? error.name : typeof error,
-  });
-  return { ok: false, message: errorCopy.generic };
-}
+const toActionResult = founderActionResult({
+  domain: "prep",
+  event: "web_prep_action_error",
+  unhandledEvent: "web_unhandled_prep_action_error",
+});
 
 /**
  * Accepts one file from the Work step's upload window.
@@ -63,7 +34,7 @@ function toActionResult(error: unknown): PrepActionResult {
  */
 export async function uploadPrepDocumentAction(
   formData: FormData,
-): Promise<PrepActionResult> {
+): Promise<ActionResult> {
   try {
     const actor = await requireFounderActor();
 
@@ -96,7 +67,7 @@ export async function uploadPrepDocumentAction(
 /** Removes a document from the Work step. The row is kept, not deleted. */
 export async function withdrawPrepDocumentAction(
   prepDocumentId: string,
-): Promise<PrepActionResult> {
+): Promise<ActionResult> {
   try {
     const actor = await requireFounderActor();
     await withdrawPrepDocument(actor, prepDocumentId);

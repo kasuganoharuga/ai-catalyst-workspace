@@ -8,6 +8,10 @@ import type {
   WorkspaceStatus,
 } from "@ai-catalyst/shared";
 
+import {
+  artifactMarkdownHasTables,
+  listHeadings,
+} from "@ai-catalyst/services/artifact/internal/markdown-sections";
 import { ServiceError, assertRole } from "@ai-catalyst/services/errors";
 import { parseEntityIdOrNotFound } from "@ai-catalyst/services/internal/entity-id";
 import { MENTOR_SEES_ALL_FOUNDERS } from "@ai-catalyst/services/internal/mentor-scope";
@@ -15,27 +19,39 @@ import {
   listRunModulesForBranch,
   resolveWorkspaceRunContext,
 } from "@ai-catalyst/services/internal/run-module";
+import { MENTOR_ARTEFACT_QUERY } from "@ai-catalyst/services/mentor/internal/artefact-query";
 import { getGeneratedTextContent } from "@ai-catalyst/services/storage";
 
-// Mentor supervision surface — read-only; cannot advance or roll back Founder progress.
+// Mentor supervision surface. The Founder's own progress and Artifacts stay
+// read-only from here — a Mentor cannot advance, roll back, or edit them.
+// Artifact comments (packages/services/src/artifact-comment) are the one
+// real write surface layered on top: any Mentor may open threads and reply
+// on any Founder's Artifact, matching MENTOR_SEES_ALL_FOUNDERS' read scope.
 
 /**
  * Mentor read authority. When MENTOR_SEES_ALL_FOUNDERS is true, every
  * Mentor may read every Workspace; otherwise a Mentor is scoped to
- * Workspaces where workspaces.mentor_user_id points at them.
+ * Workspaces where workspaces.mentor_user_id points at them. Either way,
+ * `kind = 'live'` excludes every Mentor's own founder-preview sandbox
+ * (packages/services/src/mentor/founder-preview.ts) — a sandbox must never
+ * appear in mentor supervision surfaces as if it were a real Founder to
+ * review, including a Mentor's own sandbox showing up in their own list.
  *
  * NOT_FOUND on mismatch (scoped mode) — FORBIDDEN would confirm the
  * Workspace exists (enumeration oracle). The existence check stays even in
  * the "sees all" mode, so a bogus id still resolves to NOT_FOUND.
  */
-async function assertMentorOwnsWorkspace(
+export async function assertMentorOwnsWorkspace(
   actor: ActorContext,
   workspaceId: string,
 ): Promise<void> {
   const result = MENTOR_SEES_ALL_FOUNDERS
-    ? await pool.query(`select 1 from workspaces where id = $1`, [workspaceId])
+    ? await pool.query(
+        `select 1 from workspaces where id = $1 and kind = 'live'`,
+        [workspaceId],
+      )
     : await pool.query(
-        `select 1 from workspaces where id = $1 and mentor_user_id = $2`,
+        `select 1 from workspaces where id = $1 and mentor_user_id = $2 and kind = 'live'`,
         [workspaceId, actor.userId],
       );
 
@@ -129,7 +145,7 @@ export async function listMentorFounders(
          and d.module_type <> 'setup'
          and d.status = 'active'
      ) progress on run.active_branch_id is not null
-     where ${MENTOR_SEES_ALL_FOUNDERS ? "" : "w.mentor_user_id = $1 and "}u.deleted_at is null
+     where ${MENTOR_SEES_ALL_FOUNDERS ? "" : "w.mentor_user_id = $1 and "}u.deleted_at is null and w.kind = 'live'
      order by is_assigned_to_me desc, w.name, w.id`,
     [actor.userId],
   );
@@ -144,6 +160,7 @@ interface ArtefactSummaryRow {
   required_filename: string | null;
   version_number: number;
   saved_at: Date;
+  renderer_key: string | null;
 }
 
 function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
@@ -154,29 +171,9 @@ function mapArtefactSummaryRow(row: ArtefactSummaryRow): MentorArtefactSummary {
     requiredFilename: row.required_filename,
     versionNumber: row.version_number,
     savedAt: row.saved_at.toISOString(),
+    workbookAvailable: row.renderer_key !== null,
   };
 }
-
-// Live deliverables on one Run/Branch — draft/submitted only; DISTINCT ON highest version.
-// Excludes setup Module 0 (machine-written, not Founder work).
-const MENTOR_ARTEFACT_QUERY = `
-  select distinct on (d.artifact_key)
-    m.module_key,
-    d.artifact_key,
-    d.name,
-    d.required_filename,
-    s.version_number,
-    coalesce(s.submitted_at, s.updated_at) as saved_at
-  from program_run_modules m
-  join module_definitions md on md.id = m.module_definition_id
-  join module_attempts a on a.program_run_module_id = m.id
-  join artifact_submissions s on s.module_attempt_id = a.id
-  join artifact_definitions d on d.id = s.artifact_definition_id
-  where m.program_run_branch_id = $1
-    and s.status in ('draft', 'submitted')
-    and md.module_type <> 'setup'
-  order by d.artifact_key, s.version_number desc
-`;
 
 /**
  * One Founder's progress and deliverables. Raw answers and failed Attempts excluded —
@@ -250,11 +247,13 @@ export async function getMentorFounderDetail(
 
 interface ArtefactDocumentRow extends ArtefactSummaryRow {
   module_title: string;
+  module_attempt_id: string;
   primary_storage_object_id: string | null;
 }
 
 /**
- * One saved deliverable with body for read-only Mentor view.
+ * One saved deliverable with body, plus the Attempt id and heading list an
+ * Artifact comment thread anchors against — see packages/services/src/artifact-comment.
  * Returns null when not saved yet; NOT_FOUND when Workspace is not covered.
  */
 export async function getMentorArtefactDocument(
@@ -279,12 +278,14 @@ export async function getMentorArtefactDocument(
     `select distinct on (d.artifact_key)
        m.module_key,
        m.title_snapshot as module_title,
+       a.id as module_attempt_id,
        d.artifact_key,
        d.name,
        d.required_filename,
        s.version_number,
        coalesce(s.submitted_at, s.updated_at) as saved_at,
-       f.storage_object_id as primary_storage_object_id
+       f.storage_object_id as primary_storage_object_id,
+       d.renderer_key
      from program_run_modules m
      join module_attempts a on a.program_run_module_id = m.id
      join artifact_submissions s on s.module_attempt_id = a.id
@@ -314,5 +315,8 @@ export async function getMentorArtefactDocument(
     ...mapArtefactSummaryRow(row),
     moduleTitle: row.module_title,
     content,
+    tablesAvailable: artifactMarkdownHasTables(content),
+    attemptId: row.module_attempt_id,
+    headings: listHeadings(content),
   };
 }

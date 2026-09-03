@@ -5,11 +5,8 @@ import type { ModuleCatalogEntry, ModuleContext } from "@ai-catalyst/shared";
 import { cn } from "@/lib/utils";
 
 import { StatusBadge } from "../../components/status-badge";
-import {
-  deriveModuleDisplayStatus,
-  headlineArtifact,
-  moduleAccentStyle,
-} from "../../lib/module-display";
+import { headlineArtifact, moduleAccentStyle } from "../../lib/module-display";
+import { deriveModuleDisplayStatus } from "../../lib/module-status";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("en-AU", {

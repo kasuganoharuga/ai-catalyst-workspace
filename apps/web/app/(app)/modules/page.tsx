@@ -4,9 +4,12 @@ import { listRunModules } from "@/lib/run-modules";
 import { appPageTitle } from "@/lib/page-metadata";
 import { SHOW_SETUP_MODULE } from "@/lib/feature-flags";
 
+import { PageHeader } from "@/components/page-header";
+import { SectionHeaderRow } from "@/components/section-header-row";
+
 import { PageShell } from "../components/page-shell";
 import { modulesCopy } from "../lib/copy";
-import { deriveModuleDisplayStatus } from "../lib/module-display";
+import { deriveModuleDisplayStatus } from "../lib/module-status";
 import { ModuleCatalogCard } from "./components/module-catalog-card";
 
 export const metadata = appPageTitle("Modules");
@@ -32,26 +35,17 @@ export default async function ModulesPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {modulesCopy.kicker}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {modulesCopy.title}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {modulesCopy.intro}
-        </p>
-      </div>
+      <PageHeader
+        kicker={modulesCopy.kicker}
+        title={modulesCopy.title}
+        intro={modulesCopy.intro}
+      />
 
-      <div className="mt-10 flex items-baseline justify-between gap-4 border-t border-border pt-4">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {modulesCopy.allModules}
-        </p>
-        <p className="font-mono text-[11px] tabular-nums text-muted-foreground">
-          {modulesCopy.openCount(openCount, modules.length)}
-        </p>
-      </div>
+      <SectionHeaderRow
+        className="mt-10 border-t border-border pt-4"
+        label={modulesCopy.allModules}
+        meta={modulesCopy.openCount(openCount, modules.length)}
+      />
 
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         {modules.map((module) => {

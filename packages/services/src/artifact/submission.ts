@@ -26,7 +26,7 @@ import {
 } from "@ai-catalyst/services/artifact/internal/submission-load";
 import { insertArtifactModuleEvent } from "@ai-catalyst/services/artifact/internal/module-events";
 import { normalizeArtifactKeyInput } from "@ai-catalyst/services/artifact/internal/normalize-input";
-import { withTransaction } from "@ai-catalyst/services/artifact/internal/transaction";
+import { withTransaction } from "@ai-catalyst/services/internal/transaction";
 
 // --- saveArtifactSubmission ---
 

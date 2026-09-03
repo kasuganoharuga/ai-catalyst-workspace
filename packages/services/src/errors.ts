@@ -2,6 +2,7 @@ import type {
   ActorContext,
   ActorRole,
 } from "@ai-catalyst/contracts/actor-context";
+import { effectiveRole } from "@ai-catalyst/contracts/actor-context";
 
 // Typed business errors — apps/web and apps/mcp map code to HTTP/MCP responses.
 export type ServiceErrorCode =
@@ -29,6 +30,7 @@ export type ServiceErrorCode =
   | "WORKBOOK_SOURCE_NOT_CONFIRMED" // No confirmed submission to build workbook from.
   | "WORKBOOK_SOURCE_INTEGRITY_FAILED" // Stored bytes ≠ checksum (500).
   | "WORKBOOK_RENDER_FAILED" // Renderer/content bug (500).
+  | "ARTIFACT_HAS_NO_TABLES" // xlsx export requested but the Markdown has no GFM table.
   | "EVIDENCE_NOT_CONFIRMED" // Module 4 evidence not confirmed on website.
   | "EVIDENCE_FROZEN_FOR_ATTEMPT" // Module 4 attempt already pinned evidence snapshot.
   | "MODULE_4_INTERVIEW_EVIDENCE_MISSING" // complete_module without pinned evidence.
@@ -45,8 +47,16 @@ export class ServiceError extends Error {
   }
 }
 
+/**
+ * Tests effectiveRole(actor), not actor.role — a Mentor in Founder-preview
+ * mode passes assertRole(actor, ["founder"]) and fails
+ * assertRole(actor, ["mentor"]). See effectiveRole()'s docstring for why
+ * that's the correct direction: every Founder-scoped call this then lets
+ * through still resolves scope via resolveFounderWorkspace(actor), which
+ * for a previewing Mentor only ever resolves to their own sandbox.
+ */
 export function assertRole(actor: ActorContext, allowed: ActorRole[]): void {
-  if (!allowed.includes(actor.role)) {
+  if (!allowed.includes(effectiveRole(actor))) {
     throw new ServiceError(
       "FORBIDDEN",
       "You do not have permission to perform this action.",

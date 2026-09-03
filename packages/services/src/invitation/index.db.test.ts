@@ -280,6 +280,27 @@ describe("invitation service — database integration", () => {
     );
   });
 
+  it("does not write to any row when a list finds nothing pending to expire", async () => {
+    const { invitation } = await createFounderInvitation(admin, {
+      email: testEmail("list-no-write"),
+    });
+
+    const before = await pool.query<{ updated_at: Date }>(
+      `select updated_at from invitations where id = $1`,
+      [invitation.id],
+    );
+
+    await listFounderInvitations(admin);
+
+    const after = await pool.query<{ updated_at: Date }>(
+      `select updated_at from invitations where id = $1`,
+      [invitation.id],
+    );
+    expect(after.rows[0].updated_at.getTime()).toBe(
+      before.rows[0].updated_at.getTime(),
+    );
+  });
+
   describe("acceptFounderInvitation", () => {
     it("accepts a pending invitation: upgrades role, creates a Workspace and a default Venture, writes accepted fields, keeps workspace_id null", async () => {
       const user = await createPendingUser("accept-happy");
@@ -354,7 +375,7 @@ describe("invitation service — database integration", () => {
       const user = await createPendingUser("accept-mentor-token");
       // Throwaway owner for the Mentor invitation's target Workspace — a
       // dedicated fixture user (not the shared `admin`/`nonAdmin`) so this
-      // test can never collide with `workspaces_founder_unique` against
+      // test can never collide with `workspaces_founder_live_unique` against
       // another test running in the same file, and cleanup is covered by
       // the shared afterAll (which deletes Workspaces by founder_user_id
       // for every id in createdUserIds).
@@ -564,6 +585,14 @@ describe("invitation service — database integration", () => {
       expect(wsRows[0].count).toBe("1");
     });
 
+    // No integration test for the Founder-side workspace_id corruption trip
+    // wire in acceptFounderInvitation's onWorkspaceBound: the
+    // invitations_workspace_target_check constraint (migration 0010) makes
+    // `invite_role = 'founder' and workspace_id is not null` impossible to
+    // even insert — "no amount of Service layer care can work around it,"
+    // per that migration's own comment. The trip wire is real defense in
+    // depth against a schema this DB no longer allows, not a reachable path.
+
     it("lets only one of two concurrent accepts of the same token succeed", async () => {
       const user = await createPendingUser("accept-concurrent");
       const { rawToken } = await createFounderInvitation(admin, {
@@ -591,6 +620,41 @@ describe("invitation service — database integration", () => {
       expect(wsRows[0].count).toBe("1");
     });
 
+    it("serializes concurrent accepts across two different pending invitations in the same email family without deadlocking", async () => {
+      // Regression guard for the email-family lock's `order by id` — two
+      // concurrent transactions here lock a real multi-row family (a
+      // pending Founder invite and a pending Mentor invite, same email),
+      // not a single row. A stable lock order lets Postgres serialize them
+      // cleanly; dropping `order by id` risks a real deadlock (Postgres
+      // would abort one side with a 40P01 error, not hang), which this
+      // test would surface as a rejection reason other than the clean
+      // ServiceError below.
+      const user = await createPendingUser("accept-family-concurrent");
+      const { rawToken: founderToken } = await createFounderInvitation(admin, {
+        email: user.email,
+      });
+      const { rawToken: mentorToken } = await createMentorInvitation(admin, {
+        email: user.email,
+      });
+      const actor: ActorContext = { userId: user.id, role: "pending" };
+
+      const results = await Promise.allSettled([
+        acceptFounderInvitation(actor, founderToken),
+        acceptMentorInvitation(actor, mentorToken),
+      ]);
+
+      const fulfilled = results.filter((r) => r.status === "fulfilled");
+      const rejected = results.filter((r) => r.status === "rejected");
+      expect(fulfilled).toHaveLength(1);
+      expect(rejected).toHaveLength(1);
+      // The loser's own invitation was revoked as a same-email sibling by
+      // whichever accept committed first — a clean ServiceError, not a
+      // Postgres-level deadlock abort.
+      expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({
+        code: "INVITATION_NOT_PENDING",
+      });
+    });
+
     it("cleans up same-email Mentor invitations: revokes the still-pending one, expires the naturally stale one", async () => {
       const user = await createPendingUser("accept-cleanup-mentor");
       const { rawToken } = await createFounderInvitation(admin, {
@@ -598,7 +662,7 @@ describe("invitation service — database integration", () => {
       });
 
       // Dedicated throwaway owners (not the shared admin/nonAdmin) so this
-      // test can never collide with `workspaces_founder_unique` against
+      // test can never collide with `workspaces_founder_live_unique` against
       // another test in this file; cleaned up by the shared afterAll.
       const workspaceOwnerA = await createPendingUser(
         "accept-cleanup-mentor-workspace-owner-a",
@@ -698,7 +762,7 @@ describe("invitation service — database integration", () => {
         .replace(/-+$/g, "");
       const collidingSlug = `${base}-abcdef`;
       // Dedicated throwaway owner (not the shared admin/nonAdmin) so this
-      // fixture Workspace can never collide with `workspaces_founder_unique`
+      // fixture Workspace can never collide with `workspaces_founder_live_unique`
       // against another test; cleaned up by the shared afterAll.
       const collidingWorkspaceOwner = await createPendingUser(
         "accept-slug-retry-workspace-owner",
@@ -885,6 +949,39 @@ describe("invitation service — database integration", () => {
       expect(contextRows).toHaveLength(0);
     });
 
+    it("refuses a workspace-bound Mentor invitation with VALIDATION_ERROR, not a role flip", async () => {
+      // V1 only supports platform-level Mentor invites; a workspace-bound
+      // one is a legal-but-unsupported row shape (migration 0010), so this
+      // must be a clean 400 — never silently promoted to mentor.
+      const user = await createPendingUser("mentor-workspace-bound");
+      const workspaceOwner = await createPendingUser(
+        "mentor-workspace-bound-owner",
+      );
+      const workspace = await pool.query<{ id: string }>(
+        `insert into workspaces (founder_user_id, name, slug)
+         values ($1, 'Workspace-Bound Mentor Test', $2) returning id`,
+        [workspaceOwner.id, `mentor-workspace-bound-${randomUUID()}`],
+      );
+      const rawToken = randomBytes(32).toString("base64url");
+      const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+      await pool.query(
+        `insert into invitations
+           (email, invite_role, workspace_id, token_hash, invited_by_user_id, expires_at)
+         values ($1, 'mentor', $2, $3, $4, now() + interval '7 days')`,
+        [user.email, workspace.rows[0].id, tokenHash, admin.userId],
+      );
+
+      await expect(
+        acceptMentorInvitation({ userId: user.id, role: "pending" }, rawToken),
+      ).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+
+      const { rows: userRows } = await pool.query<{ role: string }>(
+        "select role from users where id = $1",
+        [user.id],
+      );
+      expect(userRows[0].role).toBe("pending");
+    });
+
     // The two accept paths are scoped by invite_role, so a token for one is
     // simply not found by the other.
     it("does not accept a founder token as a mentor invitation", async () => {
@@ -935,8 +1032,8 @@ describe("invitation service — database integration", () => {
       expect(listedForAdmin.map((row) => row.id)).toContain(ownedByA.id);
     });
 
-    // The redeemer cannot tell the two token kinds apart, so /pending sends
-    // both here and the token decides which path runs.
+    // The redeemer cannot tell the two token kinds apart, so acceptInvitation
+    // dispatches on the token and the token decides which path runs.
     it("routes a founder token to the founder accept path", async () => {
       const mentor = await createMentorUser("dispatch-mentor");
       const user = await createPendingUser("dispatch-founder");

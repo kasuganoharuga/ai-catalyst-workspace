@@ -6,7 +6,7 @@ import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
 
 /**
- * Shared sign-out for UserMenu and /pending's SignOutButton.
+ * Shared sign-out for UserMenu.
  * Ends the browser session only — MCP grants stay alive (Disconnect /
  * password change / lifetime limits / RFC 7009 revoke those).
  */

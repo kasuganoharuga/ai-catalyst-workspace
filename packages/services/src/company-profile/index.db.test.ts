@@ -151,5 +151,79 @@ describe("company-profile service — database integration", () => {
         code: "VALIDATION_ERROR",
       });
     });
+
+    // These two guard the fix for a nested-transaction bug: the first-save
+    // path used to call getActiveContext(actor)/getVenture(actor, ...),
+    // each opening its own pool connection while this function's own
+    // transaction was still open on a different client. It now passes its
+    // own client through (ensureAndReadActiveContext + getVenture's
+    // executor param), so both live in the same transaction — which means
+    // a self-heal write that happens on the way to a validation failure
+    // rolls back with everything else, rather than silently committing on
+    // its own connection the way it used to.
+    it("rolls back a fresh active-context row when the first save fails before an idea is chosen", async () => {
+      const { actor } = await createFounder("atomic-insert-rollback");
+      await createVenture(actor, { name: "Unselected Idea" });
+
+      // No user_active_contexts row exists yet for this actor, so
+      // ensureAndReadActiveContext's insert is a real write, not a no-op.
+      await expect(
+        updateMyCompanyProfile(actor, { name: "Acme Pty Ltd" }),
+      ).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("current idea"),
+      });
+
+      // Under the old nested-transaction bug this insert ran on its own
+      // already-committed connection and would leave a row behind even
+      // though the overall save failed. It now shares this function's
+      // transaction, so a failed save leaves no trace.
+      const row = await pool.query(
+        `select 1 from user_active_contexts where user_id = $1`,
+        [actor.userId],
+      );
+      expect(row.rowCount).toBe(0);
+    });
+
+    it("rolls back a stale-context self-heal when the first save still fails", async () => {
+      const { actor } = await createFounder("stale-self-heal");
+      const other = await createFounder("stale-self-heal-other");
+      const otherVenture = await createVenture(other.actor, {
+        name: "Other Founder's Idea",
+      });
+
+      // Simulate a stale user_active_contexts row pointing at a different
+      // Workspace/Venture — the scenario ensureAndReadActiveContext's
+      // self-heal branch exists to correct. Correcting it always nulls
+      // the Venture, so this call fails the same "choose an idea" check
+      // as the fresh-row case above.
+      await pool.query(
+        `insert into user_active_contexts (user_id, active_workspace_id, active_venture_id)
+         values ($1, $2, $3)`,
+        [actor.userId, other.workspaceId, otherVenture.id],
+      );
+
+      await expect(
+        updateMyCompanyProfile(actor, { name: "Acme Pty Ltd" }),
+      ).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+        message: expect.stringContaining("current idea"),
+      });
+
+      // The correction to the actor's own Workspace happened on the same
+      // transaction as the (failed) save, so it rolls back too — the row
+      // still shows the stale Workspace/Venture. A later call that
+      // actually succeeds (e.g. a plain read) will self-heal it for real.
+      const row = await pool.query<{
+        active_workspace_id: string;
+        active_venture_id: string | null;
+      }>(
+        `select active_workspace_id, active_venture_id
+         from user_active_contexts where user_id = $1`,
+        [actor.userId],
+      );
+      expect(row.rows[0].active_workspace_id).toBe(other.workspaceId);
+      expect(row.rows[0].active_venture_id).toBe(otherVenture.id);
+    });
   });
 });

@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { structuredMarkdownV1 } from "../../artifact/internal/validators/structured-markdown-v1.js";
 import type { ValidationContext } from "../../artifact/internal/validators/types.js";
 import { DEFAULT_TOOLKIT_CONTENT } from "./index.js";
-import { PROMPTS_CONTENT } from "./prompts.js";
+import { PROMPTS_CONTENT } from "./prompts/index.js";
 
 // The canonical source of truth for Modules 2-4 is the reviewed Markdown
 // under packages/toolkit-content/skills/ — the TypeScript constants in

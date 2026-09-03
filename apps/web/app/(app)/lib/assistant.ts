@@ -10,9 +10,9 @@ import {
   chatgptDesktopChatUrl,
   claudeChatUrl,
   claudeDesktopChatUrl,
-} from "./module-display";
+} from "./assistant-links";
 
-// Composes copy.ts strings and module-display.ts URL builders — one import for call sites.
+// Composes copy.ts strings and assistant-links.ts URL builders — one import for call sites.
 // Assistants are not symmetrical (nullable fields force explicit handling).
 
 export interface Assistant {

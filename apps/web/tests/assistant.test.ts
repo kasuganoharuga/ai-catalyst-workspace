@@ -72,7 +72,7 @@ describe("assistant links", () => {
 
   // codex://new?prompt= is the same scheme family as the settings link
   // above, confirmed against OpenAI's own command reference — see
-  // chatgptDesktopChatUrl's doc comment in module-display.ts. ChatGPT
+  // chatgptDesktopChatUrl's doc comment in assistant-links.ts. ChatGPT
   // still gets no browser fallback: chatgpt.com has no route to this
   // workspace's MCP connector regardless of a prefilled prompt.
   it("gives ChatGPT a prefilled desktop composer but no browser fallback", () => {

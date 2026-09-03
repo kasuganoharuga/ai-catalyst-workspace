@@ -3,6 +3,8 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ErrorBanner } from "@/components/error-banner";
+import { TextField } from "@/components/text-field";
 import { updateProfileAction } from "@/lib/actions/account-actions";
 
 import { errorCopy, onboardingCopy } from "../../lib/copy";
@@ -46,14 +48,14 @@ export function NameStep({ onDone }: { onDone: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field
+        <TextField
           label={onboardingCopy.nameFirstLabel}
           value={firstName}
           onChange={setFirstName}
           autoComplete="given-name"
           placeholder="Alex"
         />
-        <Field
+        <TextField
           label={onboardingCopy.nameLastLabel}
           value={lastName}
           onChange={setLastName}
@@ -62,14 +64,7 @@ export function NameStep({ onDone }: { onDone: () => void }) {
         />
       </div>
 
-      {error ? (
-        <p
-          role="alert"
-          className="border-l-2 border-destructive bg-destructive/5 py-2 pl-3 text-sm text-destructive"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorBanner>{error}</ErrorBanner> : null}
 
       {/* No skip: both name parts are required, which is also the test the
           dashboard's profile nudge uses, so finishing here retires it. */}
@@ -77,33 +72,5 @@ export function NameStep({ onDone }: { onDone: () => void }) {
         {saving ? onboardingCopy.namePending : onboardingCopy.nameCta}
       </Button>
     </form>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-  autoComplete,
-  placeholder,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-  autoComplete?: string;
-  placeholder?: string;
-}) {
-  return (
-    <label className="block space-y-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <input
-        type="text"
-        value={value}
-        placeholder={placeholder}
-        autoComplete={autoComplete}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm text-foreground outline-none transition placeholder:text-muted-foreground/50 focus:border-foreground focus:ring-1 focus:ring-foreground"
-      />
-    </label>
   );
 }

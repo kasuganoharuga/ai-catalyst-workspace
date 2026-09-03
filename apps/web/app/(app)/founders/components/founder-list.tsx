@@ -5,6 +5,8 @@ import { useMemo, useState, type ReactNode } from "react";
 
 import type { MentorFounderSummary } from "@ai-catalyst/shared";
 
+import { EmptyStateCard } from "@/components/empty-state-card";
+
 import { mentorOverviewCopy } from "../../lib/copy";
 import { FounderRow } from "./founder-row";
 
@@ -68,14 +70,14 @@ export function FounderList({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="mt-6 rounded-xl border border-border bg-card px-6 py-14 text-center">
+        <EmptyStateCard className="mt-6">
           <p className="text-[15px] font-semibold text-foreground">
             {mentorOverviewCopy.noMatchesTitle}
           </p>
           <p className="mt-2 text-sm text-muted-foreground">
             {mentorOverviewCopy.noMatchesBody}
           </p>
-        </div>
+        </EmptyStateCard>
       ) : (
         <div className="mt-8">
           {/* Column widths mirror FounderRow — hidden below sm where rows stack. */}

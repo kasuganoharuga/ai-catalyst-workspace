@@ -2,7 +2,11 @@
 // verdict validators. Kept generic enough for multiple callers, but still
 // string-in/string-out — no DB or ActorContext, matching the Validator contract.
 
-interface HeadingLine {
+// Exported (not just used internally) for the document-export code path —
+// see listHeadings below — but the shape and detection regex stay exactly
+// what structured-markdown-v1 and the renderers' requiredSections drift
+// test already treat as the stable section-anchor contract.
+export interface HeadingLine {
   level: number;
   heading: string;
   lineIndex: number;
@@ -359,4 +363,124 @@ export function normalizeComparisonValue(text: string): string {
   value = value.replace(/^\d+\s*(?:—|-|:)\s*/, "");
   value = value.replace(/[\s_-]+/g, " ").trim();
   return value;
+}
+
+// --- Export-oriented heading & table listing ---
+// Distinct from parseTable above: parseTable extracts a validator *signal*
+// (drops blank scaffold rows, strips ** emphasis) — these two instead
+// reproduce the document exactly as the Founder wrote it and as the
+// website/PDF view renders it, for the docx/xlsx exporters
+// (internal/exporters/). Neither changes any existing function's behavior.
+
+/** Every `#`–`######` heading in document order — the same detection parseHeadingLines uses internally. */
+export function listHeadings(content: string): HeadingLine[] {
+  return parseHeadingLines(content.split("\n"));
+}
+
+export interface MarkdownTableSection {
+  /** Nearest enclosing heading text, or `null` for a table before any heading. */
+  heading: string | null;
+  headingLevel: number | null;
+  table: ParsedTable;
+}
+
+// Row split with no emphasis stripping and no blank-row filtering — the
+// verbatim counterpart to parseTableRowCells above.
+function parseRawTableRowCells(rawLine: string): string[] {
+  const trimmed = rawLine.trim();
+  const rawCells = tokenizeTableRow(trimmed);
+  const inner =
+    rawCells.length >= 2 &&
+    rawCells[0].trim().length === 0 &&
+    rawCells[rawCells.length - 1].trim().length === 0
+      ? rawCells.slice(1, -1)
+      : rawCells;
+  return inner.map((cell) => cell.trim());
+}
+
+// Verbatim counterpart to parseTable above — same table-line detection and
+// header/separator indexing, but keeps every data row (including blank
+// scaffold rows) and leaves `**bold**` markers untouched.
+function parseRawTable(sectionBody: string): ParsedTable | null {
+  const lines = sectionBody.split("\n");
+  const tableLineIndexes = lines.reduce<number[]>((acc, line, index) => {
+    if (isTableLine(line)) acc.push(index);
+    return acc;
+  }, []);
+  if (tableLineIndexes.length < 2) {
+    return null;
+  }
+
+  const headerCells = parseRawTableRowCells(lines[tableLineIndexes[0]]);
+  const separatorCells = parseRawTableRowCells(lines[tableLineIndexes[1]]);
+  if (!isSeparatorRow(separatorCells)) {
+    return null;
+  }
+
+  const rows = tableLineIndexes
+    .slice(2)
+    .map((lineIndex) => parseRawTableRowCells(lines[lineIndex]));
+
+  return { headers: headerCells, rows };
+}
+
+/**
+ * Every GFM table in `content`, each paired with the heading whose section
+ * it falls under (by document position, not by first-text-match like
+ * getSection — correct even when two headings share the same text). Rows
+ * are verbatim: export must reproduce what the Founder actually wrote, the
+ * same way the website/PDF view does, not the validator's substantive-
+ * content signal.
+ */
+export function parseAllTables(content: string): MarkdownTableSection[] {
+  const lines = content.split("\n");
+  const headings = parseHeadingLines(lines);
+
+  const segments: {
+    heading: HeadingLine | null;
+    start: number;
+    end: number;
+  }[] = [];
+
+  const firstHeadingLine = headings[0]?.lineIndex ?? lines.length;
+  if (firstHeadingLine > 0) {
+    segments.push({ heading: null, start: 0, end: firstHeadingLine });
+  }
+
+  // Flat segmentation, deliberately not getSection's nested one: a table
+  // belongs to the heading it sits directly under, ending at the very next
+  // heading regardless of level. getSection's "next heading of level <= this
+  // one" answers a different question (everything nested under a heading,
+  // subheadings included) — using that here would fold every subsection's
+  // table into its parent heading's segment too and merge them into one.
+  headings.forEach((heading, index) => {
+    const end = headings[index + 1]?.lineIndex ?? lines.length;
+    segments.push({ heading, start: heading.lineIndex + 1, end });
+  });
+
+  const results: MarkdownTableSection[] = [];
+  for (const segment of segments) {
+    const body = lines.slice(segment.start, segment.end).join("\n");
+    const table = parseRawTable(body);
+    if (table) {
+      results.push({
+        heading: segment.heading?.heading ?? null,
+        headingLevel: segment.heading?.level ?? null,
+        table,
+      });
+    }
+  }
+  return results;
+}
+
+/**
+ * `true` iff `content` has at least one GFM table — the check both the UI
+ * (does the Excel download exist at all) and the xlsx exporter (fail closed
+ * rather than emit an empty workbook) use. Lives here rather than in the
+ * xlsx exporter file so callers who only need this cheap predicate — every
+ * artifact page load, to decide whether to show the Excel menu item — never
+ * pull in write-excel-file, which that file imports at module scope.
+ */
+export function artifactMarkdownHasTables(content: string): boolean {
+  return parseAllTables(content).length > 0;
 }

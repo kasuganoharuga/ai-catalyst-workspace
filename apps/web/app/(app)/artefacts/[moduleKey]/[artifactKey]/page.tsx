@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/page-header";
+import { listArtifactCommentThreads } from "@/lib/artifact-comments";
 import { getCurrentFounderActor } from "@/lib/current-founder-actor";
 import { getFounderArtifactDocument } from "@/lib/artifacts";
 import { formatDateTime } from "@/lib/format";
@@ -10,7 +12,7 @@ import { ANALYTICS_EVENTS } from "@/lib/analytics/events";
 
 import { AnalyticsTrack } from "../../../components/analytics-track";
 import { ArtefactDownloadMenu } from "../../../components/artefact-download-menu";
-import { MarkdownDocument } from "../../../components/markdown-document";
+import { ArtifactDocumentWithComments } from "../../../components/artefact-comments/artifact-document-with-comments";
 import { PageShell } from "../../../components/page-shell";
 
 type ArtefactDetailPageProps = {
@@ -44,6 +46,11 @@ export default async function ArtefactDetailPage({
   }
 
   const downloadHref = `/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}/download`;
+  const pathname = `/artefacts/${encodeURIComponent(moduleKey)}/${encodeURIComponent(artifactKey)}`;
+  const threads = await listArtifactCommentThreads(actor, {
+    attemptId: document.attemptId,
+    artifactKey,
+  });
 
   return (
     <PageShell>
@@ -56,26 +63,29 @@ export default async function ArtefactDetailPage({
         })}
       />
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 max-w-2xl">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            <Link
-              href="/artefacts"
-              className="underline-offset-2 hover:underline"
-            >
-              Artefacts
-            </Link>
-            <span aria-hidden="true"> / </span>
-            From {document.moduleTitle}
-          </p>
-          <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-            {document.name}
-          </h1>
-          <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-            Version {document.versionNumber}
-            {" · "}
-            Saved at: {formatDateTime(document.savedAt)}
-          </p>
-        </div>
+        <PageHeader
+          kicker={
+            <>
+              <Link
+                href="/artefacts"
+                className="underline-offset-2 hover:underline"
+              >
+                Artefacts
+              </Link>
+              <span aria-hidden="true"> / </span>
+              From {document.moduleTitle}
+            </>
+          }
+          title={document.name}
+          intro={
+            <>
+              Version {document.versionNumber}
+              {" · "}
+              Saved at: {formatDateTime(document.savedAt)}
+            </>
+          }
+          className="min-w-0 max-w-2xl"
+        />
 
         <div className="flex flex-wrap items-center gap-2">
           <Button asChild size="lg" variant="outline">
@@ -86,6 +96,7 @@ export default async function ArtefactDetailPage({
           <ArtefactDownloadMenu
             downloadHref={downloadHref}
             workbookAvailable={document.workbookAvailable}
+            tablesAvailable={document.tablesAvailable}
             size="lg"
             triggerVariant="default"
             singleVariant="default"
@@ -93,14 +104,16 @@ export default async function ArtefactDetailPage({
         </div>
       </div>
 
-      <article className="mt-10 overflow-hidden rounded-xl border border-border bg-card">
-        <div className="border-b border-border bg-muted/40 px-5 py-3">
-          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            Document
-          </p>
-        </div>
-        <MarkdownDocument content={document.content} />
-      </article>
+      <ArtifactDocumentWithComments
+        content={document.content}
+        threads={threads}
+        viewerUserId={actor.userId}
+        viewerRole="founder"
+        pathname={pathname}
+        attemptId={document.attemptId}
+        artifactKey={artifactKey}
+        headings={document.headings}
+      />
     </PageShell>
   );
 }

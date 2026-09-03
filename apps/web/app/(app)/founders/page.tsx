@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { EmptyStateCard } from "@/components/empty-state-card";
+import { PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { getCurrentMentorActor } from "@/lib/current-mentor-actor";
 import { listMentorFounders } from "@/lib/mentor";
@@ -29,17 +31,11 @@ export default async function MentorFoundersPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-          {mentorOverviewCopy.kicker}
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          {mentorOverviewCopy.title}
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          {mentorOverviewCopy.intro}
-        </p>
-      </div>
+      <PageHeader
+        kicker={mentorOverviewCopy.kicker}
+        title={mentorOverviewCopy.title}
+        intro={mentorOverviewCopy.intro}
+      />
 
       {founders.length === 0 ? (
         <>
@@ -48,14 +44,14 @@ export default async function MentorFoundersPage() {
               <Link href="/invitations">{mentorOverviewCopy.inviteCta}</Link>
             </Button>
           </div>
-          <div className="mt-10 rounded-xl border border-border bg-card px-6 py-14 text-center">
+          <EmptyStateCard className="mt-10">
             <p className="text-[15px] font-semibold text-foreground">
               {mentorOverviewCopy.emptyTitle}
             </p>
             <p className="mt-2 text-sm text-muted-foreground">
               {mentorOverviewCopy.emptyBody}
             </p>
-          </div>
+          </EmptyStateCard>
         </>
       ) : (
         <>

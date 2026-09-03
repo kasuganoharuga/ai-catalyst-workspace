@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { PageShell } from "@/app/(app)/components/page-shell";
+import { PageHeader } from "@/components/page-header";
 import { requireAdminUser } from "@/lib/require-active-user";
 import { appPageTitle } from "@/lib/page-metadata";
 import { actorContextFromSession } from "@/lib/actor-context";
@@ -23,24 +24,24 @@ export default async function AdminInvitationsPage() {
 
   return (
     <PageShell>
-      <div className="max-w-2xl">
-        <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
+      <PageHeader
+        kicker={
           <Link
             href="/admin/users"
             className="underline-offset-2 hover:underline"
           >
             Users
           </Link>
-        </p>
-        <h1 className="mt-4 font-serif text-[2.25rem] font-medium leading-tight tracking-[-0.02em]">
-          Invitations
-        </h1>
-        <p className="mt-3 text-[15px] leading-7 text-muted-foreground">
-          Share the one-time code manually — there is no email delivery yet.
-          Admin-issued founder invites create a workspace with no mentor; bind
-          one later from Users.
-        </p>
-      </div>
+        }
+        title="Invitations"
+        intro={
+          <>
+            We&apos;ll email the invitee a login page, their account, and an
+            initial password. Admin-issued founder invites create a workspace
+            with no mentor; bind one later from Users.
+          </>
+        }
+      />
 
       <AdminInvitationsPanel
         mentorInvitations={mentorInvitations}
