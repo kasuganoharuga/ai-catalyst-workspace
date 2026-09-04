@@ -208,11 +208,11 @@ Next.js owns the product experience (pages, auth, workspace/admin shells). FastA
 
 `apps/mcp` is a standalone Streamable HTTP MCP server: a single `/mcp` endpoint (`POST` for MCP; unauthenticated calls return 401), `GET /health`, OAuth protected-resource metadata, and thin tool handlers that call `packages/services`. It runs as its own container in `infra/docker/docker-compose.yml` (`pnpm docker:up` → `http://127.0.0.1:8787`).
 
-| Layer               | Owns                                                                                                                                                                                         |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                    |
-| `apps/mcp`          | Remote MCP server for AI-agent clients (Claude, ChatGPT): tool shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                               |
-| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit, …) — both `apps/web` and `apps/mcp` call into this layer; only it may call `apps/api`            |
+| Layer               | Owns                                                                                                                                                                                            |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                       |
+| `apps/mcp`          | Remote MCP server for AI-agent clients (Claude, ChatGPT): tool shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                                  |
+| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit, …) — both `apps/web` and `apps/mcp` call into this layer; only it may call `apps/api`               |
 | `apps/api`          | Internal AI service only (generation/rendering/RAG). Reserved in V1 — not called from `packages/services` today, never from `apps/web` or `apps/mcp` directly, and never writes business tables |
 
 Framework rules:
