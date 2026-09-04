@@ -11,7 +11,7 @@ pnpm docker:up
 1. Start `db` and wait for its healthcheck (`docker compose up -d --wait db`).
 2. Run pending migrations from the host against `127.0.0.1:5432` (`pnpm --filter @ai-catalyst/db run migrate`).
 3. Seed the founder-toolkit content catalog.
-4. Start (and build) every other service: `api` on `http://127.0.0.1:8000`, `web` on `http://127.0.0.1:3000`, and `mcp` on `http://127.0.0.1:8787` (its `/health` and stateless `/mcp` endpoint; no real tools yet — see [`apps/mcp`](../../apps/mcp)).
+4. Start (and build) every other service: `api` on `http://127.0.0.1:8000`, `web` on `http://127.0.0.1:3000`, `mcp` on `http://127.0.0.1:8787` (its `/health` and stateless `/mcp` endpoint — see [`apps/mcp`](../../apps/mcp)), and `gotenberg` for workbook PDFs.
 
 This requires a repo-root `.env` (copy [`.env.example`](../../.env.example)) with `BETTER_AUTH_SECRET` set — the `web` service fails fast at compose-config time if it's missing. `docker-up.js` passes `--env-file` (not `--project-directory`) explicitly, since `docker compose -f infra/docker/docker-compose.yml` otherwise looks for `.env` next to the compose file, not the repo root.
 
