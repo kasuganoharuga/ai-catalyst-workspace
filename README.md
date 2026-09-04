@@ -1,19 +1,24 @@
 # AI Catalyst Workspace
 
-Platform-ready workspace for the AI Catalyst Founder Toolkit, starting with downloadable AI Skills and structured module content.
+Skill-first Founder Toolkit. A Founder works through a locked module sequence
+with Claude or ChatGPT as the interviewer. The assistant talks to a standalone
+MCP server; the website is where Founders log in, connect an assistant, review
+artefacts, and confirm module completion. Mentors supervise Founders and can
+invite them. Admins operate the platform.
 
-This repository is a development-ready foundation for the AI Catalyst Founder Toolkit MVP.
+The platform does not call Anthropic or OpenAI itself. FastAPI is reserved and
+unused for product traffic.
 
 ## V1 Scope
 
-Skill-first Founder Toolkit with authenticated workspace flows:
+Authenticated workspace flows:
 
-- Browse Toolkit modules and work through module attempts
-- Persist progress in PostgreSQL (`module_attempts`, artifacts, interviews, …)
-- Better Auth login / invitations; MCP OAuth for AI-agent clients (e.g. Claude)
-- Remote MCP server (`apps/mcp`) exposing thin tool shells over Streamable HTTP
+- Invitation-provisioned accounts (email + password). Roles: `founder`, `mentor`, `admin`
+- Browse Toolkit modules, persist attempts / artefacts / progress in PostgreSQL
+- Claude and ChatGPT connect via MCP OAuth; `apps/mcp` exposes thin tool shells over Streamable HTTP
+- Founder confirmation on the website completes a module and unlocks the next
 - Shared business logic in `packages/services` (web and MCP both call it)
-- FastAPI reserved for future internal AI workflow execution (RAG, generation)
+- FastAPI reserved for future internal AI workflow execution (RAG, generation) — not on the product path today
 
 V1 does not include investor matching or browser-direct model-provider calls.
 
@@ -22,10 +27,10 @@ V1 does not include investor matching or browser-direct model-provider calls.
 - Frontend: Next.js (App Router), TypeScript, Tailwind CSS, shadcn/ui, pnpm
 - Backend: FastAPI, Python (reserved internal AI service)
 - MCP: Remote MCP server, Node/TypeScript (see [MCP & Services Architecture](#mcp--services-architecture))
-- Database: PostgreSQL via Docker Compose
-- Content: Markdown + JSON manifest in `packages/toolkit-content` (seeded into DB)
-- Observability: `packages/observability` (JSON logs + redaction); Sentry optional via DSN
-- Tooling: Docker Compose for backend services, GitHub Actions CI
+- Database: PostgreSQL via Docker Compose (RDS PostgreSQL 17 in AWS)
+- Content: TypeScript seed in `packages/services/src/content-seed/` (authoring drafts in `packages/toolkit-content`)
+- Observability: `packages/observability` (JSON logs + redaction); Sentry and PostHog optional
+- Tooling: Docker Compose for local services (including Gotenberg for workbook PDFs), GitHub Actions CI
 
 ## Prerequisites
 
@@ -72,7 +77,7 @@ Run the standard development setup (Docker Postgres, migrated, plus local web + 
 pnpm dev
 ```
 
-`pnpm dev` (`scripts/dev.js`) starts only the `db` container, runs pending migrations against it via `packages/db`, then runs `web` (`next dev`) and `api` (`uvicorn --reload`) as local processes; press `Ctrl+C` to stop everything — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). It requires a local Python environment with `apps/api/requirements.txt` installed (see [`apps/api/README.md`](apps/api/README.md#development)). (`pnpm docker:up` starts the full containerized stack — `db`, `api`, `web`, and `mcp` all as built containers — detached, for cases where you want it running independently of a foreground command instead of iterating on `web`/`api` locally.)
+`pnpm dev` (`scripts/dev.js`) starts only the `db` container, runs pending migrations against it via `packages/db`, then runs `web` (`next dev`) and `api` (`uvicorn --reload`) as local processes; press `Ctrl+C` to stop everything — the script explicitly runs `docker compose down` on shutdown (containers may take a few seconds to stop gracefully; pressing `Ctrl+C` again during that window is a no-op, not a force-kill). It requires a local Python environment with `apps/api/requirements.txt` installed (see [`apps/api/README.md`](apps/api/README.md#development)). (`pnpm docker:up` starts the full containerized stack — `db`, `api`, `web`, `mcp`, and `gotenberg` as built containers — detached, for cases where you want it running independently of a foreground command instead of iterating on `web`/`api` locally.)
 
 ## Environment
 
@@ -119,7 +124,7 @@ pnpm format
 `pnpm format` and `pnpm format:check` cover the whole repo from the root
 Prettier config. [`.prettierignore`](.prettierignore) excludes generated font
 blobs and the Toolkit content under `packages/toolkit-content/{modules,skills}/`,
-which `content-seed` reads verbatim.
+which anti-drift tests compare against the TypeScript seed constants.
 
 Validate the Docker Compose configuration:
 
@@ -129,7 +134,7 @@ docker compose -f infra/docker/docker-compose.yml config
 
 ## Docker
 
-Start the full stack (`db`, `api`, `web`, `mcp`):
+Start the full stack (`db`, `api`, `web`, `mcp`, `gotenberg`):
 
 ```powershell
 pnpm docker:up
@@ -152,14 +157,15 @@ GitHub Actions validates the project on push to `main`/`develop` and on pull req
 - **backend**: install FastAPI dependencies and smoke check the app import
 - **infrastructure**: validate the Docker Compose configuration, run migrations against a real Postgres instance, verify Better Auth's schema is in sync, run Better Auth integration tests, verify migration checksum protection, build+smoke-test the `web`/`mcp` containers, validate Terraform, and dry-run ECS task definition rendering
 
-Manual cloud deploy (no auto-push): [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) — matrix build for `web` / `api` / `mcp`. See [`infra/aws/README.md`](infra/aws/README.md).
+Cloud deploy on push: [`.github/workflows/deploy-aws.yml`](.github/workflows/deploy-aws.yml) (`develop` → staging, `main` → production). Manual staging-only matrix build: [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml). See [`infra/aws/README.md`](infra/aws/README.md).
 
 ## Cloud deploy architecture (Staging / Production)
 
 ```text
 Developer → GitHub → Actions → ECR → ECS Fargate → ALB
                                       → Web / MCP (public)
-                                      → API (private)
+                                      → API (private, desired_count 0)
+                                      → Gotenberg (private)
                                       → RDS / S3 / SES / Secrets Manager
 ```
 
@@ -175,7 +181,7 @@ apps/
   api/              Reserved FastAPI internal AI service
   mcp/              Remote MCP server — Streamable HTTP over /mcp, thin tool shells
 packages/
-  toolkit-content/  Module metadata, markdown, Skills, templates (seed-time only)
+  toolkit-content/  Authoring source (manifest, modules, skills); not read at runtime
   shared/           Shared TypeScript types
   contracts/        Cross-cutting types (e.g. ActorContext)
   services/         Application Service Layer — sole home for business logic
@@ -184,13 +190,13 @@ packages/
   clients/          Outbound HTTP clients to apps/api (scaffold until AI calls land)
 infra/
   docker/           Local Docker Compose setup
-  aws/              AWS Staging (Terraform, SES, S3, deploy runbook)
+  aws/              AWS staging + production Terraform, SES, S3, deploy runbook
   database/         SQL migrations
 ```
 
 ## Architecture Direction
 
-Next.js is the primary full-stack application. Toolkit catalog content is seeded from `packages/toolkit-content` into PostgreSQL at deploy/migrate time; runtime product paths go through `packages/services`, not disk reads of the content package.
+Next.js is the primary full-stack application. Toolkit catalog content is seeded from `packages/services/src/content-seed/` into PostgreSQL at deploy/migrate time. `packages/toolkit-content` is the authoring source (anti-drift tests keep it aligned with the seed constants). Runtime product paths go through `packages/services`, not disk reads of the content package.
 
 FastAPI stays minimal in V1. It reserves the path for future AI orchestration, file processing, RAG, and artefact generation without duplicating the Toolkit data path. It ships with settings, JSON logging, request-id, CORS, and error-handling infrastructure so future workflow endpoints have a stable foundation.
 
@@ -205,19 +211,19 @@ Next.js owns the product experience (pages, auth, workspace/admin shells). FastA
 | Layer               | Owns                                                                                                                                                                                         |
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `apps/web`          | Pages, product route handlers — thin shells that call `packages/services`                                                                                                                    |
-| `apps/mcp`          | Remote MCP server for AI-agent clients (e.g. Claude): tool shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                                   |
-| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit, interview, …) — both `apps/web` and `apps/mcp` call into this layer; only it may call `apps/api` |
-| `apps/api`          | Internal AI service only (generation/rendering/RAG). Called from `packages/services` only — never from `apps/web` or `apps/mcp` directly — and never writes business tables itself           |
+| `apps/mcp`          | Remote MCP server for AI-agent clients (Claude, ChatGPT): tool shells over a single `/mcp` endpoint — calls `packages/services`, never implements logic itself                               |
+| `packages/services` | The single home for business logic (workflow, module, artifact, storage, invitation, audit, …) — both `apps/web` and `apps/mcp` call into this layer; only it may call `apps/api`            |
+| `apps/api`          | Internal AI service only (generation/rendering/RAG). Reserved in V1 — not called from `packages/services` today, never from `apps/web` or `apps/mcp` directly, and never writes business tables |
 
 Framework rules:
 
 1. **No duplicate business logic.** `apps/web` route handlers and `apps/mcp` tool handlers both validate input and delegate to the same `packages/services` function — never two implementations of the same operation.
 2. **FastAPI is internal-only.** `packages/services → apps/api`, never `apps/web`/`apps/mcp → apps/api` directly, and FastAPI never writes business tables.
 3. **MCP deploys standalone**, not embedded in Next.js — Streamable HTTP's long-lived connections don't fit the Vercel serverless model, so `apps/mcp` runs as its own container alongside `db`/`api`.
-4. **Two-layer auth, never mixed.** Claude → MCP uses the platform Bearer token (Better Auth is the Authorization Server; MCP is a Resource Server that only verifies the token and reads scope). MCP → Google Drive uses the separate, encrypted `user_ai_connections`/`accounts` Google token. The platform token is never forwarded downstream to Google.
+4. **Two-layer auth, never mixed.** Claude / ChatGPT → MCP uses the platform Bearer token (Better Auth is the Authorization Server; MCP is a Resource Server that only verifies the token and reads scope). There is no Google Drive token path.
 5. **V1 MCP tools are stateless** — identity/parameters travel with every request; progress is persisted in PostgreSQL, not an MCP session.
 
-Official artifact validation is never exposed as an MCP tool — schema check constraints already gate it so it can't be MCP-triggered; MCP only ever exposes the non-authoritative `run_draft_check` path.
+Official artefact validation is never exposed as an MCP tool. `save_artifact` runs a draft check inline; `complete_module` runs official validation and stops at `ready_for_review`. Founder confirmation on the website completes the module and unlocks the next.
 
 Toolkit content is read at seed time only (`packages/services/src/content-seed/`).
 
