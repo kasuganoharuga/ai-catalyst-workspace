@@ -34,7 +34,7 @@
     }
   },
   "devDependencies": {
-    "dependency-cruiser": "^18.1.0",
+    "dependency-cruiser": "^18.2.0",
     "prettier": "^3.9.6",
     "vitest": "^4.1.10"
   }
