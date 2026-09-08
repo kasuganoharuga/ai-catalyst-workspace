@@ -223,7 +223,7 @@
     "tsx": "^4.20.6",
     "typeface-noto-sans": "^1.1.13",
     "typescript": "^5",
-    "vitest": "^4.1.10",
+    "vitest": "^5.0.0",
     "wawoff2": "^2.0.1"
   }
 }
